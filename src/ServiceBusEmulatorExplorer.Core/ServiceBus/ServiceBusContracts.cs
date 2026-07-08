@@ -49,12 +49,14 @@ public sealed record ExplorerMessage(
     long SequenceNumber,
     string Body,
     string BodyPreview,
+    int BodySizeBytes,
     DateTimeOffset? EnqueuedTime,
     DateTimeOffset? ExpiresAt,
     int DeliveryCount,
     string? ContentType,
     string? CorrelationId,
     string? SessionId,
+    string? Subject,
     IReadOnlyDictionary<string, object?> ApplicationProperties,
     IReadOnlyDictionary<string, object?> SystemProperties);
 
@@ -110,7 +112,14 @@ public sealed record UpdateSubscriptionCommand(
     int? MaxDeliveryCount = null,
     TimeSpan? DefaultMessageTimeToLive = null);
 
-public sealed record SendMessageCommand(EntityAddress Destination, string Body);
+public sealed record SendMessageCommand(
+    EntityAddress Destination,
+    string Body,
+    string? ContentType = null,
+    string? CorrelationId = null,
+    string? SessionId = null,
+    string? Subject = null,
+    IReadOnlyDictionary<string, object?>? ApplicationProperties = null);
 
 public interface IServiceBusClientFactory : IAsyncDisposable
 {
@@ -157,12 +166,6 @@ public interface IServiceBusMessageService
         CancellationToken cancellationToken);
 
     Task SendMessageAsync(SendMessageCommand command, CancellationToken cancellationToken);
-
-    Task DeleteMessagesAsync(
-        EntityAddress address,
-        MessageBucket bucket,
-        IReadOnlyList<long> sequenceNumbers,
-        CancellationToken cancellationToken);
 }
 
 public interface IDeadLetterReplayService

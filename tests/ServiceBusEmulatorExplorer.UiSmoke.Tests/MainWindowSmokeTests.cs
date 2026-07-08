@@ -1,3 +1,4 @@
+using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
 using FlaUI.Core;
 using FlaUI.Core.AutomationElements;
@@ -178,6 +179,59 @@ public sealed class MainWindowSmokeTests
         }
     }
 
+    [UiNavigationSmokeFact]
+    [Trait("TestCategory", "UiSmoke")]
+    public async Task Selecting_message_row_updates_body_and_properties()
+    {
+        string queueName = CreateEntityName("queue");
+        const string body = "ui smoke message body";
+
+        var adminClient = new ServiceBusAdministrationClient(ServiceBusUiSmokeEnvironment.AdminConnectionString);
+        await using var runtimeClient = new ServiceBusClient(ServiceBusUiSmokeEnvironment.RuntimeConnectionString);
+        using var testTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        await adminClient.CreateQueueAsync(queueName, testTimeout.Token);
+        await SendSeedMessageAsync(runtimeClient, queueName, body, testTimeout.Token);
+
+        try
+        {
+            string executablePath = WpfAppPath.Resolve();
+            Assert.True(File.Exists(executablePath), $"Build the WPF app before running UI smoke tests. Missing: {executablePath}");
+
+            using Application application = Application.Launch(executablePath);
+            using var automation = new UIA3Automation();
+
+            Window window = application.GetMainWindow(automation, TimeSpan.FromSeconds(10))
+                ?? throw new InvalidOperationException("Main window did not appear within 10 seconds.");
+
+            SetText(window, "ProfileNameTextBox", "UI smoke emulator");
+            SetText(window, "RuntimeConnectionStringTextBox", ServiceBusUiSmokeEnvironment.RuntimeConnectionString);
+            SetText(window, "AdministrationConnectionStringTextBox", ServiceBusUiSmokeEnvironment.AdminConnectionString);
+            window.FindFirstDescendant(cf => cf.ByAutomationId("ConnectButton"))?.AsButton().Click();
+
+            AutomationElement queueElement = WaitForText(window, queueName, TimeSpan.FromSeconds(30));
+            queueElement.Click();
+            WaitForAutomationId(window, "PeekActiveMessagesButton", TimeSpan.FromSeconds(10)).AsButton().Click();
+
+            AutomationElement previewElement = WaitForText(window, body, TimeSpan.FromSeconds(20));
+            previewElement.Click();
+
+            TextBox bodyTextBox = WaitForAutomationId(window, "SelectedMessageBodyText", TimeSpan.FromSeconds(10)).AsTextBox();
+            TextBox systemPropertiesTextBox = WaitForAutomationId(window, "SelectedMessageSystemPropertiesText", TimeSpan.FromSeconds(10)).AsTextBox();
+            TextBox applicationPropertiesTextBox = WaitForAutomationId(window, "SelectedMessageApplicationPropertiesText", TimeSpan.FromSeconds(10)).AsTextBox();
+
+            Assert.Equal(body, bodyTextBox.Text);
+            Assert.Contains("SequenceNumber", systemPropertiesTextBox.Text);
+            Assert.Contains("kind: ui-smoke", applicationPropertiesTextBox.Text);
+
+            window.Close();
+        }
+        finally
+        {
+            using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await DeleteQueueAsync(adminClient, queueName, cleanupTimeout.Token);
+        }
+    }
+
     private static string CreateEntityName(string prefix)
     {
         return $"ui-{prefix}-{Guid.NewGuid():N}".ToLowerInvariant();
@@ -193,6 +247,22 @@ public sealed class MainWindowSmokeTests
         await adminClient.CreateQueueAsync(queueName, cancellationToken);
         await adminClient.CreateTopicAsync(topicName, cancellationToken);
         await adminClient.CreateSubscriptionAsync(topicName, subscriptionName, cancellationToken);
+    }
+
+    private static async Task SendSeedMessageAsync(
+        ServiceBusClient runtimeClient,
+        string queueName,
+        string body,
+        CancellationToken cancellationToken)
+    {
+        await using ServiceBusSender sender = runtimeClient.CreateSender(queueName);
+        var message = new ServiceBusMessage(body)
+        {
+            ContentType = "text/plain"
+        };
+        message.ApplicationProperties["kind"] = "ui-smoke";
+
+        await sender.SendMessageAsync(message, cancellationToken);
     }
 
     private static void SetText(Window window, string automationId, string text)
@@ -272,14 +342,22 @@ public sealed class MainWindowSmokeTests
         string topicName,
         CancellationToken cancellationToken)
     {
-        if (await adminClient.QueueExistsAsync(queueName, cancellationToken))
-        {
-            await adminClient.DeleteQueueAsync(queueName, cancellationToken);
-        }
+        await DeleteQueueAsync(adminClient, queueName, cancellationToken);
 
         if (await adminClient.TopicExistsAsync(topicName, cancellationToken))
         {
             await adminClient.DeleteTopicAsync(topicName, cancellationToken);
+        }
+    }
+
+    private static async Task DeleteQueueAsync(
+        ServiceBusAdministrationClient adminClient,
+        string queueName,
+        CancellationToken cancellationToken)
+    {
+        if (await adminClient.QueueExistsAsync(queueName, cancellationToken))
+        {
+            await adminClient.DeleteQueueAsync(queueName, cancellationToken);
         }
     }
 }

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ServiceBusEmulatorExplorer.App.Services;
@@ -38,7 +39,9 @@ public sealed class ShellViewModel : ObservableObject
         IConnectionProfileStore profileStore,
         IServiceBusClientFactory clientFactory,
         IServiceBusAdministrationService administrationService,
+        IServiceBusMessageService messageService,
         IEntityManagementWorkflow entityManagementWorkflow,
+        IMessageDialogService messageDialogService,
         IClock clock)
     {
         _profileStore = profileStore;
@@ -46,6 +49,8 @@ public sealed class ShellViewModel : ObservableObject
         _administrationService = administrationService;
         _entityManagementWorkflow = entityManagementWorkflow;
         _clock = clock;
+        MessageInspection = new MessageInspectionViewModel(messageService, messageDialogService, AddLog);
+        MessageInspection.PropertyChanged += MessageInspection_PropertyChanged;
         ConnectCommand = new AsyncRelayCommand(ConnectAsync, CanConnect);
         DisconnectCommand = new AsyncRelayCommand(DisconnectAsync, CanDisconnect);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, CanRefresh);
@@ -149,6 +154,7 @@ public sealed class ShellViewModel : ObservableObject
         {
             if (SetProperty(ref _isConnected, value))
             {
+                MessageInspection.IsConnected = value;
                 NotifyCommandStateChanged();
             }
         }
@@ -161,6 +167,7 @@ public sealed class ShellViewModel : ObservableObject
         {
             if (SetProperty(ref _isBusy, value))
             {
+                MessageInspection.IsShellBusy = value;
                 NotifyCommandStateChanged();
             }
         }
@@ -181,6 +188,8 @@ public sealed class ShellViewModel : ObservableObject
     public ObservableCollection<EntityTreeNodeViewModel> EntityTree { get; } = [];
 
     public ObservableCollection<OperationLogEntry> OperationLog { get; } = [];
+
+    public MessageInspectionViewModel MessageInspection { get; }
 
     public IAsyncRelayCommand ConnectCommand { get; }
 
@@ -330,6 +339,7 @@ public sealed class ShellViewModel : ObservableObject
     {
         ServiceBusEntityNode? entity = node?.Entity;
         _selectedEntity = entity;
+        MessageInspection.SelectEntity(entity);
         if (entity is null)
         {
             SelectedEntityTitle = "No entity selected";
@@ -403,6 +413,14 @@ public sealed class ShellViewModel : ObservableObject
         if (value is not null)
         {
             parts.Add($"{name} {value}");
+        }
+    }
+
+    private void MessageInspection_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MessageInspectionViewModel.IsBusy))
+        {
+            NotifyCommandStateChanged();
         }
     }
 
@@ -524,17 +542,17 @@ public sealed class ShellViewModel : ObservableObject
 
     private bool CanConnect()
     {
-        return !IsBusy;
+        return !IsBusy && !MessageInspection.IsBusy;
     }
 
     private bool CanDisconnect()
     {
-        return IsConnected && !IsBusy;
+        return IsConnected && !IsBusy && !MessageInspection.IsBusy;
     }
 
     private bool CanRefresh()
     {
-        return IsConnected && !IsBusy;
+        return IsConnected && !IsBusy && !MessageInspection.IsBusy;
     }
 
     private bool CanCancelRefresh()
@@ -544,12 +562,12 @@ public sealed class ShellViewModel : ObservableObject
 
     private bool CanManageEntities()
     {
-        return IsConnected && !IsBusy;
+        return IsConnected && !IsBusy && !MessageInspection.IsBusy;
     }
 
     private bool CanUpdateOrDeleteSelectedEntity()
     {
-        return IsConnected && !IsBusy && _selectedEntity is not null;
+        return IsConnected && !IsBusy && !MessageInspection.IsBusy && _selectedEntity is not null;
     }
 
     private void NotifyCommandStateChanged()
