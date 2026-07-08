@@ -36,7 +36,9 @@ public partial class App : Application
         services.AddSingleton<IClock, SystemClock>();
         services.AddSingleton<IConnectionProfileStore>(_ => JsonConnectionProfileStore.CreateDefault());
         services.AddSingleton<IServiceBusClientFactory, DirectServiceBusClientFactory>();
-        services.AddSingleton<IServiceBusEntityBrowser, ServiceBusAdministrationService>();
+        services.AddSingleton<IServiceBusAdministrationService, ServiceBusAdministrationService>();
+        services.AddSingleton<IEntityManagementDialogService, WpfEntityManagementDialogService>();
+        services.AddSingleton<IEntityManagementWorkflow, EntityManagementWorkflow>();
         services.AddSingleton<ShellViewModel>();
         services.AddSingleton<MainWindow>();
     }

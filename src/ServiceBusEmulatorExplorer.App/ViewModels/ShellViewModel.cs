@@ -11,7 +11,8 @@ public sealed class ShellViewModel : ObservableObject
 {
     private readonly IConnectionProfileStore _profileStore;
     private readonly IServiceBusClientFactory _clientFactory;
-    private readonly IServiceBusEntityBrowser _entityBrowser;
+    private readonly IServiceBusAdministrationService _administrationService;
+    private readonly IEntityManagementWorkflow _entityManagementWorkflow;
     private readonly IClock _clock;
     private string _profileName = ConnectionProfileDefaults.LocalEmulator.Name;
     private string _runtimeConnectionString = ConnectionProfileDefaults.LocalEmulator.RuntimeConnectionString;
@@ -25,26 +26,35 @@ public sealed class ShellViewModel : ObservableObject
     private string _selectedEntityPath = "";
     private string _selectedEntityCounts = "";
     private string _selectedEntityMetadata = "";
+    private string _selectedEntityDeleteLabel = "Delete Entity";
     private bool _isConnected;
     private bool _isBusy;
     private bool _isRefreshing;
     private IReadOnlyList<ServiceBusEntityNode> _loadedEntities = [];
+    private ServiceBusEntityNode? _selectedEntity;
     private CancellationTokenSource? _refreshCancellation;
 
     public ShellViewModel(
         IConnectionProfileStore profileStore,
         IServiceBusClientFactory clientFactory,
-        IServiceBusEntityBrowser entityBrowser,
+        IServiceBusAdministrationService administrationService,
+        IEntityManagementWorkflow entityManagementWorkflow,
         IClock clock)
     {
         _profileStore = profileStore;
         _clientFactory = clientFactory;
-        _entityBrowser = entityBrowser;
+        _administrationService = administrationService;
+        _entityManagementWorkflow = entityManagementWorkflow;
         _clock = clock;
         ConnectCommand = new AsyncRelayCommand(ConnectAsync, CanConnect);
         DisconnectCommand = new AsyncRelayCommand(DisconnectAsync, CanDisconnect);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, CanRefresh);
         CancelRefreshCommand = new RelayCommand(CancelRefresh, CanCancelRefresh);
+        CreateQueueCommand = new AsyncRelayCommand(CreateQueueAsync, CanManageEntities);
+        CreateTopicCommand = new AsyncRelayCommand(CreateTopicAsync, CanManageEntities);
+        CreateSubscriptionCommand = new AsyncRelayCommand(CreateSubscriptionAsync, CanManageEntities);
+        UpdateSelectedEntityCommand = new AsyncRelayCommand(UpdateSelectedEntityAsync, CanUpdateOrDeleteSelectedEntity);
+        DeleteSelectedEntityCommand = new AsyncRelayCommand(DeleteSelectedEntityAsync, CanUpdateOrDeleteSelectedEntity);
         AddLog("Shell ready. Direct SDK mode.");
     }
 
@@ -126,6 +136,12 @@ public sealed class ShellViewModel : ObservableObject
         private set => SetProperty(ref _selectedEntityMetadata, value);
     }
 
+    public string SelectedEntityDeleteLabel
+    {
+        get => _selectedEntityDeleteLabel;
+        private set => SetProperty(ref _selectedEntityDeleteLabel, value);
+    }
+
     public bool IsConnected
     {
         get => _isConnected;
@@ -174,6 +190,16 @@ public sealed class ShellViewModel : ObservableObject
 
     public IRelayCommand CancelRefreshCommand { get; }
 
+    public IAsyncRelayCommand CreateQueueCommand { get; }
+
+    public IAsyncRelayCommand CreateTopicCommand { get; }
+
+    public IAsyncRelayCommand CreateSubscriptionCommand { get; }
+
+    public IAsyncRelayCommand UpdateSelectedEntityCommand { get; }
+
+    public IAsyncRelayCommand DeleteSelectedEntityCommand { get; }
+
     public async Task LoadProfilesAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -197,7 +223,7 @@ public sealed class ShellViewModel : ObservableObject
 
     private async Task ConnectAsync()
     {
-        await RunShellOperationAsync("Connect failed", async cancellationToken =>
+        bool connected = await RunShellOperationAsync("Connect failed", async cancellationToken =>
         {
             ConnectionProfile profile = CreateCurrentProfile();
             ValidationResult validation = ConnectionProfileValidator.Validate(profile);
@@ -215,7 +241,7 @@ public sealed class ShellViewModel : ObservableObject
             AddLog($"Connected to {profile.Name}.");
         });
 
-        if (IsConnected)
+        if (connected && IsConnected)
         {
             await RefreshAsync();
         }
@@ -263,7 +289,7 @@ public sealed class ShellViewModel : ObservableObject
             EntityBrowserError = null;
             EntityBrowserStatus = "Loading namespace entities...";
 
-            IReadOnlyList<ServiceBusEntityNode> entities = await _entityBrowser.GetEntityTreeAsync(timeout.Token);
+            IReadOnlyList<ServiceBusEntityNode> entities = await _administrationService.GetEntityTreeAsync(timeout.Token);
             _loadedEntities = entities;
             ApplyEntityTree();
             EntityBrowserStatus = $"Loaded {entities.Count} entities.";
@@ -303,6 +329,7 @@ public sealed class ShellViewModel : ObservableObject
     public void SelectEntity(EntityTreeNodeViewModel? node)
     {
         ServiceBusEntityNode? entity = node?.Entity;
+        _selectedEntity = entity;
         if (entity is null)
         {
             SelectedEntityTitle = "No entity selected";
@@ -310,6 +337,8 @@ public sealed class ShellViewModel : ObservableObject
             SelectedEntityPath = "";
             SelectedEntityCounts = "";
             SelectedEntityMetadata = "";
+            SelectedEntityDeleteLabel = "Delete Entity";
+            NotifyCommandStateChanged();
             return;
         }
 
@@ -318,6 +347,8 @@ public sealed class ShellViewModel : ObservableObject
         SelectedEntityPath = entity.Metadata.Path;
         SelectedEntityCounts = CreateCountsText(entity);
         SelectedEntityMetadata = CreateMetadataText(entity);
+        SelectedEntityDeleteLabel = $"Delete {entity.Kind}";
+        NotifyCommandStateChanged();
     }
 
     private static string CreateCountsText(ServiceBusEntityNode entity)
@@ -380,13 +411,96 @@ public sealed class ShellViewModel : ObservableObject
         _refreshCancellation?.Cancel();
     }
 
-    private async Task RunShellOperationAsync(
+    private async Task CreateQueueAsync()
+    {
+        await RunEntityManagementOperationAsync(
+            "Create queue failed",
+            _entityManagementWorkflow.CreateQueueAsync);
+    }
+
+    private async Task CreateTopicAsync()
+    {
+        await RunEntityManagementOperationAsync(
+            "Create topic failed",
+            _entityManagementWorkflow.CreateTopicAsync);
+    }
+
+    private async Task CreateSubscriptionAsync()
+    {
+        await RunEntityManagementOperationAsync(
+            "Create subscription failed",
+            _entityManagementWorkflow.CreateSubscriptionAsync);
+    }
+
+    private async Task UpdateSelectedEntityAsync()
+    {
+        ServiceBusEntityNode? entity = _selectedEntity;
+        if (entity is null)
+        {
+            return;
+        }
+
+        await RunEntityManagementOperationAsync(
+            "Update entity failed",
+            cancellationToken => _entityManagementWorkflow.UpdateAsync(entity, cancellationToken));
+    }
+
+    private async Task DeleteSelectedEntityAsync()
+    {
+        ServiceBusEntityNode? entity = _selectedEntity;
+        if (entity is null)
+        {
+            return;
+        }
+
+        await RunEntityManagementOperationAsync(
+            "Delete entity failed",
+            cancellationToken => _entityManagementWorkflow.DeleteAsync(entity, cancellationToken));
+    }
+
+    private async Task RunEntityManagementOperationAsync(
+        string failurePrefix,
+        Func<CancellationToken, Task<EntityManagementOperationResult>> operation)
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        EntityManagementOperationResult result = EntityManagementOperationResult.NoChange;
+
+        try
+        {
+            IsBusy = true;
+            result = await operation(CancellationToken.None);
+            if (result.LogMessage is not null)
+            {
+                AddLog(result.LogMessage);
+            }
+        }
+        catch (Exception ex)
+        {
+            AddLog($"{failurePrefix}: {ex.Message}");
+            return;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+
+        if (result.Changed && IsConnected)
+        {
+            await RefreshAsync();
+        }
+    }
+
+    private async Task<bool> RunShellOperationAsync(
         string failurePrefix,
         Func<CancellationToken, Task> operation)
     {
         if (IsBusy)
         {
-            return;
+            return false;
         }
 
         try
@@ -394,11 +508,13 @@ public sealed class ShellViewModel : ObservableObject
             IsBusy = true;
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             await operation(timeout.Token);
+            return true;
         }
         catch (Exception ex)
         {
             ConnectionStatus = IsConnected ? ConnectionStatus : "Disconnected";
             AddLog($"{failurePrefix}: {ex.Message}");
+            return false;
         }
         finally
         {
@@ -426,12 +542,27 @@ public sealed class ShellViewModel : ObservableObject
         return IsRefreshing;
     }
 
+    private bool CanManageEntities()
+    {
+        return IsConnected && !IsBusy;
+    }
+
+    private bool CanUpdateOrDeleteSelectedEntity()
+    {
+        return IsConnected && !IsBusy && _selectedEntity is not null;
+    }
+
     private void NotifyCommandStateChanged()
     {
         ConnectCommand.NotifyCanExecuteChanged();
         DisconnectCommand.NotifyCanExecuteChanged();
         RefreshCommand.NotifyCanExecuteChanged();
         CancelRefreshCommand.NotifyCanExecuteChanged();
+        CreateQueueCommand.NotifyCanExecuteChanged();
+        CreateTopicCommand.NotifyCanExecuteChanged();
+        CreateSubscriptionCommand.NotifyCanExecuteChanged();
+        UpdateSelectedEntityCommand.NotifyCanExecuteChanged();
+        DeleteSelectedEntityCommand.NotifyCanExecuteChanged();
     }
 
     private void AddLog(string message)

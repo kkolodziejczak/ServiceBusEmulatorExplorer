@@ -3,7 +3,7 @@ using Azure.Messaging.ServiceBus.Administration;
 
 namespace ServiceBusEmulatorExplorer.Core.ServiceBus;
 
-public sealed class ServiceBusAdministrationService(IServiceBusClientFactory clientFactory) : IServiceBusEntityBrowser
+public sealed class ServiceBusAdministrationService(IServiceBusClientFactory clientFactory) : IServiceBusAdministrationService
 {
     public async Task<IReadOnlyList<ServiceBusEntityNode>> GetEntityTreeAsync(CancellationToken cancellationToken)
     {
@@ -14,6 +14,94 @@ public sealed class ServiceBusAdministrationService(IServiceBusClientFactory cli
         await AddTopicsAndSubscriptionsAsync(client, nodes, cancellationToken);
 
         return EntityTreeBuilder.SortForNavigation(nodes);
+    }
+
+    public async Task CreateQueueAsync(CreateQueueCommand command, CancellationToken cancellationToken)
+    {
+        EnsureValid(EntityManagementCommandValidator.Validate(command));
+
+        ServiceBusAdministrationClient client = clientFactory.AdministrationClient;
+        CreateQueueOptions options = EntityManagementRequestMapper.ToCreateQueueOptions(command);
+        await client.CreateQueueAsync(options, cancellationToken);
+    }
+
+    public async Task UpdateQueueAsync(UpdateQueueCommand command, CancellationToken cancellationToken)
+    {
+        EnsureValid(EntityManagementCommandValidator.Validate(command));
+
+        ServiceBusAdministrationClient client = clientFactory.AdministrationClient;
+        QueueProperties properties = await GetValueAsync(client.GetQueueAsync(command.Name.Trim(), cancellationToken));
+        EntityManagementRequestMapper.ApplyQueueUpdate(properties, command);
+        await client.UpdateQueueAsync(properties, cancellationToken);
+    }
+
+    public async Task DeleteQueueAsync(string name, CancellationToken cancellationToken)
+    {
+        EnsureName(name, "Queue name");
+
+        await clientFactory.AdministrationClient.DeleteQueueAsync(name.Trim(), cancellationToken);
+    }
+
+    public async Task CreateTopicAsync(CreateTopicCommand command, CancellationToken cancellationToken)
+    {
+        EnsureValid(EntityManagementCommandValidator.Validate(command));
+
+        ServiceBusAdministrationClient client = clientFactory.AdministrationClient;
+        CreateTopicOptions options = EntityManagementRequestMapper.ToCreateTopicOptions(command);
+        await client.CreateTopicAsync(options, cancellationToken);
+    }
+
+    public async Task UpdateTopicAsync(UpdateTopicCommand command, CancellationToken cancellationToken)
+    {
+        EnsureValid(EntityManagementCommandValidator.Validate(command));
+
+        ServiceBusAdministrationClient client = clientFactory.AdministrationClient;
+        TopicProperties properties = await GetValueAsync(client.GetTopicAsync(command.Name.Trim(), cancellationToken));
+        EntityManagementRequestMapper.ApplyTopicUpdate(properties, command);
+        await client.UpdateTopicAsync(properties, cancellationToken);
+    }
+
+    public async Task DeleteTopicAsync(string name, CancellationToken cancellationToken)
+    {
+        EnsureName(name, "Topic name");
+
+        await clientFactory.AdministrationClient.DeleteTopicAsync(name.Trim(), cancellationToken);
+    }
+
+    public async Task CreateSubscriptionAsync(CreateSubscriptionCommand command, CancellationToken cancellationToken)
+    {
+        EnsureValid(EntityManagementCommandValidator.Validate(command));
+
+        ServiceBusAdministrationClient client = clientFactory.AdministrationClient;
+        CreateSubscriptionOptions options = EntityManagementRequestMapper.ToCreateSubscriptionOptions(command);
+        await client.CreateSubscriptionAsync(options, cancellationToken);
+    }
+
+    public async Task UpdateSubscriptionAsync(UpdateSubscriptionCommand command, CancellationToken cancellationToken)
+    {
+        EnsureValid(EntityManagementCommandValidator.Validate(command));
+
+        ServiceBusAdministrationClient client = clientFactory.AdministrationClient;
+        SubscriptionProperties properties = await GetValueAsync(client.GetSubscriptionAsync(
+            command.TopicName.Trim(),
+            command.SubscriptionName.Trim(),
+            cancellationToken));
+        EntityManagementRequestMapper.ApplySubscriptionUpdate(properties, command);
+        await client.UpdateSubscriptionAsync(properties, cancellationToken);
+    }
+
+    public async Task DeleteSubscriptionAsync(
+        string topicName,
+        string subscriptionName,
+        CancellationToken cancellationToken)
+    {
+        EnsureName(topicName, "Topic name");
+        EnsureName(subscriptionName, "Subscription name");
+
+        await clientFactory.AdministrationClient.DeleteSubscriptionAsync(
+            topicName.Trim(),
+            subscriptionName.Trim(),
+            cancellationToken);
     }
 
     private static async Task AddQueuesAsync(
@@ -130,4 +218,19 @@ public sealed class ServiceBusAdministrationService(IServiceBusClientFactory cli
         return response.Value;
     }
 
+    private static void EnsureValid(ServiceBusEmulatorExplorer.Core.Connection.ValidationResult validation)
+    {
+        if (!validation.IsValid)
+        {
+            throw new ArgumentException(string.Join(" ", validation.Errors));
+        }
+    }
+
+    private static void EnsureName(string value, string fieldName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException($"{fieldName} is required.");
+        }
+    }
 }

@@ -1,0 +1,52 @@
+<Window x:Class="ServiceBusEmulatorExplorer.App.DeleteEntityConfirmationDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Delete Entity"
+        Height="260"
+        Width="440"
+        MinHeight="260"
+        MinWidth="440"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel>
+            <TextBlock Text="Delete Entity" FontSize="20" FontWeight="SemiBold" />
+            <TextBlock x:Name="EntitySummaryText"
+                       AutomationProperties.AutomationId="DeleteEntitySummaryText"
+                       Foreground="#607086"
+                       Margin="0,6,0,0"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" VerticalAlignment="Center">
+            <TextBlock Text="This removes the selected Service Bus entity from the connected namespace."
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,14" />
+            <CheckBox x:Name="ConfirmDeleteCheckBox"
+                      AutomationProperties.AutomationId="ConfirmDeleteEntityCheckBox"
+                      Content="I understand this delete cannot be undone"
+                      Checked="ConfirmDeleteCheckBox_Changed"
+                      Unchecked="ConfirmDeleteCheckBox_Changed" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button x:Name="DeleteButton"
+                    AutomationProperties.AutomationId="ConfirmDeleteEntityButton"
+                    Content="Delete"
+                    MinWidth="96"
+                    Margin="0,0,8,0"
+                    IsEnabled="False"
+                    Click="DeleteButton_Click" />
+            <Button AutomationProperties.AutomationId="CancelDeleteEntityButton"
+                    Content="Cancel"
+                    MinWidth="96"
+                    Click="CancelButton_Click" />
+        </StackPanel>
+    </Grid>
+</Window>

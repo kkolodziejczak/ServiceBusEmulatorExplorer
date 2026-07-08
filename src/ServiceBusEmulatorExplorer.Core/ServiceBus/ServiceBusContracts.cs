@@ -72,17 +72,43 @@ public sealed record ReplayRequest(
 
 public sealed record ReplayResult(string NewMessageId, bool OriginalDeleted);
 
-public sealed record CreateQueueCommand(string Name);
+public sealed record CreateQueueCommand(
+    string Name,
+    TimeSpan? LockDuration = null,
+    int? MaxDeliveryCount = null,
+    TimeSpan? DefaultMessageTimeToLive = null,
+    bool RequiresSession = false,
+    bool RequiresDuplicateDetection = false);
 
-public sealed record UpdateQueueCommand(string Name);
+public sealed record UpdateQueueCommand(
+    string Name,
+    TimeSpan? LockDuration = null,
+    int? MaxDeliveryCount = null,
+    TimeSpan? DefaultMessageTimeToLive = null);
 
-public sealed record CreateTopicCommand(string Name);
+public sealed record CreateTopicCommand(
+    string Name,
+    TimeSpan? DefaultMessageTimeToLive = null,
+    bool RequiresDuplicateDetection = false);
 
-public sealed record UpdateTopicCommand(string Name);
+public sealed record UpdateTopicCommand(
+    string Name,
+    TimeSpan? DefaultMessageTimeToLive = null);
 
-public sealed record CreateSubscriptionCommand(string TopicName, string SubscriptionName);
+public sealed record CreateSubscriptionCommand(
+    string TopicName,
+    string SubscriptionName,
+    TimeSpan? LockDuration = null,
+    int? MaxDeliveryCount = null,
+    TimeSpan? DefaultMessageTimeToLive = null,
+    bool RequiresSession = false);
 
-public sealed record UpdateSubscriptionCommand(string TopicName, string SubscriptionName);
+public sealed record UpdateSubscriptionCommand(
+    string TopicName,
+    string SubscriptionName,
+    TimeSpan? LockDuration = null,
+    int? MaxDeliveryCount = null,
+    TimeSpan? DefaultMessageTimeToLive = null);
 
 public sealed record SendMessageCommand(EntityAddress Destination, string Body);
 

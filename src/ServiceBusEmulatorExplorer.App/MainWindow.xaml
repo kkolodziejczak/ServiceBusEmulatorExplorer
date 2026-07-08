@@ -21,6 +21,27 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="NewQueueButton"
+                            AutomationProperties.AutomationId="NewQueueButton"
+                            AutomationProperties.Name="New Queue"
+                            Content="New Queue"
+                            Command="{Binding CreateQueueCommand}"
+                            MinWidth="92"
+                            Margin="0,0,8,0" />
+                    <Button x:Name="NewTopicButton"
+                            AutomationProperties.AutomationId="NewTopicButton"
+                            AutomationProperties.Name="New Topic"
+                            Content="New Topic"
+                            Command="{Binding CreateTopicCommand}"
+                            MinWidth="92"
+                            Margin="0,0,8,0" />
+                    <Button x:Name="NewSubscriptionButton"
+                            AutomationProperties.AutomationId="NewSubscriptionButton"
+                            AutomationProperties.Name="New Subscription"
+                            Content="New Subscription"
+                            Command="{Binding CreateSubscriptionCommand}"
+                            MinWidth="118"
+                            Margin="0,0,8,0" />
                     <Button x:Name="ConnectButton"
                             AutomationProperties.AutomationId="ConnectButton"
                             AutomationProperties.Name="Connect"
@@ -181,6 +202,21 @@
                                        Foreground="#607086"
                                        Margin="0,8,0,0"
                                        TextWrapping="Wrap" />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,22,0,0">
+                                <Button x:Name="UpdateEntityButton"
+                                        AutomationProperties.AutomationId="UpdateEntityButton"
+                                        AutomationProperties.Name="Update"
+                                        Content="Update"
+                                        Command="{Binding UpdateSelectedEntityCommand}"
+                                        MinWidth="96"
+                                        Margin="0,0,8,0" />
+                                <Button x:Name="DeleteEntityButton"
+                                        AutomationProperties.AutomationId="DeleteEntityButton"
+                                        AutomationProperties.Name="{Binding SelectedEntityDeleteLabel}"
+                                        Content="{Binding SelectedEntityDeleteLabel}"
+                                        Command="{Binding DeleteSelectedEntityCommand}"
+                                        MinWidth="116" />
+                            </StackPanel>
                         </StackPanel>
                     </Grid>
                 </Border>

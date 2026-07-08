@@ -30,15 +30,15 @@ public sealed class ShellViewModelTests
     {
         var store = new FakeProfileStore([]);
         var factory = new FakeClientFactory();
-        var entityBrowser = new FakeEntityBrowser([]);
-        var viewModel = CreateViewModel(store, factory, entityBrowser);
+        var administrationService = new FakeAdministrationService([]);
+        var viewModel = CreateViewModel(store, factory, administrationService);
 
         await viewModel.ConnectCommand.ExecuteAsync(null);
 
         Assert.True(viewModel.IsConnected);
         Assert.Equal("Connected to Local emulator", viewModel.ConnectionStatus);
         Assert.True(factory.ConnectCalled);
-        Assert.True(entityBrowser.GetEntityTreeCalled);
+        Assert.True(administrationService.GetEntityTreeCalled);
         Assert.Single(store.SavedProfiles);
         Assert.True(viewModel.DisconnectCommand.CanExecute(null));
         Assert.True(viewModel.RefreshCommand.CanExecute(null));
@@ -84,7 +84,7 @@ public sealed class ShellViewModelTests
         var queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 3, deadLetter: 1);
         var topic = CreateEntity(EntityKind.Topic, "events", topicName: null, active: 0, deadLetter: 0);
         var subscription = CreateEntity(EntityKind.Subscription, "billing", "events", active: 5, deadLetter: 2);
-        var viewModel = CreateViewModel(entityBrowser: new FakeEntityBrowser([subscription, queue, topic]));
+        var viewModel = CreateViewModel(administrationService: new FakeAdministrationService([subscription, queue, topic]));
 
         await viewModel.ConnectCommand.ExecuteAsync(null);
 
@@ -114,7 +114,7 @@ public sealed class ShellViewModelTests
         var queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 3, deadLetter: 1);
         var topic = CreateEntity(EntityKind.Topic, "events", topicName: null, active: 0, deadLetter: 0);
         var subscription = CreateEntity(EntityKind.Subscription, "billing", "events", active: 5, deadLetter: 2);
-        var viewModel = CreateViewModel(entityBrowser: new FakeEntityBrowser([queue, topic, subscription]));
+        var viewModel = CreateViewModel(administrationService: new FakeAdministrationService([queue, topic, subscription]));
 
         await viewModel.ConnectCommand.ExecuteAsync(null);
         viewModel.NamespaceFilter = "bill";
@@ -127,7 +127,7 @@ public sealed class ShellViewModelTests
     [Fact]
     public async Task RefreshCommand_shows_visible_error_when_administration_service_fails()
     {
-        var viewModel = CreateViewModel(entityBrowser: new ThrowingEntityBrowser());
+        var viewModel = CreateViewModel(administrationService: new ThrowingAdministrationService());
 
         await viewModel.ConnectCommand.ExecuteAsync(null);
 
@@ -137,15 +137,92 @@ public sealed class ShellViewModelTests
         Assert.Contains("Refresh failed: Administration endpoint unavailable.", viewModel.OperationLog[0].Message);
     }
 
+    [Fact]
+    public async Task CreateQueueCommand_runs_workflow_and_refreshes_tree()
+    {
+        var administrationService = new FakeAdministrationService([]);
+        var workflow = new FakeEntityManagementWorkflow
+        {
+            CreateQueueResult = EntityManagementOperationResult.ChangedWithLog("Created queue orders.")
+        };
+        var viewModel = CreateViewModel(administrationService: administrationService, workflow: workflow);
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+        await viewModel.CreateQueueCommand.ExecuteAsync(null);
+
+        Assert.True(workflow.CreateQueueCalled);
+        Assert.Equal(2, administrationService.GetEntityTreeCallCount);
+        Assert.Contains("Created queue orders.", viewModel.OperationLog[1].Message);
+    }
+
+    [Fact]
+    public async Task CreateCommands_are_disabled_until_connected()
+    {
+        var viewModel = CreateViewModel();
+
+        Assert.False(viewModel.CreateQueueCommand.CanExecute(null));
+        Assert.False(viewModel.CreateTopicCommand.CanExecute(null));
+        Assert.False(viewModel.CreateSubscriptionCommand.CanExecute(null));
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.CreateQueueCommand.CanExecute(null));
+        Assert.True(viewModel.CreateTopicCommand.CanExecute(null));
+        Assert.True(viewModel.CreateSubscriptionCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task UpdateSelectedEntityCommand_runs_workflow_for_selected_queue()
+    {
+        ServiceBusEntityNode queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 0, deadLetter: 0);
+        var administrationService = new FakeAdministrationService([queue]);
+        var workflow = new FakeEntityManagementWorkflow
+        {
+            UpdateResult = EntityManagementOperationResult.ChangedWithLog("Updated queue orders.")
+        };
+        var viewModel = CreateViewModel(administrationService: administrationService, workflow: workflow);
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0]);
+        await viewModel.UpdateSelectedEntityCommand.ExecuteAsync(null);
+
+        Assert.Equal(queue, workflow.UpdatedEntity);
+        Assert.Equal(2, administrationService.GetEntityTreeCallCount);
+        Assert.Contains("Updated queue orders.", viewModel.OperationLog[1].Message);
+    }
+
+    [Fact]
+    public async Task DeleteSelectedEntityCommand_requires_confirmation_before_deleting()
+    {
+        ServiceBusEntityNode topic = CreateEntity(EntityKind.Topic, "events", topicName: null, active: 0, deadLetter: 0);
+        ServiceBusEntityNode subscription = CreateEntity(EntityKind.Subscription, "billing", "events", active: 0, deadLetter: 0);
+        var administrationService = new FakeAdministrationService([topic, subscription]);
+        var workflow = new FakeEntityManagementWorkflow
+        {
+            DeleteResult = EntityManagementOperationResult.ChangedWithLog("Deleted subscription events/subscriptions/billing.")
+        };
+        var viewModel = CreateViewModel(administrationService: administrationService, workflow: workflow);
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+        viewModel.SelectEntity(viewModel.EntityTree[1].Children[0].Children[0]);
+        await viewModel.DeleteSelectedEntityCommand.ExecuteAsync(null);
+
+        Assert.Equal(subscription, workflow.DeletedEntity);
+        Assert.Equal(2, administrationService.GetEntityTreeCallCount);
+        Assert.Contains("Deleted subscription events/subscriptions/billing.", viewModel.OperationLog[1].Message);
+    }
+
     private static ShellViewModel CreateViewModel(
         IConnectionProfileStore? store = null,
         IServiceBusClientFactory? clientFactory = null,
-        IServiceBusEntityBrowser? entityBrowser = null)
+        IServiceBusAdministrationService? administrationService = null,
+        IEntityManagementWorkflow? workflow = null)
     {
         return new ShellViewModel(
             store ?? new FakeProfileStore([ConnectionProfileDefaults.LocalEmulator]),
             clientFactory ?? new FakeClientFactory(),
-            entityBrowser ?? new FakeEntityBrowser([]),
+            administrationService ?? new FakeAdministrationService([]),
+            workflow ?? new FakeEntityManagementWorkflow(),
             new FixedClock());
     }
 
@@ -229,22 +306,171 @@ public sealed class ShellViewModelTests
         }
     }
 
-    private sealed class FakeEntityBrowser(IReadOnlyList<ServiceBusEntityNode> entities) : IServiceBusEntityBrowser
+    private sealed class FakeAdministrationService(IReadOnlyList<ServiceBusEntityNode> entities) : IServiceBusAdministrationService
     {
         public bool GetEntityTreeCalled { get; private set; }
+
+        public int GetEntityTreeCallCount { get; private set; }
+
+        public CreateQueueCommand? CreatedQueue { get; private set; }
+
+        public UpdateQueueCommand? UpdatedQueue { get; private set; }
+
+        public (string TopicName, string SubscriptionName)? DeletedSubscription { get; private set; }
 
         public Task<IReadOnlyList<ServiceBusEntityNode>> GetEntityTreeAsync(CancellationToken cancellationToken)
         {
             GetEntityTreeCalled = true;
+            GetEntityTreeCallCount++;
             return Task.FromResult(entities);
+        }
+
+        public Task CreateQueueAsync(CreateQueueCommand command, CancellationToken cancellationToken)
+        {
+            CreatedQueue = command;
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateQueueAsync(UpdateQueueCommand command, CancellationToken cancellationToken)
+        {
+            UpdatedQueue = command;
+            return Task.CompletedTask;
+        }
+
+        public Task DeleteQueueAsync(string name, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task CreateTopicAsync(CreateTopicCommand command, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateTopicAsync(UpdateTopicCommand command, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task DeleteTopicAsync(string name, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task CreateSubscriptionAsync(CreateSubscriptionCommand command, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateSubscriptionAsync(UpdateSubscriptionCommand command, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task DeleteSubscriptionAsync(string topicName, string subscriptionName, CancellationToken cancellationToken)
+        {
+            DeletedSubscription = (topicName, subscriptionName);
+            return Task.CompletedTask;
         }
     }
 
-    private sealed class ThrowingEntityBrowser : IServiceBusEntityBrowser
+    private sealed class ThrowingAdministrationService : IServiceBusAdministrationService
     {
         public Task<IReadOnlyList<ServiceBusEntityNode>> GetEntityTreeAsync(CancellationToken cancellationToken)
         {
             throw new InvalidOperationException("Administration endpoint unavailable.");
+        }
+
+        public Task CreateQueueAsync(CreateQueueCommand command, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task UpdateQueueAsync(UpdateQueueCommand command, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task DeleteQueueAsync(string name, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task CreateTopicAsync(CreateTopicCommand command, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task UpdateTopicAsync(UpdateTopicCommand command, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task DeleteTopicAsync(string name, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task CreateSubscriptionAsync(CreateSubscriptionCommand command, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task UpdateSubscriptionAsync(UpdateSubscriptionCommand command, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task DeleteSubscriptionAsync(string topicName, string subscriptionName, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+    }
+
+    private sealed class FakeEntityManagementWorkflow : IEntityManagementWorkflow
+    {
+        public bool CreateQueueCalled { get; private set; }
+
+        public EntityManagementOperationResult CreateQueueResult { get; init; } = EntityManagementOperationResult.NoChange;
+
+        public EntityManagementOperationResult UpdateResult { get; init; } = EntityManagementOperationResult.NoChange;
+
+        public EntityManagementOperationResult DeleteResult { get; init; } = EntityManagementOperationResult.NoChange;
+
+        public ServiceBusEntityNode? UpdatedEntity { get; private set; }
+
+        public ServiceBusEntityNode? DeletedEntity { get; private set; }
+
+        public Task<EntityManagementOperationResult> CreateQueueAsync(CancellationToken cancellationToken)
+        {
+            CreateQueueCalled = true;
+            return Task.FromResult(CreateQueueResult);
+        }
+
+        public Task<EntityManagementOperationResult> CreateTopicAsync(CancellationToken cancellationToken)
+        {
+            return Task.FromResult(EntityManagementOperationResult.NoChange);
+        }
+
+        public Task<EntityManagementOperationResult> CreateSubscriptionAsync(CancellationToken cancellationToken)
+        {
+            return Task.FromResult(EntityManagementOperationResult.NoChange);
+        }
+
+        public Task<EntityManagementOperationResult> UpdateAsync(
+            ServiceBusEntityNode entity,
+            CancellationToken cancellationToken)
+        {
+            UpdatedEntity = entity;
+            return Task.FromResult(UpdateResult);
+        }
+
+        public Task<EntityManagementOperationResult> DeleteAsync(
+            ServiceBusEntityNode entity,
+            CancellationToken cancellationToken)
+        {
+            DeletedEntity = entity;
+            return Task.FromResult(DeleteResult);
         }
     }
 }

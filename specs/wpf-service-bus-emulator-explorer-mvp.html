@@ -812,11 +812,11 @@ public interface IDeadLetterReplayService
 
     <h3>Stage 3: Entity Management</h3>
     <ul>
-      <li><input type="checkbox"> Create queue, topic, and subscription dialogs.</li>
-      <li><input type="checkbox"> Update supported metadata for queues, topics, and subscriptions.</li>
-      <li><input type="checkbox"> Delete queue, topic, and subscription with confirmation.</li>
-      <li><input type="checkbox"> Add tests for command validation and SDK request mapping.</li>
-      <li><input type="checkbox"> Add UI smoke coverage for create/update/delete dialog opening, validation, and confirmation behavior.</li>
+      <li><input type="checkbox" checked> Create queue, topic, and subscription dialogs.</li>
+      <li><input type="checkbox" checked> Update supported metadata for queues, topics, and subscriptions.</li>
+      <li><input type="checkbox" checked> Delete queue, topic, and subscription with confirmation.</li>
+      <li><input type="checkbox" checked> Add tests for command validation and SDK request mapping.</li>
+      <li><input type="checkbox" checked> Add UI smoke coverage for create/update/delete dialog opening, validation, and confirmation behavior.</li>
     </ul>
 
     <h3>Stage 4: Message Inspection And Send</h3>
@@ -951,7 +951,7 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
       <li><input type="checkbox" checked> Add core models and service interfaces from this spec.</li>
       <li><input type="checkbox" checked> Implement connection profile persistence.</li>
       <li><input type="checkbox" checked> Implement direct Azure SDK client factory.</li>
-      <li><input type="checkbox"> Implement entity administration service.</li>
+      <li><input type="checkbox" checked> Implement entity administration service.</li>
       <li><input type="checkbox"> Implement message peek/send/delete service.</li>
       <li><input type="checkbox"> Implement non-destructive DLQ replay service.</li>
       <li><input type="checkbox"> Build WPF shell, navigation, entity detail, message grid, detail pane, and dialogs.</li>
