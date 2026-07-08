@@ -40,6 +40,7 @@ public sealed class ShellViewModel : ObservableObject
         IServiceBusClientFactory clientFactory,
         IServiceBusAdministrationService administrationService,
         IServiceBusMessageService messageService,
+        IDeadLetterReplayService deadLetterReplayService,
         IEntityManagementWorkflow entityManagementWorkflow,
         IMessageDialogService messageDialogService,
         IClock clock)
@@ -49,7 +50,7 @@ public sealed class ShellViewModel : ObservableObject
         _administrationService = administrationService;
         _entityManagementWorkflow = entityManagementWorkflow;
         _clock = clock;
-        MessageInspection = new MessageInspectionViewModel(messageService, messageDialogService, AddLog);
+        MessageInspection = new MessageInspectionViewModel(messageService, deadLetterReplayService, messageDialogService, AddLog);
         MessageInspection.PropertyChanged += MessageInspection_PropertyChanged;
         ConnectCommand = new AsyncRelayCommand(ConnectAsync, CanConnect);
         DisconnectCommand = new AsyncRelayCommand(DisconnectAsync, CanDisconnect);

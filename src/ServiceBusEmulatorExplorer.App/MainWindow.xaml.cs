@@ -23,9 +23,21 @@ public partial class MainWindow : Window
 
     private void MessageGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (DataContext is ShellViewModel viewModel && sender is DataGrid { SelectedItem: ExplorerMessage message })
+        if (DataContext is not ShellViewModel viewModel || sender is not DataGrid grid)
         {
-            viewModel.MessageInspection.SelectMessage(message);
+            return;
         }
+
+        if (ReferenceEquals(sender, DeadLetterMessagesGrid))
+        {
+            IReadOnlyList<ExplorerMessage> selectedMessages = grid
+                .SelectedItems
+                .OfType<ExplorerMessage>()
+                .ToList();
+            viewModel.MessageInspection.SelectDeadLetterMessages(selectedMessages);
+            return;
+        }
+
+        viewModel.MessageInspection.SelectActiveMessage(grid.SelectedItem as ExplorerMessage);
     }
 }

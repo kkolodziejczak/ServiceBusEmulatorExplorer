@@ -14,4 +14,29 @@ public sealed class WpfMessageDialogService : IMessageDialogService
 
         return Task.FromResult(dialog.ShowDialog() == true ? dialog.Result : null);
     }
+
+    public Task<ReplayMessageEdits?> ShowReplayDeadLetterDialogAsync(
+        ServiceBusEntityNode entity,
+        ExplorerMessage message)
+    {
+        var dialog = new ReplayDeadLetterDialog(entity, message)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        return Task.FromResult(dialog.ShowDialog() == true ? dialog.Result : null);
+    }
+
+    public Task<bool> ConfirmDeleteDeadLetterMessagesAsync(
+        ServiceBusEntityNode entity,
+        IReadOnlyList<ExplorerMessage> messages,
+        bool visiblePage)
+    {
+        var dialog = new DeleteDeadLetterMessagesConfirmationDialog(entity, messages, visiblePage)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        return Task.FromResult(dialog.ShowDialog() == true);
+    }
 }

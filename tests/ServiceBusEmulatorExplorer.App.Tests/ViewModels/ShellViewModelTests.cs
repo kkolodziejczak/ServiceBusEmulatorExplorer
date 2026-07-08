@@ -382,6 +382,7 @@ public sealed class ShellViewModelTests
         IServiceBusClientFactory? clientFactory = null,
         IServiceBusAdministrationService? administrationService = null,
         IServiceBusMessageService? messageService = null,
+        IDeadLetterReplayService? deadLetterReplayService = null,
         IEntityManagementWorkflow? workflow = null,
         IMessageDialogService? messageDialogService = null)
     {
@@ -390,6 +391,7 @@ public sealed class ShellViewModelTests
             clientFactory ?? new FakeClientFactory(),
             administrationService ?? new FakeAdministrationService([]),
             messageService ?? new FakeMessageService(),
+            deadLetterReplayService ?? new FakeDeadLetterReplayService(),
             workflow ?? new FakeEntityManagementWorkflow(),
             messageDialogService ?? new FakeMessageDialogService(),
             new FixedClock());
@@ -691,16 +693,75 @@ public sealed class ShellViewModelTests
 
     }
 
+    private sealed class FakeDeadLetterReplayService : IDeadLetterReplayService
+    {
+        public ReplayRequest? ReplayRequest { get; private set; }
+
+        public ReplayResult ReplayResult { get; init; } = new("new-message-id", OriginalDeleted: false);
+
+        public DeleteDeadLetterMessagesRequest? DeleteRequest { get; private set; }
+
+        public DeleteDeadLetterMessagesResult DeleteResult { get; init; } = new(1);
+
+        public Task<ReplayResult> ReplayAsync(ReplayRequest request, CancellationToken cancellationToken)
+        {
+            ReplayRequest = request;
+            return Task.FromResult(ReplayResult);
+        }
+
+        public Task<DeleteDeadLetterMessagesResult> DeleteAsync(
+            DeleteDeadLetterMessagesRequest request,
+            CancellationToken cancellationToken)
+        {
+            DeleteRequest = request;
+            return Task.FromResult(DeleteResult);
+        }
+    }
+
     private sealed class FakeMessageDialogService : IMessageDialogService
     {
         public SendMessageCommand? SendResult { get; init; }
 
         public ServiceBusEntityNode? Entity { get; private set; }
 
+        public ReplayMessageEdits? ReplayResult { get; init; }
+
+        public ServiceBusEntityNode? ReplayEntity { get; private set; }
+
+        public ExplorerMessage? ReplayMessage { get; private set; }
+
+        public bool ConfirmDeleteResult { get; init; }
+
+        public ServiceBusEntityNode? DeleteEntity { get; private set; }
+
+        public IReadOnlyList<ExplorerMessage> DeleteMessages { get; private set; } = [];
+
+        public bool DeleteVisiblePage { get; private set; }
+
         public Task<SendMessageCommand?> ShowSendMessageDialogAsync(ServiceBusEntityNode entity)
         {
             Entity = entity;
             return Task.FromResult(SendResult);
+        }
+
+        public Task<ReplayMessageEdits?> ShowReplayDeadLetterDialogAsync(
+            ServiceBusEntityNode entity,
+            ExplorerMessage message)
+        {
+            ReplayEntity = entity;
+            ReplayMessage = message;
+            return Task.FromResult(ReplayResult);
+        }
+
+        public Task<bool> ConfirmDeleteDeadLetterMessagesAsync(
+            ServiceBusEntityNode entity,
+            IReadOnlyList<ExplorerMessage> messages,
+            bool visiblePage)
+        {
+            DeleteEntity = entity;
+            DeleteMessages = messages;
+            DeleteVisiblePage = visiblePage;
+            return Task.FromResult(ConfirmDeleteResult);
         }
     }
 

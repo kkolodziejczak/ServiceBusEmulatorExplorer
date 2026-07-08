@@ -38,6 +38,7 @@ public partial class App : Application
         services.AddSingleton<IServiceBusClientFactory, DirectServiceBusClientFactory>();
         services.AddSingleton<IServiceBusAdministrationService, ServiceBusAdministrationService>();
         services.AddSingleton<IServiceBusMessageService, ServiceBusMessageService>();
+        services.AddSingleton<IDeadLetterReplayService, DeadLetterReplayService>();
         services.AddSingleton<IEntityManagementDialogService, WpfEntityManagementDialogService>();
         services.AddSingleton<IEntityManagementWorkflow, EntityManagementWorkflow>();
         services.AddSingleton<IMessageDialogService, WpfMessageDialogService>();

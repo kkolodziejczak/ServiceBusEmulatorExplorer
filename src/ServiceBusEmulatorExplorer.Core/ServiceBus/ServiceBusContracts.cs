@@ -68,11 +68,26 @@ public sealed record ReplayRequest(
     string? ContentType,
     string? CorrelationId,
     string? SessionId,
-    IReadOnlyDictionary<string, object?> ApplicationProperties,
+    string? Subject,
+    IReadOnlyDictionary<string, object?>? ApplicationProperties,
     ReplayIdPolicy IdPolicy,
     bool DeleteOriginal);
 
+public sealed record ReplayMessageEdits(
+    string? EditedBody,
+    string? ContentType,
+    string? CorrelationId,
+    string? SessionId,
+    string? Subject,
+    IReadOnlyDictionary<string, object?>? ApplicationProperties);
+
 public sealed record ReplayResult(string NewMessageId, bool OriginalDeleted);
+
+public sealed record DeleteDeadLetterMessagesRequest(
+    EntityAddress Source,
+    IReadOnlyList<long> SequenceNumbers);
+
+public sealed record DeleteDeadLetterMessagesResult(int DeletedCount);
 
 public sealed record CreateQueueCommand(
     string Name,
@@ -171,4 +186,8 @@ public interface IServiceBusMessageService
 public interface IDeadLetterReplayService
 {
     Task<ReplayResult> ReplayAsync(ReplayRequest request, CancellationToken cancellationToken);
+
+    Task<DeleteDeadLetterMessagesResult> DeleteAsync(
+        DeleteDeadLetterMessagesRequest request,
+        CancellationToken cancellationToken);
 }

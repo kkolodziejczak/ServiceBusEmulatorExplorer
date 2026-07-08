@@ -830,11 +830,11 @@ public interface IDeadLetterReplayService
 
     <h3>Stage 5: Full DLQ Control</h3>
     <ul>
-      <li><input type="checkbox"> Replay selected DLQ message with a new ID and leave original in DLQ.</li>
-      <li><input type="checkbox"> Replay edited copy with optional body and application property changes.</li>
-      <li><input type="checkbox"> Delete selected DLQ messages as an explicit destructive command.</li>
-      <li><input type="checkbox"> Add tests proving replay does not delete the original by default.</li>
-      <li><input type="checkbox"> Add UI smoke coverage for DLQ row selection, replay command enablement, and delete confirmation.</li>
+      <li><input type="checkbox" checked> Replay selected DLQ message with a new ID and leave original in DLQ.</li>
+      <li><input type="checkbox" checked> Replay edited copy with optional body and application property changes.</li>
+      <li><input type="checkbox" checked> Delete selected DLQ messages as an explicit destructive command.</li>
+      <li><input type="checkbox" checked> Add tests proving replay does not delete the original by default.</li>
+      <li><input type="checkbox" checked> Add UI smoke coverage for DLQ row selection, replay command enablement, and delete confirmation.</li>
     </ul>
 
     <h3>Stage 6: Test Hardening, Packaging, And Manual Proof</h3>

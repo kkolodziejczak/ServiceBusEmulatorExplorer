@@ -211,7 +211,7 @@
                                            TextWrapping="Wrap" />
                             </StackPanel>
 
-                            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,12">
+                            <WrapPanel Grid.Row="1" HorizontalAlignment="Right" Margin="0,16,0,12">
                                 <Button x:Name="SendMessageButton"
                                         AutomationProperties.AutomationId="SendMessageButton"
                                         AutomationProperties.Name="Send Message"
@@ -247,6 +247,34 @@
                                         Command="{Binding MessageInspection.PeekNextDeadLetterMessagesCommand}"
                                         MinWidth="88"
                                         Margin="0,0,8,0" />
+                                <Button x:Name="ReplayDeadLetterButton"
+                                        AutomationProperties.AutomationId="ReplayDeadLetterButton"
+                                        AutomationProperties.Name="Replay DLQ Copy"
+                                        Content="Replay"
+                                        Command="{Binding MessageInspection.ReplayDeadLetterCommand}"
+                                        MinWidth="86"
+                                        Margin="0,0,8,0" />
+                                <Button x:Name="EditReplayDeadLetterButton"
+                                        AutomationProperties.AutomationId="EditReplayDeadLetterButton"
+                                        AutomationProperties.Name="Edit and Replay DLQ"
+                                        Content="Edit Replay"
+                                        Command="{Binding MessageInspection.EditAndReplayDeadLetterCommand}"
+                                        MinWidth="100"
+                                        Margin="0,0,8,0" />
+                                <Button x:Name="DeleteSelectedDeadLetterButton"
+                                        AutomationProperties.AutomationId="DeleteSelectedDeadLetterButton"
+                                        AutomationProperties.Name="Delete Selected DLQ"
+                                        Content="Delete DLQ"
+                                        Command="{Binding MessageInspection.DeleteSelectedDeadLetterCommand}"
+                                        MinWidth="94"
+                                        Margin="0,0,8,0" />
+                                <Button x:Name="DeleteVisibleDeadLetterButton"
+                                        AutomationProperties.AutomationId="DeleteVisibleDeadLetterButton"
+                                        AutomationProperties.Name="Delete Visible DLQ"
+                                        Content="Delete Visible"
+                                        Command="{Binding MessageInspection.DeleteVisibleDeadLetterCommand}"
+                                        MinWidth="112"
+                                        Margin="0,0,8,0" />
                                 <Button x:Name="UpdateEntityButton"
                                         AutomationProperties.AutomationId="UpdateEntityButton"
                                         AutomationProperties.Name="Update"
@@ -260,7 +288,7 @@
                                         Content="{Binding SelectedEntityDeleteLabel}"
                                         Command="{Binding DeleteSelectedEntityCommand}"
                                         MinWidth="116" />
-                            </StackPanel>
+                            </WrapPanel>
 
                             <Grid Grid.Row="2">
                                 <Grid.RowDefinitions>
@@ -323,8 +351,8 @@
                                                       ItemsSource="{Binding MessageInspection.DeadLetterMessages}"
                                                       AutoGenerateColumns="False"
                                                       IsReadOnly="True"
-                                                      SelectionMode="Single"
-                                                SelectionChanged="MessageGrid_SelectionChanged">
+                                                      SelectionMode="Extended"
+                                                      SelectionChanged="MessageGrid_SelectionChanged">
                                                 <DataGrid.Columns>
                                                     <DataGridTemplateColumn Header="" Width="34">
                                                         <DataGridTemplateColumn.CellTemplate>

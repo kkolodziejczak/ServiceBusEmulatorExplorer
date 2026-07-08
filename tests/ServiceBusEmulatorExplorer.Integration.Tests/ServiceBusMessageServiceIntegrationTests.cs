@@ -131,6 +131,103 @@ public sealed class ServiceBusMessageServiceIntegrationTests
         }
     }
 
+    [IntegrationFact]
+    [Trait("TestCategory", "Integration")]
+    public async Task Replay_dlq_copy_leaves_original_until_explicit_delete()
+    {
+        string queueName = $"it-dlq-{Guid.NewGuid():N}".ToLowerInvariant();
+        var adminClient = new ServiceBusAdministrationClient(ServiceBusEmulatorEnvironment.AdminConnectionString);
+        using var testTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+
+        await ServiceBusEmulatorEnvironment.WaitUntilReadyAsync(testTimeout.Token);
+        await adminClient.CreateQueueAsync(queueName, testTimeout.Token);
+
+        await using var factory = new DirectServiceBusClientFactory();
+        await factory.ConnectAsync(
+            new ConnectionProfile(
+                "integration",
+                ServiceBusEmulatorEnvironment.RuntimeConnectionString,
+                ServiceBusEmulatorEnvironment.AdminConnectionString),
+            testTimeout.Token);
+        var messageService = new ServiceBusMessageService(factory);
+        var replayService = new DeadLetterReplayService(factory);
+
+        try
+        {
+            var address = new EntityAddress(EntityKind.Queue, queueName);
+            await messageService.SendMessageAsync(
+                new SendMessageCommand(
+                    address,
+                    "poison body",
+                    ContentType: "text/plain",
+                    CorrelationId: "correlation-dlq",
+                    Subject: "poison",
+                    ApplicationProperties: new Dictionary<string, object?> { ["kind"] = "poison" }),
+                testTimeout.Token);
+            await DeadLetterMessagesAsync(factory.RuntimeClient, queueName, count: 1, testTimeout.Token);
+
+            ExplorerMessage original = Assert.Single(await messageService.PeekMessagesAsync(
+                address,
+                MessageBucket.DeadLetter,
+                take: 10,
+                fromSequenceNumber: null,
+                testTimeout.Token));
+
+            ReplayResult replayResult = await replayService.ReplayAsync(
+                new ReplayRequest(
+                    address,
+                    address,
+                    original.SequenceNumber,
+                    EditedBody: "replayed body",
+                    ContentType: original.ContentType,
+                    CorrelationId: original.CorrelationId,
+                    SessionId: original.SessionId,
+                    Subject: original.Subject,
+                    original.ApplicationProperties,
+                    Core.Messaging.ReplayIdPolicy.NewGuid,
+                    DeleteOriginal: false),
+                testTimeout.Token);
+
+            ExplorerMessage replayed = Assert.Single(await messageService.PeekMessagesAsync(
+                address,
+                MessageBucket.Active,
+                take: 10,
+                fromSequenceNumber: null,
+                testTimeout.Token));
+            ExplorerMessage remainingDlq = Assert.Single(await messageService.PeekMessagesAsync(
+                address,
+                MessageBucket.DeadLetter,
+                take: 10,
+                fromSequenceNumber: null,
+                testTimeout.Token));
+
+            Assert.False(replayResult.OriginalDeleted);
+            Assert.NotEqual(original.MessageId, replayResult.NewMessageId);
+            Assert.Equal(replayResult.NewMessageId, replayed.MessageId);
+            Assert.Equal("replayed body", replayed.Body);
+            Assert.Equal(original.SequenceNumber, remainingDlq.SequenceNumber);
+
+            DeleteDeadLetterMessagesResult deleteResult = await replayService.DeleteAsync(
+                new DeleteDeadLetterMessagesRequest(address, [original.SequenceNumber]),
+                testTimeout.Token);
+
+            Assert.Equal(1, deleteResult.DeletedCount);
+            Assert.Empty(await messageService.PeekMessagesAsync(
+                address,
+                MessageBucket.DeadLetter,
+                take: 10,
+                fromSequenceNumber: null,
+                testTimeout.Token));
+        }
+        finally
+        {
+            if (await adminClient.QueueExistsAsync(queueName, CancellationToken.None))
+            {
+                await adminClient.DeleteQueueAsync(queueName, CancellationToken.None);
+            }
+        }
+    }
+
     private static async Task DeadLetterMessagesAsync(
         ServiceBusClient runtimeClient,
         string queueName,

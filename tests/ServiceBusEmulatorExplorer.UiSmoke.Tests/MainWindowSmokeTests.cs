@@ -232,6 +232,72 @@ public sealed class MainWindowSmokeTests
         }
     }
 
+    [UiNavigationSmokeFact]
+    [Trait("TestCategory", "UiSmoke")]
+    public async Task Dlq_row_selection_enables_replay_delete_and_delete_requires_confirmation()
+    {
+        string queueName = CreateEntityName("queue");
+        const string body = "ui smoke dlq body";
+
+        var adminClient = new ServiceBusAdministrationClient(ServiceBusUiSmokeEnvironment.AdminConnectionString);
+        await using var runtimeClient = new ServiceBusClient(ServiceBusUiSmokeEnvironment.RuntimeConnectionString);
+        using var testTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        await adminClient.CreateQueueAsync(queueName, testTimeout.Token);
+        await SendSeedMessageAsync(runtimeClient, queueName, body, testTimeout.Token);
+        await DeadLetterSeedMessageAsync(runtimeClient, queueName, testTimeout.Token);
+
+        try
+        {
+            string executablePath = WpfAppPath.Resolve();
+            Assert.True(File.Exists(executablePath), $"Build the WPF app before running UI smoke tests. Missing: {executablePath}");
+
+            using Application application = Application.Launch(executablePath);
+            using var automation = new UIA3Automation();
+
+            Window window = application.GetMainWindow(automation, TimeSpan.FromSeconds(10))
+                ?? throw new InvalidOperationException("Main window did not appear within 10 seconds.");
+
+            SetText(window, "ProfileNameTextBox", "UI smoke emulator");
+            SetText(window, "RuntimeConnectionStringTextBox", ServiceBusUiSmokeEnvironment.RuntimeConnectionString);
+            SetText(window, "AdministrationConnectionStringTextBox", ServiceBusUiSmokeEnvironment.AdminConnectionString);
+            window.FindFirstDescendant(cf => cf.ByAutomationId("ConnectButton"))?.AsButton().Click();
+
+            AutomationElement queueElement = WaitForText(window, queueName, TimeSpan.FromSeconds(30));
+            queueElement.Click();
+            WaitForAutomationId(window, "PeekDeadLetterMessagesButton", TimeSpan.FromSeconds(10)).AsButton().Click();
+
+            AutomationElement previewElement = WaitForText(window, body, TimeSpan.FromSeconds(20));
+            previewElement.Click();
+
+            Assert.True(WaitForAutomationId(window, "ReplayDeadLetterButton", TimeSpan.FromSeconds(10)).AsButton().IsEnabled);
+            Assert.True(WaitForAutomationId(window, "EditReplayDeadLetterButton", TimeSpan.FromSeconds(10)).AsButton().IsEnabled);
+            Assert.True(WaitForAutomationId(window, "DeleteSelectedDeadLetterButton", TimeSpan.FromSeconds(10)).AsButton().IsEnabled);
+
+            WaitForAutomationId(window, "DeleteSelectedDeadLetterButton", TimeSpan.FromSeconds(10)).AsButton().Click();
+            Window deleteDialog = WaitForWindow(application, automation, "Delete DLQ Messages", TimeSpan.FromSeconds(10));
+            Assert.False(WaitForAutomationId(deleteDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+            WaitForAutomationId(deleteDialog, "ConfirmDeleteDlqCheckBox", TimeSpan.FromSeconds(5)).AsCheckBox().Click();
+            Assert.True(WaitForAutomationId(deleteDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+            WaitForAutomationId(deleteDialog, "CancelDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().Click();
+
+            WaitForAutomationId(window, "DeleteVisibleDeadLetterButton", TimeSpan.FromSeconds(10)).AsButton().Click();
+            Window deleteVisibleDialog = WaitForWindow(application, automation, "Delete DLQ Messages", TimeSpan.FromSeconds(10));
+            Assert.False(WaitForAutomationId(deleteVisibleDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+            SetText(deleteVisibleDialog, "ConfirmDeleteDlqPhraseTextBox", "DELETE");
+            Assert.False(WaitForAutomationId(deleteVisibleDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+            SetText(deleteVisibleDialog, "ConfirmDeleteDlqPhraseTextBox", "DELETE VISIBLE");
+            Assert.True(WaitForAutomationId(deleteVisibleDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+            WaitForAutomationId(deleteVisibleDialog, "CancelDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().Click();
+
+            window.Close();
+        }
+        finally
+        {
+            using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await DeleteQueueAsync(adminClient, queueName, cleanupTimeout.Token);
+        }
+    }
+
     private static string CreateEntityName(string prefix)
     {
         return $"ui-{prefix}-{Guid.NewGuid():N}".ToLowerInvariant();
@@ -263,6 +329,19 @@ public sealed class MainWindowSmokeTests
         message.ApplicationProperties["kind"] = "ui-smoke";
 
         await sender.SendMessageAsync(message, cancellationToken);
+    }
+
+    private static async Task DeadLetterSeedMessageAsync(
+        ServiceBusClient runtimeClient,
+        string queueName,
+        CancellationToken cancellationToken)
+    {
+        await using ServiceBusReceiver receiver = runtimeClient.CreateReceiver(queueName);
+        ServiceBusReceivedMessage message = await receiver.ReceiveMessageAsync(
+            maxWaitTime: TimeSpan.FromSeconds(10),
+            cancellationToken);
+
+        await receiver.DeadLetterMessageAsync(message, cancellationToken: cancellationToken);
     }
 
     private static void SetText(Window window, string automationId, string text)

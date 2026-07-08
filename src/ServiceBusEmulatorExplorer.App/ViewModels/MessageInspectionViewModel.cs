@@ -9,9 +9,12 @@ namespace ServiceBusEmulatorExplorer.App.ViewModels;
 public sealed class MessageInspectionViewModel : ObservableObject
 {
     private readonly IServiceBusMessageService _messageService;
+    private readonly IDeadLetterReplayService _deadLetterReplayService;
     private readonly IMessageDialogService _messageDialogService;
     private readonly Action<string> _addLog;
     private ServiceBusEntityNode? _selectedEntity;
+    private ExplorerMessage? _selectedDeadLetterMessage;
+    private IReadOnlyList<ExplorerMessage> _selectedDeadLetterMessages = [];
     private string _status = "Select a queue or subscription to inspect messages.";
     private string? _error;
     private string _selectedBody = "No message selected.";
@@ -26,10 +29,12 @@ public sealed class MessageInspectionViewModel : ObservableObject
 
     public MessageInspectionViewModel(
         IServiceBusMessageService messageService,
+        IDeadLetterReplayService deadLetterReplayService,
         IMessageDialogService messageDialogService,
         Action<string> addLog)
     {
         _messageService = messageService;
+        _deadLetterReplayService = deadLetterReplayService;
         _messageDialogService = messageDialogService;
         _addLog = addLog;
         SendMessageCommand = new AsyncRelayCommand(SendMessageAsync, CanSendMessage);
@@ -37,6 +42,10 @@ public sealed class MessageInspectionViewModel : ObservableObject
         PeekNextActiveMessagesCommand = new AsyncRelayCommand(PeekNextActiveMessagesAsync, CanPeekNextActiveMessages);
         PeekDeadLetterMessagesCommand = new AsyncRelayCommand(PeekDeadLetterMessagesAsync, CanPeekMessages);
         PeekNextDeadLetterMessagesCommand = new AsyncRelayCommand(PeekNextDeadLetterMessagesAsync, CanPeekNextDeadLetterMessages);
+        ReplayDeadLetterCommand = new AsyncRelayCommand(ReplayDeadLetterAsync, CanUseSelectedDeadLetterMessage);
+        EditAndReplayDeadLetterCommand = new AsyncRelayCommand(EditAndReplayDeadLetterAsync, CanUseSelectedDeadLetterMessage);
+        DeleteSelectedDeadLetterCommand = new AsyncRelayCommand(DeleteSelectedDeadLetterAsync, CanDeleteSelectedDeadLetterMessages);
+        DeleteVisibleDeadLetterCommand = new AsyncRelayCommand(DeleteVisibleDeadLetterAsync, CanDeleteVisibleDeadLetterMessages);
     }
 
     public string Status
@@ -119,6 +128,14 @@ public sealed class MessageInspectionViewModel : ObservableObject
 
     public IAsyncRelayCommand PeekNextDeadLetterMessagesCommand { get; }
 
+    public IAsyncRelayCommand ReplayDeadLetterCommand { get; }
+
+    public IAsyncRelayCommand EditAndReplayDeadLetterCommand { get; }
+
+    public IAsyncRelayCommand DeleteSelectedDeadLetterCommand { get; }
+
+    public IAsyncRelayCommand DeleteVisibleDeadLetterCommand { get; }
+
     public void SelectEntity(ServiceBusEntityNode? entity)
     {
         _selectedEntity = entity;
@@ -135,7 +152,31 @@ public sealed class MessageInspectionViewModel : ObservableObject
         NotifyCommandStateChanged();
     }
 
-    public void SelectMessage(ExplorerMessage? message)
+    public void SelectActiveMessage(ExplorerMessage? message)
+    {
+        _selectedDeadLetterMessage = null;
+        _selectedDeadLetterMessages = [];
+        SelectMessage(message);
+        NotifyCommandStateChanged();
+    }
+
+    public void SelectDeadLetterMessage(ExplorerMessage? message)
+    {
+        _selectedDeadLetterMessage = message;
+        _selectedDeadLetterMessages = message is null ? [] : [message];
+        SelectMessage(message);
+        NotifyCommandStateChanged();
+    }
+
+    public void SelectDeadLetterMessages(IReadOnlyList<ExplorerMessage> messages)
+    {
+        _selectedDeadLetterMessages = messages;
+        _selectedDeadLetterMessage = messages.Count == 1 ? messages[0] : null;
+        SelectMessage(messages.FirstOrDefault());
+        NotifyCommandStateChanged();
+    }
+
+    private void SelectMessage(ExplorerMessage? message)
     {
         if (message is null)
         {
@@ -154,6 +195,8 @@ public sealed class MessageInspectionViewModel : ObservableObject
     {
         ActiveMessages.Clear();
         DeadLetterMessages.Clear();
+        _selectedDeadLetterMessage = null;
+        _selectedDeadLetterMessages = [];
         _nextActiveSequenceNumber = null;
         _nextDeadLetterSequenceNumber = null;
         SelectMessage(null);
@@ -215,6 +258,111 @@ public sealed class MessageInspectionViewModel : ObservableObject
             cancellationToken => PeekMessagesAsync(MessageBucket.DeadLetter, resetPage: false, _selectionVersion, cancellationToken));
     }
 
+    private async Task ReplayDeadLetterAsync()
+    {
+        ServiceBusEntityNode? entity = _selectedEntity;
+        ExplorerMessage? message = _selectedDeadLetterMessage;
+        int selectionVersion = _selectionVersion;
+        if (entity is null || message is null)
+        {
+            return;
+        }
+
+        ReplayRequest request = DeadLetterReplayRequestFactory.CreateCopyRequest(entity, message);
+        await ReplayDeadLetterAsync(request, selectionVersion);
+    }
+
+    private async Task EditAndReplayDeadLetterAsync()
+    {
+        ServiceBusEntityNode? entity = _selectedEntity;
+        ExplorerMessage? message = _selectedDeadLetterMessage;
+        int selectionVersion = _selectionVersion;
+        if (entity is null || message is null)
+        {
+            return;
+        }
+
+        ReplayMessageEdits? edits = await _messageDialogService.ShowReplayDeadLetterDialogAsync(entity, message);
+        if (edits is null)
+        {
+            return;
+        }
+
+        ReplayRequest request = DeadLetterReplayRequestFactory.CreateEditedRequest(entity, message, edits);
+        await ReplayDeadLetterAsync(request, selectionVersion);
+    }
+
+    private async Task ReplayDeadLetterAsync(ReplayRequest request, int selectionVersion)
+    {
+        await RunOperationAsync("Replay DLQ message failed", async cancellationToken =>
+        {
+            ReplayResult result = await _deadLetterReplayService.ReplayAsync(request, cancellationToken);
+            string originalStatus = result.OriginalDeleted ? "Original was deleted." : "Original remains in DLQ.";
+            Status = "Replayed DLQ message copy.";
+            _addLog($"Replayed DLQ sequence {request.SequenceNumber} to {request.Destination.Name} as {result.NewMessageId}. {originalStatus}");
+
+            if (selectionVersion == _selectionVersion)
+            {
+                await PeekMessagesAsync(MessageBucket.Active, resetPage: true, selectionVersion, cancellationToken);
+                await PeekMessagesAsync(MessageBucket.DeadLetter, resetPage: true, selectionVersion, cancellationToken);
+            }
+        });
+    }
+
+    private async Task DeleteSelectedDeadLetterAsync()
+    {
+        ServiceBusEntityNode? entity = _selectedEntity;
+        IReadOnlyList<ExplorerMessage> messages = _selectedDeadLetterMessages;
+        int selectionVersion = _selectionVersion;
+        if (entity is null || messages.Count == 0)
+        {
+            return;
+        }
+
+        await DeleteDeadLetterMessagesAsync(entity, messages, visiblePage: false, selectionVersion);
+    }
+
+    private async Task DeleteVisibleDeadLetterAsync()
+    {
+        ServiceBusEntityNode? entity = _selectedEntity;
+        int selectionVersion = _selectionVersion;
+        if (entity is null || DeadLetterMessages.Count == 0)
+        {
+            return;
+        }
+
+        await DeleteDeadLetterMessagesAsync(entity, DeadLetterMessages.ToList(), visiblePage: true, selectionVersion);
+    }
+
+    private async Task DeleteDeadLetterMessagesAsync(
+        ServiceBusEntityNode entity,
+        IReadOnlyList<ExplorerMessage> messages,
+        bool visiblePage,
+        int selectionVersion)
+    {
+        bool confirmed = await _messageDialogService.ConfirmDeleteDeadLetterMessagesAsync(entity, messages, visiblePage);
+        if (!confirmed)
+        {
+            return;
+        }
+
+        DeleteDeadLetterMessagesRequest request = new(
+            CreateEntityAddress(entity),
+            messages.Select(message => message.SequenceNumber).ToList());
+
+        await RunOperationAsync("Delete DLQ messages failed", async cancellationToken =>
+        {
+            DeleteDeadLetterMessagesResult result = await _deadLetterReplayService.DeleteAsync(request, cancellationToken);
+            Status = $"Deleted {result.DeletedCount} DLQ message(s).";
+            _addLog($"Deleted {result.DeletedCount} DLQ message(s) from {entity.Metadata.Path}.");
+
+            if (selectionVersion == _selectionVersion)
+            {
+                await PeekMessagesAsync(MessageBucket.DeadLetter, resetPage: true, selectionVersion, cancellationToken);
+            }
+        });
+    }
+
     private async Task PeekMessagesAsync(
         MessageBucket bucket,
         bool resetPage,
@@ -248,7 +396,7 @@ public sealed class MessageInspectionViewModel : ObservableObject
         }
 
         SetNextSequenceNumber(bucket, messages.Count == 0 ? null : messages.Max(message => message.SequenceNumber) + 1);
-        SelectMessage(messages.FirstOrDefault());
+        SelectLoadedMessage(bucket, messages.FirstOrDefault());
         Status = $"Loaded {messages.Count} {CreateBucketLabel(bucket)} message(s).";
         _addLog($"Loaded {messages.Count} {CreateBucketLabel(bucket)} message(s) from {entity.Metadata.Path}.");
         NotifyCommandStateChanged();
@@ -263,6 +411,22 @@ public sealed class MessageInspectionViewModel : ObservableObject
             EntityKind.Topic => new EntityAddress(EntityKind.Topic, entity.Name),
             _ => throw new ArgumentOutOfRangeException(nameof(entity), "Unsupported entity kind.")
         };
+    }
+
+    private void SelectLoadedMessage(MessageBucket bucket, ExplorerMessage? message)
+    {
+        if (bucket == MessageBucket.DeadLetter)
+        {
+            _selectedDeadLetterMessage = null;
+            _selectedDeadLetterMessages = [];
+        }
+        else
+        {
+            _selectedDeadLetterMessage = null;
+            _selectedDeadLetterMessages = [];
+        }
+
+        SelectMessage(message);
     }
 
     private long? GetNextSequenceNumber(MessageBucket bucket)
@@ -377,5 +541,24 @@ public sealed class MessageInspectionViewModel : ObservableObject
         PeekNextActiveMessagesCommand.NotifyCanExecuteChanged();
         PeekDeadLetterMessagesCommand.NotifyCanExecuteChanged();
         PeekNextDeadLetterMessagesCommand.NotifyCanExecuteChanged();
+        ReplayDeadLetterCommand.NotifyCanExecuteChanged();
+        EditAndReplayDeadLetterCommand.NotifyCanExecuteChanged();
+        DeleteSelectedDeadLetterCommand.NotifyCanExecuteChanged();
+        DeleteVisibleDeadLetterCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool CanUseSelectedDeadLetterMessage()
+    {
+        return CanPeekMessages() && _selectedDeadLetterMessages.Count == 1;
+    }
+
+    private bool CanDeleteSelectedDeadLetterMessages()
+    {
+        return CanPeekMessages() && _selectedDeadLetterMessages.Count > 0;
+    }
+
+    private bool CanDeleteVisibleDeadLetterMessages()
+    {
+        return CanPeekMessages() && DeadLetterMessages.Count > 0;
     }
 }

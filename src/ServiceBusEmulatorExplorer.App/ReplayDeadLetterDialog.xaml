@@ -1,0 +1,115 @@
+<Window x:Class="ServiceBusEmulatorExplorer.App.ReplayDeadLetterDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Replay DLQ Message"
+        Height="600"
+        Width="640"
+        MinHeight="600"
+        MinWidth="640"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel>
+            <TextBlock Text="Replay DLQ Message" FontSize="20" FontWeight="SemiBold" />
+            <TextBlock x:Name="ReplaySummaryText"
+                       AutomationProperties.AutomationId="ReplayDlqSummaryText"
+                       Foreground="#607086"
+                       Margin="0,4,0,16"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.ColumnSpan="3">
+                <TextBlock Text="Body" />
+                <TextBox x:Name="BodyTextBox"
+                         AutomationProperties.AutomationId="ReplayDlqBodyTextBox"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto"
+                         MinHeight="190"
+                         TextChanged="Field_Changed"
+                         Margin="0,4,0,12" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="1">
+                <TextBlock Text="Content type" />
+                <TextBox x:Name="ContentTypeTextBox"
+                         AutomationProperties.AutomationId="ReplayDlqContentTypeTextBox"
+                         Margin="0,4,0,10" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="1" Grid.Column="2">
+                <TextBlock Text="Subject" />
+                <TextBox x:Name="SubjectTextBox"
+                         AutomationProperties.AutomationId="ReplayDlqSubjectTextBox"
+                         Margin="0,4,0,10" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="2">
+                <TextBlock Text="Correlation id" />
+                <TextBox x:Name="CorrelationIdTextBox"
+                         AutomationProperties.AutomationId="ReplayDlqCorrelationIdTextBox"
+                         Margin="0,4,0,10" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="2" Grid.Column="2">
+                <TextBlock Text="Session id" />
+                <TextBox x:Name="SessionIdTextBox"
+                         AutomationProperties.AutomationId="ReplayDlqSessionIdTextBox"
+                         Margin="0,4,0,10" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="3" Grid.ColumnSpan="3">
+                <TextBlock Text="Application properties" />
+                <TextBox x:Name="ApplicationPropertiesTextBox"
+                         AutomationProperties.AutomationId="ReplayDlqApplicationPropertiesTextBox"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto"
+                         MinHeight="90"
+                         TextChanged="Field_Changed"
+                         Margin="0,4,0,10" />
+            </StackPanel>
+
+            <TextBlock x:Name="ValidationMessageText"
+                       Grid.Row="4"
+                       Grid.ColumnSpan="3"
+                       AutomationProperties.AutomationId="ReplayDlqValidationMessageText"
+                       Foreground="#C50F1F"
+                       TextWrapping="Wrap" />
+        </Grid>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+            <Button x:Name="ReplayButton"
+                    AutomationProperties.AutomationId="ReplayDlqAcceptButton"
+                    Content="Replay"
+                    MinWidth="96"
+                    Margin="0,0,8,0"
+                    Click="ReplayButton_Click" />
+            <Button AutomationProperties.AutomationId="ReplayDlqCancelButton"
+                    Content="Cancel"
+                    MinWidth="96"
+                    Click="CancelButton_Click" />
+        </StackPanel>
+    </Grid>
+</Window>
