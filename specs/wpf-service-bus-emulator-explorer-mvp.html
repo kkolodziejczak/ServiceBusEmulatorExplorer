@@ -1,0 +1,1179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WPF Service Bus Emulator Explorer MVP Spec</title>
+  <style>
+    :root {
+      --bg: #f5f7fa;
+      --panel: #ffffff;
+      --text: #182235;
+      --muted: #607086;
+      --line: #d2dae6;
+      --accent: #0f6cbd;
+      --accent-soft: #e7f1fb;
+      --danger: #c50f1f;
+      --warning: #8a5a00;
+      --code-bg: #101827;
+      --code-text: #eef5ff;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      line-height: 1.55;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px 20px 56px;
+    }
+
+    header {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 18px;
+    }
+
+    h1, h2, h3 { line-height: 1.2; margin: 0 0 12px; }
+    h1 { font-size: 32px; }
+    h2 { font-size: 22px; margin-top: 28px; }
+    h3 { font-size: 17px; margin-top: 20px; }
+    p { margin: 0 0 12px; }
+    a { color: var(--accent); }
+
+    section {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 20px;
+      margin: 16px 0;
+    }
+
+    .metadata, .callout, .decision, .risk {
+      border-left: 4px solid var(--accent);
+      background: var(--accent-soft);
+      padding: 12px 14px;
+      border-radius: 6px;
+      margin: 12px 0;
+    }
+
+    .risk { border-color: var(--warning); background: #fff7e0; }
+    .decision { border-color: #107c10; background: #eaf6ea; }
+    .diff-added { background: #e8f5e9; border-left: 4px solid #2e7d32; }
+    .diff-removed { background: #ffebee; border-left: 4px solid #c62828; text-decoration: line-through; }
+    .diff-changed { background: #fff8e1; border-left: 4px solid #f9a825; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 9px 10px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th { background: #eef2f7; font-weight: 650; }
+    code { font-family: Consolas, "Cascadia Mono", monospace; }
+    pre {
+      overflow: auto;
+      background: var(--code-bg);
+      color: var(--code-text);
+      padding: 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    pre code {
+      display: block;
+      min-width: max-content;
+      white-space: pre;
+      tab-size: 4;
+    }
+
+    pre code .token-keyword { color: #80d0ff; }
+    pre code .token-type { color: #7ee787; }
+    pre code .token-string { color: #ffd479; }
+    pre code .token-number { color: #f2a7ff; }
+    pre code .token-comment { color: #8b9bb4; font-style: italic; }
+    pre code .token-property { color: #b8d7ff; }
+    pre code .token-punctuation { color: #c9d7ea; }
+
+    .code-title {
+      display: block;
+      margin: 16px 0 -6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    pre.mermaid {
+      background: #f8fafc;
+      color: #172033;
+      border: 1px solid var(--line);
+      white-space: pre;
+    }
+
+    .mermaid svg {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      margin: 0 auto;
+    }
+
+    .mermaid[data-processed="true"] {
+      white-space: normal;
+      text-align: center;
+    }
+
+    ul, ol { margin-top: 8px; }
+    li { margin: 4px 0; }
+    .tag {
+      display: inline-block;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 8px;
+      margin-right: 6px;
+      color: var(--muted);
+      background: #f8fafc;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>WPF Service Bus Emulator Explorer MVP</h1>
+    <p>
+      Implementation-ready MVP plan for a Windows desktop application that connects directly to a local Azure Service Bus emulator,
+      shows queues, topics, subscriptions, active messages, and dead letter messages, and provides explicit non-destructive DLQ replay controls.
+    </p>
+    <div class="metadata">
+      <strong>Created:</strong> 2026-07-08<br>
+      <strong>Agent:</strong> Codex using plan-it-turbo<br>
+      <strong>Source request:</strong> Create an MVP plan for a WPF app that connects to a local Service Bus emulator, views topics, subscriptions, and events, performs CRUD-style operations, and gives full DLQ control.<br>
+      <strong>Related reference project:</strong> <code>C:\Users\Krzysiek\source\repos\Service-Bus-Emulator-Explorer</code><br>
+      <strong>UI reference:</strong> <a href="https://github.com/paolosalvatori/ServiceBusExplorer">paolosalvatori/ServiceBusExplorer</a><br>
+      <strong>Integration-test infrastructure:</strong> <a href="../compose.yaml">compose.yaml</a>, <a href="../.env.example">.env.example</a><br>
+      <strong>Test starting point:</strong> <a href="../tests/README.md">tests/README.md</a><br>
+      <strong>Promoted resource:</strong> <a href="./wpf-service-bus-emulator-explorer-mvpResources/ui-wireframe.html">UI wireframe</a><br>
+      <strong>Diagram viewer:</strong> <a id="open-diagram-viewer" href="./mermaid-viewer/mermaid-offline-viewer.html">Open interactive diagram viewer</a>
+    </div>
+  </header>
+
+  <section id="goal">
+    <h2>Goal</h2>
+    <p>
+      Ship a small, reliable WPF explorer for local development against the Azure Service Bus emulator. The app should make common
+      emulator inspection and recovery tasks fast without requiring the example Minimal API, a browser UI, Azure portal access, or manual AMQP tooling.
+    </p>
+    <div class="decision">
+      <strong>North-star constraint:</strong> DLQ operations must be explicit and non-destructive by default. Replaying a DLQ message creates
+      a new message and leaves the original DLQ message untouched unless the user chooses a separate delete action.
+    </div>
+  </section>
+
+  <section id="summary">
+    <h2>Summary</h2>
+    <p>
+      The MVP is a single Windows desktop app built with WPF on <code>net10.0-windows</code>, using <code>Azure.Messaging.ServiceBus</code>
+      and <code>Azure.Messaging.ServiceBus.Administration</code> directly. The app stores local connection profiles, connects to the emulator,
+      presents a navigation tree for queues and topics, shows entity details and message grids, and offers safe commands for send, peek, replay,
+      and delete.
+    </p>
+    <p>
+      "CRUD" in this spec means full management for Service Bus entities where the SDK supports it. Message operations are not true CRUD:
+      messages are created by send, inspected by peek/receive, removed by receive completion, and replayed by cloning into a new message.
+    </p>
+  </section>
+
+  <section id="existing-state">
+    <h2>Existing State</h2>
+    <table>
+      <thead>
+        <tr><th>Finding</th><th>Evidence</th><th>Impact</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Current repo is greenfield.</td>
+          <td><code>README.md</code> and <code>LICENSE</code> only.</td>
+          <td>The plan can choose the solution structure and UI architecture without migration constraints.</td>
+        </tr>
+        <tr>
+          <td>Reference project has a Minimal API and React UI.</td>
+          <td><code>src\ServiceBusEmulatorExplorer\Endpoints\*.cs</code> and <code>app\sb-explorer-ui\src</code>.</td>
+          <td>Use as behavior and UX reference only. The WPF app connects directly to the emulator.</td>
+        </tr>
+        <tr>
+          <td>Reference API supports list, create, delete, send, peek, and bulk DLQ delete.</td>
+          <td><code>QueueEndpoints.cs</code>, <code>TopicEndpoints.cs</code>, <code>SubscriptionEndpoints.cs</code>, <code>DeadLetterEndpoints.cs</code>.</td>
+          <td>MVP should preserve these capabilities and add non-destructive DLQ replay.</td>
+        </tr>
+        <tr>
+          <td>Reference UI shape is useful.</td>
+          <td>Navigation tree, entity tables, detail pages, active/DLQ tabs, message detail drawer.</td>
+          <td>WPF should use a left navigation tree, top command bar, data grid, and side detail pane.</td>
+        </tr>
+        <tr>
+          <td>Emulator connection uses local AMQP and admin ports.</td>
+          <td>Reference repo compose files and this repo's <code>compose.yaml</code>.</td>
+          <td>Default local profile should target <code>localhost:5672</code> and admin <code>localhost:5300</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="scope">
+    <h2>Scope And Non-goals</h2>
+    <h3>In Scope</h3>
+    <ul>
+      <li>Connect to local Service Bus emulator using direct Azure SDK clients.</li>
+      <li>Save and reuse local connection profiles in user-scoped app settings.</li>
+      <li>List queues, topics, and topic subscriptions with active, scheduled, and DLQ counts where available.</li>
+      <li>Create, edit metadata where SDK-supported, and delete queues, topics, and subscriptions.</li>
+      <li>Send messages to queues and topics with body, content type, correlation id, session id, subject, and application properties.</li>
+      <li>Peek active and DLQ messages without locking or removing them.</li>
+      <li>Inspect full message body, system properties, and application properties.</li>
+      <li>Display all Service Bus dates and log timestamps in UTC with explicit labels or a trailing <code>Z</code>.</li>
+      <li>Replay DLQ messages by creating a new message with a new <code>MessageId</code>, optionally editing body and application properties.</li>
+      <li>Delete selected DLQ messages only through explicit delete commands.</li>
+      <li>Bulk delete selected DLQ messages and, behind a stronger confirmation, all visible DLQ messages.</li>
+    </ul>
+
+    <h3>Non-goals For MVP</h3>
+    <ul>
+      <li>No Azure cloud namespace support beyond connection strings that the SDK accepts.</li>
+      <li>No rule/filter CRUD for subscriptions in Stage 1.</li>
+      <li>No scheduled message authoring in Stage 1.</li>
+      <li>No sessions workflow beyond displaying and preserving <code>SessionId</code> on replay when requested.</li>
+      <li>No long-running background polling by default. Manual refresh is primary; optional short interval refresh is allowed.</li>
+      <li>No custom Minimal API host or browser UI in this repository.</li>
+    </ul>
+  </section>
+
+  <section id="actors-systems">
+    <h2>Actors And Systems</h2>
+    <table>
+      <thead>
+        <tr><th>Actor/System</th><th>Responsibility</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Developer</td><td>Uses the desktop app to inspect and manipulate local emulator data during development and testing.</td></tr>
+        <tr><td>WPF Explorer App</td><td>Owns UI, local profiles, commands, validation, and safe DLQ workflows.</td></tr>
+        <tr><td>Azure Service Bus SDK</td><td>Provides messaging and administration clients.</td></tr>
+        <tr><td>Service Bus Emulator</td><td>Stores local queues, topics, subscriptions, active messages, and DLQ messages.</td></tr>
+        <tr><td>Local Settings Store</td><td>Stores connection profiles and app preferences under the current Windows user.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="diagrams">
+    <h2>Diagrams</h2>
+    <h3>Use Case Model</h3>
+    <pre class="mermaid" data-title="Use Case Model">
+flowchart LR
+  Developer[Developer]
+  subgraph App[WPF Service Bus Emulator Explorer]
+    Connect[Connect to emulator]
+    Browse[Browse queues topics subscriptions]
+    ManageEntities[Manage entities]
+    Inspect[Inspect active and DLQ messages]
+    Send[Send new messages]
+    Replay[Replay DLQ as new message]
+    DeleteDlq[Delete selected DLQ messages]
+  end
+  Emulator[(Local Service Bus Emulator)]
+  Settings[(Local app settings)]
+
+  Developer --> Connect
+  Developer --> Browse
+  Developer --> ManageEntities
+  Developer --> Inspect
+  Developer --> Send
+  Developer --> Replay
+  Developer --> DeleteDlq
+  Connect --> Settings
+  Connect --> Emulator
+  Browse --> Emulator
+  ManageEntities --> Emulator
+  Inspect --> Emulator
+  Send --> Emulator
+  Replay --> Emulator
+  DeleteDlq --> Emulator
+    </pre>
+
+    <h3>Component Model</h3>
+    <pre class="mermaid" data-title="Component Model">
+flowchart TB
+  subgraph Wpf[WPF App]
+    Shell[MainWindow and ShellViewModel]
+    Navigation[EntityNavigationViewModel]
+    Detail[EntityDetailViewModel]
+    MessageGrid[MessageGridViewModel]
+    Dlq[DlqOperationsViewModel]
+    Profiles[ConnectionProfilesViewModel]
+    AppServices[Application services]
+  end
+
+  subgraph Services[Core Services]
+    ConnectionService[IConnectionProfileStore]
+    AdminService[IServiceBusAdministrationService]
+    MessageService[IServiceBusMessageService]
+    ReplayService[IDeadLetterReplayService]
+    ClientFactory[IServiceBusClientFactory]
+  end
+
+  subgraph Sdk[Azure SDK]
+    AdminClient[ServiceBusAdministrationClient]
+    BusClient[ServiceBusClient]
+    Sender[ServiceBusSender]
+    Receiver[ServiceBusReceiver]
+  end
+
+  Shell --> Navigation
+  Shell --> Detail
+  Detail --> MessageGrid
+  Detail --> Dlq
+  Shell --> Profiles
+  Navigation --> AppServices
+  Detail --> AppServices
+  Dlq --> AppServices
+  AppServices --> ConnectionService
+  AppServices --> AdminService
+  AppServices --> MessageService
+  AppServices --> ReplayService
+  AdminService --> ClientFactory
+  MessageService --> ClientFactory
+  ReplayService --> ClientFactory
+  ClientFactory --> AdminClient
+  ClientFactory --> BusClient
+  BusClient --> Sender
+  BusClient --> Receiver
+    </pre>
+
+    <h3>DLQ Replay Sequence</h3>
+    <pre class="mermaid" data-title="DLQ Replay Sequence">
+sequenceDiagram
+  actor User
+  participant UI as WPF UI
+  participant Replay as DeadLetterReplayService
+  participant Receiver as DLQ Receiver
+  participant Sender as Active Entity Sender
+  participant Emulator as Service Bus Emulator
+
+  User->>UI: Select DLQ message and choose Replay
+  UI->>Replay: ReplayAsync(scope, messageKey, edits, deleteOriginal=false)
+  Replay->>Receiver: Receive DLQ message in PeekLock mode
+  Receiver->>Emulator: Lock matching DLQ message
+  Emulator-->>Receiver: Locked DLQ message
+  Replay->>Replay: Clone body and selected properties
+  Replay->>Replay: Assign new MessageId
+  Replay->>Sender: Send cloned message to queue or topic
+  Sender->>Emulator: Enqueue active message
+  Emulator-->>Sender: Send accepted
+  Replay->>Receiver: Abandon original DLQ lock
+  Receiver->>Emulator: Return DLQ message unchanged
+  Replay-->>UI: Report new MessageId and original status
+    </pre>
+
+    <h3>Entity Lifecycle</h3>
+    <pre class="mermaid" data-title="Entity Lifecycle">
+stateDiagram-v2
+  [*] --> Unknown
+  Unknown --> Loading: refresh
+  Loading --> Available: SDK returns entity
+  Loading --> Missing: SDK reports not found
+  Available --> Editing: edit metadata
+  Editing --> Available: update succeeds
+  Available --> Deleting: user confirms delete
+  Deleting --> Missing: delete succeeds
+  Loading --> Error: SDK failure
+  Editing --> Error: update fails
+  Deleting --> Error: delete fails
+  Error --> Loading: retry
+    </pre>
+  </section>
+
+  <section id="decisions">
+    <h2>Agreed Decisions</h2>
+    <table>
+      <thead>
+        <tr><th>Decision</th><th>Status</th><th>Reason</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Use WPF desktop app.</td><td>Confirmed</td><td>User requested WPF.</td></tr>
+        <tr><td>Connect directly to emulator with Azure SDK.</td><td>Confirmed</td><td>Minimal API is reference only.</td></tr>
+        <tr><td>DLQ replay leaves original in DLQ by default.</td><td>Confirmed</td><td>User explicitly wants full control and no automatic DLQ deletion.</td></tr>
+        <tr><td>Replay never deletes the DLQ original in MVP.</td><td>Confirmed</td><td>Keeps replay and deletion as separate operations so the user remains in full control.</td></tr>
+        <tr><td>Use MVVM with services behind interfaces.</td><td>Recommended</td><td>Keeps SDK behavior testable and UI commands thin.</td></tr>
+        <tr><td>Use a modern ServiceBusExplorer-inspired desktop layout.</td><td>Confirmed</td><td>User wants the familiar workflow from <a href="https://github.com/paolosalvatori/ServiceBusExplorer">paolosalvatori/ServiceBusExplorer</a>, but not an old-school visual clone.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="amendment-modern-servicebus-explorer-ui">
+    <h2>Amendment: Modern ServiceBusExplorer-Inspired UI</h2>
+    <p>
+      The WPF MVP should follow the interaction model of the common open-source ServiceBusExplorer desktop application, while using
+      a modern WPF visual treatment and keeping this project's own emulator-first branding, implementation, and DLQ safety rules.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Before</th><th>After</th><th>Reason</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="diff-removed">Legacy/old-school ServiceBusExplorer visual treatment with WinForms-like blue gradients and beveled panes.</td>
+          <td class="diff-added">Modern desktop shell with clean command bar, neutral panes, left namespace tree, tabbed entity view, message list, message text/properties panels, bottom action row, and log pane.</td>
+          <td>User wants the familiar ServiceBusExplorer workflow, but the app can and should look modern.</td>
+        </tr>
+        <tr>
+          <td class="diff-removed">DLQ controls shown as generic toolbar commands near the grid.</td>
+          <td class="diff-added">DLQ controls follow the Messages/Dead Letter tab workflow, with Replay DLQ Copy, Edit and Replay DLQ, Delete Selected DLQ, and Delete Visible DLQ commands in the bottom action strip.</td>
+          <td>Matches the expected Windows explorer workflow while preserving non-destructive replay as the default.</td>
+        </tr>
+        <tr>
+          <td class="diff-removed">Wireframe included reference-tool conveniences not yet in the MVP contract, such as import/export, authorization-rule tabs, metrics tabs, receive, ambiguous messages command, and a global DLQ workbench.</td>
+          <td class="diff-added">Wireframe only shows commands and tabs covered by the MVP scope: connection, entity create/update/delete, message send/peek/copy, per-entity active/DLQ inspection, replay, explicit delete, refresh, and operation logging.</td>
+          <td>User wants implementation to match what is visible in the wireframe without hidden extra scope.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="amendment-test-first-mvp">
+    <h2>Amendment: Test-First MVP</h2>
+    <p>
+      Testing is part of the first implementation slice. The MVP should not wait for stable behavior before creating tests; it should use early tests to create that stability.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Before</th><th>After</th><th>Reason</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="diff-removed">Automated WPF UI tests were optional and could follow after MVP stability.</td>
+          <td class="diff-added">A small gated FlaUI/UIA3 smoke suite starts in Stage 1 as soon as the first WPF shell exists.</td>
+          <td>Early UI smoke tests catch regressions in app launch, shell wiring, and command visibility before feature work stacks up.</td>
+        </tr>
+        <tr>
+          <td class="diff-removed">Integration test hardening was concentrated near packaging.</td>
+          <td class="diff-added">Integration test project and readiness fixture are created in Stage 1, with feature-specific integration tests added as the related behavior is implemented.</td>
+          <td>Docker-backed tests should evolve with the Service Bus service layer, not arrive as a late verification phase.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="amendment-compact-action-buttons">
+    <h2>Amendment: Compact Action Buttons</h2>
+    <p>
+      The bottom action strip should use compact icon-plus-label buttons instead of long text-only labels. The short visible labels reduce horizontal overflow,
+      while full command names remain available through tooltips, automation names, and view model command names.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Before</th><th>After</th><th>Reason</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="diff-removed">Long text-only buttons such as <code>Send New Message</code>, <code>Edit and Replay DLQ</code>, and <code>Delete Selected DLQ</code>.</td>
+          <td class="diff-added">Compact icon-plus-label buttons such as <code>Send</code>, <code>Replay</code>, <code>Edit Replay</code>, <code>Selected</code>, and <code>Visible</code>, with full accessible names.</td>
+          <td>Fits the desktop action strip better and keeps frequent commands scan-friendly without losing command meaning.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="architecture">
+    <h2>Architecture</h2>
+    <h3>Solution Shape</h3>
+    <pre><code>ServiceBusEmulatorExplorer.sln
+src/
+  ServiceBusEmulatorExplorer.App/
+    ServiceBusEmulatorExplorer.App.csproj
+    App.xaml
+    MainWindow.xaml
+    Views/
+    ViewModels/
+    Commands/
+    Resources/
+  ServiceBusEmulatorExplorer.Core/
+    ServiceBusEmulatorExplorer.Core.csproj
+    Models/
+    Services/
+    ServiceBus/
+tests/
+  ServiceBusEmulatorExplorer.Core.Tests/
+  ServiceBusEmulatorExplorer.App.Tests/
+  ServiceBusEmulatorExplorer.Integration.Tests/
+  ServiceBusEmulatorExplorer.UiSmoke.Tests/</code></pre>
+
+    <h3>Recommended Packages</h3>
+    <table>
+      <thead>
+        <tr><th>Package</th><th>Project</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>Azure.Messaging.ServiceBus</code></td><td>Core</td><td>Messaging and administration clients.</td></tr>
+        <tr><td><code>CommunityToolkit.Mvvm</code></td><td>App</td><td>Observable objects, relay commands, and MVVM boilerplate reduction.</td></tr>
+        <tr><td><code>Microsoft.Extensions.DependencyInjection</code></td><td>App</td><td>Composition root for view models and services.</td></tr>
+        <tr><td><code>Microsoft.Extensions.Logging</code></td><td>Core/App</td><td>Operation diagnostics and testable logging.</td></tr>
+        <tr><td><code>xunit</code> or <code>TUnit</code></td><td>Tests</td><td>Unit and integration tests.</td></tr>
+        <tr><td><code>FlaUI.UIA3</code></td><td>UI Smoke Tests</td><td>Automated WPF smoke tests through Windows UI Automation starting with the first shell.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Code Organization Constraints</h3>
+    <ul>
+      <li>Prefer CUPID-friendly classes: composable, Unix-philosophy focused, predictable, idiomatic, and domain-based.</li>
+      <li>Order methods in files by invocation flow: public command method first, then private helpers directly below in the same order they are called.</li>
+      <li>Keep SDK-specific code inside service implementations. View models depend on interfaces and plain models.</li>
+      <li>Do not swallow SDK exceptions silently. Convert them into user-facing operation results with enough detail for local debugging.</li>
+    </ul>
+  </section>
+
+  <section id="local-emulator-infrastructure">
+    <h2>Local Emulator Infrastructure</h2>
+    <p>
+      The repository includes a root <code>compose.yaml</code> and <code>.env.example</code> so developers and integration tests can use the same local Service Bus emulator.
+      The compose file runs the Service Bus emulator and SQL Server only; the WPF app and tests connect from the host.
+    </p>
+    <table>
+      <thead>
+        <tr><th>File</th><th>Purpose</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>compose.yaml</code></td><td>Starts <code>servicebus-emulator</code> and <code>sql</code>.</td><td>Maps AMQP <code>127.0.0.1:5672</code> and administration <code>127.0.0.1:5300</code>.</td></tr>
+        <tr><td><code>.env.example</code></td><td>Documents required compose variables.</td><td>Copy to ignored <code>.env</code> before running Docker Compose.</td></tr>
+      </tbody>
+    </table>
+    <pre><code class="language-powershell">Copy-Item .env.example .env
+docker compose --env-file .env up -d
+docker compose ps
+docker compose down</code></pre>
+    <h3>Host Connection Strings</h3>
+    <pre><code>Runtime:
+Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
+
+Administration:
+Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;</code></pre>
+  </section>
+
+  <section id="contracts">
+    <h2>Contracts And Models</h2>
+    <h3>Core Models</h3>
+    <pre><code class="language-csharp">public enum EntityKind
+{
+    Queue,
+    Topic,
+    Subscription
+}
+
+public enum MessageBucket
+{
+    Active,
+    DeadLetter
+}
+
+public sealed record ConnectionProfile(
+    string Name,
+    string RuntimeConnectionString,
+    string AdministrationConnectionString);
+
+public sealed record ServiceBusEntityNode(
+    EntityKind Kind,
+    string Name,
+    string? TopicName,
+    EntityRuntimeCounts Counts,
+    EntityMetadata Metadata);
+
+public sealed record ExplorerMessage(
+    string MessageId,
+    long SequenceNumber,
+    string Body,
+    string BodyPreview,
+    DateTimeOffset? EnqueuedTime,
+    DateTimeOffset? ExpiresAt,
+    int DeliveryCount,
+    string? ContentType,
+    string? CorrelationId,
+    string? SessionId,
+    IReadOnlyDictionary&lt;string, object?&gt; ApplicationProperties,
+    IReadOnlyDictionary&lt;string, object?&gt; SystemProperties);
+
+public sealed record ReplayRequest(
+    EntityAddress Source,
+    EntityAddress Destination,
+    long SequenceNumber,
+    string? EditedBody,
+    string? ContentType,
+    string? CorrelationId,
+    string? SessionId,
+    IReadOnlyDictionary&lt;string, object?&gt; ApplicationProperties,
+    ReplayIdPolicy IdPolicy,
+    bool DeleteOriginal);
+
+public enum ReplayIdPolicy
+{
+    NewGuid,
+    PrefixOriginalId,
+    Manual
+}</code></pre>
+
+    <h3>Service Interfaces</h3>
+    <pre><code class="language-csharp">public interface IServiceBusClientFactory : IAsyncDisposable
+{
+    Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken);
+    ServiceBusAdministrationClient AdministrationClient { get; }
+    ServiceBusClient RuntimeClient { get; }
+}
+
+public interface IServiceBusAdministrationService
+{
+    Task&lt;IReadOnlyList&lt;ServiceBusEntityNode&gt;&gt; GetEntityTreeAsync(CancellationToken cancellationToken);
+    Task CreateQueueAsync(CreateQueueCommand command, CancellationToken cancellationToken);
+    Task UpdateQueueAsync(UpdateQueueCommand command, CancellationToken cancellationToken);
+    Task DeleteQueueAsync(string name, CancellationToken cancellationToken);
+    Task CreateTopicAsync(CreateTopicCommand command, CancellationToken cancellationToken);
+    Task UpdateTopicAsync(UpdateTopicCommand command, CancellationToken cancellationToken);
+    Task DeleteTopicAsync(string name, CancellationToken cancellationToken);
+    Task CreateSubscriptionAsync(CreateSubscriptionCommand command, CancellationToken cancellationToken);
+    Task UpdateSubscriptionAsync(UpdateSubscriptionCommand command, CancellationToken cancellationToken);
+    Task DeleteSubscriptionAsync(string topicName, string subscriptionName, CancellationToken cancellationToken);
+}
+
+public interface IServiceBusMessageService
+{
+    Task&lt;IReadOnlyList&lt;ExplorerMessage&gt;&gt; PeekMessagesAsync(EntityAddress address, MessageBucket bucket, int take, long? fromSequenceNumber, CancellationToken cancellationToken);
+    Task SendMessageAsync(SendMessageCommand command, CancellationToken cancellationToken);
+    Task DeleteMessagesAsync(EntityAddress address, MessageBucket bucket, IReadOnlyList&lt;long&gt; sequenceNumbers, CancellationToken cancellationToken);
+}
+
+public interface IDeadLetterReplayService
+{
+    Task&lt;ReplayResult&gt; ReplayAsync(ReplayRequest request, CancellationToken cancellationToken);
+}</code></pre>
+
+    <h3>Default Connection Profile</h3>
+    <pre><code class="language-json">{
+  "name": "Local emulator",
+  "runtimeConnectionString": "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;",
+  "administrationConnectionString": "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+}</code></pre>
+  </section>
+
+  <section id="dlq-behavior">
+    <h2>DLQ Behavior</h2>
+    <p>
+      <strong>Command distinction:</strong> <code>Send New Message</code> starts from a blank user-authored message.
+      <code>Replay DLQ Copy</code> clones the selected DLQ message into a new active message without editing.
+      <code>Edit and Replay DLQ</code> opens the selected DLQ message as an editable draft and sends that draft as a new active message.
+      Both replay commands leave the original DLQ message untouched.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Command</th><th>Behavior</th><th>Original DLQ message</th><th>Confirmation</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Replay selected</td>
+          <td>Receive selected DLQ message in PeekLock, clone body/properties, assign new <code>MessageId</code>, send to queue/topic, abandon original lock.</td>
+          <td>Remains in DLQ.</td>
+          <td>No destructive confirmation required.</td>
+        </tr>
+        <tr>
+          <td>Replay edited copy</td>
+          <td>Open editor, let user change body/content/application properties, send edited clone with new <code>MessageId</code>.</td>
+          <td>Remains in DLQ.</td>
+          <td>No destructive confirmation required.</td>
+        </tr>
+        <tr>
+          <td>Delete selected</td>
+          <td>Receive selected DLQ messages in PeekLock and complete them without replay.</td>
+          <td>Removed.</td>
+          <td>Requires confirmation.</td>
+        </tr>
+        <tr>
+          <td>Delete all visible</td>
+          <td>Delete the currently loaded page of DLQ messages.</td>
+          <td>Removed.</td>
+          <td>Requires stronger typed confirmation.</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="risk">
+      <strong>Important implementation note:</strong> exact targeted deletion/replay should use <code>SequenceNumber</code> rather than <code>MessageId</code>.
+      Duplicate message IDs are possible, and message ID alone is not a reliable unique handle in a queue or subscription.
+    </div>
+  </section>
+
+  <section id="ui-model">
+    <h2>UI Model</h2>
+    <p>
+      The promoted wireframe is authoritative for layout, navigation, command placement, and the ServiceBusExplorer-inspired desktop interaction model.
+      It is a modernized interpretation and should not copy ServiceBusExplorer branding, legacy styling, or image assets.
+      Bottom-strip buttons should use compact icon-plus-label presentation with full command names exposed through tooltips and automation names.
+    </p>
+    <p>
+      <a href="./wpf-service-bus-emulator-explorer-mvpResources/ui-wireframe.html">Open the UI wireframe</a>
+    </p>
+    <table>
+      <thead>
+        <tr><th>Region</th><th>Purpose</th><th>MVP Controls</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Header</td><td>Product identity and connection status.</td><td>App name, status indicator, connected profile status.</td></tr>
+        <tr><td>Toolbar</td><td>Frequent namespace and entity actions.</td><td>Connect, disconnect, refresh, new queue, new topic, new subscription, active connection display.</td></tr>
+        <tr><td>Left namespace tree</td><td>Entity discovery and navigation.</td><td>Namespace root, queues, topics, nested subscriptions, active/DLQ counts, tree filter, icon-only expand/collapse affordances.</td></tr>
+        <tr><td>Entity header</td><td>Selected entity summary.</td><td>Relative URI, status, lock duration, delivery settings, created time, active/DLQ/scheduled/total counts.</td></tr>
+        <tr><td>Entity tabs</td><td>ServiceBusExplorer-inspired navigation within the selected entity.</td><td>Description, messages, dead letter.</td></tr>
+        <tr><td>Message list</td><td>Message selection and scanning.</td><td>Selection checkboxes, MessageId, sequence number, size, label/subject, <code>EnqueuedTimeUtc</code>, <code>ExpiresAtUtc</code>, delivery count.</td></tr>
+        <tr><td>Message text and properties panels</td><td>Full inspection and replay workflow.</td><td>Body viewer/editor for replay copies, system properties, custom application properties, DLQ reason fields.</td></tr>
+        <tr><td>Bottom action strip</td><td>Entity and message lifecycle commands.</td><td>Compact icon-plus-label buttons for send, replay, edit replay, delete selected DLQ, delete visible DLQ, refresh, update, and delete entity.</td></tr>
+        <tr><td>Log pane and status bar</td><td>Operational feedback.</td><td>UTC timestamped operation log, connected profile, transport, direct SDK mode, last operation result.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="wireframe-traceability">
+    <h2>Wireframe Functional Traceability</h2>
+    <p>
+      The wireframe should not contain implementation scope beyond this table. Visual styling can evolve during WPF implementation,
+      but visible commands, tabs, and panes are intended to map to MVP functionality.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Wireframe Surface</th><th>Visible Control Or Pane</th><th>MVP Capability</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Top command bar</td><td>Connect, Disconnect</td><td>Connect to and disconnect from a saved local emulator profile.</td></tr>
+        <tr><td>Top command bar</td><td>Refresh</td><td>Refresh entity tree, selected entity metadata, counts, and visible message page.</td></tr>
+        <tr><td>Top command bar</td><td>New Queue, New Topic, New Subscription</td><td>Create Service Bus entities that are in MVP scope.</td></tr>
+        <tr><td>Namespace tree</td><td>Filter input</td><td>Filter locally loaded queues, topics, and subscriptions by name.</td></tr>
+        <tr><td>Namespace tree</td><td>Queue/topic/subscription nodes with counts</td><td>Browse entities and show active/DLQ counts retrieved from the emulator. Use icon-only expand/collapse affordances and aligned count columns.</td></tr>
+        <tr><td>Entity summary</td><td>Metadata and count fields</td><td>Display selected entity properties and UTC timestamps.</td></tr>
+        <tr><td>Entity tabs</td><td>Description</td><td>Display and edit supported entity metadata.</td></tr>
+        <tr><td>Entity tabs</td><td>Messages</td><td>Peek and inspect active messages for the selected queue or subscription.</td></tr>
+        <tr><td>Entity tabs</td><td>Dead Letter</td><td>Peek, inspect, replay, and explicitly delete DLQ messages for the selected queue or subscription.</td></tr>
+        <tr><td>Message list</td><td>Selection checkboxes</td><td>Select one or more visible messages for copy, replay, or explicit delete commands.</td></tr>
+        <tr><td>Message list</td><td>Peek</td><td>Load the next page of messages without removing them.</td></tr>
+        <tr><td>Message list</td><td>Copy Body</td><td>Copy the selected message body to clipboard.</td></tr>
+        <tr><td>Message detail</td><td>Message Text, System and Custom Properties</td><td>Inspect body, system properties, and application properties.</td></tr>
+        <tr><td>Bottom action strip</td><td>Send icon + <code>Send</code></td><td>Send a brand-new message composed by the user to the selected queue or topic.</td></tr>
+        <tr><td>Bottom action strip</td><td>Replay icon + <code>Replay</code></td><td>Replay selected DLQ message as a new active message and leave the original in DLQ.</td></tr>
+        <tr><td>Bottom action strip</td><td>Edit icon + <code>Edit Replay</code></td><td>Edit body/properties before replaying a new active message and leave the original in DLQ.</td></tr>
+        <tr><td>Bottom action strip</td><td>Delete icon + <code>Selected</code></td><td>Delete selected DLQ messages after explicit confirmation. Full automation name is <code>Delete Selected DLQ</code>.</td></tr>
+        <tr><td>Bottom action strip</td><td>Delete icon + <code>Visible</code></td><td>Delete the currently visible DLQ page after stronger confirmation. Full automation name is <code>Delete Visible DLQ</code>.</td></tr>
+        <tr><td>Bottom action strip</td><td>Refresh icon + <code>Refresh</code></td><td>Refresh entity tree, selected entity metadata, counts, and visible message page.</td></tr>
+        <tr><td>Bottom action strip</td><td>Save icon + <code>Update</code></td><td>Apply supported metadata edits for the selected entity.</td></tr>
+        <tr><td>Bottom action strip</td><td>Delete icon + selected entity type label</td><td>Delete the selected entity after explicit confirmation. Label changes by selected entity type in implementation.</td></tr>
+        <tr><td>Operation log</td><td>UTC log lines</td><td>Show timestamped operation feedback and errors using UTC.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="stage-plan">
+    <h2>Stage Plan</h2>
+    <h3>Stage 1: Working Shell And Connection</h3>
+    <ul>
+      <li><input type="checkbox" checked> Create solution, WPF app, core library, and tests.</li>
+      <li><input type="checkbox" checked> Create unit, integration, and UI smoke test projects immediately, even if most tests start with skipped or fixture-only coverage.</li>
+      <li><input type="checkbox" checked> Add DI composition root and MVVM toolkit.</li>
+      <li><input type="checkbox" checked> Implement connection profile model and local settings store.</li>
+      <li><input type="checkbox" checked> Connect to emulator and show connection status.</li>
+      <li><input type="checkbox" checked> Add smoke test for profile validation and client factory behavior using fakes.</li>
+      <li><input type="checkbox" checked> Add FlaUI launch smoke test that starts the WPF shell, finds the main window, verifies the app title and connection controls, then closes the app.</li>
+    </ul>
+
+    <h3>Stage 2: Entity Browser</h3>
+    <ul>
+      <li><input type="checkbox"> List queues, topics, and subscriptions through administration client.</li>
+      <li><input type="checkbox"> Show counts and metadata in navigation and detail header.</li>
+      <li><input type="checkbox"> Implement manual refresh with cancellation and visible error states.</li>
+      <li><input type="checkbox"> Add unit tests for tree shaping and metadata mapping.</li>
+      <li><input type="checkbox"> Extend UI smoke tests to verify the namespace tree loads seeded entities and selecting a node updates the detail header.</li>
+    </ul>
+
+    <h3>Stage 3: Entity Management</h3>
+    <ul>
+      <li><input type="checkbox"> Create queue, topic, and subscription dialogs.</li>
+      <li><input type="checkbox"> Update supported metadata for queues, topics, and subscriptions.</li>
+      <li><input type="checkbox"> Delete queue, topic, and subscription with confirmation.</li>
+      <li><input type="checkbox"> Add tests for command validation and SDK request mapping.</li>
+      <li><input type="checkbox"> Add UI smoke coverage for create/update/delete dialog opening, validation, and confirmation behavior.</li>
+    </ul>
+
+    <h3>Stage 4: Message Inspection And Send</h3>
+    <ul>
+      <li><input type="checkbox"> Peek active and DLQ messages by page using sequence numbers.</li>
+      <li><input type="checkbox"> Show message detail body and properties.</li>
+      <li><input type="checkbox"> Send messages to queues and topics.</li>
+      <li><input type="checkbox"> Add tests for message projection and send command mapping.</li>
+      <li><input type="checkbox"> Add integration tests for send/peek and UI smoke coverage for selecting a message row and seeing body/properties update.</li>
+    </ul>
+
+    <h3>Stage 5: Full DLQ Control</h3>
+    <ul>
+      <li><input type="checkbox"> Replay selected DLQ message with a new ID and leave original in DLQ.</li>
+      <li><input type="checkbox"> Replay edited copy with optional body and application property changes.</li>
+      <li><input type="checkbox"> Delete selected DLQ messages as an explicit destructive command.</li>
+      <li><input type="checkbox"> Add tests proving replay does not delete the original by default.</li>
+      <li><input type="checkbox"> Add UI smoke coverage for DLQ row selection, replay command enablement, and delete confirmation.</li>
+    </ul>
+
+    <h3>Stage 6: Test Hardening, Packaging, And Manual Proof</h3>
+    <ul>
+      <li><input type="checkbox"> Keep root <code>compose.yaml</code> and <code>.env.example</code> as the supported local emulator test environment.</li>
+      <li><input type="checkbox"> Add an integration test fixture that waits for the emulator administration endpoint to become usable before running tests.</li>
+      <li><input type="checkbox"> Gate integration tests behind an explicit environment variable so ordinary unit test runs do not require Docker.</li>
+      <li><input type="checkbox"> Add README quickstart for emulator connection and test data.</li>
+      <li><input type="checkbox"> Add manual verification script using the local emulator compose setup.</li>
+      <li><input type="checkbox"> Harden the FlaUI/UIA3 smoke suite so it is reliable locally and can be run explicitly without blocking fast unit-test loops.</li>
+      <li><input type="checkbox"> Publish self-contained Windows build artifact.</li>
+    </ul>
+  </section>
+
+  <section id="acceptance-criteria">
+    <h2>Acceptance Criteria</h2>
+    <ul>
+      <li><input type="checkbox"> App starts on Windows and shows a connection profile form without requiring any web service.</li>
+      <li><input type="checkbox"> User can connect to a local Service Bus emulator using runtime and administration connection strings.</li>
+      <li><input type="checkbox"> User can browse queues, topics, and subscriptions from the emulator.</li>
+      <li><input type="checkbox"> User can create and delete queues, topics, and subscriptions.</li>
+      <li><input type="checkbox"> User can edit supported entity metadata where the Azure SDK supports updates.</li>
+      <li><input type="checkbox"> User can send a message to a queue or topic.</li>
+      <li><input type="checkbox"> User can peek active messages without removing them.</li>
+      <li><input type="checkbox"> User can peek DLQ messages without removing them.</li>
+      <li><input type="checkbox"> User can inspect full message body, application properties, and system properties.</li>
+      <li><input type="checkbox"> User can see all displayed entity dates, message dates, and log timestamps in UTC, with no ambiguous local-time-only labels.</li>
+      <li><input type="checkbox"> User can replay a DLQ message with a new <code>MessageId</code> while the original remains in DLQ.</li>
+      <li><input type="checkbox"> User can edit body/properties before replaying a DLQ copy.</li>
+      <li><input type="checkbox"> User can delete selected DLQ messages only after explicit confirmation.</li>
+      <li><input type="checkbox"> Integration tests can run against the repository Docker Compose emulator and verify queue/topic/subscription CRUD, send/peek, DLQ replay, and DLQ deletion.</li>
+      <li><input type="checkbox"> UI smoke tests can launch the WPF app and verify the main shell controls as soon as the first shell exists.</li>
+      <li><input type="checkbox"> Failed SDK operations show actionable errors and do not leave the UI in a false success state.</li>
+    </ul>
+  </section>
+
+  <section id="testing">
+    <h2>Testing Strategy</h2>
+    <p>
+      Testing starts with the first implementation stage. The test suite should grow with each feature instead of waiting for MVP behavior to stabilize.
+      Fast unit tests run by default, Docker-backed integration tests run only when explicitly enabled, and WPF UI smoke tests run through a separate explicit command because they need a Windows desktop session.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Layer</th><th>Coverage</th><th>Proof</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Unit</td><td>View model commands, validation, tree shaping, message projection, replay ID policy.</td><td><code>ServiceBusEmulatorExplorer.Core.Tests</code> and <code>ServiceBusEmulatorExplorer.App.Tests</code> with fake services. Runs on every normal <code>dotnet test</code>.</td></tr>
+        <tr><td>Service unit</td><td>SDK request mapping behind interfaces.</td><td>Fakes or adapter seams for <code>ServiceBusClient</code> and <code>ServiceBusAdministrationClient</code>. Runs on every normal <code>dotnet test</code>.</td></tr>
+        <tr><td>Integration</td><td>Service and SDK behavior: connect, entity CRUD, send, peek, DLQ replay/delete against emulator.</td><td>Optional test collection gated by environment variable and root Docker Compose. These tests do not prove rendered WPF behavior.</td></tr>
+        <tr><td>UI smoke</td><td>Rendered WPF behavior: startup, connect form, navigation, selection, dialogs, disabled/enabled command states.</td><td><code>ServiceBusEmulatorExplorer.UiSmoke.Tests</code> with FlaUI/UIA3. Runs only when explicitly requested because it launches the desktop app.</td></tr>
+        <tr><td>Manual proof</td><td>End-to-end local workflow.</td><td>Create queue, send poison message, dead-letter it, replay a DLQ copy, verify original DLQ remains, then delete original through the explicit delete command.</td></tr>
+      </tbody>
+    </table>
+    <h3>Test Project Contract</h3>
+    <table>
+      <thead>
+        <tr><th>Project</th><th>Created In</th><th>First Tests</th><th>Default Run</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>ServiceBusEmulatorExplorer.Core.Tests</code></td><td>Stage 1</td><td>Connection profile validation, replay ID policy, DTO/projection helpers.</td><td>Yes</td></tr>
+        <tr><td><code>ServiceBusEmulatorExplorer.App.Tests</code></td><td>Stage 1</td><td>Shell command enablement, connection view model states, operation log UTC formatting.</td><td>Yes</td></tr>
+        <tr><td><code>ServiceBusEmulatorExplorer.Integration.Tests</code></td><td>Stage 1</td><td>Fixture readiness test that is skipped unless emulator env vars are present.</td><td>No, gated by <code>SBE_RUN_INTEGRATION_TESTS=true</code></td></tr>
+        <tr><td><code>ServiceBusEmulatorExplorer.UiSmoke.Tests</code></td><td>Stage 1</td><td>Launch app, find main window, verify title/Connect/Disconnect/Refresh controls, close cleanly.</td><td>No, gated by <code>SBE_RUN_UI_TESTS=true</code></td></tr>
+      </tbody>
+    </table>
+    <h3>Integration Test Contract</h3>
+    <table>
+      <thead>
+        <tr><th>Area</th><th>Required Proof</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Startup</td><td>Test fixture starts only when <code>SBE_RUN_INTEGRATION_TESTS=true</code> and required connection strings are present.</td></tr>
+        <tr><td>Readiness</td><td>Fixture retries a harmless administration operation until the emulator is ready, with a bounded timeout.</td></tr>
+        <tr><td>Isolation</td><td>Every test uses unique entity names such as <code>it-{guid}</code> and deletes entities in cleanup.</td></tr>
+        <tr><td>Entity management</td><td>Create, list, update supported metadata, and delete queue, topic, and subscription.</td></tr>
+        <tr><td>Active messages</td><td>Send a message, peek it without removing it, and validate UTC timestamp projection.</td></tr>
+        <tr><td>DLQ setup</td><td>Send a message, receive it in PeekLock mode, dead-letter it, then verify it appears in the DLQ tab.</td></tr>
+        <tr><td>DLQ replay</td><td>Replay a DLQ copy with a new <code>MessageId</code> and verify the original DLQ message remains present.</td></tr>
+        <tr><td>DLQ delete</td><td>Delete selected DLQ message only through the explicit delete path and verify it is gone.</td></tr>
+      </tbody>
+    </table>
+    <h3>Suggested Test Environment Variables</h3>
+    <pre><code class="language-powershell">$env:SBE_RUN_INTEGRATION_TESTS = "true"
+$env:SBE_CONNECTION_STRING = "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+$env:SBE_ADMIN_CONNECTION_STRING = "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+dotnet test --filter TestCategory=Integration</code></pre>
+    <h3>Suggested UI Smoke Test Environment Variables</h3>
+    <pre><code class="language-powershell">$env:SBE_RUN_UI_TESTS = "true"
+dotnet test --filter TestCategory=UiSmoke</code></pre>
+    <h3>UI Automation Position</h3>
+    <p>
+      Docker-backed integration tests cover the application's Service Bus behavior through services and view models, not the WPF visual tree.
+      Automated UI coverage requires a separate desktop UI automation layer. For this project, use <code>FlaUI.UIA3</code> from the first WPF shell onward
+      because it targets Windows desktop apps through Microsoft UI Automation and works naturally from .NET test projects.
+    </p>
+    <table>
+      <thead>
+        <tr><th>UI Test</th><th>What It Should Prove</th><th>When To Add</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Launch smoke</td><td>App starts, main window appears, title and top command controls are discoverable, and no startup exception dialog is shown.</td><td>Stage 1, as soon as the first WPF shell exists.</td></tr>
+        <tr><td>Connection smoke</td><td>User can enter/select local emulator profile, connect, and see connected state.</td><td>After Stage 1 connection is implemented.</td></tr>
+        <tr><td>Navigation smoke</td><td>Tree loads queues/topics/subscriptions, selection updates the detail header, and counts align with loaded data.</td><td>After Stage 2 entity browser is implemented.</td></tr>
+        <tr><td>DLQ command smoke</td><td>Selecting a DLQ row enables replay/delete commands and destructive commands require confirmation.</td><td>After Stage 5 DLQ control is implemented.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="things-to-do">
+    <h2>Things To Do</h2>
+    <ul>
+      <li><input type="checkbox" checked> Create the WPF solution and project structure.</li>
+      <li><input type="checkbox" checked> Add core models and service interfaces from this spec.</li>
+      <li><input type="checkbox" checked> Implement connection profile persistence.</li>
+      <li><input type="checkbox" checked> Implement direct Azure SDK client factory.</li>
+      <li><input type="checkbox"> Implement entity administration service.</li>
+      <li><input type="checkbox"> Implement message peek/send/delete service.</li>
+      <li><input type="checkbox"> Implement non-destructive DLQ replay service.</li>
+      <li><input type="checkbox"> Build WPF shell, navigation, entity detail, message grid, detail pane, and dialogs.</li>
+      <li><input type="checkbox" checked> Add Stage 1 unit, integration fixture, and FlaUI/UIA3 launch smoke tests before expanding feature work.</li>
+      <li><input type="checkbox"> Add Docker-backed integration tests using the root compose environment.</li>
+      <li><input type="checkbox"> Add tests and manual verification notes.</li>
+      <li><input type="checkbox"> Update README with quickstart and emulator connection strings.</li>
+    </ul>
+  </section>
+
+  <section id="mocks">
+    <h2>Mocks / Templates To Use</h2>
+    <table>
+      <thead>
+        <tr><th>Resource</th><th>Use</th><th>Authority</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><a href="./wpf-service-bus-emulator-explorer-mvpResources/ui-wireframe.html">UI wireframe</a></td>
+          <td>Guides WPF shell layout, visible MVP controls, command placement, and DLQ command separation.</td>
+          <td>Authoritative for visible MVP functionality and flow; visual styling can evolve within the modern desktop direction.</td>
+        </tr>
+        <tr>
+          <td><a href="./mermaid-viewer/mermaid-offline-viewer.html">Shared Mermaid viewer</a></td>
+          <td>Open diagrams interactively from this spec.</td>
+          <td>Reusable spec asset.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="risks-assumptions">
+    <h2>Risks, Assumptions, And Deferred Choices</h2>
+    <h3>Assumptions</h3>
+    <ul>
+      <li>The MVP targets Windows developer machines and local emulator workflows.</li>
+      <li>The emulator accepts the same SDK patterns used by the reference project.</li>
+      <li><code>net10.0-windows</code> is acceptable because the reference project already uses .NET 10.</li>
+      <li>Subscription rules and filters are useful later, but not required for the first working MVP.</li>
+    </ul>
+
+    <h3>Risks</h3>
+    <ul>
+      <li>Targeted DLQ operations require careful sequence-number handling. Message ID is not enough.</li>
+      <li>Ambiguous local timestamps can cause incorrect troubleshooting. The MVP must label displayed timestamps as UTC and use <code>DateTimeOffset</code> internally.</li>
+      <li>Receive-and-delete mode is dangerous for DLQ. Prefer PeekLock plus explicit complete/abandon logic.</li>
+      <li>Some metadata updates may not be supported after entity creation or may behave differently in the emulator.</li>
+      <li>Docker startup can be slower than test startup. Integration tests must have bounded readiness polling instead of fixed sleeps.</li>
+      <li>WPF UI automation is slower and more environment-sensitive than service integration tests. Keep the automated UI suite small, gated, and focused on smoke workflows from the first shell onward.</li>
+      <li>Large message bodies can make the WPF grid sluggish if bound directly. Use previews in the grid and load full detail on selection.</li>
+    </ul>
+
+    <h3>Deferred Choices</h3>
+    <ul>
+      <li>Whether to add subscription rule/filter CRUD after MVP.</li>
+      <li>Whether to add import/export of messages as JSON files.</li>
+      <li>Whether to support Azure cloud namespaces with safer profile labeling.</li>
+      <li>Whether the gated FlaUI/UIA3 smoke tests should later run in CI or remain local-only for the MVP.</li>
+    </ul>
+  </section>
+
+  <section id="definition-of-done">
+    <h2>Definition Of Done</h2>
+    <ul>
+      <li><input type="checkbox"> All Stage 1 through Stage 5 acceptance criteria pass locally.</li>
+      <li><input type="checkbox"> Unit tests cover service contracts, view model command states, and DLQ replay default behavior.</li>
+      <li><input type="checkbox"> Docker-backed integration tests pass when the root compose emulator is running and integration tests are explicitly enabled.</li>
+      <li><input type="checkbox"> An intentionally small FlaUI/UIA3 smoke suite covers launch, connect, navigation, and DLQ command enablement behind <code>SBE_RUN_UI_TESTS=true</code>.</li>
+      <li><input type="checkbox"> Manual proof confirms default replay leaves DLQ originals untouched.</li>
+      <li><input type="checkbox"> Destructive operations require confirmation and report success/failure accurately.</li>
+      <li><input type="checkbox"> README documents emulator startup, connection strings, and the DLQ workflow.</li>
+      <li><input type="checkbox"> Code follows method ordering preference and keeps private helpers below their callers in invocation order.</li>
+    </ul>
+  </section>
+
+  <section id="change-history">
+    <h2>Change History</h2>
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Agent</th><th>Summary</th><th>Resources</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>2026-07-08</td>
+          <td>Codex</td>
+          <td>Created MVP system scope and implementation plan for direct-SDK WPF Service Bus emulator explorer.</td>
+          <td><a href="./wpf-service-bus-emulator-explorer-mvpResources/ui-wireframe.html">Wireframe</a>, <a href="../Lessons/wpf-service-bus-emulator-explorer-mvp-lessons-learned.md">Lessons</a></td>
+        </tr>
+        <tr>
+          <td>2026-07-08</td>
+          <td>Codex</td>
+          <td>Updated UI direction and promoted wireframe to follow the paolosalvatori/ServiceBusExplorer desktop interaction model.</td>
+          <td><a href="./wpf-service-bus-emulator-explorer-mvpResources/ui-wireframe.html">Updated wireframe</a>, <a href="https://github.com/paolosalvatori/ServiceBusExplorer">UI reference</a></td>
+        </tr>
+        <tr>
+          <td>2026-07-08</td>
+          <td>Codex</td>
+          <td>Modernized the UI wireframe while keeping the ServiceBusExplorer-inspired workflow and command placement.</td>
+          <td><a href="./wpf-service-bus-emulator-explorer-mvpResources/ui-wireframe.html">Modernized wireframe</a></td>
+        </tr>
+        <tr>
+          <td>2026-07-08</td>
+          <td>Codex</td>
+          <td>Trimmed the wireframe to match MVP scope exactly and removed visible controls not backed by this spec.</td>
+          <td><a href="./wpf-service-bus-emulator-explorer-mvpResources/ui-wireframe.html">Scope-aligned wireframe</a></td>
+        </tr>
+        <tr>
+          <td>2026-07-08</td>
+          <td>Codex</td>
+          <td>Clarified message command labels and removed combined replay-and-delete from MVP wireframe behavior.</td>
+          <td><a href="./wpf-service-bus-emulator-explorer-mvpResources/ui-wireframe.html">Clarified wireframe</a></td>
+        </tr>
+        <tr>
+          <td>2026-07-08</td>
+          <td>Codex</td>
+          <td>Added repository Docker Compose emulator infrastructure and an explicit integration-test contract.</td>
+          <td><a href="../compose.yaml">compose.yaml</a>, <a href="../.env.example">.env.example</a></td>
+        </tr>
+        <tr>
+          <td>2026-07-08</td>
+          <td>Codex</td>
+          <td>Removed the menu bar from the wireframe contract, tightened tree/message selection visuals, and clarified that WPF UI automation needs a separate FlaUI/UIA3 layer.</td>
+          <td><a href="./wpf-service-bus-emulator-explorer-mvpResources/ui-wireframe.html">Updated wireframe</a></td>
+        </tr>
+        <tr>
+          <td>2026-07-08</td>
+          <td>Codex</td>
+          <td>Moved testing into Stage 1, made FlaUI/UIA3 UI smoke tests part of the MVP test strategy, and added a repository test starting point.</td>
+          <td><a href="../tests/README.md">tests/README.md</a></td>
+        </tr>
+        <tr>
+          <td>2026-07-08</td>
+          <td>Codex</td>
+          <td>Changed the bottom action strip to compact icon-plus-label buttons while preserving full command names for tooltips and UI automation.</td>
+          <td><a href="./wpf-service-bus-emulator-explorer-mvpResources/ui-wireframe.html">Updated wireframe</a></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+  (function () {
+    const viewerLink = document.getElementById("open-diagram-viewer");
+    if (!viewerLink) return;
+
+    const diagrams = Array.from(document.querySelectorAll("pre.mermaid")).map((block, index) => ({
+      title: block.dataset.title || block.closest("section")?.querySelector("h2, h3")?.textContent || `Diagram ${index + 1}`,
+      code: block.textContent.trim()
+    }));
+
+    const payload = JSON.stringify({ title: document.title || "Spec diagrams", diagrams });
+    const bytes = new TextEncoder().encode(payload);
+    const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
+    const encoded = btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    viewerLink.href = `${viewerLink.getAttribute("href")}#diagrams=${encoded}`;
+  })();
+</script>
+<script src="./mermaid-viewer/vendor/mermaid.min.js"></script>
+<script>
+  (function () {
+    if (!window.mermaid) return;
+
+    window.mermaid.initialize({
+      startOnLoad: true,
+      securityLevel: "strict",
+      theme: "base",
+      flowchart: {
+        htmlLabels: true,
+        useMaxWidth: true
+      }
+    });
+  })();
+</script>
+<script>
+  (function () {
+    const escapeHtml = (value) => value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+
+    const highlightJson = (code) => escapeHtml(code)
+      .replace(/(&quot;[^&]*?&quot;)(\s*:)/g, '<span class="token-property">$1</span><span class="token-punctuation">$2</span>')
+      .replace(/(:\s*)(&quot;[^&]*?&quot;)/g, '$1<span class="token-string">$2</span>')
+      .replace(/\b(true|false|null)\b/g, '<span class="token-keyword">$1</span>')
+      .replace(/\b(-?\d+(?:\.\d+)?)\b/g, '<span class="token-number">$1</span>');
+
+    const highlightCsharp = (code) => {
+      let escaped = escapeHtml(code);
+      const protectedTokens = [];
+      const protect = (html) => {
+        const key = `@@CODE_TOKEN_${protectedTokens.length}@@`;
+        protectedTokens.push(html);
+        return key;
+      };
+
+      escaped = escaped.replace(/(&quot;.*?&quot;)/g, (match) => protect(`<span class="token-string">${match}</span>`));
+      escaped = escaped.replace(/(\/\/.*)$/gm, (match) => protect(`<span class="token-comment">${match}</span>`));
+      escaped = escaped.replace(/\b(public|private|protected|internal|sealed|record|class|interface|enum|Task|async|await|return|string|int|long|bool|var|new|null|true|false|using|namespace|CancellationToken|IReadOnlyList|IReadOnlyDictionary)\b/g, '<span class="token-keyword">$1</span>');
+      escaped = escaped.replace(/\b(ConnectionProfile|ServiceBusEntityNode|ExplorerMessage|ReplayRequest|ReplayIdPolicy|IServiceBusClientFactory|IServiceBusAdministrationService|IServiceBusMessageService|IDeadLetterReplayService|ServiceBusAdministrationClient|ServiceBusClient|EntityAddress|ReplayResult|CreateQueueCommand|UpdateQueueCommand|CreateTopicCommand|UpdateTopicCommand|CreateSubscriptionCommand|UpdateSubscriptionCommand|SendMessageCommand|EntityKind|MessageBucket)\b/g, '<span class="token-type">$1</span>');
+      protectedTokens.forEach((html, index) => {
+        escaped = escaped.replace(`@@CODE_TOKEN_${index}@@`, html);
+      });
+      return escaped;
+    };
+
+    document.querySelectorAll("pre code").forEach((block) => {
+      const language = Array.from(block.classList).find((name) => name.startsWith("language-"));
+      const source = block.textContent;
+
+      if (language === "language-csharp") {
+        block.innerHTML = highlightCsharp(source);
+      } else if (language === "language-json") {
+        block.innerHTML = highlightJson(source);
+      } else if (source.trim().startsWith("{") || source.trim().startsWith("[")) {
+        block.innerHTML = highlightJson(source);
+      } else {
+        block.innerHTML = escapeHtml(source);
+      }
+    });
+  })();
+</script>
+</body>
+</html>

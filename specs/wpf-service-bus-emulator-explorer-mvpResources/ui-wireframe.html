@@ -1,0 +1,795 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>WPF Service Bus Emulator Explorer MVP Wireframe</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f3f5f8;
+      --surface: #ffffff;
+      --surface-muted: #f8fafc;
+      --surface-strong: #eef3f8;
+      --line: #d8e0ea;
+      --line-strong: #b9c5d4;
+      --text: #172033;
+      --muted: #637083;
+      --accent: #0f6cbd;
+      --accent-soft: #e8f3ff;
+      --danger: #c50f1f;
+      --success: #107c10;
+      --warning: #a15c00;
+      --shadow: 0 8px 22px rgb(15 23 42 / 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .app {
+      display: grid;
+      grid-template-rows: 56px 44px 1fr 128px 28px;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: 18px;
+      padding: 0 18px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 7px;
+      color: #ffffff;
+      background: var(--accent);
+      font-size: 12px;
+    }
+
+    .connection-status {
+      display: flex;
+      align-items: center;
+      justify-self: end;
+      gap: 8px;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+
+    .commandbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 18px;
+      background: var(--surface-muted);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 30px;
+      min-width: 88px;
+      border: 1px solid var(--line-strong);
+      border-radius: 5px;
+      background: var(--surface);
+      color: var(--text);
+      padding: 5px 9px;
+      font: inherit;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .button.compact { min-width: 76px; }
+    .button.wide { min-width: 142px; }
+    .button.xwide { min-width: 166px; }
+    .button.action { min-width: auto; }
+    .button.action.wide-action { min-width: 112px; }
+
+    .button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    .button.danger {
+      border-color: #f0b9bf;
+      color: var(--danger);
+      background: #fff8f8;
+    }
+
+    .button.ghost {
+      border-color: transparent;
+      background: transparent;
+    }
+
+    .button-icon {
+      width: 14px;
+      height: 14px;
+      flex: 0 0 auto;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .action-separator {
+      width: 1px;
+      height: 24px;
+      background: var(--line);
+      margin: 0 2px;
+      flex: 0 0 auto;
+    }
+
+    .separator {
+      width: 1px;
+      height: 24px;
+      background: var(--line);
+      margin: 0 4px;
+    }
+
+    .connection {
+      flex: 1;
+      min-width: 320px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: var(--surface);
+      padding: 5px 8px;
+      color: #42536a;
+      font-family: Consolas, "Cascadia Mono", monospace;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 308px 1fr;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .sidebar,
+    .main,
+    .log {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      min-height: 42px;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+      font-weight: 650;
+    }
+
+    .filter {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .input {
+      width: 100%;
+      min-height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      padding: 5px 8px;
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+    }
+
+    .tree {
+      overflow: auto;
+      padding: 10px;
+    }
+
+    .tree ul {
+      list-style: none;
+      margin: 0;
+      padding: 0 0 0 18px;
+    }
+
+    .tree > ul { padding-left: 0; }
+    .tree li { margin: 2px 0; }
+
+    .tree-row {
+      display: grid;
+      grid-template-columns: 18px 22px minmax(0, 1fr) 50px;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      padding: 3px 6px;
+      border-radius: 5px;
+      color: #263449;
+    }
+
+    .expander,
+    .expander-placeholder {
+      width: 18px;
+      height: 18px;
+    }
+
+    .expander {
+      display: grid;
+      place-items: center;
+      border: 0;
+      padding: 0;
+      background: transparent;
+    }
+
+    .expander::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-right: 1.8px solid #475569;
+      border-bottom: 1.8px solid #475569;
+      transform: rotate(-45deg);
+    }
+
+    .expander.expanded::before {
+      transform: rotate(45deg);
+    }
+
+    .tree-row.selected {
+      background: var(--accent-soft);
+      color: #073b69;
+      font-weight: 650;
+    }
+
+    .node-icon {
+      display: grid;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      font-size: 10px;
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .node-icon.namespace { background: #2563eb; }
+    .node-icon.queue { background: var(--success); }
+    .node-icon.topic { background: #c2410c; }
+    .node-icon.subscription { background: #6d28d9; }
+    .node-icon.group { background: #64748b; }
+    .node-icon.dlq { background: var(--danger); }
+
+    .node-label {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .count-pill {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: right;
+      font-weight: 400;
+    }
+
+    .main {
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .entity-summary {
+      display: grid;
+      grid-template-columns: minmax(420px, 1fr) auto;
+      gap: 16px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .entity-heading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .entity-heading h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .badge {
+      border-radius: 999px;
+      padding: 2px 8px;
+      color: #075985;
+      background: #e0f2fe;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .fields {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(150px, 1fr));
+      gap: 8px 12px;
+    }
+
+    .field-label {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .field-value {
+      display: block;
+      margin-top: 2px;
+      font-family: Consolas, "Cascadia Mono", monospace;
+      color: #1f2a44;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 86px);
+      gap: 8px;
+      align-content: start;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface-muted);
+      padding: 8px;
+      text-align: right;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      text-align: left;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 20px;
+    }
+
+    .entity-body {
+      display: grid;
+      grid-template-rows: 42px 1fr auto;
+      min-height: 0;
+    }
+
+    .tabs {
+      display: flex;
+      align-items: end;
+      gap: 2px;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-muted);
+    }
+
+    .tab {
+      padding: 10px 12px;
+      min-height: 42px;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+    }
+
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      font-weight: 650;
+      background: var(--surface);
+    }
+
+    .message-workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: minmax(240px, 1fr) 210px;
+      gap: 12px;
+      padding: 12px;
+      background: var(--surface-muted);
+    }
+
+    .message-list,
+    .message-text,
+    .properties {
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface);
+      display: grid;
+      grid-template-rows: 38px 1fr;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+      font-weight: 650;
+    }
+
+    .section-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 400;
+    }
+
+    .grid-scroll {
+      min-height: 0;
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      background: var(--surface);
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 7px 9px;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--surface-strong);
+      color: #334155;
+      font-weight: 650;
+    }
+
+    tr.selected td {
+      background: var(--accent-soft);
+      color: #0b3d66;
+    }
+
+    .select-column {
+      width: 42px;
+      text-align: center;
+    }
+
+    .row-check {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      vertical-align: middle;
+      accent-color: var(--accent);
+    }
+
+    .detail-grid {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(340px, 1fr) minmax(340px, 1fr);
+      gap: 12px;
+    }
+
+    pre {
+      margin: 0;
+      min-height: 0;
+      overflow: auto;
+      padding: 12px;
+      background: #0f172a;
+      color: #e5edf8;
+      font: 12px/1.45 Consolas, "Cascadia Mono", monospace;
+    }
+
+    .properties .grid-scroll {
+      background: var(--surface);
+    }
+
+    .action-strip {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-top: 1px solid var(--line);
+      background: var(--surface);
+      overflow-x: auto;
+    }
+
+    .log {
+      margin: 0 12px 12px;
+      display: grid;
+      grid-template-rows: 36px 1fr;
+    }
+
+    .log-lines {
+      overflow: auto;
+      padding: 8px 10px;
+      background: #101827;
+      color: #d8e4f0;
+      font: 12px/1.45 Consolas, "Cascadia Mono", monospace;
+      white-space: pre;
+    }
+
+    .statusbar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 14px;
+      color: var(--muted);
+      background: var(--surface);
+      border-top: 1px solid var(--line);
+    }
+
+    .statusbar .right { margin-left: auto; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">SB</span>Service Bus Emulator Explorer</div>
+      <div class="connection-status"><span class="dot"></span><span>Connected to Local emulator</span></div>
+    </header>
+
+    <div class="commandbar" aria-label="Command bar">
+      <button class="button primary">Connect</button>
+      <button class="button">Disconnect</button>
+      <button class="button">Refresh</button>
+      <span class="separator"></span>
+      <button class="button">New Queue</button>
+      <button class="button">New Topic</button>
+      <button class="button wide">New Subscription</button>
+      <span class="separator"></span>
+      <div class="connection">Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;UseDevelopmentEmulator=true;</div>
+    </div>
+
+    <div class="workspace">
+      <aside class="sidebar">
+        <div class="panel-title">
+          <span>Namespace</span>
+        </div>
+        <div class="filter">
+          <input class="input" value="Filter queues, topics, subscriptions">
+        </div>
+        <div class="tree" role="tree">
+          <ul>
+            <li>
+              <div class="tree-row"><button class="expander expanded" aria-label="Collapse namespace"></button><span class="node-icon namespace">N</span><span class="node-label">sb://localhost/</span><span></span></div>
+              <ul>
+                <li>
+                  <div class="tree-row"><button class="expander expanded" aria-label="Collapse queues"></button><span class="node-icon group">G</span><span class="node-label">Queues</span><span></span></div>
+                  <ul>
+                    <li><div class="tree-row selected"><span class="expander-placeholder"></span><span class="node-icon queue">Q</span><span class="node-label">orders</span><span class="count-pill">42 / 6</span></div></li>
+                    <li><div class="tree-row"><span class="expander-placeholder"></span><span class="node-icon queue">Q</span><span class="node-label">payments</span><span class="count-pill">0 / 0</span></div></li>
+                    <li><div class="tree-row"><span class="expander-placeholder"></span><span class="node-icon queue">Q</span><span class="node-label">audit-events</span><span class="count-pill">12 / 1</span></div></li>
+                  </ul>
+                </li>
+                <li>
+                  <div class="tree-row"><button class="expander expanded" aria-label="Collapse topics"></button><span class="node-icon group">G</span><span class="node-label">Topics</span><span></span></div>
+                  <ul>
+                    <li>
+                      <div class="tree-row"><button class="expander expanded" aria-label="Collapse invoices subscriptions"></button><span class="node-icon topic">T</span><span class="node-label">invoices</span><span></span></div>
+                      <ul>
+                        <li><div class="tree-row"><span class="expander-placeholder"></span><span class="node-icon subscription">S</span><span class="node-label">processor</span><span class="count-pill">9 / 2</span></div></li>
+                        <li><div class="tree-row"><span class="expander-placeholder"></span><span class="node-icon subscription">S</span><span class="node-label">archiver</span><span class="count-pill">0 / 0</span></div></li>
+                      </ul>
+                    </li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </aside>
+
+      <main class="main">
+        <section class="entity-summary" aria-label="Entity summary">
+          <div>
+            <div class="entity-heading">
+              <h1>Queue: orders</h1>
+              <span class="badge">Active</span>
+            </div>
+            <div class="fields">
+              <div><span class="field-label">Relative URI</span><span class="field-value">orders</span></div>
+              <div><span class="field-label">Created UTC</span><span class="field-value">2026-07-08 13:42:00Z</span></div>
+              <div><span class="field-label">Max Delivery</span><span class="field-value">10</span></div>
+              <div><span class="field-label">Lock Duration</span><span class="field-value">00:01:00</span></div>
+              <div><span class="field-label">Default TTL</span><span class="field-value">14.00:00:00</span></div>
+              <div><span class="field-label">Entity Path</span><span class="field-value">orders</span></div>
+            </div>
+          </div>
+          <div class="metrics">
+            <div class="metric"><span>Active</span><strong>42</strong></div>
+            <div class="metric"><span>DLQ</span><strong>6</strong></div>
+            <div class="metric"><span>Scheduled</span><strong>0</strong></div>
+            <div class="metric"><span>Total</span><strong>48</strong></div>
+          </div>
+        </section>
+
+        <section class="entity-body">
+          <nav class="tabs" aria-label="Entity tabs">
+            <div class="tab">Description</div>
+            <div class="tab active">Messages</div>
+            <div class="tab">Dead Letter</div>
+          </nav>
+
+          <div class="message-workspace">
+            <section class="message-list">
+              <div class="section-title">
+                <span>Message List</span>
+                <div class="section-actions">
+                  <button class="button compact">Peek</button>
+                  <button class="button compact">Copy Body</button>
+                </div>
+              </div>
+              <div class="grid-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th class="select-column">Select</th>
+                      <th>MessageId</th>
+                      <th>Seq</th>
+                      <th>Size</th>
+                      <th>Subject</th>
+                      <th>EnqueuedTimeUtc</th>
+                      <th>ExpiresAtUtc</th>
+                      <th>Delivery</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="selected">
+                      <td class="select-column"><input class="row-check" type="checkbox" checked aria-label="Select message dlq-1"></td>
+                      <td>dlq-1</td>
+                      <td>8818</td>
+                      <td>364</td>
+                      <td>OrderFailed</td>
+                      <td>2026-07-08 13:42:01Z</td>
+                      <td>9999-12-31 23:59:59Z</td>
+                      <td>5</td>
+                    </tr>
+                    <tr>
+                      <td class="select-column"><input class="row-check" type="checkbox" aria-label="Select message dlq-2"></td>
+                      <td>dlq-2</td>
+                      <td>8819</td>
+                      <td>408</td>
+                      <td>ValidationFailed</td>
+                      <td>2026-07-08 13:43:17Z</td>
+                      <td>9999-12-31 23:59:59Z</td>
+                      <td>7</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <div class="detail-grid">
+              <section class="message-text">
+                <div class="section-title"><span>Message Text</span></div>
+                <pre>{
+  "orderId": "123",
+  "status": "failed-validation"
+}</pre>
+              </section>
+
+              <section class="properties">
+                <div class="section-title"><span>System and Custom Properties</span></div>
+                <div class="grid-scroll">
+                  <table>
+                    <thead>
+                      <tr><th>Name</th><th>Type</th><th>Value</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>ContentType</td><td>String</td><td>application/json</td></tr>
+                      <tr><td>CorrelationId</td><td>String</td><td>order-123</td></tr>
+                      <tr><td>DeadLetterReason</td><td>String</td><td>MaxDeliveryCountExceeded</td></tr>
+                      <tr><td>DeadLetterErrorDescription</td><td>String</td><td>Validation failed</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div class="action-strip">
+            <button class="button action" title="Send New Message" aria-label="Send new message">
+              <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2 11 13"></path><path d="m22 2-7 20-4-9-9-4 20-7z"></path></svg>
+              <span>Send</span>
+            </button>
+            <button class="button primary action" title="Replay DLQ Copy" aria-label="Replay DLQ copy">
+              <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 3v6h-6"></path></svg>
+              <span>Replay</span>
+            </button>
+            <button class="button action wide-action" title="Edit and Replay DLQ" aria-label="Edit and replay DLQ">
+              <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>
+              <span>Edit Replay</span>
+            </button>
+            <button class="button danger action wide-action" title="Delete Selected DLQ" aria-label="Delete selected DLQ messages">
+              <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v5"></path><path d="M14 11v5"></path></svg>
+              <span>Selected</span>
+            </button>
+            <button class="button danger action wide-action" title="Delete Visible DLQ" aria-label="Delete visible DLQ messages">
+              <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M9 11h6"></path></svg>
+              <span>Visible</span>
+            </button>
+            <span class="action-separator"></span>
+            <button class="button action" title="Refresh" aria-label="Refresh">
+              <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.5 6.2"></path><path d="M3 12a9 9 0 0 1 15.5-6.2"></path><path d="M18 3v5h-5"></path><path d="M6 21v-5h5"></path></svg>
+              <span>Refresh</span>
+            </button>
+            <button class="button action" title="Update Entity" aria-label="Update entity">
+              <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><path d="M17 21v-8H7v8"></path><path d="M7 3v5h8"></path></svg>
+              <span>Update</span>
+            </button>
+            <button class="button danger action" title="Delete Queue" aria-label="Delete queue">
+              <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>
+              <span>Queue</span>
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <section class="log">
+      <div class="panel-title"><span>Operation Log</span></div>
+      <div class="log-lines">&lt;13:42:01Z&gt; The queue orders has been successfully retrieved.
+&lt;13:42:02Z&gt; Peeked 2 dead-letter messages from queue orders.
+&lt;13:42:12Z&gt; Replayed message dlq-1 as new message 596ecf59-0c4a-40f8-98c5-d5bba9c7723f. Original DLQ message was left in place.
+&lt;13:42:18Z&gt; Refreshed runtime properties for queues and subscriptions.</div>
+    </section>
+
+    <footer class="statusbar">
+      <span>Connected: Local emulator</span>
+      <span>Transport: AMQP</span>
+      <span>Mode: Direct SDK</span>
+      <span class="right">Modern UI, ServiceBusExplorer-inspired workflow.</span>
+    </footer>
+  </div>
+</body>
+</html>

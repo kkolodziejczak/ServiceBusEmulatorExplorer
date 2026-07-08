@@ -1,0 +1,25 @@
+services:
+  servicebus-emulator:
+    image: mcr.microsoft.com/azure-messaging/servicebus-emulator@sha256:7607008ede6fa0f9fb4f3411bd681e39b48dcbcc90bafbc15f7bca5c3d8ced4b
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:5300:5300"
+    environment:
+      SQL_SERVER: sql
+      MSSQL_SA_PASSWORD: "${SQL_PASSWORD}"
+      ACCEPT_EULA: "${ACCEPT_EULA}"
+    depends_on:
+      - sql
+    networks:
+      sb-emulator:
+
+  sql:
+    image: mcr.microsoft.com/mssql/server@sha256:2cd0aec4a3bfc3cf9205bed3f7922f4c6208f7c767dc62edcee308d0fd7d56d0
+    environment:
+      ACCEPT_EULA: "${ACCEPT_EULA}"
+      MSSQL_SA_PASSWORD: "${SQL_PASSWORD}"
+    networks:
+      sb-emulator:
+
+networks:
+  sb-emulator:

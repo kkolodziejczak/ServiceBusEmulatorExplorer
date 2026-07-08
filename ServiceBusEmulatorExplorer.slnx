@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ServiceBusEmulatorExplorer.App/ServiceBusEmulatorExplorer.App.csproj" />
+    <Project Path="src/ServiceBusEmulatorExplorer.Core/ServiceBusEmulatorExplorer.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ServiceBusEmulatorExplorer.App.Tests/ServiceBusEmulatorExplorer.App.Tests.csproj" />
+    <Project Path="tests/ServiceBusEmulatorExplorer.Core.Tests/ServiceBusEmulatorExplorer.Core.Tests.csproj" />
+    <Project Path="tests/ServiceBusEmulatorExplorer.Integration.Tests/ServiceBusEmulatorExplorer.Integration.Tests.csproj" />
+    <Project Path="tests/ServiceBusEmulatorExplorer.UiSmoke.Tests/ServiceBusEmulatorExplorer.UiSmoke.Tests.csproj" />
+  </Folder>
+</Solution>

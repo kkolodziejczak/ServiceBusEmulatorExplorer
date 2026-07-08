@@ -1,0 +1,113 @@
+<Window x:Class="ServiceBusEmulatorExplorer.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Service Bus Emulator Explorer"
+        Height="720"
+        Width="1180"
+        MinHeight="560"
+        MinWidth="900">
+    <DockPanel Background="#F5F7FA">
+        <Border DockPanel.Dock="Top" Background="White" BorderBrush="#D2DAE6" BorderThickness="0,0,0,1" Padding="18,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="Service Bus Emulator Explorer" FontSize="22" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding ConnectionStatus}" Foreground="#607086" Margin="0,4,0,0" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="ConnectButton"
+                            AutomationProperties.AutomationId="ConnectButton"
+                            AutomationProperties.Name="Connect"
+                            Content="Connect"
+                            Command="{Binding ConnectCommand}"
+                            MinWidth="92"
+                            Margin="0,0,8,0" />
+                    <Button x:Name="DisconnectButton"
+                            AutomationProperties.AutomationId="DisconnectButton"
+                            AutomationProperties.Name="Disconnect"
+                            Content="Disconnect"
+                            Command="{Binding DisconnectCommand}"
+                            MinWidth="92"
+                            Margin="0,0,8,0" />
+                    <Button x:Name="RefreshButton"
+                            AutomationProperties.AutomationId="RefreshButton"
+                            AutomationProperties.Name="Refresh"
+                            Content="Refresh"
+                            Command="{Binding RefreshCommand}"
+                            MinWidth="92" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Margin="18">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Background="White" BorderBrush="#D2DAE6" BorderThickness="1" CornerRadius="6" Padding="16">
+                <StackPanel>
+                    <TextBlock Text="Connection Profile" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" />
+                    <TextBlock Text="Name" />
+                    <TextBox AutomationProperties.AutomationId="ProfileNameTextBox"
+                             Text="{Binding ProfileName, UpdateSourceTrigger=PropertyChanged}"
+                             Margin="0,4,0,12" />
+                    <TextBlock Text="Runtime connection string" />
+                    <TextBox AutomationProperties.AutomationId="RuntimeConnectionStringTextBox"
+                             Text="{Binding RuntimeConnectionString, UpdateSourceTrigger=PropertyChanged}"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             MinHeight="84"
+                             Margin="0,4,0,12" />
+                    <TextBlock Text="Administration connection string" />
+                    <TextBox AutomationProperties.AutomationId="AdministrationConnectionStringTextBox"
+                             Text="{Binding AdministrationConnectionString, UpdateSourceTrigger=PropertyChanged}"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             MinHeight="84"
+                             Margin="0,4,0,0" />
+                </StackPanel>
+            </Border>
+
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="14" />
+                    <RowDefinition Height="190" />
+                </Grid.RowDefinitions>
+
+                <Border Background="White" BorderBrush="#D2DAE6" BorderThickness="1" CornerRadius="6" Padding="18">
+                    <StackPanel>
+                        <TextBlock Text="Namespace" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" />
+                        <TextBlock Text="Connect to the local emulator to load queues, topics, and subscriptions in Stage 2."
+                                   Foreground="#607086"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Row="2" Background="#101827" CornerRadius="6" Padding="12">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Operation Log" Foreground="#EEF5FF" FontWeight="SemiBold" Margin="0,0,0,8" />
+                        <ListBox AutomationProperties.AutomationId="OperationLogList"
+                                 ItemsSource="{Binding OperationLog}"
+                                 Background="#101827"
+                                 BorderThickness="0"
+                                 Foreground="#EEF5FF">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DisplayText}" FontFamily="Consolas" FontSize="12" />
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </DockPanel>
+</Window>

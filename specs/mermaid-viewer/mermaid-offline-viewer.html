@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Offline Mermaid Viewer</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --text: #1f2933;
+      --muted: #607080;
+      --border: #d8dee6;
+      --code-bg: #eef2f6;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 32px 20px;
+    }
+
+    header {
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      line-height: 1.2;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    code {
+      background: var(--code-bg);
+      border-radius: 4px;
+      padding: 2px 5px;
+    }
+
+    .interaction-hint {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      overflow: auto;
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: 18px;
+    }
+
+    .mermaid {
+      display: block;
+      width: max-content;
+      min-width: 720px;
+      margin: 0 auto;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+      transform: translate(var(--diagram-pan-x, 0px), var(--diagram-pan-y, 0px)) scale(var(--diagram-zoom));
+      transform-origin: top left;
+    }
+
+    .mermaid.is-panning {
+      cursor: grabbing;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Offline Mermaid Viewer</h1>
+      <p>Use this shared viewer from the spec root. Specs can pass their embedded Mermaid diagrams through the URL hash.</p>
+      <p class="interaction-hint">Drag a diagram to pan. Hold Ctrl and scroll over a diagram to zoom that chart. Double-click a diagram to center it.</p>
+    </header>
+
+    <section>
+      <h2>Example Flow</h2>
+      <pre class="mermaid">
+flowchart TD
+  A[Start from exported diagram] --> B[Extract workflow intent]
+  B --> C{Enough detail?}
+  C -->|Yes| D[Draft skill instructions]
+  C -->|No| E[Ask targeted clarification]
+  E --> D
+  D --> F[Validate skill behavior]
+      </pre>
+    </section>
+
+    <section>
+      <h2>Example Sequence</h2>
+      <pre class="mermaid">
+sequenceDiagram
+  participant User
+  participant Codex
+  participant Skill
+  User->>Codex: Provide diagram export
+  Codex->>Codex: Parse flow and decisions
+  Codex->>Skill: Write reusable instructions
+  Skill-->>User: Repeatable workflow
+      </pre>
+    </section>
+  </main>
+
+  <script src="./vendor/mermaid.min.js"></script>
+  <script>
+    function decodePayloadFromHash() {
+      const match = /^#diagrams=([^&]+)/.exec(window.location.hash);
+      if (!match) return null;
+
+      try {
+        const base64 = match[1].replace(/-/g, "+").replace(/_/g, "/");
+        const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+        const binary = atob(padded);
+        const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+        return JSON.parse(new TextDecoder().decode(bytes));
+      } catch (error) {
+        console.error("Unable to read Mermaid viewer payload", error);
+        return null;
+      }
+    }
+
+    function loadPayload(payload) {
+      if (!payload || !Array.isArray(payload.diagrams) || payload.diagrams.length === 0) return;
+
+      if (payload.title) {
+        document.title = payload.title;
+        document.querySelector("h1").textContent = payload.title;
+      }
+
+      const main = document.querySelector("main");
+      main.querySelectorAll("section").forEach((section) => section.remove());
+
+      payload.diagrams.forEach((diagram, index) => {
+        const section = document.createElement("section");
+        const heading = document.createElement("h2");
+        const pre = document.createElement("pre");
+
+        heading.textContent = diagram.title || `Diagram ${index + 1}`;
+        pre.className = "mermaid";
+        pre.textContent = String(diagram.code || "").trim();
+
+        section.append(heading, pre);
+        main.append(section);
+      });
+    }
+
+    loadPayload(decodePayloadFromHash());
+
+    mermaid.initialize({
+      startOnLoad: true,
+      securityLevel: "strict",
+      theme: "default"
+    });
+
+    function setZoom(diagram, value) {
+      const nextZoom = Math.min(2.5, Math.max(0.4, Number(value)));
+      diagram.dataset.zoom = String(nextZoom);
+      diagram.style.setProperty("--diagram-zoom", nextZoom);
+    }
+
+    function getDiagramAtPoint(x, y) {
+      return document.elementsFromPoint(x, y).find((element) => element.classList.contains("mermaid"));
+    }
+
+    document.addEventListener("wheel", (event) => {
+      if (!event.ctrlKey) return;
+      const diagram = getDiagramAtPoint(event.clientX, event.clientY);
+      if (!diagram) return;
+      event.preventDefault();
+      const direction = event.deltaY < 0 ? 1 : -1;
+      setZoom(diagram, Number(diagram.dataset.zoom || 1) + direction * 0.08);
+    }, { passive: false, capture: true });
+
+    function resetPan(diagram) {
+      diagram.dataset.panX = "0";
+      diagram.dataset.panY = "0";
+      diagram.style.setProperty("--diagram-pan-x", "0px");
+      diagram.style.setProperty("--diagram-pan-y", "0px");
+    }
+
+    function enableDiagramPanning(diagram) {
+      setZoom(diagram, 1);
+      resetPan(diagram);
+      let dragStart = null;
+
+      diagram.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0) return;
+        dragStart = {
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          panX: Number(diagram.dataset.panX || 0),
+          panY: Number(diagram.dataset.panY || 0)
+        };
+        diagram.classList.add("is-panning");
+        diagram.setPointerCapture(event.pointerId);
+      });
+
+      diagram.addEventListener("pointermove", (event) => {
+        if (!dragStart || event.pointerId !== dragStart.pointerId) return;
+        const nextX = dragStart.panX + event.clientX - dragStart.startX;
+        const nextY = dragStart.panY + event.clientY - dragStart.startY;
+        diagram.dataset.panX = String(nextX);
+        diagram.dataset.panY = String(nextY);
+        diagram.style.setProperty("--diagram-pan-x", `${nextX}px`);
+        diagram.style.setProperty("--diagram-pan-y", `${nextY}px`);
+      });
+
+      function endDrag(event) {
+        if (!dragStart || event.pointerId !== dragStart.pointerId) return;
+        diagram.classList.remove("is-panning");
+        dragStart = null;
+      }
+
+      diagram.addEventListener("pointerup", endDrag);
+      diagram.addEventListener("pointercancel", endDrag);
+      diagram.addEventListener("dblclick", () => resetPan(diagram));
+    }
+
+    document.querySelectorAll(".mermaid").forEach(enableDiagramPanning);
+  </script>
+</body>
+</html>
