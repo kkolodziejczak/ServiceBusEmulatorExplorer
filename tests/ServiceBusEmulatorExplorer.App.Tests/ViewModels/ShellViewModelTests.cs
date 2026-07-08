@@ -30,13 +30,15 @@ public sealed class ShellViewModelTests
     {
         var store = new FakeProfileStore([]);
         var factory = new FakeClientFactory();
-        var viewModel = CreateViewModel(store, factory);
+        var entityBrowser = new FakeEntityBrowser([]);
+        var viewModel = CreateViewModel(store, factory, entityBrowser);
 
         await viewModel.ConnectCommand.ExecuteAsync(null);
 
         Assert.True(viewModel.IsConnected);
         Assert.Equal("Connected to Local emulator", viewModel.ConnectionStatus);
         Assert.True(factory.ConnectCalled);
+        Assert.True(entityBrowser.GetEntityTreeCalled);
         Assert.Single(store.SavedProfiles);
         Assert.True(viewModel.DisconnectCommand.CanExecute(null));
         Assert.True(viewModel.RefreshCommand.CanExecute(null));
@@ -76,14 +78,99 @@ public sealed class ShellViewModelTests
         Assert.Equal("2026-07-08T12:34:56.789Z Connected.", entry.DisplayText);
     }
 
+    [Fact]
+    public async Task RefreshCommand_groups_entities_and_selection_updates_detail_header()
+    {
+        var queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 3, deadLetter: 1);
+        var topic = CreateEntity(EntityKind.Topic, "events", topicName: null, active: 0, deadLetter: 0);
+        var subscription = CreateEntity(EntityKind.Subscription, "billing", "events", active: 5, deadLetter: 2);
+        var viewModel = CreateViewModel(entityBrowser: new FakeEntityBrowser([subscription, queue, topic]));
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+
+        Assert.Equal("Loaded 3 entities.", viewModel.EntityBrowserStatus);
+        Assert.Equal("Queues", viewModel.EntityTree[0].DisplayName);
+        Assert.Equal("orders", viewModel.EntityTree[0].Children[0].DisplayName);
+        Assert.Equal("Topics", viewModel.EntityTree[1].DisplayName);
+        Assert.Equal("events", viewModel.EntityTree[1].Children[0].DisplayName);
+        Assert.Equal("billing", viewModel.EntityTree[1].Children[0].Children[0].DisplayName);
+
+        viewModel.SelectEntity(viewModel.EntityTree[1].Children[0].Children[0]);
+
+        Assert.Equal("billing", viewModel.SelectedEntityTitle);
+        Assert.Equal("Subscription", viewModel.SelectedEntityKind);
+        Assert.Equal("events/subscriptions/billing", viewModel.SelectedEntityPath);
+        Assert.Equal("Active 5 | DLQ 2 | Scheduled 0 | Total 7", viewModel.SelectedEntityCounts);
+        Assert.Contains("Status Active", viewModel.SelectedEntityMetadata);
+        Assert.Contains("Created 2026-07-08T10:00:00.000Z", viewModel.SelectedEntityMetadata);
+        Assert.Contains("Max deliveries 10", viewModel.SelectedEntityMetadata);
+        Assert.Contains("Delivery Max deliveries 10", viewModel.SelectedEntityMetadata);
+        Assert.Contains("TTL 14.00:00:00", viewModel.SelectedEntityMetadata);
+    }
+
+    [Fact]
+    public async Task NamespaceFilter_filters_loaded_entities_and_keeps_matching_subscription_parent()
+    {
+        var queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 3, deadLetter: 1);
+        var topic = CreateEntity(EntityKind.Topic, "events", topicName: null, active: 0, deadLetter: 0);
+        var subscription = CreateEntity(EntityKind.Subscription, "billing", "events", active: 5, deadLetter: 2);
+        var viewModel = CreateViewModel(entityBrowser: new FakeEntityBrowser([queue, topic, subscription]));
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+        viewModel.NamespaceFilter = "bill";
+
+        Assert.Empty(viewModel.EntityTree[0].Children);
+        Assert.Equal("events", viewModel.EntityTree[1].Children[0].DisplayName);
+        Assert.Equal("billing", viewModel.EntityTree[1].Children[0].Children[0].DisplayName);
+    }
+
+    [Fact]
+    public async Task RefreshCommand_shows_visible_error_when_administration_service_fails()
+    {
+        var viewModel = CreateViewModel(entityBrowser: new ThrowingEntityBrowser());
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.IsConnected);
+        Assert.Equal("Refresh failed.", viewModel.EntityBrowserStatus);
+        Assert.Equal("Administration endpoint unavailable.", viewModel.EntityBrowserError);
+        Assert.Contains("Refresh failed: Administration endpoint unavailable.", viewModel.OperationLog[0].Message);
+    }
+
     private static ShellViewModel CreateViewModel(
         IConnectionProfileStore? store = null,
-        IServiceBusClientFactory? clientFactory = null)
+        IServiceBusClientFactory? clientFactory = null,
+        IServiceBusEntityBrowser? entityBrowser = null)
     {
         return new ShellViewModel(
             store ?? new FakeProfileStore([ConnectionProfileDefaults.LocalEmulator]),
             clientFactory ?? new FakeClientFactory(),
+            entityBrowser ?? new FakeEntityBrowser([]),
             new FixedClock());
+    }
+
+    private static ServiceBusEntityNode CreateEntity(
+        EntityKind kind,
+        string name,
+        string? topicName,
+        long active,
+        long deadLetter)
+    {
+        return EntityTreeBuilder.CreateNode(new EntityTreeSource(
+            kind,
+            name,
+            topicName,
+            active,
+            deadLetter,
+            ScheduledMessageCount: 0,
+            Status: "Active",
+            new DateTimeOffset(2026, 7, 8, 10, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 7, 8, 11, 0, 0, TimeSpan.Zero),
+            TimeSpan.FromMinutes(1),
+            MaxDeliveryCount: 10,
+            DefaultMessageTimeToLive: TimeSpan.FromDays(14),
+            RequiresSession: false,
+            RequiresDuplicateDetection: false));
     }
 
     private sealed class FixedClock : IClock
@@ -139,6 +226,25 @@ public sealed class ShellViewModelTests
         public ValueTask DisposeAsync()
         {
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class FakeEntityBrowser(IReadOnlyList<ServiceBusEntityNode> entities) : IServiceBusEntityBrowser
+    {
+        public bool GetEntityTreeCalled { get; private set; }
+
+        public Task<IReadOnlyList<ServiceBusEntityNode>> GetEntityTreeAsync(CancellationToken cancellationToken)
+        {
+            GetEntityTreeCalled = true;
+            return Task.FromResult(entities);
+        }
+    }
+
+    private sealed class ThrowingEntityBrowser : IServiceBusEntityBrowser
+    {
+        public Task<IReadOnlyList<ServiceBusEntityNode>> GetEntityTreeAsync(CancellationToken cancellationToken)
+        {
+            throw new InvalidOperationException("Administration endpoint unavailable.");
         }
     }
 }

@@ -10,4 +10,12 @@ public partial class MainWindow : Window
         DataContext = viewModel;
         InitializeComponent();
     }
+
+    private void NamespaceTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+    {
+        if (DataContext is ShellViewModel viewModel && e.NewValue is EntityTreeNodeViewModel node)
+        {
+            viewModel.SelectEntity(node);
+        }
+    }
 }

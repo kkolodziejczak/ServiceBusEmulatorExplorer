@@ -28,10 +28,14 @@ public sealed record EntityRuntimeCounts(
 
 public sealed record EntityMetadata(
     string Path,
+    string Status,
     DateTimeOffset? CreatedAtUtc,
     DateTimeOffset? UpdatedAtUtc,
     TimeSpan? LockDuration,
-    int? MaxDeliveryCount);
+    int? MaxDeliveryCount,
+    TimeSpan? DefaultMessageTimeToLive,
+    bool? RequiresSession,
+    bool? RequiresDuplicateDetection);
 
 public sealed record ServiceBusEntityNode(
     EntityKind Kind,
@@ -91,10 +95,13 @@ public interface IServiceBusClientFactory : IAsyncDisposable
     ServiceBusClient RuntimeClient { get; }
 }
 
-public interface IServiceBusAdministrationService
+public interface IServiceBusEntityBrowser
 {
     Task<IReadOnlyList<ServiceBusEntityNode>> GetEntityTreeAsync(CancellationToken cancellationToken);
+}
 
+public interface IServiceBusAdministrationService : IServiceBusEntityBrowser
+{
     Task CreateQueueAsync(CreateQueueCommand command, CancellationToken cancellationToken);
 
     Task UpdateQueueAsync(UpdateQueueCommand command, CancellationToken cancellationToken);
