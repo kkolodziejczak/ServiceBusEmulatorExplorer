@@ -3,8 +3,12 @@ namespace ServiceBusEmulatorExplorer.UiSmoke.Tests.Infrastructure;
 [AttributeUsage(AttributeTargets.Method)]
 public sealed class UiNavigationSmokeFactAttribute : FactAttribute
 {
+    private const int TimeoutMilliseconds = 60_000;
+
     public UiNavigationSmokeFactAttribute()
     {
+        Timeout = TimeoutMilliseconds;
+
         if (!IsUiSmokeEnabled())
         {
             Skip = "Set SBE_RUN_UI_TESTS=true to run WPF FlaUI/UIA3 smoke tests.";

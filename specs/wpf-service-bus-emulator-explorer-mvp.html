@@ -839,13 +839,13 @@ public interface IDeadLetterReplayService
 
     <h3>Stage 6: Test Hardening, Packaging, And Manual Proof</h3>
     <ul>
-      <li><input type="checkbox"> Keep root <code>compose.yaml</code> and <code>.env.example</code> as the supported local emulator test environment.</li>
-      <li><input type="checkbox"> Add an integration test fixture that waits for the emulator administration endpoint to become usable before running tests.</li>
-      <li><input type="checkbox"> Gate integration tests behind an explicit environment variable so ordinary unit test runs do not require Docker.</li>
-      <li><input type="checkbox"> Add README quickstart for emulator connection and test data.</li>
-      <li><input type="checkbox"> Add manual verification script using the local emulator compose setup.</li>
-      <li><input type="checkbox"> Harden the FlaUI/UIA3 smoke suite so it is reliable locally and can be run explicitly without blocking fast unit-test loops.</li>
-      <li><input type="checkbox"> Publish self-contained Windows build artifact.</li>
+      <li><input type="checkbox" checked> Keep root <code>compose.yaml</code> and <code>.env.example</code> as the supported local emulator test environment.</li>
+      <li><input type="checkbox" checked> Add an integration test fixture that waits for the emulator administration endpoint to become usable before running tests.</li>
+      <li><input type="checkbox" checked> Gate integration tests behind an explicit environment variable so ordinary unit test runs do not require Docker.</li>
+      <li><input type="checkbox" checked> Add README quickstart for emulator connection and test data.</li>
+      <li><input type="checkbox" checked> Add manual verification script using the local emulator compose setup.</li>
+      <li><input type="checkbox" checked> Harden the FlaUI/UIA3 smoke suite so it is reliable locally and can be run explicitly without blocking fast unit-test loops.</li>
+      <li><input type="checkbox" checked> Publish self-contained Windows build artifact.</li>
     </ul>
   </section>
 
@@ -956,9 +956,9 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
       <li><input type="checkbox"> Implement non-destructive DLQ replay service.</li>
       <li><input type="checkbox"> Build WPF shell, navigation, entity detail, message grid, detail pane, and dialogs.</li>
       <li><input type="checkbox" checked> Add Stage 1 unit, integration fixture, and FlaUI/UIA3 launch smoke tests before expanding feature work.</li>
-      <li><input type="checkbox"> Add Docker-backed integration tests using the root compose environment.</li>
-      <li><input type="checkbox"> Add tests and manual verification notes.</li>
-      <li><input type="checkbox"> Update README with quickstart and emulator connection strings.</li>
+      <li><input type="checkbox" checked> Add Docker-backed integration tests using the root compose environment.</li>
+      <li><input type="checkbox" checked> Add tests and manual verification notes.</li>
+      <li><input type="checkbox" checked> Update README with quickstart and emulator connection strings.</li>
     </ul>
   </section>
 

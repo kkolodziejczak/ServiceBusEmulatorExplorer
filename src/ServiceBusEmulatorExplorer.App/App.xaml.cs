@@ -9,13 +9,14 @@ namespace ServiceBusEmulatorExplorer.App;
 
 public partial class App : Application
 {
+    private const string ProfileStorePathOption = "--profile-store-path";
     private ServiceProvider? _serviceProvider;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
-        _serviceProvider = CreateServices();
+        _serviceProvider = CreateServices(e.Args);
         var viewModel = _serviceProvider.GetRequiredService<ShellViewModel>();
         await viewModel.LoadProfilesAsync();
 
@@ -23,18 +24,18 @@ public partial class App : Application
         window.Show();
     }
 
-    private static ServiceProvider CreateServices()
+    private static ServiceProvider CreateServices(string[] args)
     {
         var services = new ServiceCollection();
-        ConfigureServices(services);
+        ConfigureServices(services, args);
 
         return services.BuildServiceProvider();
     }
 
-    private static void ConfigureServices(IServiceCollection services)
+    private static void ConfigureServices(IServiceCollection services, string[] args)
     {
         services.AddSingleton<IClock, SystemClock>();
-        services.AddSingleton<IConnectionProfileStore>(_ => JsonConnectionProfileStore.CreateDefault());
+        services.AddSingleton<IConnectionProfileStore>(_ => CreateConnectionProfileStore(args));
         services.AddSingleton<IServiceBusClientFactory, DirectServiceBusClientFactory>();
         services.AddSingleton<IServiceBusAdministrationService, ServiceBusAdministrationService>();
         services.AddSingleton<IServiceBusMessageService, ServiceBusMessageService>();
@@ -44,6 +45,34 @@ public partial class App : Application
         services.AddSingleton<IMessageDialogService, WpfMessageDialogService>();
         services.AddSingleton<ShellViewModel>();
         services.AddSingleton<MainWindow>();
+    }
+
+    private static IConnectionProfileStore CreateConnectionProfileStore(string[] args)
+    {
+        string? profileStorePath = FindOptionValue(args, ProfileStorePathOption);
+        return string.IsNullOrWhiteSpace(profileStorePath)
+            ? JsonConnectionProfileStore.CreateDefault()
+            : new JsonConnectionProfileStore(profileStorePath);
+    }
+
+    private static string? FindOptionValue(string[] args, string optionName)
+    {
+        for (int index = 0; index < args.Length; index++)
+        {
+            string arg = args[index];
+            if (string.Equals(arg, optionName, StringComparison.Ordinal) && index + 1 < args.Length)
+            {
+                return args[index + 1];
+            }
+
+            string prefix = optionName + "=";
+            if (arg.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return arg[prefix.Length..];
+            }
+        }
+
+        return null;
     }
 
     protected override async void OnExit(ExitEventArgs e)

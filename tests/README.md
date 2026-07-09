@@ -1,6 +1,6 @@
 # Service Bus Emulator Explorer Tests
 
-This directory is reserved for the test projects created in Stage 1.
+This directory contains the fast unit, Docker-backed integration, and explicit WPF UI smoke test projects for the MVP.
 
 ## Test Layers
 
@@ -16,7 +16,7 @@ This directory is reserved for the test projects created in Stage 1.
 Fast tests:
 
 ```powershell
-dotnet test
+dotnet test --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
 ```
 
 Integration tests:
@@ -34,8 +34,30 @@ dotnet test --filter TestCategory=Integration
 WPF UI smoke tests:
 
 ```powershell
+dotnet build ..\src\ServiceBusEmulatorExplorer.App\ServiceBusEmulatorExplorer.App.csproj
 $env:SBE_RUN_UI_TESTS = "true"
-dotnet test --filter TestCategory=UiSmoke
+$env:SBE_APP_EXE = "$PWD\..\src\ServiceBusEmulatorExplorer.App\bin\Debug\net10.0-windows\ServiceBusEmulatorExplorer.App.exe"
+..\scripts\Invoke-UiSmoke.ps1 -NoBuild
+```
+
+The script checks progress every 15 seconds and stops the test process plus WPF app instances it launched after 60 seconds by default. Its default filter runs the launch smoke test. To run the full UI smoke suite explicitly, use:
+
+```powershell
+..\scripts\Invoke-UiSmoke.ps1 -NoBuild -FullSuite
+```
+
+Navigation and DLQ UI smoke tests also require `SBE_CONNECTION_STRING` or `SBE_RUNTIME_CONNECTION_STRING`, plus `SBE_ADMIN_CONNECTION_STRING`.
+
+Manual local proof:
+
+```powershell
+..\scripts\Invoke-ManualProof.ps1
+```
+
+Packaging proof:
+
+```powershell
+..\scripts\Publish-Windows.ps1
 ```
 
 ## First UI Smoke Test

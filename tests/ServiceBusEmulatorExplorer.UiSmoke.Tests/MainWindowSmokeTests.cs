@@ -2,6 +2,7 @@ using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
 using FlaUI.Core;
 using FlaUI.Core.AutomationElements;
+using FlaUI.Core.Definitions;
 using FlaUI.UIA3;
 using ServiceBusEmulatorExplorer.UiSmoke.Tests.Infrastructure;
 
@@ -11,26 +12,36 @@ public sealed class MainWindowSmokeTests
 {
     [UiSmokeFact]
     [Trait("TestCategory", "UiSmoke")]
-    public void App_launches_main_window_and_exposes_shell_commands()
+    public async Task App_launches_main_window_and_exposes_shell_commands()
     {
         string executablePath = WpfAppPath.Resolve();
         Assert.True(File.Exists(executablePath), $"Build the WPF app before running UI smoke tests. Missing: {executablePath}");
 
-        using Application application = Application.Launch(executablePath);
+        using Application application = LaunchWpfApp(executablePath);
         using var automation = new UIA3Automation();
 
-        Window window = application.GetMainWindow(automation, TimeSpan.FromSeconds(10))
-            ?? throw new InvalidOperationException("Main window did not appear within 10 seconds.");
+        try
+        {
+            Window window = WaitForMainWindowWithAutomationId(
+                application,
+                automation,
+                "ConnectButton",
+                TimeSpan.FromSeconds(15));
 
-        Assert.Equal("Service Bus Emulator Explorer", window.Title);
-        Assert.NotNull(window.FindFirstDescendant(cf => cf.ByAutomationId("ConnectButton")));
-        Assert.NotNull(window.FindFirstDescendant(cf => cf.ByAutomationId("DisconnectButton")));
-        Assert.NotNull(window.FindFirstDescendant(cf => cf.ByAutomationId("RefreshButton")));
-        Assert.DoesNotContain(
-            application.GetAllTopLevelWindows(automation),
-            topLevelWindow => topLevelWindow.Title.Contains("Exception", StringComparison.OrdinalIgnoreCase));
+            Assert.Equal("Service Bus Emulator Explorer", window.Title);
+            Assert.NotNull(WaitForAutomationId(window, "ConnectButton", TimeSpan.FromSeconds(10)));
+            Assert.NotNull(WaitForAutomationId(window, "DisconnectButton", TimeSpan.FromSeconds(10)));
+            Assert.NotNull(WaitForAutomationId(window, "RefreshButton", TimeSpan.FromSeconds(10)));
+            Assert.DoesNotContain(
+                application.GetAllTopLevelWindows(automation),
+                topLevelWindow => topLevelWindow.Title.Contains("Exception", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            CloseApplication(application);
+        }
 
-        window.Close();
+        await Task.CompletedTask;
     }
 
     [UiNavigationSmokeFact]
@@ -43,6 +54,7 @@ public sealed class MainWindowSmokeTests
 
         var adminClient = new ServiceBusAdministrationClient(ServiceBusUiSmokeEnvironment.AdminConnectionString);
         using var testTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        await ServiceBusUiSmokeEnvironment.WaitUntilReadyAsync(testTimeout.Token);
         await SeedEntitiesAsync(adminClient, queueName, topicName, subscriptionName, testTimeout.Token);
 
         try
@@ -50,42 +62,50 @@ public sealed class MainWindowSmokeTests
             string executablePath = WpfAppPath.Resolve();
             Assert.True(File.Exists(executablePath), $"Build the WPF app before running UI smoke tests. Missing: {executablePath}");
 
-            using Application application = Application.Launch(executablePath);
+            using Application application = LaunchWpfApp(executablePath);
             using var automation = new UIA3Automation();
 
-            Window window = application.GetMainWindow(automation, TimeSpan.FromSeconds(10))
-                ?? throw new InvalidOperationException("Main window did not appear within 10 seconds.");
+            try
+            {
+                Window window = WaitForMainWindowWithAutomationId(
+                    application,
+                    automation,
+                    "ConnectButton",
+                    TimeSpan.FromSeconds(15));
 
-            SetText(window, "ProfileNameTextBox", "UI smoke emulator");
-            SetText(window, "RuntimeConnectionStringTextBox", ServiceBusUiSmokeEnvironment.RuntimeConnectionString);
-            SetText(window, "AdministrationConnectionStringTextBox", ServiceBusUiSmokeEnvironment.AdminConnectionString);
-            window.FindFirstDescendant(cf => cf.ByAutomationId("ConnectButton"))?.AsButton().Click();
+                SetText(window, "ProfileNameTextBox", "UI smoke emulator");
+                SetText(window, "RuntimeConnectionStringTextBox", ServiceBusUiSmokeEnvironment.RuntimeConnectionString);
+                SetText(window, "AdministrationConnectionStringTextBox", ServiceBusUiSmokeEnvironment.AdminConnectionString);
+                InvokeButton(window, "ConnectButton", TimeSpan.FromSeconds(5));
 
-            AutomationElement queueElement = WaitForText(window, queueName, TimeSpan.FromSeconds(30));
-            queueElement.Click();
+                AutomationElement queueElement = WaitForText(window, queueName, TimeSpan.FromSeconds(30));
+                SelectTreeItem(queueElement);
 
-            AutomationElement selectedTitle = WaitForAutomationName(window, "SelectedEntityTitleText", queueName, TimeSpan.FromSeconds(10));
-            AutomationElement selectedKind = WaitForAutomationName(window, "SelectedEntityKindText", "Queue", TimeSpan.FromSeconds(10));
-            AutomationElement selectedPath = WaitForAutomationName(window, "SelectedEntityPathText", queueName, TimeSpan.FromSeconds(10));
-            AutomationElement selectedCounts = WaitForAutomationName(window, "SelectedEntityCountsText", "Active 0 | DLQ 0 | Scheduled 0 | Total 0", TimeSpan.FromSeconds(10));
-            AutomationElement selectedMetadata = WaitForAutomationId(window, "SelectedEntityMetadataText", TimeSpan.FromSeconds(10));
+                AutomationElement selectedTitle = WaitForAutomationName(window, "SelectedEntityTitleText", queueName, TimeSpan.FromSeconds(10));
+                AutomationElement selectedKind = WaitForAutomationName(window, "SelectedEntityKindText", "Queue", TimeSpan.FromSeconds(10));
+                AutomationElement selectedPath = WaitForAutomationName(window, "SelectedEntityPathText", queueName, TimeSpan.FromSeconds(10));
+                AutomationElement selectedCounts = WaitForAutomationName(window, "SelectedEntityCountsText", "Active 0 | DLQ 0 | Scheduled 0 | Total 0", TimeSpan.FromSeconds(10));
+                AutomationElement selectedMetadata = WaitForAutomationId(window, "SelectedEntityMetadataText", TimeSpan.FromSeconds(10));
 
-            Assert.Equal(queueName, selectedTitle.Name);
-            Assert.Equal("Queue", selectedKind.Name);
-            Assert.Equal(queueName, selectedPath.Name);
-            Assert.Equal("Active 0 | DLQ 0 | Scheduled 0 | Total 0", selectedCounts.Name);
-            Assert.Contains("Status", selectedMetadata.Name);
-            Assert.NotNull(window.FindFirstDescendant(cf => cf.ByText(topicName)));
+                Assert.Equal(queueName, selectedTitle.Name);
+                Assert.Equal("Queue", selectedKind.Name);
+                Assert.Equal(queueName, selectedPath.Name);
+                Assert.Equal("Active 0 | DLQ 0 | Scheduled 0 | Total 0", selectedCounts.Name);
+                Assert.Contains("Status", selectedMetadata.Name);
+                Assert.NotNull(window.FindFirstDescendant(cf => cf.ByText(topicName)));
 
-            AutomationElement subscriptionElement = WaitForText(window, subscriptionName, TimeSpan.FromSeconds(10));
-            subscriptionElement.Click();
+                AutomationElement subscriptionElement = WaitForText(window, subscriptionName, TimeSpan.FromSeconds(10));
+                SelectTreeItem(subscriptionElement);
 
-            WaitForAutomationName(window, "SelectedEntityTitleText", subscriptionName, TimeSpan.FromSeconds(10));
-            WaitForAutomationName(window, "SelectedEntityKindText", "Subscription", TimeSpan.FromSeconds(10));
-            WaitForAutomationName(window, "SelectedEntityPathText", $"{topicName}/subscriptions/{subscriptionName}", TimeSpan.FromSeconds(10));
-            WaitForAutomationName(window, "SelectedEntityCountsText", "Active 0 | DLQ 0 | Scheduled 0 | Total 0", TimeSpan.FromSeconds(10));
-
-            window.Close();
+                WaitForAutomationName(window, "SelectedEntityTitleText", subscriptionName, TimeSpan.FromSeconds(10));
+                WaitForAutomationName(window, "SelectedEntityKindText", "Subscription", TimeSpan.FromSeconds(10));
+                WaitForAutomationName(window, "SelectedEntityPathText", $"{topicName}/subscriptions/{subscriptionName}", TimeSpan.FromSeconds(10));
+                WaitForAutomationName(window, "SelectedEntityCountsText", "Active 0 | DLQ 0 | Scheduled 0 | Total 0", TimeSpan.FromSeconds(10));
+            }
+            finally
+            {
+                CloseApplication(application);
+            }
         }
         finally
         {
@@ -96,7 +116,7 @@ public sealed class MainWindowSmokeTests
 
     [UiNavigationSmokeFact]
     [Trait("TestCategory", "UiSmoke")]
-    public async Task App_opens_entity_management_dialogs_and_requires_validation_confirmation()
+    public async Task Entity_management_dialogs_require_validation_and_confirmation()
     {
         string queueName = CreateEntityName("queue");
         string topicName = CreateEntityName("topic");
@@ -104,6 +124,7 @@ public sealed class MainWindowSmokeTests
 
         var adminClient = new ServiceBusAdministrationClient(ServiceBusUiSmokeEnvironment.AdminConnectionString);
         using var testTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        await ServiceBusUiSmokeEnvironment.WaitUntilReadyAsync(testTimeout.Token);
         await SeedEntitiesAsync(adminClient, queueName, topicName, subscriptionName, testTimeout.Token);
 
         try
@@ -111,66 +132,102 @@ public sealed class MainWindowSmokeTests
             string executablePath = WpfAppPath.Resolve();
             Assert.True(File.Exists(executablePath), $"Build the WPF app before running UI smoke tests. Missing: {executablePath}");
 
-            using Application application = Application.Launch(executablePath);
+            using Application application = LaunchWpfApp(executablePath);
             using var automation = new UIA3Automation();
 
-            Window window = application.GetMainWindow(automation, TimeSpan.FromSeconds(10))
-                ?? throw new InvalidOperationException("Main window did not appear within 10 seconds.");
+            try
+            {
+                Window window = WaitForMainWindowWithAutomationId(
+                    application,
+                    automation,
+                    "ConnectButton",
+                    TimeSpan.FromSeconds(15));
 
-            SetText(window, "ProfileNameTextBox", "UI smoke emulator");
-            SetText(window, "RuntimeConnectionStringTextBox", ServiceBusUiSmokeEnvironment.RuntimeConnectionString);
-            SetText(window, "AdministrationConnectionStringTextBox", ServiceBusUiSmokeEnvironment.AdminConnectionString);
-            window.FindFirstDescendant(cf => cf.ByAutomationId("ConnectButton"))?.AsButton().Click();
+                SetText(window, "ProfileNameTextBox", "UI smoke emulator");
+                SetText(window, "RuntimeConnectionStringTextBox", ServiceBusUiSmokeEnvironment.RuntimeConnectionString);
+                SetText(window, "AdministrationConnectionStringTextBox", ServiceBusUiSmokeEnvironment.AdminConnectionString);
+                InvokeButton(window, "ConnectButton", TimeSpan.FromSeconds(5));
 
-            AutomationElement queueElement = WaitForText(window, queueName, TimeSpan.FromSeconds(30));
+                AutomationElement queueElement = WaitForText(window, queueName, TimeSpan.FromSeconds(30));
 
-            window.FindFirstDescendant(cf => cf.ByAutomationId("NewQueueButton"))?.AsButton().Click();
-            Window newQueueDialog = WaitForWindow(application, automation, "New Queue", TimeSpan.FromSeconds(10));
-            Assert.False(WaitForAutomationId(newQueueDialog, "EntityDialogAcceptButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
-            WaitForAutomationName(newQueueDialog, "EntityDialogValidationMessageText", "Name is required.", TimeSpan.FromSeconds(5));
-            WaitForAutomationId(newQueueDialog, "EntityDialogCancelButton", TimeSpan.FromSeconds(5)).AsButton().Click();
+                InvokeButton(window, "NewQueueButton", TimeSpan.FromSeconds(5));
+                Window newQueueDialog = WaitForWindowWithAutomationId(
+                    application,
+                    automation,
+                    "EntityDialogAcceptButton",
+                    TimeSpan.FromSeconds(10));
+                Assert.False(WaitForAutomationId(newQueueDialog, "EntityDialogAcceptButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+                WaitForAutomationName(newQueueDialog, "EntityDialogValidationMessageText", "Name is required.", TimeSpan.FromSeconds(5));
+                ClickButton(newQueueDialog, "EntityDialogCancelButton", TimeSpan.FromSeconds(5));
 
-            window.FindFirstDescendant(cf => cf.ByAutomationId("NewTopicButton"))?.AsButton().Click();
-            Window newTopicDialog = WaitForWindow(application, automation, "New Topic", TimeSpan.FromSeconds(10));
-            Assert.False(WaitForAutomationId(newTopicDialog, "EntityDialogAcceptButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
-            WaitForAutomationName(newTopicDialog, "EntityDialogValidationMessageText", "Name is required.", TimeSpan.FromSeconds(5));
-            WaitForAutomationId(newTopicDialog, "EntityDialogCancelButton", TimeSpan.FromSeconds(5)).AsButton().Click();
+                InvokeButton(window, "NewTopicButton", TimeSpan.FromSeconds(5));
+                Window newTopicDialog = WaitForWindowWithAutomationId(
+                    application,
+                    automation,
+                    "EntityDialogAcceptButton",
+                    TimeSpan.FromSeconds(10));
+                Assert.False(WaitForAutomationId(newTopicDialog, "EntityDialogAcceptButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+                WaitForAutomationName(newTopicDialog, "EntityDialogValidationMessageText", "Name is required.", TimeSpan.FromSeconds(5));
+                ClickButton(newTopicDialog, "EntityDialogCancelButton", TimeSpan.FromSeconds(5));
 
-            window.FindFirstDescendant(cf => cf.ByAutomationId("NewSubscriptionButton"))?.AsButton().Click();
-            Window newSubscriptionDialog = WaitForWindow(application, automation, "New Subscription", TimeSpan.FromSeconds(10));
-            Assert.False(WaitForAutomationId(newSubscriptionDialog, "EntityDialogAcceptButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
-            WaitForAutomationName(newSubscriptionDialog, "EntityDialogValidationMessageText", "Topic name is required.", TimeSpan.FromSeconds(5));
-            WaitForAutomationId(newSubscriptionDialog, "EntityDialogCancelButton", TimeSpan.FromSeconds(5)).AsButton().Click();
+                InvokeButton(window, "NewSubscriptionButton", TimeSpan.FromSeconds(5));
+                Window newSubscriptionDialog = WaitForWindowWithAutomationId(
+                    application,
+                    automation,
+                    "EntityDialogAcceptButton",
+                    TimeSpan.FromSeconds(10));
+                Assert.False(WaitForAutomationId(newSubscriptionDialog, "EntityDialogAcceptButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+                WaitForAutomationName(newSubscriptionDialog, "EntityDialogValidationMessageText", "Topic name is required.", TimeSpan.FromSeconds(5));
+                ClickButton(newSubscriptionDialog, "EntityDialogCancelButton", TimeSpan.FromSeconds(5));
 
-            queueElement.Click();
-            window.FindFirstDescendant(cf => cf.ByAutomationId("UpdateEntityButton"))?.AsButton().Click();
-            Window updateQueueDialog = WaitForWindow(application, automation, "Update Queue", TimeSpan.FromSeconds(10));
-            Assert.True(WaitForAutomationId(updateQueueDialog, "EntityDialogAcceptButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
-            WaitForAutomationId(updateQueueDialog, "EntityDialogCancelButton", TimeSpan.FromSeconds(5)).AsButton().Click();
+                SelectTreeItem(queueElement);
+                InvokeButton(window, "UpdateEntityButton", TimeSpan.FromSeconds(5));
+                Window updateQueueDialog = WaitForWindowWithAutomationId(
+                    application,
+                    automation,
+                    "EntityDialogAcceptButton",
+                    TimeSpan.FromSeconds(10));
+                Assert.True(WaitForAutomationId(updateQueueDialog, "EntityDialogAcceptButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+                ClickButton(updateQueueDialog, "EntityDialogCancelButton", TimeSpan.FromSeconds(5));
 
-            AutomationElement topicElement = WaitForText(window, topicName, TimeSpan.FromSeconds(10));
-            topicElement.Click();
-            window.FindFirstDescendant(cf => cf.ByAutomationId("UpdateEntityButton"))?.AsButton().Click();
-            Window updateTopicDialog = WaitForWindow(application, automation, "Update Topic", TimeSpan.FromSeconds(10));
-            Assert.True(WaitForAutomationId(updateTopicDialog, "EntityDialogAcceptButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
-            WaitForAutomationId(updateTopicDialog, "EntityDialogCancelButton", TimeSpan.FromSeconds(5)).AsButton().Click();
+                AutomationElement topicElement = WaitForText(window, topicName, TimeSpan.FromSeconds(10));
+                SelectTreeItem(topicElement);
+                InvokeButton(window, "UpdateEntityButton", TimeSpan.FromSeconds(5));
+                Window updateTopicDialog = WaitForWindowWithAutomationId(
+                    application,
+                    automation,
+                    "EntityDialogAcceptButton",
+                    TimeSpan.FromSeconds(10));
+                Assert.True(WaitForAutomationId(updateTopicDialog, "EntityDialogAcceptButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+                ClickButton(updateTopicDialog, "EntityDialogCancelButton", TimeSpan.FromSeconds(5));
 
-            AutomationElement subscriptionElement = WaitForText(window, subscriptionName, TimeSpan.FromSeconds(10));
-            subscriptionElement.Click();
-            window.FindFirstDescendant(cf => cf.ByAutomationId("UpdateEntityButton"))?.AsButton().Click();
-            Window updateSubscriptionDialog = WaitForWindow(application, automation, "Update Subscription", TimeSpan.FromSeconds(10));
-            Assert.True(WaitForAutomationId(updateSubscriptionDialog, "EntityDialogAcceptButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
-            WaitForAutomationId(updateSubscriptionDialog, "EntityDialogCancelButton", TimeSpan.FromSeconds(5)).AsButton().Click();
+                AutomationElement subscriptionElement = WaitForText(window, subscriptionName, TimeSpan.FromSeconds(10));
+                SelectTreeItem(subscriptionElement);
+                InvokeButton(window, "UpdateEntityButton", TimeSpan.FromSeconds(5));
+                Window updateSubscriptionDialog = WaitForWindowWithAutomationId(
+                    application,
+                    automation,
+                    "EntityDialogAcceptButton",
+                    TimeSpan.FromSeconds(10));
+                Assert.True(WaitForAutomationId(updateSubscriptionDialog, "EntityDialogAcceptButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+                ClickButton(updateSubscriptionDialog, "EntityDialogCancelButton", TimeSpan.FromSeconds(5));
 
-            queueElement.Click();
-            window.FindFirstDescendant(cf => cf.ByAutomationId("DeleteEntityButton"))?.AsButton().Click();
-            Window deleteDialog = WaitForWindow(application, automation, "Delete Entity", TimeSpan.FromSeconds(10));
-            Assert.False(WaitForAutomationId(deleteDialog, "ConfirmDeleteEntityButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
-            WaitForAutomationId(deleteDialog, "ConfirmDeleteEntityCheckBox", TimeSpan.FromSeconds(5)).AsCheckBox().Click();
-            Assert.True(WaitForAutomationId(deleteDialog, "ConfirmDeleteEntityButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
-            WaitForAutomationId(deleteDialog, "CancelDeleteEntityButton", TimeSpan.FromSeconds(5)).AsButton().Click();
-
-            window.Close();
+                SelectTreeItem(queueElement);
+                InvokeButton(window, "DeleteEntityButton", TimeSpan.FromSeconds(5));
+                Window deleteDialog = WaitForWindowWithAutomationId(
+                    application,
+                    automation,
+                    "ConfirmDeleteEntityButton",
+                    TimeSpan.FromSeconds(10));
+                Assert.False(WaitForAutomationId(deleteDialog, "ConfirmDeleteEntityButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+                WaitForAutomationId(deleteDialog, "ConfirmDeleteEntityCheckBox", TimeSpan.FromSeconds(5)).AsCheckBox().Click();
+                Assert.True(WaitForAutomationId(deleteDialog, "ConfirmDeleteEntityButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+                ClickButton(deleteDialog, "CancelDeleteEntityButton", TimeSpan.FromSeconds(5));
+            }
+            finally
+            {
+                CloseApplication(application);
+            }
         }
         finally
         {
@@ -189,6 +246,7 @@ public sealed class MainWindowSmokeTests
         var adminClient = new ServiceBusAdministrationClient(ServiceBusUiSmokeEnvironment.AdminConnectionString);
         await using var runtimeClient = new ServiceBusClient(ServiceBusUiSmokeEnvironment.RuntimeConnectionString);
         using var testTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        await ServiceBusUiSmokeEnvironment.WaitUntilReadyAsync(testTimeout.Token);
         await adminClient.CreateQueueAsync(queueName, testTimeout.Token);
         await SendSeedMessageAsync(runtimeClient, queueName, body, testTimeout.Token);
 
@@ -197,33 +255,41 @@ public sealed class MainWindowSmokeTests
             string executablePath = WpfAppPath.Resolve();
             Assert.True(File.Exists(executablePath), $"Build the WPF app before running UI smoke tests. Missing: {executablePath}");
 
-            using Application application = Application.Launch(executablePath);
+            using Application application = LaunchWpfApp(executablePath);
             using var automation = new UIA3Automation();
 
-            Window window = application.GetMainWindow(automation, TimeSpan.FromSeconds(10))
-                ?? throw new InvalidOperationException("Main window did not appear within 10 seconds.");
+            try
+            {
+                Window window = WaitForMainWindowWithAutomationId(
+                    application,
+                    automation,
+                    "ConnectButton",
+                    TimeSpan.FromSeconds(15));
 
-            SetText(window, "ProfileNameTextBox", "UI smoke emulator");
-            SetText(window, "RuntimeConnectionStringTextBox", ServiceBusUiSmokeEnvironment.RuntimeConnectionString);
-            SetText(window, "AdministrationConnectionStringTextBox", ServiceBusUiSmokeEnvironment.AdminConnectionString);
-            window.FindFirstDescendant(cf => cf.ByAutomationId("ConnectButton"))?.AsButton().Click();
+                SetText(window, "ProfileNameTextBox", "UI smoke emulator");
+                SetText(window, "RuntimeConnectionStringTextBox", ServiceBusUiSmokeEnvironment.RuntimeConnectionString);
+                SetText(window, "AdministrationConnectionStringTextBox", ServiceBusUiSmokeEnvironment.AdminConnectionString);
+                InvokeButton(window, "ConnectButton", TimeSpan.FromSeconds(5));
 
-            AutomationElement queueElement = WaitForText(window, queueName, TimeSpan.FromSeconds(30));
-            queueElement.Click();
-            WaitForAutomationId(window, "PeekActiveMessagesButton", TimeSpan.FromSeconds(10)).AsButton().Click();
+                AutomationElement queueElement = WaitForText(window, queueName, TimeSpan.FromSeconds(30));
+                SelectTreeItem(queueElement);
+                InvokeButton(window, "PeekActiveMessagesButton", TimeSpan.FromSeconds(10));
 
-            AutomationElement previewElement = WaitForText(window, body, TimeSpan.FromSeconds(20));
-            previewElement.Click();
+                AutomationElement previewElement = WaitForText(window, body, TimeSpan.FromSeconds(20));
+                SelectDataItem(previewElement);
 
-            TextBox bodyTextBox = WaitForAutomationId(window, "SelectedMessageBodyText", TimeSpan.FromSeconds(10)).AsTextBox();
-            TextBox systemPropertiesTextBox = WaitForAutomationId(window, "SelectedMessageSystemPropertiesText", TimeSpan.FromSeconds(10)).AsTextBox();
-            TextBox applicationPropertiesTextBox = WaitForAutomationId(window, "SelectedMessageApplicationPropertiesText", TimeSpan.FromSeconds(10)).AsTextBox();
+                TextBox bodyTextBox = WaitForAutomationId(window, "SelectedMessageBodyText", TimeSpan.FromSeconds(10)).AsTextBox();
+                TextBox systemPropertiesTextBox = WaitForAutomationId(window, "SelectedMessageSystemPropertiesText", TimeSpan.FromSeconds(10)).AsTextBox();
+                TextBox applicationPropertiesTextBox = WaitForAutomationId(window, "SelectedMessageApplicationPropertiesText", TimeSpan.FromSeconds(10)).AsTextBox();
 
-            Assert.Equal(body, bodyTextBox.Text);
-            Assert.Contains("SequenceNumber", systemPropertiesTextBox.Text);
-            Assert.Contains("kind: ui-smoke", applicationPropertiesTextBox.Text);
-
-            window.Close();
+                Assert.Equal(body, bodyTextBox.Text);
+                Assert.Contains("SequenceNumber", systemPropertiesTextBox.Text);
+                Assert.Contains("kind: ui-smoke", applicationPropertiesTextBox.Text);
+            }
+            finally
+            {
+                CloseApplication(application);
+            }
         }
         finally
         {
@@ -242,6 +308,7 @@ public sealed class MainWindowSmokeTests
         var adminClient = new ServiceBusAdministrationClient(ServiceBusUiSmokeEnvironment.AdminConnectionString);
         await using var runtimeClient = new ServiceBusClient(ServiceBusUiSmokeEnvironment.RuntimeConnectionString);
         using var testTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        await ServiceBusUiSmokeEnvironment.WaitUntilReadyAsync(testTimeout.Token);
         await adminClient.CreateQueueAsync(queueName, testTimeout.Token);
         await SendSeedMessageAsync(runtimeClient, queueName, body, testTimeout.Token);
         await DeadLetterSeedMessageAsync(runtimeClient, queueName, testTimeout.Token);
@@ -251,45 +318,43 @@ public sealed class MainWindowSmokeTests
             string executablePath = WpfAppPath.Resolve();
             Assert.True(File.Exists(executablePath), $"Build the WPF app before running UI smoke tests. Missing: {executablePath}");
 
-            using Application application = Application.Launch(executablePath);
+            using Application application = LaunchWpfApp(executablePath);
             using var automation = new UIA3Automation();
 
-            Window window = application.GetMainWindow(automation, TimeSpan.FromSeconds(10))
-                ?? throw new InvalidOperationException("Main window did not appear within 10 seconds.");
+            try
+            {
+                Window window = WaitForMainWindowWithAutomationId(
+                    application,
+                    automation,
+                    "ConnectButton",
+                    TimeSpan.FromSeconds(15));
 
-            SetText(window, "ProfileNameTextBox", "UI smoke emulator");
-            SetText(window, "RuntimeConnectionStringTextBox", ServiceBusUiSmokeEnvironment.RuntimeConnectionString);
-            SetText(window, "AdministrationConnectionStringTextBox", ServiceBusUiSmokeEnvironment.AdminConnectionString);
-            window.FindFirstDescendant(cf => cf.ByAutomationId("ConnectButton"))?.AsButton().Click();
+                SetText(window, "ProfileNameTextBox", "UI smoke emulator");
+                SetText(window, "RuntimeConnectionStringTextBox", ServiceBusUiSmokeEnvironment.RuntimeConnectionString);
+                SetText(window, "AdministrationConnectionStringTextBox", ServiceBusUiSmokeEnvironment.AdminConnectionString);
+                InvokeButton(window, "ConnectButton", TimeSpan.FromSeconds(5));
 
-            AutomationElement queueElement = WaitForText(window, queueName, TimeSpan.FromSeconds(30));
-            queueElement.Click();
-            WaitForAutomationId(window, "PeekDeadLetterMessagesButton", TimeSpan.FromSeconds(10)).AsButton().Click();
+                AutomationElement queueElement = WaitForText(window, queueName, TimeSpan.FromSeconds(30));
+                SelectTreeItem(queueElement);
+                InvokeButton(window, "PeekDeadLetterMessagesButton", TimeSpan.FromSeconds(10));
 
-            AutomationElement previewElement = WaitForText(window, body, TimeSpan.FromSeconds(20));
-            previewElement.Click();
+                SelectTab(window, "Dead Letter", TimeSpan.FromSeconds(5));
+                AutomationElement previewElement = WaitForText(window, body, TimeSpan.FromSeconds(20));
+                SelectDataItem(previewElement);
 
-            Assert.True(WaitForAutomationId(window, "ReplayDeadLetterButton", TimeSpan.FromSeconds(10)).AsButton().IsEnabled);
-            Assert.True(WaitForAutomationId(window, "EditReplayDeadLetterButton", TimeSpan.FromSeconds(10)).AsButton().IsEnabled);
-            Assert.True(WaitForAutomationId(window, "DeleteSelectedDeadLetterButton", TimeSpan.FromSeconds(10)).AsButton().IsEnabled);
+                Assert.True(WaitForAutomationId(window, "ReplayDeadLetterButton", TimeSpan.FromSeconds(10)).AsButton().IsEnabled);
+                Assert.True(WaitForAutomationId(window, "EditReplayDeadLetterButton", TimeSpan.FromSeconds(10)).AsButton().IsEnabled);
+                Assert.True(WaitForAutomationId(window, "DeleteSelectedDeadLetterButton", TimeSpan.FromSeconds(10)).AsButton().IsEnabled);
 
-            WaitForAutomationId(window, "DeleteSelectedDeadLetterButton", TimeSpan.FromSeconds(10)).AsButton().Click();
-            Window deleteDialog = WaitForWindow(application, automation, "Delete DLQ Messages", TimeSpan.FromSeconds(10));
-            Assert.False(WaitForAutomationId(deleteDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
-            WaitForAutomationId(deleteDialog, "ConfirmDeleteDlqCheckBox", TimeSpan.FromSeconds(5)).AsCheckBox().Click();
-            Assert.True(WaitForAutomationId(deleteDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
-            WaitForAutomationId(deleteDialog, "CancelDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().Click();
+                Assert.True(WaitForAutomationId(window, "DeleteVisibleDeadLetterButton", TimeSpan.FromSeconds(10)).AsButton().IsEnabled);
 
-            WaitForAutomationId(window, "DeleteVisibleDeadLetterButton", TimeSpan.FromSeconds(10)).AsButton().Click();
-            Window deleteVisibleDialog = WaitForWindow(application, automation, "Delete DLQ Messages", TimeSpan.FromSeconds(10));
-            Assert.False(WaitForAutomationId(deleteVisibleDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
-            SetText(deleteVisibleDialog, "ConfirmDeleteDlqPhraseTextBox", "DELETE");
-            Assert.False(WaitForAutomationId(deleteVisibleDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
-            SetText(deleteVisibleDialog, "ConfirmDeleteDlqPhraseTextBox", "DELETE VISIBLE");
-            Assert.True(WaitForAutomationId(deleteVisibleDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
-            WaitForAutomationId(deleteVisibleDialog, "CancelDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().Click();
-
-            window.Close();
+                AssertDeleteSelectedDlqRequiresConfirmation(application, automation, window);
+                AssertDeleteVisibleDlqRequiresTypedConfirmation(application, automation, window);
+            }
+            finally
+            {
+                CloseApplication(application);
+            }
         }
         finally
         {
@@ -298,9 +363,134 @@ public sealed class MainWindowSmokeTests
         }
     }
 
+    private static void AssertDeleteSelectedDlqRequiresConfirmation(
+        Application application,
+        UIA3Automation automation,
+        Window window)
+    {
+        ClickButton(window, "DeleteSelectedDeadLetterButton", TimeSpan.FromSeconds(10));
+        Window deleteDialog = WaitForWindowWithAutomationId(
+            application,
+            automation,
+            "ConfirmDeleteDlqButton",
+            TimeSpan.FromSeconds(10));
+
+        Assert.False(WaitForAutomationId(deleteDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+        WaitForAutomationId(deleteDialog, "ConfirmDeleteDlqCheckBox", TimeSpan.FromSeconds(5)).AsCheckBox().Click();
+        Assert.True(WaitForAutomationId(deleteDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+        InvokeButton(deleteDialog, "CancelDeleteDlqButton", TimeSpan.FromSeconds(5));
+    }
+
+    private static void AssertDeleteVisibleDlqRequiresTypedConfirmation(
+        Application application,
+        UIA3Automation automation,
+        Window window)
+    {
+        ClickButton(window, "DeleteVisibleDeadLetterButton", TimeSpan.FromSeconds(10));
+        Window deleteDialog = WaitForWindowWithAutomationId(
+            application,
+            automation,
+            "ConfirmDeleteDlqButton",
+            TimeSpan.FromSeconds(10));
+
+        Assert.False(WaitForAutomationId(deleteDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+        SetText(deleteDialog, "ConfirmDeleteDlqPhraseTextBox", "DELETE");
+        Assert.False(WaitForAutomationId(deleteDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+        SetText(deleteDialog, "ConfirmDeleteDlqPhraseTextBox", "DELETE VISIBLE");
+        Assert.True(WaitForAutomationId(deleteDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+        InvokeButton(deleteDialog, "CancelDeleteDlqButton", TimeSpan.FromSeconds(5));
+    }
+
     private static string CreateEntityName(string prefix)
     {
         return $"ui-{prefix}-{Guid.NewGuid():N}".ToLowerInvariant();
+    }
+
+    private static Application LaunchWpfApp(string executablePath)
+    {
+        return Application.Launch(executablePath, CreateProfileStoreArguments());
+    }
+
+    private static string CreateProfileStoreArguments()
+    {
+        string profilePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "ui-smoke-profiles",
+            Guid.NewGuid().ToString("N"),
+            "connection-profiles.json");
+
+        return $"--profile-store-path {QuoteProcessArgument(profilePath)}";
+    }
+
+    private static string QuoteProcessArgument(string argument)
+    {
+        return argument.Contains(' ', StringComparison.Ordinal)
+            ? "\"" + argument.Replace("\"", "\\\"", StringComparison.Ordinal) + "\""
+            : argument;
+    }
+
+    private static void CloseApplication(Application application)
+    {
+        if (application.HasExited)
+        {
+            return;
+        }
+
+        try
+        {
+            application.Kill();
+        }
+        catch when (application.HasExited)
+        {
+        }
+    }
+
+    private static Window WaitForMainWindowWithAutomationId(
+        Application application,
+        UIA3Automation automation,
+        string automationId,
+        TimeSpan timeout)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow + timeout;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            foreach (Window window in application.GetAllTopLevelWindows(automation))
+            {
+                if (window.FindFirstDescendant(cf => cf.ByAutomationId(automationId)) is not null)
+                {
+                    return window;
+                }
+            }
+
+            Thread.Sleep(250);
+        }
+
+        throw new InvalidOperationException(
+            $"Main window with UI element '{automationId}' did not appear within {timeout.TotalSeconds:0} seconds.");
+    }
+
+    private static Window WaitForWindowWithAutomationId(
+        Application application,
+        UIA3Automation automation,
+        string automationId,
+        TimeSpan timeout)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow + timeout;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            foreach (Window window in application.GetAllTopLevelWindows(automation))
+            {
+                if (window.FindFirstDescendant(cf => cf.ByAutomationId(automationId)) is not null)
+                {
+                    return window;
+                }
+            }
+
+            Thread.Sleep(250);
+        }
+
+        throw new InvalidOperationException(
+            $"Window with UI element '{automationId}' did not appear within {timeout.TotalSeconds:0} seconds.");
     }
 
     private static async Task SeedEntitiesAsync(
@@ -346,18 +536,63 @@ public sealed class MainWindowSmokeTests
 
     private static void SetText(Window window, string automationId, string text)
     {
-        TextBox textBox = WaitForAutomationId(window, automationId, TimeSpan.FromSeconds(5)).AsTextBox();
-        textBox.Text = text;
+        AutomationElement textBox = WaitForAutomationId(window, automationId, TimeSpan.FromSeconds(5));
+        textBox.Patterns.Value.Pattern.SetValue(text);
     }
 
-    private static AutomationElement WaitForText(Window window, string text, TimeSpan timeout)
+    private static void InvokeButton(Window window, string automationId, TimeSpan timeout)
     {
-        return WaitForElement(timeout, () => window.FindFirstDescendant(cf => cf.ByText(text)));
+        AutomationElement button = WaitForElement(timeout, () =>
+        {
+            AutomationElement? element = window.FindFirstDescendant(cf => cf.ByAutomationId(automationId));
+            return element is { IsEnabled: true } ? element : null;
+        });
+
+        button.Patterns.Invoke.Pattern.Invoke();
+        Thread.Sleep(250);
     }
 
-    private static AutomationElement WaitForAutomationId(Window window, string automationId, TimeSpan timeout)
+    private static void ClickButton(Window window, string automationId, TimeSpan timeout)
     {
-        return WaitForElement(timeout, () => window.FindFirstDescendant(cf => cf.ByAutomationId(automationId)));
+        AutomationElement button = WaitForElement(timeout, () =>
+        {
+            AutomationElement? element = window.FindFirstDescendant(cf => cf.ByAutomationId(automationId));
+            return element is { IsEnabled: true } ? element : null;
+        });
+
+        button.AsButton().Click();
+    }
+
+    private static void SelectTreeItem(AutomationElement descendant)
+    {
+        AutomationElement treeItem = FindAncestor(descendant, ControlType.TreeItem);
+        treeItem.AsTreeItem().Select();
+    }
+
+    private static void SelectTab(Window window, string tabHeader, TimeSpan timeout)
+    {
+        AutomationElement tabText = WaitForText(window, tabHeader, timeout);
+        AutomationElement tabItem = FindAncestor(tabText, ControlType.TabItem);
+        tabItem.Patterns.SelectionItem.Pattern.Select();
+    }
+
+    private static void SelectDataItem(AutomationElement descendant)
+    {
+        AutomationElement dataItem = FindAncestor(descendant, ControlType.DataItem);
+        dataItem.Patterns.SelectionItem.Pattern.Select();
+    }
+
+    private static AutomationElement FindAncestor(AutomationElement element, ControlType controlType)
+    {
+        for (AutomationElement? current = element; current is not null; current = current.Parent)
+        {
+            if (current.ControlType == controlType)
+            {
+                return current;
+            }
+        }
+
+        throw new InvalidOperationException($"Could not find ancestor with control type {controlType}.");
     }
 
     private static Window WaitForWindow(
@@ -381,6 +616,41 @@ public sealed class MainWindowSmokeTests
         }
 
         throw new InvalidOperationException($"Window '{title}' did not appear within {timeout.TotalSeconds:0} seconds.");
+    }
+
+    private static AutomationElement WaitForText(Window window, string text, TimeSpan timeout)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow + timeout;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            AutomationElement? element = window.FindFirstDescendant(cf => cf.ByText(text));
+            if (element is not null)
+            {
+                return element;
+            }
+
+            Thread.Sleep(250);
+        }
+
+        throw new InvalidOperationException(
+            $"Text '{text}' did not appear within {timeout.TotalSeconds:0} seconds. Visible UI text: {CreateVisibleTextSnapshot(window)}");
+    }
+
+    private static string CreateVisibleTextSnapshot(Window window)
+    {
+        string[] names = window.FindAllDescendants()
+            .Select(element => element.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.Ordinal)
+            .Take(80)
+            .ToArray();
+
+        return names.Length == 0 ? "(none)" : string.Join(" | ", names);
+    }
+
+    private static AutomationElement WaitForAutomationId(Window window, string automationId, TimeSpan timeout)
+    {
+        return WaitForElement(timeout, () => window.FindFirstDescendant(cf => cf.ByAutomationId(automationId)));
     }
 
     private static AutomationElement WaitForAutomationName(

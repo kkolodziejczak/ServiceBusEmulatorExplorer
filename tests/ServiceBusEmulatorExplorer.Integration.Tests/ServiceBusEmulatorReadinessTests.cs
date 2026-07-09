@@ -2,6 +2,7 @@ using ServiceBusEmulatorExplorer.Integration.Tests.Infrastructure;
 
 namespace ServiceBusEmulatorExplorer.Integration.Tests;
 
+[Collection(ServiceBusEmulatorCollection.Name)]
 public sealed class ServiceBusEmulatorReadinessTests
 {
     [IntegrationFact]

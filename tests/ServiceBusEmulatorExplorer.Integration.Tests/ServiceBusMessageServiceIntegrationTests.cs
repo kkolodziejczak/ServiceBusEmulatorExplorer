@@ -6,6 +6,7 @@ using ServiceBusEmulatorExplorer.Integration.Tests.Infrastructure;
 
 namespace ServiceBusEmulatorExplorer.Integration.Tests;
 
+[Collection(ServiceBusEmulatorCollection.Name)]
 public sealed class ServiceBusMessageServiceIntegrationTests
 {
     [IntegrationFact]
@@ -18,7 +19,6 @@ public sealed class ServiceBusMessageServiceIntegrationTests
         var adminClient = new ServiceBusAdministrationClient(ServiceBusEmulatorEnvironment.AdminConnectionString);
         using var testTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
 
-        await ServiceBusEmulatorEnvironment.WaitUntilReadyAsync(testTimeout.Token);
         await adminClient.CreateQueueAsync(queueName, testTimeout.Token);
         await adminClient.CreateTopicAsync(topicName, testTimeout.Token);
         await adminClient.CreateSubscriptionAsync(topicName, subscriptionName, testTimeout.Token);
@@ -106,14 +106,12 @@ public sealed class ServiceBusMessageServiceIntegrationTests
                     Subject: "topic-subscription"),
                 testTimeout.Token);
 
-            IReadOnlyList<ExplorerMessage> subscriptionMessages = await service.PeekMessagesAsync(
+            ExplorerMessage subscriptionMessage = await WaitForSingleMessageAsync(
+                service,
                 subscriptionAddress,
                 MessageBucket.Active,
-                take: 10,
-                fromSequenceNumber: null,
+                TimeSpan.FromSeconds(10),
                 testTimeout.Token);
-
-            ExplorerMessage subscriptionMessage = Assert.Single(subscriptionMessages);
             Assert.Equal("topic integration", subscriptionMessage.Body);
             Assert.Equal("topic-subscription", subscriptionMessage.Subject);
         }
@@ -139,7 +137,6 @@ public sealed class ServiceBusMessageServiceIntegrationTests
         var adminClient = new ServiceBusAdministrationClient(ServiceBusEmulatorEnvironment.AdminConnectionString);
         using var testTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
 
-        await ServiceBusEmulatorEnvironment.WaitUntilReadyAsync(testTimeout.Token);
         await adminClient.CreateQueueAsync(queueName, testTimeout.Token);
 
         await using var factory = new DirectServiceBusClientFactory();
@@ -245,5 +242,38 @@ public sealed class ServiceBusMessageServiceIntegrationTests
         {
             await receiver.DeadLetterMessageAsync(message, cancellationToken: cancellationToken);
         }
+    }
+
+    private static async Task<ExplorerMessage> WaitForSingleMessageAsync(
+        ServiceBusMessageService service,
+        EntityAddress address,
+        MessageBucket bucket,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow + timeout;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            IReadOnlyList<ExplorerMessage> messages = await service.PeekMessagesAsync(
+                address,
+                bucket,
+                take: 10,
+                fromSequenceNumber: null,
+                cancellationToken);
+            if (messages.Count == 1)
+            {
+                return messages[0];
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
+        }
+
+        IReadOnlyList<ExplorerMessage> finalMessages = await service.PeekMessagesAsync(
+            address,
+            bucket,
+            take: 10,
+            fromSequenceNumber: null,
+            cancellationToken);
+        return Assert.Single(finalMessages);
     }
 }

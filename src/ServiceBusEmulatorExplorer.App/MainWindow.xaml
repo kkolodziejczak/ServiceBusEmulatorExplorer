@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:viewModels="clr-namespace:ServiceBusEmulatorExplorer.App.ViewModels"
         Title="Service Bus Emulator Explorer"
+        AutomationProperties.Name="Service Bus Emulator Explorer"
         Height="720"
         Width="1180"
         MinHeight="560"
@@ -16,7 +17,11 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel>
-                    <TextBlock Text="Service Bus Emulator Explorer" FontSize="22" FontWeight="SemiBold" />
+                    <Label AutomationProperties.AutomationId="ShellTitleText"
+                           Content="Service Bus Emulator Explorer"
+                           FontSize="22"
+                           FontWeight="SemiBold"
+                           Padding="0" />
                     <TextBlock Text="{Binding ConnectionStatus}" Foreground="#607086" Margin="0,4,0,0" />
                 </StackPanel>
 
@@ -387,7 +392,7 @@
 
                                         <GroupBox Header="Body">
                                             <TextBox AutomationProperties.AutomationId="SelectedMessageBodyText"
-                                                     Text="{Binding MessageInspection.SelectedBody}"
+                                                     Text="{Binding MessageInspection.SelectedBody, Mode=OneWay}"
                                                      IsReadOnly="True"
                                                      AcceptsReturn="True"
                                                      TextWrapping="Wrap"
@@ -396,7 +401,7 @@
 
                                         <GroupBox Grid.Row="2" Header="System Properties">
                                             <TextBox AutomationProperties.AutomationId="SelectedMessageSystemPropertiesText"
-                                                     Text="{Binding MessageInspection.SelectedSystemProperties}"
+                                                     Text="{Binding MessageInspection.SelectedSystemProperties, Mode=OneWay}"
                                                      IsReadOnly="True"
                                                      AcceptsReturn="True"
                                                      TextWrapping="Wrap"
@@ -405,7 +410,7 @@
 
                                         <GroupBox Grid.Row="4" Header="Application Properties">
                                             <TextBox AutomationProperties.AutomationId="SelectedMessageApplicationPropertiesText"
-                                                     Text="{Binding MessageInspection.SelectedApplicationProperties}"
+                                                     Text="{Binding MessageInspection.SelectedApplicationProperties, Mode=OneWay}"
                                                      IsReadOnly="True"
                                                      AcceptsReturn="True"
                                                      TextWrapping="Wrap"
