@@ -345,28 +345,37 @@
                             </Grid.RowDefinitions>
 
                             <Border Background="White" BorderBrush="#D8E0EA" BorderThickness="1,1,1,0" CornerRadius="7,7,0,0" Padding="10,0">
-                                <DockPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="120" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
                                     <TextBlock Text="Message List" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                         <Button x:Name="PeekActiveMessagesButton"
                                                 AutomationProperties.AutomationId="PeekActiveMessagesButton"
                                                 AutomationProperties.Name="Peek Active"
-                                                Content="Peek"
+                                                Content="Peek Active"
                                                 Command="{Binding MessageInspection.PeekActiveMessagesCommand}"
-                                                MinWidth="68"
+                                                ToolTip="Load the first page of active messages for the selected queue or subscription."
+                                                MinWidth="88"
                                                 Style="{StaticResource ActionButtonStyle}" />
                                         <Button x:Name="PeekNextActiveMessagesButton"
                                                 AutomationProperties.AutomationId="PeekNextActiveMessagesButton"
                                                 AutomationProperties.Name="Next Active"
-                                                Content="Next"
+                                                Content="Next Active"
                                                 Command="{Binding MessageInspection.PeekNextActiveMessagesCommand}"
-                                                MinWidth="68"
+                                                ToolTip="Load the next page of active messages."
+                                                MinWidth="88"
                                                 Style="{StaticResource ActionButtonStyle}" />
                                         <Button x:Name="PeekDeadLetterMessagesButton"
                                                 AutomationProperties.AutomationId="PeekDeadLetterMessagesButton"
                                                 AutomationProperties.Name="Peek DLQ"
                                                 Content="Peek DLQ"
                                                 Command="{Binding MessageInspection.PeekDeadLetterMessagesCommand}"
+                                                ToolTip="Load the first page of dead-letter messages."
                                                 MinWidth="82"
                                                 Style="{StaticResource ActionButtonStyle}" />
                                         <Button x:Name="PeekNextDeadLetterMessagesButton"
@@ -374,15 +383,17 @@
                                                 AutomationProperties.Name="Next DLQ"
                                                 Content="Next DLQ"
                                                 Command="{Binding MessageInspection.PeekNextDeadLetterMessagesCommand}"
+                                                ToolTip="Load the next page of dead-letter messages."
                                                 MinWidth="82"
                                                 Style="{StaticResource ActionButtonStyle}" />
                                         <Button AutomationProperties.Name="Copy Body"
                                                 Content="Copy Body"
                                                 IsEnabled="False"
+                                                ToolTip="Copy the selected message body."
                                                 MinWidth="84"
                                                 Style="{StaticResource ActionButtonStyle}" />
                                     </StackPanel>
-                                </DockPanel>
+                                </Grid>
                             </Border>
 
                             <TabControl Grid.Row="1"
