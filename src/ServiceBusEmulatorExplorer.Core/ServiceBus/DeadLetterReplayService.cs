@@ -12,7 +12,7 @@ public sealed class DeadLetterReplayService(IServiceBusClientFactory clientFacto
 
         await using ServiceBusReceiver receiver = CreateDeadLetterReceiver(request.Source);
         ServiceBusReceivedMessage? original = null;
-        bool originalAbandoned = false;
+        bool replaySent = false;
 
         try
         {
@@ -25,13 +25,13 @@ public sealed class DeadLetterReplayService(IServiceBusClientFactory clientFacto
             await using ServiceBusSender sender = clientFactory.RuntimeClient.CreateSender(request.Destination.Name.Trim());
             await sender.SendMessageAsync(replayMessage, cancellationToken);
 
-            await receiver.AbandonMessageAsync(original, cancellationToken: cancellationToken);
-            originalAbandoned = true;
+            replaySent = true;
+            await AbandonMessageWithoutThrowingAsync(receiver, original);
             return new ReplayResult(replayMessage.MessageId, OriginalDeleted: false);
         }
         finally
         {
-            if (original is not null && !originalAbandoned)
+            if (original is not null && !replaySent)
             {
                 await AbandonMessageWithoutThrowingAsync(receiver, original);
             }

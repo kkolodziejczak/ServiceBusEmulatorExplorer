@@ -51,8 +51,15 @@ public static class DeadLetterReplayRequestFactory
         return entity.Kind switch
         {
             EntityKind.Queue => new EntityAddress(EntityKind.Queue, entity.Name),
-            EntityKind.Subscription => new EntityAddress(EntityKind.Topic, entity.TopicName!),
+            EntityKind.Subscription => new EntityAddress(EntityKind.Topic, RequireTopicName(entity)),
             _ => throw new ArgumentException("DLQ messages can be replayed to queues or topics, not subscriptions.", nameof(entity))
         };
+    }
+
+    private static string RequireTopicName(ServiceBusEntityNode entity)
+    {
+        return !string.IsNullOrWhiteSpace(entity.TopicName)
+            ? entity.TopicName
+            : throw new ArgumentException("Topic name is required for subscription DLQ replay.", nameof(entity));
     }
 }
