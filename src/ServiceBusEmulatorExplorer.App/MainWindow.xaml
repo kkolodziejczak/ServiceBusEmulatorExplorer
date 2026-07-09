@@ -262,12 +262,11 @@
                               BorderThickness="0"
                               Padding="10"
                               SelectedItemChanged="NamespaceTree_SelectedItemChanged">
-                        <TreeView.ItemContainerStyle>
-                            <Style TargetType="{x:Type TreeViewItem}">
-                                <Setter Property="IsExpanded" Value="True" />
-                            </Style>
-                        </TreeView.ItemContainerStyle>
                         <TreeView.Resources>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#0F6CBD" />
+                            <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#0F6CBD" />
+                            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="White" />
+                            <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="White" />
                             <HierarchicalDataTemplate DataType="{x:Type viewModels:EntityTreeNodeViewModel}"
                                                       ItemsSource="{Binding Children}">
                                 <Grid MinHeight="28" Margin="0,1">
@@ -284,6 +283,7 @@
                                         <Style x:Key="TreeNodeCountsStyle" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource TreeNodeTextStyle}">
                                             <Setter Property="Foreground" Value="#475569" />
                                             <Setter Property="FontSize" Value="12" />
+                                            <Setter Property="FontWeight" Value="SemiBold" />
                                             <Setter Property="TextAlignment" Value="Right" />
                                         </Style>
                                     </Grid.Resources>
@@ -300,6 +300,11 @@
                                 </Grid>
                             </HierarchicalDataTemplate>
                         </TreeView.Resources>
+                        <TreeView.ItemContainerStyle>
+                            <Style TargetType="{x:Type TreeViewItem}">
+                                <Setter Property="IsExpanded" Value="True" />
+                            </Style>
+                        </TreeView.ItemContainerStyle>
                     </TreeView>
                 </Grid>
             </Border>
