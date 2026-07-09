@@ -1024,7 +1024,7 @@ public sealed class ShellViewModel : ObservableObject
 
     private void AddLog(string message)
     {
-        OperationLog.Insert(0, new OperationLogEntry(_clock.UtcNow, message));
+        OperationLog.Add(new OperationLogEntry(_clock.UtcNow, message));
     }
 
     private string CreateRefreshSelectedTopicSubscriptionsToolTip()

@@ -45,6 +45,18 @@ public sealed class ShellViewModelTests
     }
 
     [Fact]
+    public async Task OperationLog_appends_new_entries_to_bottom()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.RuntimeConnectionString = "";
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+
+        Assert.Equal("Shell ready. Direct SDK mode.", viewModel.OperationLog[0].Message);
+        Assert.Contains("Runtime connection string is required.", viewModel.OperationLog[^1].Message);
+    }
+
+    [Fact]
     public async Task LoadProfilesAsync_falls_back_to_default_profile_when_store_fails()
     {
         var viewModel = CreateViewModel(store: new ThrowingProfileStore());
@@ -52,7 +64,7 @@ public sealed class ShellViewModelTests
         await viewModel.LoadProfilesAsync(CancellationToken.None);
 
         Assert.Equal(ConnectionProfileDefaults.LocalEmulator.Name, viewModel.ProfileName);
-        Assert.Contains("Could not load saved connection profiles.", viewModel.OperationLog[0].Message);
+        Assert.Contains("Could not load saved connection profiles.", viewModel.OperationLog[^1].Message);
     }
 
     [Fact]
@@ -66,7 +78,7 @@ public sealed class ShellViewModelTests
 
         Assert.False(viewModel.IsConnected);
         Assert.False(factory.ConnectCalled);
-        Assert.Contains("Runtime connection string is required.", viewModel.OperationLog[0].Message);
+        Assert.Contains("Runtime connection string is required.", viewModel.OperationLog[^1].Message);
     }
 
     [Fact]
@@ -146,7 +158,7 @@ public sealed class ShellViewModelTests
         Assert.True(viewModel.IsConnected);
         Assert.Equal("Refresh failed.", viewModel.EntityBrowserStatus);
         Assert.Equal("Administration endpoint unavailable.", viewModel.EntityBrowserError);
-        Assert.Contains("Refresh failed: Administration endpoint unavailable.", viewModel.OperationLog[0].Message);
+        Assert.Contains("Refresh failed: Administration endpoint unavailable.", viewModel.OperationLog[^1].Message);
     }
 
     [Fact]
@@ -164,7 +176,7 @@ public sealed class ShellViewModelTests
 
         Assert.True(workflow.CreateQueueCalled);
         Assert.Equal(2, administrationService.GetEntityTreeCallCount);
-        Assert.Contains("Created queue orders.", viewModel.OperationLog[1].Message);
+        Assert.Contains(viewModel.OperationLog, entry => entry.Message.Contains("Created queue orders.", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -200,7 +212,7 @@ public sealed class ShellViewModelTests
 
         Assert.Equal(queue, workflow.UpdatedEntity);
         Assert.Equal(2, administrationService.GetEntityTreeCallCount);
-        Assert.Contains("Updated queue orders.", viewModel.OperationLog[1].Message);
+        Assert.Contains(viewModel.OperationLog, entry => entry.Message.Contains("Updated queue orders.", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -221,7 +233,7 @@ public sealed class ShellViewModelTests
 
         Assert.Equal(subscription, workflow.DeletedEntity);
         Assert.Equal(2, administrationService.GetEntityTreeCallCount);
-        Assert.Contains("Deleted subscription events/subscriptions/billing.", viewModel.OperationLog[1].Message);
+        Assert.Contains(viewModel.OperationLog, entry => entry.Message.Contains("Deleted subscription events/subscriptions/billing.", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -502,7 +514,7 @@ public sealed class ShellViewModelTests
         Assert.Equal(queue, messageDialog.Entity);
         Assert.Equal(sendCommand, messageService.SentCommand);
         Assert.Equal(1, messageService.PeekCallCount);
-        Assert.Contains("Sent message to orders.", viewModel.OperationLog[1].Message);
+        Assert.Contains(viewModel.OperationLog, entry => entry.Message.Contains("Sent message to orders.", StringComparison.Ordinal));
     }
 
     private static ShellViewModel CreateViewModel(
