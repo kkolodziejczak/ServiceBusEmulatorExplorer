@@ -8,11 +8,15 @@ public sealed class EntityTreeNodeViewModel
     private EntityTreeNodeViewModel(
         string displayName,
         string countsSummary,
+        string iconText,
+        string iconBrush,
         ServiceBusEntityNode? entity,
         IEnumerable<EntityTreeNodeViewModel>? children = null)
     {
         DisplayName = displayName;
         CountsSummary = countsSummary;
+        IconText = iconText;
+        IconBrush = iconBrush;
         Entity = entity;
         Children = new ObservableCollection<EntityTreeNodeViewModel>(children ?? []);
     }
@@ -20,6 +24,10 @@ public sealed class EntityTreeNodeViewModel
     public string DisplayName { get; }
 
     public string CountsSummary { get; }
+
+    public string IconText { get; }
+
+    public string IconBrush { get; }
 
     public ServiceBusEntityNode? Entity { get; }
 
@@ -36,8 +44,16 @@ public sealed class EntityTreeNodeViewModel
 
         return
         [
-            new("Queues", $"{queues.Count} queues", entity: null, queues),
-            new("Topics", $"{topics.Count} topics", entity: null, topics)
+            new(
+                "sb://localhost/",
+                "",
+                "N",
+                "#2563EB",
+                entity: null,
+                [
+                    new("Queues", "", "G", "#64748B", entity: null, queues),
+                    new("Topics", "", "G", "#64748B", entity: null, topics)
+                ])
         ];
     }
 
@@ -143,12 +159,36 @@ public sealed class EntityTreeNodeViewModel
         return new EntityTreeNodeViewModel(
             entity.Name,
             CreateCountsSummary(entity),
+            CreateIconText(entity.Kind),
+            CreateIconBrush(entity.Kind),
             entity,
             children);
     }
 
     private static string CreateCountsSummary(ServiceBusEntityNode entity)
     {
-        return $"A:{entity.Counts.ActiveMessageCount} DLQ:{entity.Counts.DeadLetterMessageCount} S:{entity.Counts.ScheduledMessageCount}";
+        return $"{entity.Counts.ActiveMessageCount} / {entity.Counts.DeadLetterMessageCount}";
+    }
+
+    private static string CreateIconText(EntityKind kind)
+    {
+        return kind switch
+        {
+            EntityKind.Queue => "Q",
+            EntityKind.Topic => "T",
+            EntityKind.Subscription => "S",
+            _ => "E"
+        };
+    }
+
+    private static string CreateIconBrush(EntityKind kind)
+    {
+        return kind switch
+        {
+            EntityKind.Queue => "#107C10",
+            EntityKind.Topic => "#C2410C",
+            EntityKind.Subscription => "#6D28D9",
+            _ => "#64748B"
+        };
     }
 }

@@ -4,442 +4,639 @@
         xmlns:viewModels="clr-namespace:ServiceBusEmulatorExplorer.App.ViewModels"
         Title="Service Bus Emulator Explorer"
         AutomationProperties.Name="Service Bus Emulator Explorer"
-        Height="720"
+        Height="780"
         Width="1180"
-        MinHeight="560"
-        MinWidth="900">
-    <DockPanel Background="#F5F7FA">
-        <Border DockPanel.Dock="Top" Background="White" BorderBrush="#D2DAE6" BorderThickness="0,0,0,1" Padding="18,14">
+        MinHeight="640"
+        MinWidth="980">
+    <Window.Resources>
+        <Style x:Key="ToolbarButtonStyle" TargetType="{x:Type Button}">
+            <Setter Property="MinHeight" Value="30" />
+            <Setter Property="MinWidth" Value="88" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#B9C5D4" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="#172033" />
+        </Style>
+
+        <Style x:Key="ActionButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource ToolbarButtonStyle}">
+            <Setter Property="MinWidth" Value="74" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+            <Setter Property="Padding" Value="9,4" />
+        </Style>
+
+        <Style x:Key="DangerActionButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource ActionButtonStyle}">
+            <Setter Property="Foreground" Value="#C50F1F" />
+            <Setter Property="Background" Value="#FFF8F8" />
+            <Setter Property="BorderBrush" Value="#F0B9BF" />
+        </Style>
+
+        <Style x:Key="FieldLabelStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="Foreground" Value="#637083" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        </Style>
+
+        <Style x:Key="FieldValueStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="Foreground" Value="#1F2A44" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="Margin" Value="0,2,0,0" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Background="#F3F5F8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="56" />
+            <RowDefinition Height="44" />
+            <RowDefinition Height="58" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="128" />
+            <RowDefinition Height="28" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="18,0">
             <Grid>
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <StackPanel>
-                    <Label AutomationProperties.AutomationId="ShellTitleText"
-                           Content="Service Bus Emulator Explorer"
-                           FontSize="22"
-                           FontWeight="SemiBold"
-                           Padding="0" />
-                    <TextBlock Text="{Binding ConnectionStatus}" Foreground="#607086" Margin="0,4,0,0" />
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Width="30" Height="30" CornerRadius="7" Background="#0F6CBD" Margin="0,0,10,0">
+                        <TextBlock Text="SB" Foreground="White" FontWeight="SemiBold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock AutomationProperties.AutomationId="ShellTitleText"
+                               Text="Service Bus Emulator Explorer"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center" />
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse Width="8" Height="8" Fill="#107C10" Margin="0,0,8,0" />
+                    <TextBlock Text="{Binding ConnectionStatus}" Foreground="#637083" VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="18,6">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                    <Button x:Name="ConnectButton"
+                            AutomationProperties.AutomationId="ConnectButton"
+                            AutomationProperties.Name="Connect"
+                            Content="Connect"
+                            Command="{Binding ConnectCommand}"
+                            Background="#0F6CBD"
+                            BorderBrush="#0F6CBD"
+                            Foreground="White"
+                            Style="{StaticResource ToolbarButtonStyle}" />
+                    <Button x:Name="DisconnectButton"
+                            AutomationProperties.AutomationId="DisconnectButton"
+                            AutomationProperties.Name="Disconnect"
+                            Content="Disconnect"
+                            Command="{Binding DisconnectCommand}"
+                            Style="{StaticResource ToolbarButtonStyle}" />
+                    <Button x:Name="RefreshButton"
+                            AutomationProperties.AutomationId="RefreshButton"
+                            AutomationProperties.Name="Refresh"
+                            Content="Refresh"
+                            Command="{Binding RefreshCommand}"
+                            Style="{StaticResource ToolbarButtonStyle}" />
+                    <Button x:Name="CancelRefreshButton"
+                            AutomationProperties.AutomationId="CancelRefreshButton"
+                            AutomationProperties.Name="Cancel refresh"
+                            Content="Cancel"
+                            Command="{Binding CancelRefreshCommand}"
+                            MinWidth="76"
+                            Style="{StaticResource ToolbarButtonStyle}" />
+                    <Rectangle Width="1" Height="24" Fill="#D8E0EA" Margin="0,3,12,3" />
                     <Button x:Name="NewQueueButton"
                             AutomationProperties.AutomationId="NewQueueButton"
                             AutomationProperties.Name="New Queue"
                             Content="New Queue"
                             Command="{Binding CreateQueueCommand}"
-                            MinWidth="92"
-                            Margin="0,0,8,0" />
+                            Style="{StaticResource ToolbarButtonStyle}" />
                     <Button x:Name="NewTopicButton"
                             AutomationProperties.AutomationId="NewTopicButton"
                             AutomationProperties.Name="New Topic"
                             Content="New Topic"
                             Command="{Binding CreateTopicCommand}"
-                            MinWidth="92"
-                            Margin="0,0,8,0" />
+                            Style="{StaticResource ToolbarButtonStyle}" />
                     <Button x:Name="NewSubscriptionButton"
                             AutomationProperties.AutomationId="NewSubscriptionButton"
                             AutomationProperties.Name="New Subscription"
                             Content="New Subscription"
                             Command="{Binding CreateSubscriptionCommand}"
                             MinWidth="118"
-                            Margin="0,0,8,0" />
-                    <Button x:Name="ConnectButton"
-                            AutomationProperties.AutomationId="ConnectButton"
-                            AutomationProperties.Name="Connect"
-                            Content="Connect"
-                            Command="{Binding ConnectCommand}"
-                            MinWidth="92"
-                            Margin="0,0,8,0" />
-                    <Button x:Name="DisconnectButton"
-                            AutomationProperties.AutomationId="DisconnectButton"
-                            AutomationProperties.Name="Disconnect"
-                            Content="Disconnect"
-                            Command="{Binding DisconnectCommand}"
-                            MinWidth="92"
-                            Margin="0,0,8,0" />
-                    <Button x:Name="RefreshButton"
-                            AutomationProperties.AutomationId="RefreshButton"
-                            AutomationProperties.Name="Refresh"
-                            Content="Refresh"
-                            Command="{Binding RefreshCommand}"
-                            MinWidth="92"
-                            Margin="0,0,8,0" />
-                    <Button x:Name="CancelRefreshButton"
-                            AutomationProperties.AutomationId="CancelRefreshButton"
-                            AutomationProperties.Name="Cancel refresh"
-                            Content="Cancel"
-                            Command="{Binding CancelRefreshCommand}"
-                            MinWidth="92" />
+                            Style="{StaticResource ToolbarButtonStyle}" />
+                </StackPanel>
+
+                <Border BorderBrush="#D8E0EA" BorderThickness="1" CornerRadius="5" Background="White" Padding="8,5">
+                    <TextBlock Text="{Binding RuntimeConnectionString}" FontFamily="Consolas" Foreground="#42536A" TextTrimming="CharacterEllipsis" />
+                </Border>
+            </DockPanel>
+        </Border>
+
+        <Border Grid.Row="2" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="18,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="170" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="Profile" Style="{StaticResource FieldLabelStyle}" />
+                    <TextBox AutomationProperties.AutomationId="ProfileNameTextBox"
+                             Text="{Binding ProfileName, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Runtime connection string" Style="{StaticResource FieldLabelStyle}" />
+                    <TextBox AutomationProperties.AutomationId="RuntimeConnectionStringTextBox"
+                             Text="{Binding RuntimeConnectionString, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="Administration connection string" Style="{StaticResource FieldLabelStyle}" />
+                    <TextBox AutomationProperties.AutomationId="AdministrationConnectionStringTextBox"
+                             Text="{Binding AdministrationConnectionString, UpdateSourceTrigger=PropertyChanged}" />
                 </StackPanel>
             </Grid>
         </Border>
 
-        <Grid Margin="18">
+        <Grid Grid.Row="3" Margin="12">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="320" />
-                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="308" />
+                <ColumnDefinition Width="12" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-                <Border Background="White" BorderBrush="#D2DAE6" BorderThickness="1" CornerRadius="6" Padding="16">
-                <DockPanel>
-                    <StackPanel DockPanel.Dock="Top">
-                        <TextBlock Text="Connection Profile" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" />
-                        <TextBlock Text="Name" />
-                        <TextBox AutomationProperties.AutomationId="ProfileNameTextBox"
-                                 Text="{Binding ProfileName, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,4,0,12" />
-                        <TextBlock Text="Runtime connection string" />
-                        <TextBox AutomationProperties.AutomationId="RuntimeConnectionStringTextBox"
-                                 Text="{Binding RuntimeConnectionString, UpdateSourceTrigger=PropertyChanged}"
-                                 TextWrapping="Wrap"
-                                 AcceptsReturn="True"
-                                 MinHeight="84"
-                                 Margin="0,4,0,12" />
-                        <TextBlock Text="Administration connection string" />
-                        <TextBox AutomationProperties.AutomationId="AdministrationConnectionStringTextBox"
-                                 Text="{Binding AdministrationConnectionString, UpdateSourceTrigger=PropertyChanged}"
-                                 TextWrapping="Wrap"
-                                 AcceptsReturn="True"
-                                 MinHeight="84"
-                                 Margin="0,4,0,16" />
-                    </StackPanel>
+            <Border Grid.Column="0" Background="White" BorderBrush="#D8E0EA" BorderThickness="1" CornerRadius="8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="42" />
+                        <RowDefinition Height="52" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
 
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
+                    <Border BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="12,0">
+                        <TextBlock Text="Namespace" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </Border>
 
-                        <TextBlock Text="Namespace Tree" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" />
-                        <TextBox Grid.Row="1"
-                                 AutomationProperties.AutomationId="NamespaceFilterTextBox"
+                    <Border Grid.Row="1" BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="12,10">
+                        <TextBox AutomationProperties.AutomationId="NamespaceFilterTextBox"
                                  Text="{Binding NamespaceFilter, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,0,10" />
-                        <TreeView Grid.Row="2"
-                                  x:Name="NamespaceTree"
-                                  AutomationProperties.AutomationId="NamespaceTree"
-                                  ItemsSource="{Binding EntityTree}"
-                                  SelectedItemChanged="NamespaceTree_SelectedItemChanged">
-                            <TreeView.ItemContainerStyle>
-                                <Style TargetType="{x:Type TreeViewItem}">
-                                    <Setter Property="IsExpanded" Value="True" />
-                                </Style>
-                            </TreeView.ItemContainerStyle>
-                            <TreeView.Resources>
-                                <HierarchicalDataTemplate DataType="{x:Type viewModels:EntityTreeNodeViewModel}"
-                                                          ItemsSource="{Binding Children}">
-                                    <StackPanel Margin="0,2">
-                                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding CountsSummary}" Foreground="#607086" FontSize="12" />
-                                    </StackPanel>
-                                </HierarchicalDataTemplate>
-                            </TreeView.Resources>
-                        </TreeView>
-                    </Grid>
-                </DockPanel>
+                                 ToolTip="Filter queues, topics, subscriptions" />
+                    </Border>
+
+                    <TreeView Grid.Row="2"
+                              x:Name="NamespaceTree"
+                              AutomationProperties.AutomationId="NamespaceTree"
+                              ItemsSource="{Binding EntityTree}"
+                              BorderThickness="0"
+                              Padding="10"
+                              SelectedItemChanged="NamespaceTree_SelectedItemChanged">
+                        <TreeView.ItemContainerStyle>
+                            <Style TargetType="{x:Type TreeViewItem}">
+                                <Setter Property="IsExpanded" Value="True" />
+                            </Style>
+                        </TreeView.ItemContainerStyle>
+                        <TreeView.Resources>
+                            <HierarchicalDataTemplate DataType="{x:Type viewModels:EntityTreeNodeViewModel}"
+                                                      ItemsSource="{Binding Children}">
+                                <Grid MinHeight="28" Margin="0,1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="22" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="58" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="18" Height="18" CornerRadius="5" Background="{Binding IconBrush}" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding IconText}" Foreground="White" FontWeight="Bold" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0" />
+                                    <TextBlock Grid.Column="2" Text="{Binding CountsSummary}" Foreground="#637083" FontSize="12" TextAlignment="Right" VerticalAlignment="Center" />
+                                </Grid>
+                            </HierarchicalDataTemplate>
+                        </TreeView.Resources>
+                    </TreeView>
+                </Grid>
             </Border>
 
-            <Grid Grid.Column="2">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*" />
-                    <RowDefinition Height="14" />
-                    <RowDefinition Height="190" />
-                </Grid.RowDefinitions>
+            <Border Grid.Column="2" Background="White" BorderBrush="#D8E0EA" BorderThickness="1" CornerRadius="8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
 
-                <Border Background="White" BorderBrush="#D2DAE6" BorderThickness="1" CornerRadius="6" Padding="18">
-                    <Grid>
+                    <Grid Grid.Row="0" Margin="16,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="420" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock AutomationProperties.AutomationId="SelectedEntityTitleText"
+                                           AutomationProperties.Name="{Binding SelectedEntityTitle}"
+                                           Text="{Binding SelectedEntityHeading}"
+                                           FontSize="18"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center" />
+                                <Border Background="#E0F2FE" CornerRadius="10" Padding="8,2" Margin="8,0,0,0">
+                                    <TextBlock AutomationProperties.AutomationId="SelectedEntityKindText"
+                                               Text="{Binding SelectedEntityKind}"
+                                               Foreground="#075985"
+                                               FontSize="12"
+                                               FontWeight="SemiBold" />
+                                </Border>
+                            </StackPanel>
+
+                            <UniformGrid Columns="3" Rows="2">
+                                <StackPanel Margin="0,0,12,8">
+                                    <TextBlock Text="Relative URI" Style="{StaticResource FieldLabelStyle}" />
+                                    <TextBlock AutomationProperties.AutomationId="SelectedEntityPathText"
+                                               Text="{Binding SelectedEntityPath}"
+                                               Style="{StaticResource FieldValueStyle}" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,12,8">
+                                    <TextBlock Text="Created UTC" Style="{StaticResource FieldLabelStyle}" />
+                                    <TextBlock Text="{Binding SelectedEntityCreatedAtUtc}" Style="{StaticResource FieldValueStyle}" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,12,8">
+                                    <TextBlock Text="Max Delivery" Style="{StaticResource FieldLabelStyle}" />
+                                    <TextBlock Text="{Binding SelectedEntityMaxDeliveryCount}" Style="{StaticResource FieldValueStyle}" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,12,0">
+                                    <TextBlock Text="Lock Duration" Style="{StaticResource FieldLabelStyle}" />
+                                    <TextBlock Text="{Binding SelectedEntityLockDuration}" Style="{StaticResource FieldValueStyle}" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,12,0">
+                                    <TextBlock Text="Default TTL" Style="{StaticResource FieldLabelStyle}" />
+                                    <TextBlock Text="{Binding SelectedEntityDefaultTtl}" Style="{StaticResource FieldValueStyle}" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,12,0">
+                                    <TextBlock Text="Status" Style="{StaticResource FieldLabelStyle}" />
+                                    <TextBlock AutomationProperties.AutomationId="SelectedEntityMetadataText"
+                                               AutomationProperties.Name="{Binding SelectedEntityMetadata}"
+                                               Text="{Binding SelectedEntityStatus}"
+                                               Style="{StaticResource FieldValueStyle}" />
+                                </StackPanel>
+                            </UniformGrid>
+                        </StackPanel>
+
+                        <UniformGrid Grid.Column="1" Columns="4" Rows="1" Margin="16,0,0,0">
+                            <Border BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="7" Padding="8" Margin="0,0,8,0" MinWidth="78">
+                                <StackPanel>
+                                    <TextBlock Text="Active" Foreground="#637083" FontSize="11" />
+                                    <TextBlock Text="{Binding SelectedEntityActiveCount}" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                                </StackPanel>
+                            </Border>
+                            <Border BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="7" Padding="8" Margin="0,0,8,0" MinWidth="78">
+                                <StackPanel>
+                                    <TextBlock Text="DLQ" Foreground="#637083" FontSize="11" />
+                                    <TextBlock Text="{Binding SelectedEntityDeadLetterCount}" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                                </StackPanel>
+                            </Border>
+                            <Border BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="7" Padding="8" Margin="0,0,8,0" MinWidth="78">
+                                <StackPanel>
+                                    <TextBlock Text="Scheduled" Foreground="#637083" FontSize="11" />
+                                    <TextBlock Text="{Binding SelectedEntityScheduledCount}" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                                </StackPanel>
+                            </Border>
+                            <Border BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="7" Padding="8" MinWidth="78">
+                                <StackPanel>
+                                    <TextBlock Text="Total" Foreground="#637083" FontSize="11" />
+                                    <TextBlock AutomationProperties.AutomationId="SelectedEntityCountsText"
+                                               AutomationProperties.Name="{Binding SelectedEntityCounts}"
+                                               Text="{Binding SelectedEntityTotalCount}"
+                                               FontSize="20"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Right" />
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+                    </Grid>
+
+                    <Grid Grid.Row="1" Background="#F8FAFC">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
+                            <RowDefinition Height="210" />
+                            <RowDefinition Height="48" />
                         </Grid.RowDefinitions>
 
-                        <DockPanel Margin="0,0,0,14">
-                            <TextBlock Text="{Binding EntityBrowserStatus}"
-                                       Foreground="#607086"
-                                       DockPanel.Dock="Right"
-                                       VerticalAlignment="Center" />
-                            <TextBlock Text="Entity Detail" FontSize="16" FontWeight="SemiBold" />
-                        </DockPanel>
-
-                        <TextBlock Grid.Row="1"
-                                   AutomationProperties.AutomationId="EntityBrowserErrorText"
+                        <TextBlock AutomationProperties.AutomationId="EntityBrowserErrorText"
                                    Text="{Binding EntityBrowserError}"
                                    Foreground="#C50F1F"
                                    TextWrapping="Wrap"
-                                   Margin="0,0,0,10" />
+                                   Margin="12,8,12,0" />
 
-                        <TextBlock Grid.Row="2"
-                                   AutomationProperties.AutomationId="SelectedEntityTitleText"
-                                   Text="{Binding SelectedEntityTitle}"
-                                   FontSize="22"
-                                   FontWeight="SemiBold"
-                                   TextWrapping="Wrap" />
-                        <TextBlock Grid.Row="3"
-                                   AutomationProperties.AutomationId="SelectedEntityKindText"
-                                   Text="{Binding SelectedEntityKind}"
-                                   Foreground="#607086"
-                                   Margin="0,4,0,0"
-                                   TextWrapping="Wrap" />
-                        <TextBlock Grid.Row="4"
-                                   AutomationProperties.AutomationId="SelectedEntityPathText"
-                                   Text="{Binding SelectedEntityPath}"
-                                   FontFamily="Consolas"
-                                   Foreground="#607086"
-                                   Margin="0,14,0,0"
-                                   TextWrapping="Wrap" />
-                        <Grid Grid.Row="5" Margin="0,18,0,0">
+                        <Grid Grid.Row="1" Margin="12,8,12,0">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="38" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
-                            <StackPanel>
-                                <TextBlock AutomationProperties.AutomationId="SelectedEntityCountsText"
-                                           Text="{Binding SelectedEntityCounts}"
-                                           FontWeight="SemiBold"
-                                           TextWrapping="Wrap" />
-                                <TextBlock AutomationProperties.AutomationId="SelectedEntityMetadataText"
-                                           Text="{Binding SelectedEntityMetadata}"
-                                           Foreground="#607086"
-                                           Margin="0,8,0,0"
-                                           TextWrapping="Wrap" />
-                            </StackPanel>
+                            <Border Background="White" BorderBrush="#D8E0EA" BorderThickness="1,1,1,0" CornerRadius="7,7,0,0" Padding="10,0">
+                                <DockPanel>
+                                    <TextBlock Text="Message List" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button x:Name="PeekActiveMessagesButton"
+                                                AutomationProperties.AutomationId="PeekActiveMessagesButton"
+                                                AutomationProperties.Name="Peek Active"
+                                                Content="Peek"
+                                                Command="{Binding MessageInspection.PeekActiveMessagesCommand}"
+                                                MinWidth="68"
+                                                Style="{StaticResource ActionButtonStyle}" />
+                                        <Button x:Name="PeekNextActiveMessagesButton"
+                                                AutomationProperties.AutomationId="PeekNextActiveMessagesButton"
+                                                AutomationProperties.Name="Next Active"
+                                                Content="Next"
+                                                Command="{Binding MessageInspection.PeekNextActiveMessagesCommand}"
+                                                MinWidth="68"
+                                                Style="{StaticResource ActionButtonStyle}" />
+                                        <Button x:Name="PeekDeadLetterMessagesButton"
+                                                AutomationProperties.AutomationId="PeekDeadLetterMessagesButton"
+                                                AutomationProperties.Name="Peek DLQ"
+                                                Content="Peek DLQ"
+                                                Command="{Binding MessageInspection.PeekDeadLetterMessagesCommand}"
+                                                MinWidth="82"
+                                                Style="{StaticResource ActionButtonStyle}" />
+                                        <Button x:Name="PeekNextDeadLetterMessagesButton"
+                                                AutomationProperties.AutomationId="PeekNextDeadLetterMessagesButton"
+                                                AutomationProperties.Name="Next DLQ"
+                                                Content="Next DLQ"
+                                                Command="{Binding MessageInspection.PeekNextDeadLetterMessagesCommand}"
+                                                MinWidth="82"
+                                                Style="{StaticResource ActionButtonStyle}" />
+                                        <Button AutomationProperties.Name="Copy Body"
+                                                Content="Copy Body"
+                                                IsEnabled="False"
+                                                MinWidth="84"
+                                                Style="{StaticResource ActionButtonStyle}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
 
-                            <WrapPanel Grid.Row="1" HorizontalAlignment="Right" Margin="0,16,0,12">
-                                <Button x:Name="SendMessageButton"
-                                        AutomationProperties.AutomationId="SendMessageButton"
-                                        AutomationProperties.Name="Send Message"
-                                        Content="Send Message"
-                                        Command="{Binding MessageInspection.SendMessageCommand}"
-                                        MinWidth="108"
-                                        Margin="0,0,8,0" />
-                                <Button x:Name="PeekActiveMessagesButton"
-                                        AutomationProperties.AutomationId="PeekActiveMessagesButton"
-                                        AutomationProperties.Name="Peek Active"
-                                        Content="Peek Active"
-                                        Command="{Binding MessageInspection.PeekActiveMessagesCommand}"
-                                        MinWidth="96"
-                                        Margin="0,0,8,0" />
-                                <Button x:Name="PeekNextActiveMessagesButton"
-                                        AutomationProperties.AutomationId="PeekNextActiveMessagesButton"
-                                        AutomationProperties.Name="Next Active"
-                                        Content="Next Active"
-                                        Command="{Binding MessageInspection.PeekNextActiveMessagesCommand}"
-                                        MinWidth="96"
-                                        Margin="0,0,8,0" />
-                                <Button x:Name="PeekDeadLetterMessagesButton"
-                                        AutomationProperties.AutomationId="PeekDeadLetterMessagesButton"
-                                        AutomationProperties.Name="Peek DLQ"
-                                        Content="Peek DLQ"
-                                        Command="{Binding MessageInspection.PeekDeadLetterMessagesCommand}"
-                                        MinWidth="88"
-                                        Margin="0,0,8,0" />
-                                <Button x:Name="PeekNextDeadLetterMessagesButton"
-                                        AutomationProperties.AutomationId="PeekNextDeadLetterMessagesButton"
-                                        AutomationProperties.Name="Next DLQ"
-                                        Content="Next DLQ"
-                                        Command="{Binding MessageInspection.PeekNextDeadLetterMessagesCommand}"
-                                        MinWidth="88"
-                                        Margin="0,0,8,0" />
-                                <Button x:Name="ReplayDeadLetterButton"
-                                        AutomationProperties.AutomationId="ReplayDeadLetterButton"
-                                        AutomationProperties.Name="Replay DLQ Copy"
-                                        Content="Replay"
-                                        Command="{Binding MessageInspection.ReplayDeadLetterCommand}"
-                                        MinWidth="86"
-                                        Margin="0,0,8,0" />
-                                <Button x:Name="EditReplayDeadLetterButton"
-                                        AutomationProperties.AutomationId="EditReplayDeadLetterButton"
-                                        AutomationProperties.Name="Edit and Replay DLQ"
-                                        Content="Edit Replay"
-                                        Command="{Binding MessageInspection.EditAndReplayDeadLetterCommand}"
-                                        MinWidth="100"
-                                        Margin="0,0,8,0" />
-                                <Button x:Name="DeleteSelectedDeadLetterButton"
-                                        AutomationProperties.AutomationId="DeleteSelectedDeadLetterButton"
-                                        AutomationProperties.Name="Delete Selected DLQ"
-                                        Content="Delete DLQ"
-                                        Command="{Binding MessageInspection.DeleteSelectedDeadLetterCommand}"
-                                        MinWidth="94"
-                                        Margin="0,0,8,0" />
-                                <Button x:Name="DeleteVisibleDeadLetterButton"
-                                        AutomationProperties.AutomationId="DeleteVisibleDeadLetterButton"
-                                        AutomationProperties.Name="Delete Visible DLQ"
-                                        Content="Delete Visible"
-                                        Command="{Binding MessageInspection.DeleteVisibleDeadLetterCommand}"
-                                        MinWidth="112"
-                                        Margin="0,0,8,0" />
-                                <Button x:Name="UpdateEntityButton"
-                                        AutomationProperties.AutomationId="UpdateEntityButton"
-                                        AutomationProperties.Name="Update"
-                                        Content="Update"
-                                        Command="{Binding UpdateSelectedEntityCommand}"
-                                        MinWidth="96"
-                                        Margin="0,0,8,0" />
-                                <Button x:Name="DeleteEntityButton"
-                                        AutomationProperties.AutomationId="DeleteEntityButton"
-                                        AutomationProperties.Name="{Binding SelectedEntityDeleteLabel}"
-                                        Content="{Binding SelectedEntityDeleteLabel}"
-                                        Command="{Binding DeleteSelectedEntityCommand}"
-                                        MinWidth="116" />
-                            </WrapPanel>
+                            <TabControl Grid.Row="1"
+                                        AutomationProperties.AutomationId="MessageTabs"
+                                        SelectedIndex="1"
+                                        BorderBrush="#D8E0EA"
+                                        Background="White">
+                                <TabItem Header="Description">
+                                    <ScrollViewer Padding="12">
+                                        <TextBlock Text="{Binding SelectedEntityMetadata}" TextWrapping="Wrap" Foreground="#42536A" />
+                                    </ScrollViewer>
+                                </TabItem>
+                                <TabItem Header="Messages">
+                                    <DataGrid x:Name="ActiveMessagesGrid"
+                                              AutomationProperties.AutomationId="ActiveMessagesGrid"
+                                              ItemsSource="{Binding MessageInspection.ActiveMessages}"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              SelectionMode="Single"
+                                              SelectionChanged="MessageGrid_SelectionChanged">
+                                        <DataGrid.Columns>
+                                            <DataGridTemplateColumn Header="Select" Width="54">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <CheckBox IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}"
+                                                                  IsHitTestVisible="False"
+                                                                  HorizontalAlignment="Center" />
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTextColumn Header="MessageId" Binding="{Binding MessageId}" Width="160" />
+                                            <DataGridTextColumn Header="Seq" Binding="{Binding SequenceNumber}" Width="70" />
+                                            <DataGridTextColumn Header="Size" Binding="{Binding BodySizeBytes}" Width="70" />
+                                            <DataGridTextColumn Header="Subject" Binding="{Binding Subject}" Width="120" />
+                                            <DataGridTextColumn Header="EnqueuedTimeUtc" Binding="{Binding EnqueuedTime, StringFormat={}{0:yyyy-MM-ddTHH:mm:ss.fffZ}}" Width="170" />
+                                            <DataGridTextColumn Header="ExpiresAtUtc" Binding="{Binding ExpiresAt, StringFormat={}{0:yyyy-MM-ddTHH:mm:ss.fffZ}}" Width="170" />
+                                            <DataGridTextColumn Header="Delivery" Binding="{Binding DeliveryCount}" Width="70" />
+                                            <DataGridTextColumn Header="Preview" Binding="{Binding BodyPreview}" Width="*" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </TabItem>
+                                <TabItem Header="Dead Letter">
+                                    <DataGrid x:Name="DeadLetterMessagesGrid"
+                                              AutomationProperties.AutomationId="DeadLetterMessagesGrid"
+                                              ItemsSource="{Binding MessageInspection.DeadLetterMessages}"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              SelectionMode="Extended"
+                                              SelectionChanged="MessageGrid_SelectionChanged">
+                                        <DataGrid.Columns>
+                                            <DataGridTemplateColumn Header="Select" Width="54">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <CheckBox IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}"
+                                                                  IsHitTestVisible="False"
+                                                                  HorizontalAlignment="Center" />
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTextColumn Header="MessageId" Binding="{Binding MessageId}" Width="160" />
+                                            <DataGridTextColumn Header="Seq" Binding="{Binding SequenceNumber}" Width="70" />
+                                            <DataGridTextColumn Header="Size" Binding="{Binding BodySizeBytes}" Width="70" />
+                                            <DataGridTextColumn Header="Subject" Binding="{Binding Subject}" Width="120" />
+                                            <DataGridTextColumn Header="EnqueuedTimeUtc" Binding="{Binding EnqueuedTime, StringFormat={}{0:yyyy-MM-ddTHH:mm:ss.fffZ}}" Width="170" />
+                                            <DataGridTextColumn Header="ExpiresAtUtc" Binding="{Binding ExpiresAt, StringFormat={}{0:yyyy-MM-ddTHH:mm:ss.fffZ}}" Width="170" />
+                                            <DataGridTextColumn Header="Delivery" Binding="{Binding DeliveryCount}" Width="70" />
+                                            <DataGridTextColumn Header="Preview" Binding="{Binding BodyPreview}" Width="*" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </TabItem>
+                            </TabControl>
+                        </Grid>
 
-                            <Grid Grid.Row="2">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="*" />
-                                </Grid.RowDefinitions>
+                        <Grid Grid.Row="2" Margin="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
 
-                                <StackPanel>
-                                    <TextBlock AutomationProperties.AutomationId="MessageInspectionStatusText"
-                                               Text="{Binding MessageInspection.Status}"
-                                               Foreground="#607086"
-                                               TextWrapping="Wrap" />
-                                    <TextBlock AutomationProperties.AutomationId="MessageInspectionErrorText"
-                                               Text="{Binding MessageInspection.Error}"
-                                               Foreground="#C50F1F"
-                                               TextWrapping="Wrap"
-                                               Margin="0,4,0,8" />
-                                </StackPanel>
+                            <Border Background="White" BorderBrush="#D8E0EA" BorderThickness="1" CornerRadius="7">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="38" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <Border BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="10,0">
+                                        <TextBlock Text="Message Text" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    </Border>
+                                    <TextBox Grid.Row="1"
+                                             AutomationProperties.AutomationId="SelectedMessageBodyText"
+                                             Text="{Binding MessageInspection.SelectedBody, Mode=OneWay}"
+                                             IsReadOnly="True"
+                                             AcceptsReturn="True"
+                                             TextWrapping="Wrap"
+                                             VerticalScrollBarVisibility="Auto"
+                                             Background="#0F172A"
+                                             Foreground="#E5EDF8"
+                                             FontFamily="Consolas"
+                                             BorderThickness="0"
+                                             Padding="12" />
+                                </Grid>
+                            </Border>
 
-                                <Grid Grid.Row="1">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="2*" />
-                                        <ColumnDefinition Width="12" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <TabControl AutomationProperties.AutomationId="MessageTabs">
-                                        <TabItem Header="Active">
-                                            <DataGrid x:Name="ActiveMessagesGrid"
-                                                      AutomationProperties.AutomationId="ActiveMessagesGrid"
-                                                      ItemsSource="{Binding MessageInspection.ActiveMessages}"
-                                                      AutoGenerateColumns="False"
-                                                      IsReadOnly="True"
-                                                      SelectionMode="Single"
-                                                      SelectionChanged="MessageGrid_SelectionChanged">
-                                                <DataGrid.Columns>
-                                                    <DataGridTemplateColumn Header="" Width="34">
-                                                        <DataGridTemplateColumn.CellTemplate>
-                                                            <DataTemplate>
-                                                                <CheckBox IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}"
-                                                                          IsHitTestVisible="False"
-                                                                          HorizontalAlignment="Center" />
-                                                            </DataTemplate>
-                                                        </DataGridTemplateColumn.CellTemplate>
-                                                    </DataGridTemplateColumn>
-                                                    <DataGridTextColumn Header="Seq" Binding="{Binding SequenceNumber}" Width="70" />
-                                                    <DataGridTextColumn Header="Message Id" Binding="{Binding MessageId}" Width="160" />
-                                                    <DataGridTextColumn Header="Size" Binding="{Binding BodySizeBytes}" Width="70" />
-                                                    <DataGridTextColumn Header="Subject" Binding="{Binding Subject}" Width="120" />
-                                                    <DataGridTextColumn Header="Enqueued UTC" Binding="{Binding EnqueuedTime, StringFormat={}{0:yyyy-MM-ddTHH:mm:ss.fffZ}}" Width="160" />
-                                                    <DataGridTextColumn Header="Expires UTC" Binding="{Binding ExpiresAt, StringFormat={}{0:yyyy-MM-ddTHH:mm:ss.fffZ}}" Width="160" />
-                                                    <DataGridTextColumn Header="Delivery" Binding="{Binding DeliveryCount}" Width="70" />
-                                                    <DataGridTextColumn Header="Preview" Binding="{Binding BodyPreview}" Width="*" />
-                                                </DataGrid.Columns>
-                                            </DataGrid>
-                                        </TabItem>
-                                        <TabItem Header="Dead Letter">
-                                            <DataGrid x:Name="DeadLetterMessagesGrid"
-                                                      AutomationProperties.AutomationId="DeadLetterMessagesGrid"
-                                                      ItemsSource="{Binding MessageInspection.DeadLetterMessages}"
-                                                      AutoGenerateColumns="False"
-                                                      IsReadOnly="True"
-                                                      SelectionMode="Extended"
-                                                      SelectionChanged="MessageGrid_SelectionChanged">
-                                                <DataGrid.Columns>
-                                                    <DataGridTemplateColumn Header="" Width="34">
-                                                        <DataGridTemplateColumn.CellTemplate>
-                                                            <DataTemplate>
-                                                                <CheckBox IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}"
-                                                                          IsHitTestVisible="False"
-                                                                          HorizontalAlignment="Center" />
-                                                            </DataTemplate>
-                                                        </DataGridTemplateColumn.CellTemplate>
-                                                    </DataGridTemplateColumn>
-                                                    <DataGridTextColumn Header="Seq" Binding="{Binding SequenceNumber}" Width="70" />
-                                                    <DataGridTextColumn Header="Message Id" Binding="{Binding MessageId}" Width="160" />
-                                                    <DataGridTextColumn Header="Size" Binding="{Binding BodySizeBytes}" Width="70" />
-                                                    <DataGridTextColumn Header="Subject" Binding="{Binding Subject}" Width="120" />
-                                                    <DataGridTextColumn Header="Enqueued UTC" Binding="{Binding EnqueuedTime, StringFormat={}{0:yyyy-MM-ddTHH:mm:ss.fffZ}}" Width="160" />
-                                                    <DataGridTextColumn Header="Expires UTC" Binding="{Binding ExpiresAt, StringFormat={}{0:yyyy-MM-ddTHH:mm:ss.fffZ}}" Width="160" />
-                                                    <DataGridTextColumn Header="Delivery" Binding="{Binding DeliveryCount}" Width="70" />
-                                                    <DataGridTextColumn Header="Preview" Binding="{Binding BodyPreview}" Width="*" />
-                                                </DataGrid.Columns>
-                                            </DataGrid>
-                                        </TabItem>
-                                    </TabControl>
-
-                                    <Grid Grid.Column="2">
+                            <Border Grid.Column="2" Background="White" BorderBrush="#D8E0EA" BorderThickness="1" CornerRadius="7">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="38" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <Border BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="10,0">
+                                        <TextBlock Text="System and Custom Properties" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    </Border>
+                                    <Grid Grid.Row="1">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="*" />
-                                            <RowDefinition Height="8" />
-                                            <RowDefinition Height="*" />
-                                            <RowDefinition Height="8" />
+                                            <RowDefinition Height="1" />
                                             <RowDefinition Height="*" />
                                         </Grid.RowDefinitions>
-
-                                        <GroupBox Header="Body">
-                                            <TextBox AutomationProperties.AutomationId="SelectedMessageBodyText"
-                                                     Text="{Binding MessageInspection.SelectedBody, Mode=OneWay}"
-                                                     IsReadOnly="True"
-                                                     AcceptsReturn="True"
-                                                     TextWrapping="Wrap"
-                                                     VerticalScrollBarVisibility="Auto" />
-                                        </GroupBox>
-
-                                        <GroupBox Grid.Row="2" Header="System Properties">
-                                            <TextBox AutomationProperties.AutomationId="SelectedMessageSystemPropertiesText"
-                                                     Text="{Binding MessageInspection.SelectedSystemProperties, Mode=OneWay}"
-                                                     IsReadOnly="True"
-                                                     AcceptsReturn="True"
-                                                     TextWrapping="Wrap"
-                                                     VerticalScrollBarVisibility="Auto" />
-                                        </GroupBox>
-
-                                        <GroupBox Grid.Row="4" Header="Application Properties">
-                                            <TextBox AutomationProperties.AutomationId="SelectedMessageApplicationPropertiesText"
-                                                     Text="{Binding MessageInspection.SelectedApplicationProperties, Mode=OneWay}"
-                                                     IsReadOnly="True"
-                                                     AcceptsReturn="True"
-                                                     TextWrapping="Wrap"
-                                                     VerticalScrollBarVisibility="Auto" />
-                                        </GroupBox>
+                                        <TextBox AutomationProperties.AutomationId="SelectedMessageSystemPropertiesText"
+                                                 Text="{Binding MessageInspection.SelectedSystemProperties, Mode=OneWay}"
+                                                 IsReadOnly="True"
+                                                 AcceptsReturn="True"
+                                                 TextWrapping="Wrap"
+                                                 VerticalScrollBarVisibility="Auto"
+                                                 FontFamily="Consolas"
+                                                 BorderThickness="0"
+                                                 Padding="10" />
+                                        <Rectangle Grid.Row="1" Fill="#D8E0EA" />
+                                        <TextBox Grid.Row="2"
+                                                 AutomationProperties.AutomationId="SelectedMessageApplicationPropertiesText"
+                                                 Text="{Binding MessageInspection.SelectedApplicationProperties, Mode=OneWay}"
+                                                 IsReadOnly="True"
+                                                 AcceptsReturn="True"
+                                                 TextWrapping="Wrap"
+                                                 VerticalScrollBarVisibility="Auto"
+                                                 FontFamily="Consolas"
+                                                 BorderThickness="0"
+                                                 Padding="10" />
                                     </Grid>
                                 </Grid>
-                            </Grid>
+                            </Border>
                         </Grid>
-                    </Grid>
-                </Border>
 
-                <Border Grid.Row="2" Background="#101827" CornerRadius="6" Padding="12">
-                    <DockPanel>
-                        <TextBlock DockPanel.Dock="Top" Text="Operation Log" Foreground="#EEF5FF" FontWeight="SemiBold" Margin="0,0,0,8" />
-                        <ListBox AutomationProperties.AutomationId="OperationLogList"
-                                 ItemsSource="{Binding OperationLog}"
-                                 Background="#101827"
-                                 BorderThickness="0"
-                                 Foreground="#EEF5FF">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding DisplayText}" FontFamily="Consolas" FontSize="12" />
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </DockPanel>
-                </Border>
-            </Grid>
+                        <Border Grid.Row="3" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,1,0,0" Padding="12,8">
+                            <DockPanel LastChildFill="False">
+                                <TextBlock AutomationProperties.AutomationId="MessageInspectionStatusText"
+                                           Text="{Binding MessageInspection.Status}"
+                                           Foreground="#637083"
+                                           TextTrimming="CharacterEllipsis"
+                                           VerticalAlignment="Center" />
+                                <TextBlock AutomationProperties.AutomationId="MessageInspectionErrorText"
+                                           Text="{Binding MessageInspection.Error}"
+                                           Foreground="#C50F1F"
+                                           TextTrimming="CharacterEllipsis"
+                                           VerticalAlignment="Center"
+                                           Margin="12,0,0,0" />
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button x:Name="SendMessageButton"
+                                            AutomationProperties.AutomationId="SendMessageButton"
+                                            AutomationProperties.Name="Send New Message"
+                                            Content="Send"
+                                            Command="{Binding MessageInspection.SendMessageCommand}"
+                                            Style="{StaticResource ActionButtonStyle}" />
+                                    <Button x:Name="ReplayDeadLetterButton"
+                                            AutomationProperties.AutomationId="ReplayDeadLetterButton"
+                                            AutomationProperties.Name="Replay DLQ Copy"
+                                            Content="Replay"
+                                            Command="{Binding MessageInspection.ReplayDeadLetterCommand}"
+                                            Background="#0F6CBD"
+                                            BorderBrush="#0F6CBD"
+                                            Foreground="White"
+                                            Style="{StaticResource ActionButtonStyle}" />
+                                    <Button x:Name="EditReplayDeadLetterButton"
+                                            AutomationProperties.AutomationId="EditReplayDeadLetterButton"
+                                            AutomationProperties.Name="Edit and Replay DLQ"
+                                            Content="Edit Replay"
+                                            Command="{Binding MessageInspection.EditAndReplayDeadLetterCommand}"
+                                            MinWidth="98"
+                                            Style="{StaticResource ActionButtonStyle}" />
+                                    <Button x:Name="DeleteSelectedDeadLetterButton"
+                                            AutomationProperties.AutomationId="DeleteSelectedDeadLetterButton"
+                                            AutomationProperties.Name="Delete Selected DLQ"
+                                            Content="Selected"
+                                            Command="{Binding MessageInspection.DeleteSelectedDeadLetterCommand}"
+                                            MinWidth="82"
+                                            Style="{StaticResource DangerActionButtonStyle}" />
+                                    <Button x:Name="DeleteVisibleDeadLetterButton"
+                                            AutomationProperties.AutomationId="DeleteVisibleDeadLetterButton"
+                                            AutomationProperties.Name="Delete Visible DLQ"
+                                            Content="Visible"
+                                            Command="{Binding MessageInspection.DeleteVisibleDeadLetterCommand}"
+                                            MinWidth="76"
+                                            Style="{StaticResource DangerActionButtonStyle}" />
+                                    <Rectangle Width="1" Height="24" Fill="#D8E0EA" Margin="0,3,8,3" />
+                                    <Button AutomationProperties.Name="Refresh"
+                                            Content="Refresh"
+                                            Command="{Binding RefreshCommand}"
+                                            Style="{StaticResource ActionButtonStyle}" />
+                                    <Button x:Name="UpdateEntityButton"
+                                            AutomationProperties.AutomationId="UpdateEntityButton"
+                                            AutomationProperties.Name="Update"
+                                            Content="Update"
+                                            Command="{Binding UpdateSelectedEntityCommand}"
+                                            Style="{StaticResource ActionButtonStyle}" />
+                                    <Button x:Name="DeleteEntityButton"
+                                            AutomationProperties.AutomationId="DeleteEntityButton"
+                                            AutomationProperties.Name="{Binding SelectedEntityDeleteLabel}"
+                                            Content="{Binding SelectedEntityDeleteLabel}"
+                                            Command="{Binding DeleteSelectedEntityCommand}"
+                                            MinWidth="112"
+                                            Style="{StaticResource DangerActionButtonStyle}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </Border>
         </Grid>
-    </DockPanel>
+
+        <Border Grid.Row="4" Margin="12,0,12,12" Background="White" BorderBrush="#D8E0EA" BorderThickness="1" CornerRadius="8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="36" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Border BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="12,0">
+                    <TextBlock Text="Operation Log" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </Border>
+                <ListBox Grid.Row="1"
+                         AutomationProperties.AutomationId="OperationLogList"
+                         ItemsSource="{Binding OperationLog}"
+                         Background="#101827"
+                         BorderThickness="0"
+                         Foreground="#D8E4F0"
+                         FontFamily="Consolas"
+                         FontSize="12">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding DisplayText}" FontFamily="Consolas" FontSize="12" />
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="5" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,1,0,0" Padding="14,0">
+            <DockPanel>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding ConnectionStatus}" Foreground="#637083" Margin="0,0,16,0" />
+                    <TextBlock Text="Transport: AMQP" Foreground="#637083" Margin="0,0,16,0" />
+                    <TextBlock Text="Mode: Direct SDK" Foreground="#637083" />
+                </StackPanel>
+                <TextBlock DockPanel.Dock="Right" Text="{Binding EntityBrowserStatus}" Foreground="#637083" HorizontalAlignment="Right" VerticalAlignment="Center" />
+            </DockPanel>
+        </Border>
+    </Grid>
 </Window>

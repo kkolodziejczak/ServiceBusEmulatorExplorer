@@ -27,6 +27,16 @@ public sealed class ShellViewModel : ObservableObject
     private string _selectedEntityPath = "";
     private string _selectedEntityCounts = "";
     private string _selectedEntityMetadata = "";
+    private string _selectedEntityHeading = "No entity selected";
+    private string _selectedEntityStatus = "";
+    private string _selectedEntityCreatedAtUtc = "";
+    private string _selectedEntityLockDuration = "";
+    private string _selectedEntityDefaultTtl = "";
+    private string _selectedEntityMaxDeliveryCount = "";
+    private string _selectedEntityActiveCount = "0";
+    private string _selectedEntityDeadLetterCount = "0";
+    private string _selectedEntityScheduledCount = "0";
+    private string _selectedEntityTotalCount = "0";
     private string _selectedEntityDeleteLabel = "Delete Entity";
     private bool _isConnected;
     private bool _isBusy;
@@ -140,6 +150,66 @@ public sealed class ShellViewModel : ObservableObject
     {
         get => _selectedEntityMetadata;
         private set => SetProperty(ref _selectedEntityMetadata, value);
+    }
+
+    public string SelectedEntityHeading
+    {
+        get => _selectedEntityHeading;
+        private set => SetProperty(ref _selectedEntityHeading, value);
+    }
+
+    public string SelectedEntityStatus
+    {
+        get => _selectedEntityStatus;
+        private set => SetProperty(ref _selectedEntityStatus, value);
+    }
+
+    public string SelectedEntityCreatedAtUtc
+    {
+        get => _selectedEntityCreatedAtUtc;
+        private set => SetProperty(ref _selectedEntityCreatedAtUtc, value);
+    }
+
+    public string SelectedEntityLockDuration
+    {
+        get => _selectedEntityLockDuration;
+        private set => SetProperty(ref _selectedEntityLockDuration, value);
+    }
+
+    public string SelectedEntityDefaultTtl
+    {
+        get => _selectedEntityDefaultTtl;
+        private set => SetProperty(ref _selectedEntityDefaultTtl, value);
+    }
+
+    public string SelectedEntityMaxDeliveryCount
+    {
+        get => _selectedEntityMaxDeliveryCount;
+        private set => SetProperty(ref _selectedEntityMaxDeliveryCount, value);
+    }
+
+    public string SelectedEntityActiveCount
+    {
+        get => _selectedEntityActiveCount;
+        private set => SetProperty(ref _selectedEntityActiveCount, value);
+    }
+
+    public string SelectedEntityDeadLetterCount
+    {
+        get => _selectedEntityDeadLetterCount;
+        private set => SetProperty(ref _selectedEntityDeadLetterCount, value);
+    }
+
+    public string SelectedEntityScheduledCount
+    {
+        get => _selectedEntityScheduledCount;
+        private set => SetProperty(ref _selectedEntityScheduledCount, value);
+    }
+
+    public string SelectedEntityTotalCount
+    {
+        get => _selectedEntityTotalCount;
+        private set => SetProperty(ref _selectedEntityTotalCount, value);
     }
 
     public string SelectedEntityDeleteLabel
@@ -376,6 +446,16 @@ public sealed class ShellViewModel : ObservableObject
             SelectedEntityPath = "";
             SelectedEntityCounts = "";
             SelectedEntityMetadata = "";
+            SelectedEntityHeading = "No entity selected";
+            SelectedEntityStatus = "";
+            SelectedEntityCreatedAtUtc = "";
+            SelectedEntityLockDuration = "";
+            SelectedEntityDefaultTtl = "";
+            SelectedEntityMaxDeliveryCount = "";
+            SelectedEntityActiveCount = "0";
+            SelectedEntityDeadLetterCount = "0";
+            SelectedEntityScheduledCount = "0";
+            SelectedEntityTotalCount = "0";
             SelectedEntityDeleteLabel = "Delete Entity";
             NotifyCommandStateChanged();
             return;
@@ -386,6 +466,16 @@ public sealed class ShellViewModel : ObservableObject
         SelectedEntityPath = entity.Metadata.Path;
         SelectedEntityCounts = CreateCountsText(entity);
         SelectedEntityMetadata = CreateMetadataText(entity);
+        SelectedEntityHeading = $"{entity.Kind}: {entity.Name}";
+        SelectedEntityStatus = entity.Metadata.Status;
+        SelectedEntityCreatedAtUtc = FormatUtc(entity.Metadata.CreatedAtUtc);
+        SelectedEntityLockDuration = FormatNullableValue(entity.Metadata.LockDuration);
+        SelectedEntityDefaultTtl = FormatNullableValue(entity.Metadata.DefaultMessageTimeToLive);
+        SelectedEntityMaxDeliveryCount = FormatNullableValue(entity.Metadata.MaxDeliveryCount);
+        SelectedEntityActiveCount = entity.Counts.ActiveMessageCount.ToString();
+        SelectedEntityDeadLetterCount = entity.Counts.DeadLetterMessageCount.ToString();
+        SelectedEntityScheduledCount = entity.Counts.ScheduledMessageCount.ToString();
+        SelectedEntityTotalCount = entity.Counts.TotalMessageCount.ToString();
         SelectedEntityDeleteLabel = $"Delete {entity.Kind}";
         NotifyCommandStateChanged();
     }
@@ -423,6 +513,11 @@ public sealed class ShellViewModel : ObservableObject
         return value is null
             ? "unknown"
             : value.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fff'Z'");
+    }
+
+    private static string FormatNullableValue<T>(T? value)
+    {
+        return value?.ToString() ?? "n/a";
     }
 
     private static string CreateDeliverySettingsText(EntityMetadata metadata)

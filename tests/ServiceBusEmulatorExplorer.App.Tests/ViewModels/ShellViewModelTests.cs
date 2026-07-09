@@ -89,18 +89,30 @@ public sealed class ShellViewModelTests
         await viewModel.ConnectCommand.ExecuteAsync(null);
 
         Assert.Equal("Loaded 3 entities.", viewModel.EntityBrowserStatus);
-        Assert.Equal("Queues", viewModel.EntityTree[0].DisplayName);
-        Assert.Equal("orders", viewModel.EntityTree[0].Children[0].DisplayName);
-        Assert.Equal("Topics", viewModel.EntityTree[1].DisplayName);
-        Assert.Equal("events", viewModel.EntityTree[1].Children[0].DisplayName);
-        Assert.Equal("billing", viewModel.EntityTree[1].Children[0].Children[0].DisplayName);
+        Assert.Equal("sb://localhost/", viewModel.EntityTree[0].DisplayName);
+        Assert.Equal("Queues", viewModel.EntityTree[0].Children[0].DisplayName);
+        Assert.Equal("orders", viewModel.EntityTree[0].Children[0].Children[0].DisplayName);
+        Assert.Equal("Topics", viewModel.EntityTree[0].Children[1].DisplayName);
+        Assert.Equal("events", viewModel.EntityTree[0].Children[1].Children[0].DisplayName);
+        Assert.Equal("billing", viewModel.EntityTree[0].Children[1].Children[0].Children[0].DisplayName);
+        Assert.Equal("5 / 2", viewModel.EntityTree[0].Children[1].Children[0].Children[0].CountsSummary);
 
-        viewModel.SelectEntity(viewModel.EntityTree[1].Children[0].Children[0]);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[1].Children[0].Children[0]);
 
         Assert.Equal("billing", viewModel.SelectedEntityTitle);
         Assert.Equal("Subscription", viewModel.SelectedEntityKind);
         Assert.Equal("events/subscriptions/billing", viewModel.SelectedEntityPath);
         Assert.Equal("Active 5 | DLQ 2 | Scheduled 0 | Total 7", viewModel.SelectedEntityCounts);
+        Assert.Equal("Subscription: billing", viewModel.SelectedEntityHeading);
+        Assert.Equal("Active", viewModel.SelectedEntityStatus);
+        Assert.Equal("2026-07-08T10:00:00.000Z", viewModel.SelectedEntityCreatedAtUtc);
+        Assert.Equal("00:01:00", viewModel.SelectedEntityLockDuration);
+        Assert.Equal("14.00:00:00", viewModel.SelectedEntityDefaultTtl);
+        Assert.Equal("10", viewModel.SelectedEntityMaxDeliveryCount);
+        Assert.Equal("5", viewModel.SelectedEntityActiveCount);
+        Assert.Equal("2", viewModel.SelectedEntityDeadLetterCount);
+        Assert.Equal("0", viewModel.SelectedEntityScheduledCount);
+        Assert.Equal("7", viewModel.SelectedEntityTotalCount);
         Assert.Contains("Status Active", viewModel.SelectedEntityMetadata);
         Assert.Contains("Created 2026-07-08T10:00:00.000Z", viewModel.SelectedEntityMetadata);
         Assert.Contains("Max deliveries 10", viewModel.SelectedEntityMetadata);
@@ -119,9 +131,9 @@ public sealed class ShellViewModelTests
         await viewModel.ConnectCommand.ExecuteAsync(null);
         viewModel.NamespaceFilter = "bill";
 
-        Assert.Empty(viewModel.EntityTree[0].Children);
-        Assert.Equal("events", viewModel.EntityTree[1].Children[0].DisplayName);
-        Assert.Equal("billing", viewModel.EntityTree[1].Children[0].Children[0].DisplayName);
+        Assert.Empty(viewModel.EntityTree[0].Children[0].Children);
+        Assert.Equal("events", viewModel.EntityTree[0].Children[1].Children[0].DisplayName);
+        Assert.Equal("billing", viewModel.EntityTree[0].Children[1].Children[0].Children[0].DisplayName);
     }
 
     [Fact]
@@ -183,7 +195,7 @@ public sealed class ShellViewModelTests
         var viewModel = CreateViewModel(administrationService: administrationService, workflow: workflow);
 
         await viewModel.ConnectCommand.ExecuteAsync(null);
-        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0]);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0].Children[0]);
         await viewModel.UpdateSelectedEntityCommand.ExecuteAsync(null);
 
         Assert.Equal(queue, workflow.UpdatedEntity);
@@ -204,7 +216,7 @@ public sealed class ShellViewModelTests
         var viewModel = CreateViewModel(administrationService: administrationService, workflow: workflow);
 
         await viewModel.ConnectCommand.ExecuteAsync(null);
-        viewModel.SelectEntity(viewModel.EntityTree[1].Children[0].Children[0]);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[1].Children[0].Children[0]);
         await viewModel.DeleteSelectedEntityCommand.ExecuteAsync(null);
 
         Assert.Equal(subscription, workflow.DeletedEntity);
@@ -224,17 +236,17 @@ public sealed class ShellViewModelTests
         Assert.False(viewModel.MessageInspection.PeekActiveMessagesCommand.CanExecute(null));
 
         await viewModel.ConnectCommand.ExecuteAsync(null);
-        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0]);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0].Children[0]);
 
         Assert.True(viewModel.MessageInspection.SendMessageCommand.CanExecute(null));
         Assert.True(viewModel.MessageInspection.PeekActiveMessagesCommand.CanExecute(null));
 
-        viewModel.SelectEntity(viewModel.EntityTree[1].Children[0]);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[1].Children[0]);
 
         Assert.True(viewModel.MessageInspection.SendMessageCommand.CanExecute(null));
         Assert.False(viewModel.MessageInspection.PeekActiveMessagesCommand.CanExecute(null));
 
-        viewModel.SelectEntity(viewModel.EntityTree[1].Children[0].Children[0]);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[1].Children[0].Children[0]);
 
         Assert.False(viewModel.MessageInspection.SendMessageCommand.CanExecute(null));
         Assert.True(viewModel.MessageInspection.PeekActiveMessagesCommand.CanExecute(null));
@@ -257,7 +269,7 @@ public sealed class ShellViewModelTests
             messageService: messageService);
 
         await viewModel.ConnectCommand.ExecuteAsync(null);
-        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0]);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0].Children[0]);
         await viewModel.MessageInspection.PeekActiveMessagesCommand.ExecuteAsync(null);
 
         Assert.Equal(new EntityAddress(EntityKind.Queue, "orders"), messageService.PeekAddress);
@@ -288,7 +300,7 @@ public sealed class ShellViewModelTests
             messageService: messageService);
 
         await viewModel.ConnectCommand.ExecuteAsync(null);
-        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0]);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0].Children[0]);
         await viewModel.MessageInspection.PeekDeadLetterMessagesCommand.ExecuteAsync(null);
 
         Assert.Equal(MessageBucket.DeadLetter, messageService.PeekBucket);
@@ -311,7 +323,7 @@ public sealed class ShellViewModelTests
             messageService: messageService);
 
         await viewModel.ConnectCommand.ExecuteAsync(null);
-        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0]);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0].Children[0]);
         Task peekTask = viewModel.MessageInspection.PeekActiveMessagesCommand.ExecuteAsync(null);
         await messageService.WaitUntilPeekStartedAsync();
 
@@ -339,11 +351,11 @@ public sealed class ShellViewModelTests
             messageService: messageService);
 
         await viewModel.ConnectCommand.ExecuteAsync(null);
-        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0]);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0].Children[0]);
         Task peekTask = viewModel.MessageInspection.PeekActiveMessagesCommand.ExecuteAsync(null);
         await messageService.WaitUntilPeekStartedAsync();
 
-        viewModel.SelectEntity(viewModel.EntityTree[0].Children[1]);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0].Children[1]);
         messageService.ReleasePeek();
         await peekTask;
 
@@ -368,7 +380,7 @@ public sealed class ShellViewModelTests
             messageDialogService: messageDialog);
 
         await viewModel.ConnectCommand.ExecuteAsync(null);
-        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0]);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0].Children[0]);
         await viewModel.MessageInspection.SendMessageCommand.ExecuteAsync(null);
 
         Assert.Equal(queue, messageDialog.Entity);
