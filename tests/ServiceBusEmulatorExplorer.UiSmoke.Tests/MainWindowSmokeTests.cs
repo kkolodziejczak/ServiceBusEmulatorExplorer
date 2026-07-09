@@ -220,7 +220,7 @@ public sealed class MainWindowSmokeTests
                     "ConfirmDeleteEntityButton",
                     TimeSpan.FromSeconds(10));
                 Assert.False(WaitForAutomationId(deleteDialog, "ConfirmDeleteEntityButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
-                WaitForAutomationId(deleteDialog, "ConfirmDeleteEntityCheckBox", TimeSpan.FromSeconds(5)).AsCheckBox().Click();
+                ToggleCheckBox(deleteDialog, "ConfirmDeleteEntityCheckBox", TimeSpan.FromSeconds(5));
                 Assert.True(WaitForAutomationId(deleteDialog, "ConfirmDeleteEntityButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
                 ClickButton(deleteDialog, "CancelDeleteEntityButton", TimeSpan.FromSeconds(5));
             }
@@ -376,7 +376,7 @@ public sealed class MainWindowSmokeTests
             TimeSpan.FromSeconds(10));
 
         Assert.False(WaitForAutomationId(deleteDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
-        WaitForAutomationId(deleteDialog, "ConfirmDeleteDlqCheckBox", TimeSpan.FromSeconds(5)).AsCheckBox().Click();
+        ToggleCheckBox(deleteDialog, "ConfirmDeleteDlqCheckBox", TimeSpan.FromSeconds(5));
         Assert.True(WaitForAutomationId(deleteDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
         InvokeButton(deleteDialog, "CancelDeleteDlqButton", TimeSpan.FromSeconds(5));
     }
@@ -560,7 +560,20 @@ public sealed class MainWindowSmokeTests
             return element is { IsEnabled: true } ? element : null;
         });
 
-        button.AsButton().Click();
+        button.Patterns.Invoke.Pattern.Invoke();
+        Thread.Sleep(250);
+    }
+
+    private static void ToggleCheckBox(Window window, string automationId, TimeSpan timeout)
+    {
+        AutomationElement checkBox = WaitForElement(timeout, () =>
+        {
+            AutomationElement? element = window.FindFirstDescendant(cf => cf.ByAutomationId(automationId));
+            return element is { IsEnabled: true } ? element : null;
+        });
+
+        checkBox.Patterns.Toggle.Pattern.Toggle();
+        Thread.Sleep(250);
     }
 
     private static void SelectTreeItem(AutomationElement descendant)

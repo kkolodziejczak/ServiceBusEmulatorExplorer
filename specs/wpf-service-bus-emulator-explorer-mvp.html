@@ -852,22 +852,22 @@ public interface IDeadLetterReplayService
   <section id="acceptance-criteria">
     <h2>Acceptance Criteria</h2>
     <ul>
-      <li><input type="checkbox"> App starts on Windows and shows a connection profile form without requiring any web service.</li>
-      <li><input type="checkbox"> User can connect to a local Service Bus emulator using runtime and administration connection strings.</li>
-      <li><input type="checkbox"> User can browse queues, topics, and subscriptions from the emulator.</li>
-      <li><input type="checkbox"> User can create and delete queues, topics, and subscriptions.</li>
-      <li><input type="checkbox"> User can edit supported entity metadata where the Azure SDK supports updates.</li>
-      <li><input type="checkbox"> User can send a message to a queue or topic.</li>
-      <li><input type="checkbox"> User can peek active messages without removing them.</li>
-      <li><input type="checkbox"> User can peek DLQ messages without removing them.</li>
-      <li><input type="checkbox"> User can inspect full message body, application properties, and system properties.</li>
-      <li><input type="checkbox"> User can see all displayed entity dates, message dates, and log timestamps in UTC, with no ambiguous local-time-only labels.</li>
-      <li><input type="checkbox"> User can replay a DLQ message with a new <code>MessageId</code> while the original remains in DLQ.</li>
-      <li><input type="checkbox"> User can edit body/properties before replaying a DLQ copy.</li>
-      <li><input type="checkbox"> User can delete selected DLQ messages only after explicit confirmation.</li>
-      <li><input type="checkbox"> Integration tests can run against the repository Docker Compose emulator and verify queue/topic/subscription CRUD, send/peek, DLQ replay, and DLQ deletion.</li>
-      <li><input type="checkbox"> UI smoke tests can launch the WPF app and verify the main shell controls as soon as the first shell exists.</li>
-      <li><input type="checkbox"> Failed SDK operations show actionable errors and do not leave the UI in a false success state.</li>
+      <li><input type="checkbox" checked> App starts on Windows and shows a connection profile form without requiring any web service.</li>
+      <li><input type="checkbox" checked> User can connect to a local Service Bus emulator using runtime and administration connection strings.</li>
+      <li><input type="checkbox" checked> User can browse queues, topics, and subscriptions from the emulator.</li>
+      <li><input type="checkbox" checked> User can create and delete queues, topics, and subscriptions.</li>
+      <li><input type="checkbox" checked> User can edit supported entity metadata where the Azure SDK supports updates.</li>
+      <li><input type="checkbox" checked> User can send a message to a queue or topic.</li>
+      <li><input type="checkbox" checked> User can peek active messages without removing them.</li>
+      <li><input type="checkbox" checked> User can peek DLQ messages without removing them.</li>
+      <li><input type="checkbox" checked> User can inspect full message body, application properties, and system properties.</li>
+      <li><input type="checkbox" checked> User can see all displayed entity dates, message dates, and log timestamps in UTC, with no ambiguous local-time-only labels.</li>
+      <li><input type="checkbox" checked> User can replay a DLQ message with a new <code>MessageId</code> while the original remains in DLQ.</li>
+      <li><input type="checkbox" checked> User can edit body/properties before replaying a DLQ copy.</li>
+      <li><input type="checkbox" checked> User can delete selected DLQ messages only after explicit confirmation.</li>
+      <li><input type="checkbox" checked> Integration tests can run against the repository Docker Compose emulator and verify queue/topic/subscription CRUD, send/peek, DLQ replay, and DLQ deletion.</li>
+      <li><input type="checkbox" checked> UI smoke tests can launch the WPF app and verify the main shell controls as soon as the first shell exists.</li>
+      <li><input type="checkbox" checked> Failed SDK operations show actionable errors and do not leave the UI in a false success state.</li>
     </ul>
   </section>
 
@@ -954,7 +954,7 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
       <li><input type="checkbox" checked> Implement entity administration service.</li>
       <li><input type="checkbox" checked> Implement message peek/send/delete service.</li>
       <li><input type="checkbox" checked> Implement non-destructive DLQ replay service.</li>
-      <li><input type="checkbox"> Build WPF shell, navigation, entity detail, message grid, detail pane, and dialogs.</li>
+      <li><input type="checkbox" checked> Build WPF shell, navigation, entity detail, message grid, detail pane, and dialogs.</li>
       <li><input type="checkbox" checked> Add Stage 1 unit, integration fixture, and FlaUI/UIA3 launch smoke tests before expanding feature work.</li>
       <li><input type="checkbox" checked> Add Docker-backed integration tests using the root compose environment.</li>
       <li><input type="checkbox" checked> Add tests and manual verification notes.</li>
@@ -1016,13 +1016,13 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
   <section id="definition-of-done">
     <h2>Definition Of Done</h2>
     <ul>
-      <li><input type="checkbox"> All Stage 1 through Stage 5 acceptance criteria pass locally.</li>
-      <li><input type="checkbox"> Unit tests cover service contracts, view model command states, and DLQ replay default behavior.</li>
-      <li><input type="checkbox"> Docker-backed integration tests pass when the root compose emulator is running and integration tests are explicitly enabled.</li>
-      <li><input type="checkbox"> An intentionally small FlaUI/UIA3 smoke suite covers launch, connect, navigation, and DLQ command enablement behind <code>SBE_RUN_UI_TESTS=true</code>.</li>
+      <li><input type="checkbox" checked> All Stage 1 through Stage 5 acceptance criteria pass locally.</li>
+      <li><input type="checkbox" checked> Unit tests cover service contracts, view model command states, and DLQ replay default behavior.</li>
+      <li><input type="checkbox" checked> Docker-backed integration tests pass when the root compose emulator is running and integration tests are explicitly enabled.</li>
+      <li><input type="checkbox" checked> An intentionally small FlaUI/UIA3 smoke suite covers launch, connect, navigation, and DLQ command enablement behind <code>SBE_RUN_UI_TESTS=true</code>.</li>
       <li><input type="checkbox"> Manual proof confirms default replay leaves DLQ originals untouched.</li>
-      <li><input type="checkbox"> Destructive operations require confirmation and report success/failure accurately.</li>
-      <li><input type="checkbox"> README documents emulator startup, connection strings, and the DLQ workflow.</li>
+      <li><input type="checkbox" checked> Destructive operations require confirmation and report success/failure accurately.</li>
+      <li><input type="checkbox" checked> README documents emulator startup, connection strings, and the DLQ workflow.</li>
       <li><input type="checkbox"> Code follows method ordering preference and keeps private helpers below their callers in invocation order.</li>
     </ul>
   </section>
@@ -1087,6 +1087,12 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
           <td>Codex</td>
           <td>Changed the bottom action strip to compact icon-plus-label buttons while preserving full command names for tooltips and UI automation.</td>
           <td><a href="./wpf-service-bus-emulator-explorer-mvpResources/ui-wireframe.html">Updated wireframe</a></td>
+        </tr>
+        <tr>
+          <td>2026-07-09</td>
+          <td>Codex</td>
+          <td>Reconciled completed WPF shell and acceptance checklist after fixing UI smoke automation to use UIA invoke/toggle patterns and rerunning gated integration and UI smoke verification.</td>
+          <td><a href="../tests/ServiceBusEmulatorExplorer.UiSmoke.Tests/MainWindowSmokeTests.cs">UI smoke tests</a></td>
         </tr>
       </tbody>
     </table>
