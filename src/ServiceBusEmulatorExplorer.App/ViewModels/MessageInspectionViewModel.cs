@@ -15,6 +15,7 @@ public sealed class MessageInspectionViewModel : ObservableObject
     private ServiceBusEntityNode? _selectedEntity;
     private ExplorerMessage? _selectedDeadLetterMessage;
     private IReadOnlyList<ExplorerMessage> _selectedDeadLetterMessages = [];
+    private readonly Dictionary<EntityAddress, CachedMessagePages> _cachedMessages = [];
     private string _status = "Select a queue or subscription to inspect messages.";
     private string? _error;
     private string _selectedBody = "No message selected.";
@@ -25,6 +26,7 @@ public sealed class MessageInspectionViewModel : ObservableObject
     private bool _isBusy;
     private long? _nextActiveSequenceNumber;
     private long? _nextDeadLetterSequenceNumber;
+    private int _selectedMessageTabIndex = 1;
     private int _selectionVersion;
 
     public MessageInspectionViewModel(
@@ -136,6 +138,46 @@ public sealed class MessageInspectionViewModel : ObservableObject
 
     public IAsyncRelayCommand DeleteVisibleDeadLetterCommand { get; }
 
+    public int SelectedMessageTabIndex
+    {
+        get => _selectedMessageTabIndex;
+        set
+        {
+            if (SetProperty(ref _selectedMessageTabIndex, value))
+            {
+                NotifyCommandStateChanged();
+            }
+        }
+    }
+
+    public bool CanShowSendMessageCommand => _selectedEntity is { Kind: EntityKind.Queue or EntityKind.Topic };
+
+    public string SendMessageCommandToolTip => CreateSendMessageToolTip();
+
+    public bool CanShowPeekMessageCommands => CanInspectSelectedEntity();
+
+    public string PeekActiveMessagesCommandToolTip => CreatePeekMessagesToolTip("Load the first page of active messages.");
+
+    public string PeekNextActiveMessagesCommandToolTip => CreatePeekNextMessagesToolTip(
+        "Load the next page of active messages.",
+        _nextActiveSequenceNumber);
+
+    public string PeekDeadLetterMessagesCommandToolTip => CreatePeekMessagesToolTip("Load the first page of dead-letter messages.");
+
+    public string PeekNextDeadLetterMessagesCommandToolTip => CreatePeekNextMessagesToolTip(
+        "Load the next page of dead-letter messages.",
+        _nextDeadLetterSequenceNumber);
+
+    public bool CanShowDeadLetterCommands => CanInspectSelectedEntity() && IsDeadLetterContextActive();
+
+    public string ReplayDeadLetterCommandToolTip => CreateSelectedDeadLetterToolTip("Replay the selected DLQ message as a new active message.");
+
+    public string EditAndReplayDeadLetterCommandToolTip => CreateSelectedDeadLetterToolTip("Edit the selected DLQ message before replaying it as a new active message.");
+
+    public string DeleteSelectedDeadLetterCommandToolTip => CreateDeleteSelectedDeadLetterToolTip();
+
+    public string DeleteVisibleDeadLetterCommandToolTip => CreateDeleteVisibleDeadLetterToolTip();
+
     public void SelectEntity(ServiceBusEntityNode? entity)
     {
         _selectedEntity = entity;
@@ -147,9 +189,61 @@ public sealed class MessageInspectionViewModel : ObservableObject
             Status = entity.Kind == EntityKind.Topic
                 ? "Topics can send messages. Inspect active and DLQ messages from subscriptions."
                 : "Ready to peek active or DLQ messages.";
+            ApplyCachedMessages(entity);
         }
 
         NotifyCommandStateChanged();
+    }
+
+    public void CacheMessages(
+        ServiceBusEntityNode entity,
+        IReadOnlyList<ExplorerMessage> activeMessages,
+        IReadOnlyList<ExplorerMessage> deadLetterMessages)
+    {
+        if (!CanInspectEntity(entity))
+        {
+            return;
+        }
+
+        EntityAddress address = CreateEntityAddress(entity);
+        _cachedMessages[address] = new CachedMessagePages(activeMessages, deadLetterMessages);
+
+        if (_selectedEntity == entity)
+        {
+            ApplyCachedMessages(entity);
+            NotifyCommandStateChanged();
+        }
+    }
+
+    private void ApplyCachedMessages(ServiceBusEntityNode entity)
+    {
+        if (!_cachedMessages.TryGetValue(CreateEntityAddress(entity), out CachedMessagePages? cachedMessages))
+        {
+            return;
+        }
+
+        ApplyCachedMessagePage(ActiveMessages, cachedMessages.ActiveMessages);
+        ApplyCachedMessagePage(DeadLetterMessages, cachedMessages.DeadLetterMessages);
+        _nextActiveSequenceNumber = GetNextSequenceNumber(cachedMessages.ActiveMessages);
+        _nextDeadLetterSequenceNumber = GetNextSequenceNumber(cachedMessages.DeadLetterMessages);
+        SelectLoadedMessage(cachedMessages.ActiveMessages.FirstOrDefault() ?? cachedMessages.DeadLetterMessages.FirstOrDefault());
+        Status = $"Loaded cached first pages for {entity.Metadata.Path}.";
+    }
+
+    private static void ApplyCachedMessagePage(
+        ObservableCollection<ExplorerMessage> target,
+        IReadOnlyList<ExplorerMessage> messages)
+    {
+        target.Clear();
+        foreach (ExplorerMessage message in messages)
+        {
+            target.Add(message);
+        }
+    }
+
+    private static long? GetNextSequenceNumber(IReadOnlyList<ExplorerMessage> messages)
+    {
+        return messages.Count == 0 ? null : messages.Max(message => message.SequenceNumber) + 1;
     }
 
     public void SelectActiveMessage(ExplorerMessage? message)
@@ -508,6 +602,18 @@ public sealed class MessageInspectionViewModel : ObservableObject
         EditAndReplayDeadLetterCommand.NotifyCanExecuteChanged();
         DeleteSelectedDeadLetterCommand.NotifyCanExecuteChanged();
         DeleteVisibleDeadLetterCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(CanShowSendMessageCommand));
+        OnPropertyChanged(nameof(SendMessageCommandToolTip));
+        OnPropertyChanged(nameof(CanShowPeekMessageCommands));
+        OnPropertyChanged(nameof(PeekActiveMessagesCommandToolTip));
+        OnPropertyChanged(nameof(PeekNextActiveMessagesCommandToolTip));
+        OnPropertyChanged(nameof(PeekDeadLetterMessagesCommandToolTip));
+        OnPropertyChanged(nameof(PeekNextDeadLetterMessagesCommandToolTip));
+        OnPropertyChanged(nameof(CanShowDeadLetterCommands));
+        OnPropertyChanged(nameof(ReplayDeadLetterCommandToolTip));
+        OnPropertyChanged(nameof(EditAndReplayDeadLetterCommandToolTip));
+        OnPropertyChanged(nameof(DeleteSelectedDeadLetterCommandToolTip));
+        OnPropertyChanged(nameof(DeleteVisibleDeadLetterCommandToolTip));
     }
 
     private bool CanSendMessage()
@@ -525,7 +631,17 @@ public sealed class MessageInspectionViewModel : ObservableObject
 
     private bool CanInspectSelectedEntity()
     {
-        return _selectedEntity is { Kind: EntityKind.Queue or EntityKind.Subscription };
+        return _selectedEntity is not null && CanInspectEntity(_selectedEntity);
+    }
+
+    private bool IsDeadLetterContextActive()
+    {
+        return SelectedMessageTabIndex == 2;
+    }
+
+    private static bool CanInspectEntity(ServiceBusEntityNode entity)
+    {
+        return entity.Kind is EntityKind.Queue or EntityKind.Subscription;
     }
 
     private bool CanPeekNextActiveMessages()
@@ -552,4 +668,85 @@ public sealed class MessageInspectionViewModel : ObservableObject
     {
         return CanPeekMessages() && DeadLetterMessages.Count > 0;
     }
+
+    private string CreateSendMessageToolTip()
+    {
+        const string purpose = "Send a brand-new message to the selected queue or topic.";
+        return CreateToolTip(purpose, GetConnectionOrBusyReason());
+    }
+
+    private string CreatePeekMessagesToolTip(string purpose)
+    {
+        return CreateToolTip(purpose, GetConnectionOrBusyReason());
+    }
+
+    private string CreatePeekNextMessagesToolTip(string purpose, long? nextSequenceNumber)
+    {
+        string? reason = GetConnectionOrBusyReason();
+        if (reason is null && nextSequenceNumber is null)
+        {
+            reason = "Load the first page before requesting the next page.";
+        }
+
+        return CreateToolTip(purpose, reason);
+    }
+
+    private string CreateSelectedDeadLetterToolTip(string purpose)
+    {
+        string? reason = GetConnectionOrBusyReason();
+        if (reason is null && _selectedDeadLetterMessages.Count != 1)
+        {
+            reason = "Select exactly one DLQ message first.";
+        }
+
+        return CreateToolTip(purpose, reason);
+    }
+
+    private string CreateDeleteSelectedDeadLetterToolTip()
+    {
+        const string purpose = "Delete selected DLQ messages after explicit confirmation.";
+        string? reason = GetConnectionOrBusyReason();
+        if (reason is null && _selectedDeadLetterMessages.Count == 0)
+        {
+            reason = "Select one or more DLQ messages first.";
+        }
+
+        return CreateToolTip(purpose, reason);
+    }
+
+    private string CreateDeleteVisibleDeadLetterToolTip()
+    {
+        const string purpose = "Delete every DLQ message currently visible after typed confirmation.";
+        string? reason = GetConnectionOrBusyReason();
+        if (reason is null && DeadLetterMessages.Count == 0)
+        {
+            reason = "Load DLQ messages before deleting the visible page.";
+        }
+
+        return CreateToolTip(purpose, reason);
+    }
+
+    private string? GetConnectionOrBusyReason()
+    {
+        if (!IsConnected)
+        {
+            return "Connect to an emulator first.";
+        }
+
+        if (IsShellBusy)
+        {
+            return "Wait for the current shell operation to finish.";
+        }
+
+        return IsBusy ? "Wait for the current message operation to finish." : null;
+    }
+
+    private static string CreateToolTip(string purpose, string? unavailableReason)
+    {
+        return unavailableReason is null ? purpose : $"{purpose} Unavailable: {unavailableReason}";
+    }
+
+    private sealed record CachedMessagePages(
+        IReadOnlyList<ExplorerMessage> ActiveMessages,
+        IReadOnlyList<ExplorerMessage> DeadLetterMessages);
 }

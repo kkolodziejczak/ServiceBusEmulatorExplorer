@@ -116,6 +116,82 @@ public sealed class MainWindowSmokeTests
 
     [UiNavigationSmokeFact]
     [Trait("TestCategory", "UiSmoke")]
+    public async Task Context_commands_hide_invalid_actions_and_topic_refresh_keeps_grid_scoped()
+    {
+        string queueName = CreateEntityName("queue");
+        string topicName = CreateEntityName("topic");
+        string subscriptionName = "sub";
+
+        var adminClient = new ServiceBusAdministrationClient(ServiceBusUiSmokeEnvironment.AdminConnectionString);
+        using var testTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        await ServiceBusUiSmokeEnvironment.WaitUntilReadyAsync(testTimeout.Token);
+        await SeedEntitiesAsync(adminClient, queueName, topicName, subscriptionName, testTimeout.Token);
+
+        try
+        {
+            string executablePath = WpfAppPath.Resolve();
+            Assert.True(File.Exists(executablePath), $"Build the WPF app before running UI smoke tests. Missing: {executablePath}");
+
+            using Application application = LaunchWpfApp(executablePath);
+            using var automation = new UIA3Automation();
+
+            try
+            {
+                Window window = WaitForMainWindowWithAutomationId(
+                    application,
+                    automation,
+                    "ConnectButton",
+                    TimeSpan.FromSeconds(15));
+
+                SetText(window, "ProfileNameTextBox", "UI smoke emulator");
+                SetText(window, "RuntimeConnectionStringTextBox", ServiceBusUiSmokeEnvironment.RuntimeConnectionString);
+                SetText(window, "AdministrationConnectionStringTextBox", ServiceBusUiSmokeEnvironment.AdminConnectionString);
+                InvokeButton(window, "ConnectButton", TimeSpan.FromSeconds(5));
+
+                WaitForAutomationName(window, "ConnectButton", "Connected", TimeSpan.FromSeconds(10));
+                Assert.False(WaitForAutomationId(window, "ConnectButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
+
+                SelectTreeItem(WaitForText(window, queueName, TimeSpan.FromSeconds(30)));
+                Assert.NotNull(WaitForAutomationId(window, "SendMessageButton", TimeSpan.FromSeconds(5)));
+                Assert.NotNull(WaitForAutomationId(window, "PeekActiveMessagesButton", TimeSpan.FromSeconds(5)));
+                Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("RefreshSubscriptionsButton")));
+
+                SelectTreeItem(WaitForText(window, topicName, TimeSpan.FromSeconds(10)));
+                Assert.NotNull(WaitForAutomationId(window, "SendMessageButton", TimeSpan.FromSeconds(5)));
+                Assert.NotNull(WaitForAutomationId(window, "RefreshSubscriptionsButton", TimeSpan.FromSeconds(5)));
+                Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("PeekActiveMessagesButton")));
+                Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("ReplayDeadLetterButton")));
+
+                InvokeButton(window, "RefreshSubscriptionsButton", TimeSpan.FromSeconds(10));
+                WaitForText(window, $"Refreshed 1 subscription(s) for {topicName}.", TimeSpan.FromSeconds(20));
+                WaitForAutomationName(window, "SelectedEntityTitleText", topicName, TimeSpan.FromSeconds(10));
+
+                SelectTreeItem(WaitForText(window, subscriptionName, TimeSpan.FromSeconds(10)));
+                Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("SendMessageButton")));
+                Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("RefreshSubscriptionsButton")));
+                Assert.NotNull(WaitForAutomationId(window, "PeekActiveMessagesButton", TimeSpan.FromSeconds(5)));
+                Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("ReplayDeadLetterButton")));
+
+                SelectTab(window, "Dead Letter", TimeSpan.FromSeconds(5));
+
+                AutomationElement replayButton = WaitForAutomationId(window, "ReplayDeadLetterButton", TimeSpan.FromSeconds(5));
+                Assert.False(replayButton.AsButton().IsEnabled);
+                Assert.Contains("Select exactly one DLQ message first.", replayButton.Properties.HelpText.Value);
+            }
+            finally
+            {
+                CloseApplication(application);
+            }
+        }
+        finally
+        {
+            using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await DeleteSeedEntitiesAsync(adminClient, queueName, topicName, cleanupTimeout.Token);
+        }
+    }
+
+    [UiNavigationSmokeFact]
+    [Trait("TestCategory", "UiSmoke")]
     public async Task Entity_management_dialogs_require_validation_and_confirmation()
     {
         string queueName = CreateEntityName("queue");

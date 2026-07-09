@@ -165,6 +165,7 @@
     </p>
     <div class="metadata">
       <strong>Created:</strong> 2026-07-08<br>
+      <strong>Modified:</strong> 2026-07-09<br>
       <strong>Agent:</strong> Codex using plan-it-turbo<br>
       <strong>Source request:</strong> Create an MVP plan for a WPF app that connects to a local Service Bus emulator, views topics, subscriptions, and events, performs CRUD-style operations, and gives full DLQ control.<br>
       <strong>Related reference project:</strong> <code>C:\Users\Krzysiek\source\repos\Service-Bus-Emulator-Explorer</code><br>
@@ -500,6 +501,96 @@ stateDiagram-v2
     </table>
   </section>
 
+  <section id="amendment-context-aware-command-surface">
+    <h2>Amendment: Context-Aware Command Surface</h2>
+    <p>
+      Command visibility should follow the selected context. If a command has no meaning for the selected entity or message state, hide it.
+      If a command belongs in the current context but is blocked by a missing prerequisite or an active operation, keep it visible, disable it,
+      and explain the reason in the tooltip.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Before</th><th>After</th><th>Reason</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="diff-removed">Buttons remain visible and rely mainly on disabled command state even when the action does not apply to the selected entity.</td>
+          <td class="diff-added">Buttons that do not apply to the selected entity are hidden. Example: active/DLQ peek and DLQ replay/delete actions are hidden for a selected topic.</td>
+          <td>Reduces visual noise and prevents the user from reading commands that cannot ever run in the current context.</td>
+        </tr>
+        <tr>
+          <td class="diff-removed">Disabled buttons do not consistently explain why they cannot run.</td>
+          <td class="diff-added">Context-valid but temporarily unavailable buttons remain visible and disabled with tooltips that state both purpose and blocking reason. Example: <code>Replay</code> is visible in the DLQ context but disabled until one DLQ message is selected.</td>
+          <td>Keeps discoverability for valid workflows while making missing prerequisites explicit.</td>
+        </tr>
+        <tr>
+          <td class="diff-removed">The connected state is shown only in status text while <code>Connect</code> remains a normal command shape.</td>
+          <td class="diff-added">After connection succeeds, the connect control changes to a disabled connected-state indicator such as <code>Connected</code> with a lock or check icon and success styling. <code>Disconnect</code> remains the available action.</td>
+          <td>Makes connection state visible at the original action location and avoids a clickable-looking command that no longer applies.</td>
+        </tr>
+      </tbody>
+    </table>
+    <h3>Visibility Rule</h3>
+    <table>
+      <thead>
+        <tr><th>State</th><th>UI Treatment</th><th>Tooltip Requirement</th><th>Examples</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Invalid for context</td>
+          <td>Hidden or collapsed.</td>
+          <td>None, because the command is not discoverable in that context.</td>
+          <td><code>Peek Active</code> and <code>Replay</code> when a topic is selected; <code>Delete Subscription</code> when a queue is selected.</td>
+        </tr>
+        <tr>
+          <td>Valid for context but blocked</td>
+          <td>Visible and disabled.</td>
+          <td>Explain what the command does and what prerequisite is missing.</td>
+          <td><code>Replay</code> when the Dead Letter tab is active but no single DLQ message is selected; <code>Refresh Subscriptions</code> while already running.</td>
+        </tr>
+        <tr>
+          <td>Valid and ready</td>
+          <td>Visible and enabled.</td>
+          <td>Explain the command's effect, especially for destructive or non-obvious actions.</td>
+          <td><code>Send</code> for queues/topics; <code>Peek DLQ</code> for queues/subscriptions; <code>Delete Visible DLQ</code> after DLQ messages are visible.</td>
+        </tr>
+      </tbody>
+    </table>
+    <h3>Topic Subscription Refresh Workflow</h3>
+    <p>
+      Selecting a topic should expose a topic-specific <code>Refresh Subscriptions</code> action. Running it refreshes all child subscriptions one after another,
+      updates counts and cached first active/DLQ pages for each subscription, logs progress, and leaves the message grid bound to the currently selected queue
+      or subscription. The topic view must not display a combined multi-subscription message list.
+    </p>
+    <pre class="mermaid" data-title="Topic Subscription Refresh">sequenceDiagram
+  actor User
+  participant Shell as ShellViewModel
+  participant Admin as IServiceBusAdministrationService
+  participant Messages as IServiceBusMessageService
+  participant Cache as Subscription message cache
+  User-&gt;&gt;Shell: Select topic
+  Shell--&gt;&gt;User: Show topic commands including Refresh Subscriptions
+  User-&gt;&gt;Shell: Click Refresh Subscriptions
+  Shell-&gt;&gt;Admin: Refresh topic child subscription metadata/counts
+  loop Each child subscription
+    Shell-&gt;&gt;Messages: Peek first active page
+    Shell-&gt;&gt;Messages: Peek first DLQ page
+    Shell-&gt;&gt;Cache: Store counts and first pages for subscription
+    Shell--&gt;&gt;User: Log progress for subscription
+  end
+  Shell--&gt;&gt;User: Keep grid unchanged unless a concrete subscription is selected</pre>
+    <h3>Acceptance Criteria</h3>
+    <ul>
+      <li><input type="checkbox" checked> Selecting a queue shows queue-valid commands only: send, active/DLQ peek, update, delete, and DLQ actions when the DLQ context has data/selection.</li>
+      <li><input type="checkbox" checked> Selecting a topic shows topic-valid commands only: send, refresh subscriptions, update, and delete topic.</li>
+      <li><input type="checkbox" checked> Selecting a subscription shows subscription-valid commands only: active/DLQ peek, update, delete subscription, and DLQ actions when the DLQ context has data/selection.</li>
+      <li><input type="checkbox" checked> Disabled visible commands have tooltips explaining purpose and the specific missing prerequisite or busy state.</li>
+      <li><input type="checkbox" checked> The connected control changes from <code>Connect</code> to a disabled connected-state indicator after successful connection, while <code>Disconnect</code> remains available.</li>
+      <li><input type="checkbox" checked> Topic-level subscription refresh updates child subscription counts and cached first active/DLQ pages without switching the message grid to a combined topic view.</li>
+      <li><input type="checkbox" checked> Topic-level refresh continues through per-subscription failures, reports failures in the operation log, and does not discard successful subscription results.</li>
+    </ul>
+  </section>
+
   <section id="architecture">
     <h2>Architecture</h2>
     <h3>Solution Shape</h3>
@@ -729,6 +820,7 @@ public interface IDeadLetterReplayService
       The promoted wireframe is authoritative for layout, navigation, command placement, and the ServiceBusExplorer-inspired desktop interaction model.
       It is a modernized interpretation and should not copy ServiceBusExplorer branding, legacy styling, or image assets.
       Bottom-strip buttons should use compact icon-plus-label presentation with full command names exposed through tooltips and automation names.
+      Commands should also be context-aware: hide commands that do not apply to the selected entity, and keep context-valid commands disabled with explanatory tooltips when prerequisites are missing.
     </p>
     <p>
       <a href="./wpf-service-bus-emulator-explorer-mvpResources/ui-wireframe.html">Open the UI wireframe</a>
@@ -739,13 +831,13 @@ public interface IDeadLetterReplayService
       </thead>
       <tbody>
         <tr><td>Header</td><td>Product identity and connection status.</td><td>App name, status indicator, connected profile status.</td></tr>
-        <tr><td>Toolbar</td><td>Frequent namespace and entity actions.</td><td>Connect, disconnect, refresh, new queue, new topic, new subscription, active connection display.</td></tr>
+        <tr><td>Toolbar</td><td>Frequent namespace and entity actions.</td><td>Connect/connected state indicator, disconnect, refresh, new queue, new topic, new subscription, active connection display.</td></tr>
         <tr><td>Left namespace tree</td><td>Entity discovery and navigation.</td><td>Namespace root, queues, topics, nested subscriptions, active/DLQ counts, tree filter, icon-only expand/collapse affordances.</td></tr>
         <tr><td>Entity header</td><td>Selected entity summary.</td><td>Relative URI, status, lock duration, delivery settings, created time, active/DLQ/scheduled/total counts.</td></tr>
         <tr><td>Entity tabs</td><td>ServiceBusExplorer-inspired navigation within the selected entity.</td><td>Description, messages, dead letter.</td></tr>
         <tr><td>Message list</td><td>Message selection and scanning.</td><td>Selection checkboxes, MessageId, sequence number, size, label/subject, <code>EnqueuedTimeUtc</code>, <code>ExpiresAtUtc</code>, delivery count.</td></tr>
         <tr><td>Message text and properties panels</td><td>Full inspection and replay workflow.</td><td>Body viewer/editor for replay copies, system properties, custom application properties, DLQ reason fields.</td></tr>
-        <tr><td>Bottom action strip</td><td>Entity and message lifecycle commands.</td><td>Compact icon-plus-label buttons for send, replay, edit replay, delete selected DLQ, delete visible DLQ, refresh, update, and delete entity.</td></tr>
+        <tr><td>Bottom action strip</td><td>Entity and message lifecycle commands.</td><td>Context-aware compact icon-plus-label buttons for send, topic subscription refresh, replay, edit replay, delete selected DLQ, delete visible DLQ, refresh, update, and delete entity.</td></tr>
         <tr><td>Log pane and status bar</td><td>Operational feedback.</td><td>UTC timestamped operation log, connected profile, transport, direct SDK mode, last operation result.</td></tr>
       </tbody>
     </table>
@@ -762,7 +854,7 @@ public interface IDeadLetterReplayService
         <tr><th>Wireframe Surface</th><th>Visible Control Or Pane</th><th>MVP Capability</th></tr>
       </thead>
       <tbody>
-        <tr><td>Top command bar</td><td>Connect, Disconnect</td><td>Connect to and disconnect from a saved local emulator profile.</td></tr>
+        <tr><td>Top command bar</td><td>Connect, Connected, Disconnect</td><td>Connect to and disconnect from a saved local emulator profile. After successful connection, the connect control changes to a disabled connected-state indicator with success styling.</td></tr>
         <tr><td>Top command bar</td><td>Refresh</td><td>Refresh entity tree, selected entity metadata, counts, and visible message page.</td></tr>
         <tr><td>Top command bar</td><td>New Queue, New Topic, New Subscription</td><td>Create Service Bus entities that are in MVP scope.</td></tr>
         <tr><td>Namespace tree</td><td>Filter input</td><td>Filter locally loaded queues, topics, and subscriptions by name.</td></tr>
@@ -776,6 +868,7 @@ public interface IDeadLetterReplayService
         <tr><td>Message list</td><td>Copy Body</td><td>Copy the selected message body to clipboard.</td></tr>
         <tr><td>Message detail</td><td>Message Text, System and Custom Properties</td><td>Inspect body, system properties, and application properties.</td></tr>
         <tr><td>Bottom action strip</td><td>Send icon + <code>Send</code></td><td>Send a brand-new message composed by the user to the selected queue or topic.</td></tr>
+        <tr><td>Bottom action strip</td><td>Refresh icon + <code>Refresh Subscriptions</code></td><td>When a topic is selected, refresh all child subscription counts and cached first active/DLQ pages without changing the message grid to a combined topic view.</td></tr>
         <tr><td>Bottom action strip</td><td>Replay icon + <code>Replay</code></td><td>Replay selected DLQ message as a new active message and leave the original in DLQ.</td></tr>
         <tr><td>Bottom action strip</td><td>Edit icon + <code>Edit Replay</code></td><td>Edit body/properties before replaying a new active message and leave the original in DLQ.</td></tr>
         <tr><td>Bottom action strip</td><td>Delete icon + <code>Selected</code></td><td>Delete selected DLQ messages after explicit confirmation. Full automation name is <code>Delete Selected DLQ</code>.</td></tr>
@@ -885,7 +978,7 @@ public interface IDeadLetterReplayService
         <tr><td>Unit</td><td>View model commands, validation, tree shaping, message projection, replay ID policy.</td><td><code>ServiceBusEmulatorExplorer.Core.Tests</code> and <code>ServiceBusEmulatorExplorer.App.Tests</code> with fake services. Runs on every normal <code>dotnet test</code>.</td></tr>
         <tr><td>Service unit</td><td>SDK request mapping behind interfaces.</td><td>Fakes or adapter seams for <code>ServiceBusClient</code> and <code>ServiceBusAdministrationClient</code>. Runs on every normal <code>dotnet test</code>.</td></tr>
         <tr><td>Integration</td><td>Service and SDK behavior: connect, entity CRUD, send, peek, DLQ replay/delete against emulator.</td><td>Optional test collection gated by environment variable and root Docker Compose. These tests do not prove rendered WPF behavior.</td></tr>
-        <tr><td>UI smoke</td><td>Rendered WPF behavior: startup, connect form, navigation, selection, dialogs, disabled/enabled command states.</td><td><code>ServiceBusEmulatorExplorer.UiSmoke.Tests</code> with FlaUI/UIA3. Runs only when explicitly requested because it launches the desktop app.</td></tr>
+        <tr><td>UI smoke</td><td>Rendered WPF behavior: startup, connect form, navigation, selection, dialogs, context-aware command visibility, disabled/enabled command states, and disabled command tooltips where practical.</td><td><code>ServiceBusEmulatorExplorer.UiSmoke.Tests</code> with FlaUI/UIA3. Runs only when explicitly requested because it launches the desktop app.</td></tr>
         <tr><td>Manual proof</td><td>End-to-end local workflow.</td><td>Create queue, send poison message, dead-letter it, replay a DLQ copy, verify original DLQ remains, then delete original through the explicit delete command.</td></tr>
       </tbody>
     </table>
@@ -940,6 +1033,8 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
         <tr><td>Connection smoke</td><td>User can enter/select local emulator profile, connect, and see connected state.</td><td>After Stage 1 connection is implemented.</td></tr>
         <tr><td>Navigation smoke</td><td>Tree loads queues/topics/subscriptions, selection updates the detail header, and counts align with loaded data.</td><td>After Stage 2 entity browser is implemented.</td></tr>
         <tr><td>DLQ command smoke</td><td>Selecting a DLQ row enables replay/delete commands and destructive commands require confirmation.</td><td>After Stage 5 DLQ control is implemented.</td></tr>
+        <tr><td>Context command smoke</td><td>Selecting queue, topic, and subscription nodes hides commands that do not apply, leaves context-valid blocked commands disabled, and exposes explanatory tooltip text through UI Automation when available.</td><td>When context-aware command visibility is implemented.</td></tr>
+        <tr><td>Topic refresh smoke</td><td>Selecting a topic exposes <code>Refresh Subscriptions</code>; invoking it logs per-subscription progress and leaves the message grid tied to the selected concrete subscription or queue.</td><td>When topic-level subscription refresh is implemented.</td></tr>
       </tbody>
     </table>
   </section>
@@ -959,6 +1054,11 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
       <li><input type="checkbox" checked> Add Docker-backed integration tests using the root compose environment.</li>
       <li><input type="checkbox" checked> Add tests and manual verification notes.</li>
       <li><input type="checkbox" checked> Update README with quickstart and emulator connection strings.</li>
+      <li><input type="checkbox" checked> Add command visibility properties or a command presentation model so commands hidden for context are collapsed while context-valid blocked commands remain visible and disabled.</li>
+      <li><input type="checkbox" checked> Add tooltip text for every command describing what it does and, when disabled, why it is unavailable.</li>
+      <li><input type="checkbox" checked> Change the connect control to a disabled connected-state indicator with lock/check affordance after a successful connection.</li>
+      <li><input type="checkbox" checked> Add topic-level <code>Refresh Subscriptions</code> that refreshes child subscription counts and cached first active/DLQ message pages without showing a combined topic message grid.</li>
+      <li><input type="checkbox" checked> Add unit and UI smoke coverage for queue/topic/subscription command visibility and topic-level subscription refresh behavior.</li>
     </ul>
   </section>
 
@@ -1002,6 +1102,8 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
       <li>Docker startup can be slower than test startup. Integration tests must have bounded readiness polling instead of fixed sleeps.</li>
       <li>WPF UI automation is slower and more environment-sensitive than service integration tests. Keep the automated UI suite small, gated, and focused on smoke workflows from the first shell onward.</li>
       <li>Large message bodies can make the WPF grid sluggish if bound directly. Use previews in the grid and load full detail on selection.</li>
+      <li>Collapsed commands can shift the action strip. Group actions by context and preserve stable ordering so the surface remains predictable when selection changes.</li>
+      <li>Topic-level refresh can perform many SDK calls. Execute child subscription refresh sequentially with cancellation/progress logging and keep partial successes.</li>
     </ul>
 
     <h3>Deferred Choices</h3>
@@ -1010,6 +1112,7 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
       <li>Whether to add import/export of messages as JSON files.</li>
       <li>Whether to support Azure cloud namespaces with safer profile labeling.</li>
       <li>Whether the gated FlaUI/UIA3 smoke tests should later run in CI or remain local-only for the MVP.</li>
+      <li>Whether to add a later combined topic-level message view. The current decision is to keep message display tied to selected queues/subscriptions only.</li>
     </ul>
   </section>
 
@@ -1024,6 +1127,8 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
       <li><input type="checkbox" checked> Destructive operations require confirmation and report success/failure accurately.</li>
       <li><input type="checkbox" checked> README documents emulator startup, connection strings, and the DLQ workflow.</li>
       <li><input type="checkbox" checked> Code follows method ordering preference and keeps private helpers below their callers in invocation order.</li>
+      <li><input type="checkbox" checked> Command surfaces hide context-invalid actions and explain disabled context-valid actions through tooltips.</li>
+      <li><input type="checkbox" checked> Topic-level subscription refresh updates child subscription counts/cache while keeping message grids scoped to selected queues/subscriptions.</li>
     </ul>
   </section>
 
@@ -1099,6 +1204,12 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
           <td>Codex</td>
           <td>Ran the local proof script, verified the Docker-backed DLQ replay integration proof, and added a rendered WPF UI proof that replays a DLQ copy, observes the original still in DLQ, then deletes it explicitly.</td>
           <td><a href="../scripts/Invoke-ManualProof.ps1">Manual proof script</a>, <a href="../tests/ServiceBusEmulatorExplorer.Integration.Tests/ServiceBusMessageServiceIntegrationTests.cs">DLQ replay integration proof</a>, <a href="../tests/ServiceBusEmulatorExplorer.UiSmoke.Tests/MainWindowSmokeTests.cs">WPF replay proof</a></td>
+        </tr>
+        <tr>
+          <td>2026-07-09</td>
+          <td>Codex</td>
+          <td>Added context-aware command visibility rules, connected-state button behavior, and topic-level child subscription refresh that updates counts/cache without introducing a combined topic message grid.</td>
+          <td><a href="#amendment-context-aware-command-surface">Context-aware command amendment</a></td>
         </tr>
       </tbody>
     </table>

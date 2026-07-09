@@ -42,6 +42,7 @@ public partial class App : Application
         services.AddSingleton<IDeadLetterReplayService, DeadLetterReplayService>();
         services.AddSingleton<IEntityManagementDialogService, WpfEntityManagementDialogService>();
         services.AddSingleton<IEntityManagementWorkflow, EntityManagementWorkflow>();
+        services.AddSingleton<ITopicSubscriptionRefreshWorkflow, TopicSubscriptionRefreshWorkflow>();
         services.AddSingleton<IMessageDialogService, WpfMessageDialogService>();
         services.AddSingleton<ShellViewModel>();
         services.AddSingleton<MainWindow>();

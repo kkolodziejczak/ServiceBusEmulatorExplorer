@@ -14,6 +14,7 @@ public sealed class ShellViewModel : ObservableObject
     private readonly IServiceBusClientFactory _clientFactory;
     private readonly IServiceBusAdministrationService _administrationService;
     private readonly IEntityManagementWorkflow _entityManagementWorkflow;
+    private readonly ITopicSubscriptionRefreshWorkflow _topicSubscriptionRefreshWorkflow;
     private readonly IClock _clock;
     private string _profileName = ConnectionProfileDefaults.LocalEmulator.Name;
     private string _runtimeConnectionString = ConnectionProfileDefaults.LocalEmulator.RuntimeConnectionString;
@@ -52,6 +53,7 @@ public sealed class ShellViewModel : ObservableObject
         IServiceBusMessageService messageService,
         IDeadLetterReplayService deadLetterReplayService,
         IEntityManagementWorkflow entityManagementWorkflow,
+        ITopicSubscriptionRefreshWorkflow topicSubscriptionRefreshWorkflow,
         IMessageDialogService messageDialogService,
         IClock clock)
     {
@@ -59,6 +61,7 @@ public sealed class ShellViewModel : ObservableObject
         _clientFactory = clientFactory;
         _administrationService = administrationService;
         _entityManagementWorkflow = entityManagementWorkflow;
+        _topicSubscriptionRefreshWorkflow = topicSubscriptionRefreshWorkflow;
         _clock = clock;
         MessageInspection = new MessageInspectionViewModel(messageService, deadLetterReplayService, messageDialogService, AddLog);
         MessageInspection.PropertyChanged += MessageInspection_PropertyChanged;
@@ -66,6 +69,7 @@ public sealed class ShellViewModel : ObservableObject
         DisconnectCommand = new AsyncRelayCommand(DisconnectAsync, CanDisconnect);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, CanRefresh);
         CancelRefreshCommand = new RelayCommand(CancelRefresh, CanCancelRefresh);
+        RefreshSelectedTopicSubscriptionsCommand = new AsyncRelayCommand(RefreshSelectedTopicSubscriptionsAsync, CanRefreshSelectedTopicSubscriptions);
         CreateQueueCommand = new AsyncRelayCommand(CreateQueueAsync, CanManageEntities);
         CreateTopicCommand = new AsyncRelayCommand(CreateTopicAsync, CanManageEntities);
         CreateSubscriptionCommand = new AsyncRelayCommand(CreateSubscriptionAsync, CanManageEntities);
@@ -262,6 +266,52 @@ public sealed class ShellViewModel : ObservableObject
 
     public MessageInspectionViewModel MessageInspection { get; }
 
+    public string ConnectControlContent => IsConnected ? "✓ Connected" : "Connect";
+
+    public string ConnectControlAutomationName => IsConnected ? "Connected" : "Connect";
+
+    public string ConnectCommandToolTip => IsConnected
+        ? "Connected to the selected emulator profile. Use Disconnect to end this session."
+        : CreateToolTip("Connect to the selected emulator profile.", GetShellBusyReason());
+
+    public string DisconnectCommandToolTip => CreateToolTip(
+        "Disconnect from the current emulator profile.",
+        !IsConnected ? "Connect to an emulator first." : GetShellBusyReason());
+
+    public string RefreshCommandToolTip => CreateToolTip(
+        "Refresh the namespace tree, selected metadata, counts, and visible message page.",
+        !IsConnected ? "Connect to an emulator first." : GetShellBusyReason());
+
+    public bool CanShowCancelRefreshCommand => IsRefreshing;
+
+    public string CancelRefreshCommandToolTip => "Cancel the active refresh operation.";
+
+    public string CreateQueueCommandToolTip => CreateToolTip(
+        "Create a new queue.",
+        !IsConnected ? "Connect to an emulator first." : GetShellBusyReason());
+
+    public string CreateTopicCommandToolTip => CreateToolTip(
+        "Create a new topic.",
+        !IsConnected ? "Connect to an emulator first." : GetShellBusyReason());
+
+    public string CreateSubscriptionCommandToolTip => CreateToolTip(
+        "Create a new subscription.",
+        !IsConnected ? "Connect to an emulator first." : GetShellBusyReason());
+
+    public bool CanShowRefreshSubscriptionsCommand => _selectedEntity is { Kind: EntityKind.Topic };
+
+    public string RefreshSelectedTopicSubscriptionsCommandToolTip => CreateRefreshSelectedTopicSubscriptionsToolTip();
+
+    public bool CanShowSelectedEntityCommands => _selectedEntity is not null;
+
+    public string UpdateSelectedEntityCommandToolTip => CreateToolTip(
+        "Update metadata for the selected queue, topic, or subscription.",
+        CreateSelectedEntityUnavailableReason());
+
+    public string DeleteSelectedEntityCommandToolTip => CreateToolTip(
+        "Delete the selected queue, topic, or subscription after explicit confirmation.",
+        CreateSelectedEntityUnavailableReason());
+
     public IAsyncRelayCommand ConnectCommand { get; }
 
     public IAsyncRelayCommand DisconnectCommand { get; }
@@ -269,6 +319,8 @@ public sealed class ShellViewModel : ObservableObject
     public IAsyncRelayCommand RefreshCommand { get; }
 
     public IRelayCommand CancelRefreshCommand { get; }
+
+    public IAsyncRelayCommand RefreshSelectedTopicSubscriptionsCommand { get; }
 
     public IAsyncRelayCommand CreateQueueCommand { get; }
 
@@ -423,7 +475,68 @@ public sealed class ShellViewModel : ObservableObject
         }
     }
 
-    private void ApplyEntityTree()
+    private async Task RefreshSelectedTopicSubscriptionsAsync()
+    {
+        ServiceBusEntityNode? selectedTopic = _selectedEntity;
+        if (selectedTopic is not { Kind: EntityKind.Topic } || !IsConnected || IsRefreshing)
+        {
+            return;
+        }
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        _refreshCancellation = timeout;
+
+        try
+        {
+            IsBusy = true;
+            IsRefreshing = true;
+            EntityBrowserError = null;
+            EntityBrowserStatus = $"Refreshing subscriptions for {selectedTopic.Name}...";
+
+            TopicSubscriptionRefreshResult result = await _topicSubscriptionRefreshWorkflow.RefreshAsync(selectedTopic.Name, timeout.Token);
+            _loadedEntities = result.Entities;
+            ApplyEntityTree(selectedTopic);
+
+            foreach (RefreshedSubscriptionMessages refreshedSubscription in result.RefreshedSubscriptions)
+            {
+                MessageInspection.CacheMessages(
+                    refreshedSubscription.Subscription,
+                    refreshedSubscription.ActiveMessages,
+                    refreshedSubscription.DeadLetterMessages);
+                AddLog($"Refreshed {refreshedSubscription.Subscription.Metadata.Path}: cached {refreshedSubscription.ActiveMessages.Count} active and {refreshedSubscription.DeadLetterMessages.Count} DLQ message(s).");
+            }
+
+            foreach (TopicSubscriptionRefreshFailure failure in result.Failures)
+            {
+                AddLog($"Refresh {failure.Subscription.Metadata.Path} failed: {failure.ErrorMessage}");
+            }
+
+            EntityBrowserStatus = result.Failures.Count == 0
+                ? $"Refreshed {result.RefreshedSubscriptions.Count} subscription(s) for {selectedTopic.Name}."
+                : $"Refreshed {result.RefreshedSubscriptions.Count} subscription(s) for {selectedTopic.Name}; {result.Failures.Count} failed.";
+            AddLog(EntityBrowserStatus);
+        }
+        catch (OperationCanceledException)
+        {
+            EntityBrowserStatus = "Subscription refresh canceled.";
+            EntityBrowserError = "Topic subscription refresh was canceled before it completed.";
+            AddLog("Subscription refresh canceled.");
+        }
+        catch (Exception ex)
+        {
+            EntityBrowserStatus = "Subscription refresh failed.";
+            EntityBrowserError = ex.Message;
+            AddLog($"Subscription refresh failed: {ex.Message}");
+        }
+        finally
+        {
+            _refreshCancellation = null;
+            IsRefreshing = false;
+            IsBusy = false;
+        }
+    }
+
+    private void ApplyEntityTree(ServiceBusEntityNode? entityToSelect = null)
     {
         EntityTree.Clear();
         foreach (EntityTreeNodeViewModel node in EntityTreeNodeViewModel.CreateTree(_loadedEntities, NamespaceFilter))
@@ -431,7 +544,49 @@ public sealed class ShellViewModel : ObservableObject
             EntityTree.Add(node);
         }
 
-        SelectEntity(null);
+        SelectEntity(entityToSelect is null ? null : FindEntityNode(entityToSelect));
+    }
+
+    private EntityTreeNodeViewModel? FindEntityNode(ServiceBusEntityNode entity)
+    {
+        foreach (EntityTreeNodeViewModel root in EntityTree)
+        {
+            EntityTreeNodeViewModel? match = FindEntityNode(root, entity);
+            if (match is not null)
+            {
+                return match;
+            }
+        }
+
+        return null;
+    }
+
+    private static EntityTreeNodeViewModel? FindEntityNode(
+        EntityTreeNodeViewModel current,
+        ServiceBusEntityNode entity)
+    {
+        if (current.Entity is not null && IsSameEntity(current.Entity, entity))
+        {
+            return current;
+        }
+
+        foreach (EntityTreeNodeViewModel child in current.Children)
+        {
+            EntityTreeNodeViewModel? match = FindEntityNode(child, entity);
+            if (match is not null)
+            {
+                return match;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsSameEntity(ServiceBusEntityNode first, ServiceBusEntityNode second)
+    {
+        return first.Kind == second.Kind
+            && string.Equals(first.Name, second.Name, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(first.TopicName, second.TopicName, StringComparison.OrdinalIgnoreCase);
     }
 
     public void SelectEntity(EntityTreeNodeViewModel? node)
@@ -638,7 +793,7 @@ public sealed class ShellViewModel : ObservableObject
 
     private bool CanConnect()
     {
-        return !IsBusy && !MessageInspection.IsBusy;
+        return !IsConnected && !IsBusy && !MessageInspection.IsBusy;
     }
 
     private bool CanDisconnect()
@@ -654,6 +809,11 @@ public sealed class ShellViewModel : ObservableObject
     private bool CanCancelRefresh()
     {
         return IsRefreshing;
+    }
+
+    private bool CanRefreshSelectedTopicSubscriptions()
+    {
+        return IsConnected && !IsBusy && !MessageInspection.IsBusy && _selectedEntity is { Kind: EntityKind.Topic };
     }
 
     private bool CanManageEntities()
@@ -672,15 +832,72 @@ public sealed class ShellViewModel : ObservableObject
         DisconnectCommand.NotifyCanExecuteChanged();
         RefreshCommand.NotifyCanExecuteChanged();
         CancelRefreshCommand.NotifyCanExecuteChanged();
+        RefreshSelectedTopicSubscriptionsCommand.NotifyCanExecuteChanged();
         CreateQueueCommand.NotifyCanExecuteChanged();
         CreateTopicCommand.NotifyCanExecuteChanged();
         CreateSubscriptionCommand.NotifyCanExecuteChanged();
         UpdateSelectedEntityCommand.NotifyCanExecuteChanged();
         DeleteSelectedEntityCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(ConnectControlContent));
+        OnPropertyChanged(nameof(ConnectControlAutomationName));
+        OnPropertyChanged(nameof(ConnectCommandToolTip));
+        OnPropertyChanged(nameof(DisconnectCommandToolTip));
+        OnPropertyChanged(nameof(RefreshCommandToolTip));
+        OnPropertyChanged(nameof(CanShowCancelRefreshCommand));
+        OnPropertyChanged(nameof(CancelRefreshCommandToolTip));
+        OnPropertyChanged(nameof(CreateQueueCommandToolTip));
+        OnPropertyChanged(nameof(CreateTopicCommandToolTip));
+        OnPropertyChanged(nameof(CreateSubscriptionCommandToolTip));
+        OnPropertyChanged(nameof(CanShowRefreshSubscriptionsCommand));
+        OnPropertyChanged(nameof(RefreshSelectedTopicSubscriptionsCommandToolTip));
+        OnPropertyChanged(nameof(CanShowSelectedEntityCommands));
+        OnPropertyChanged(nameof(UpdateSelectedEntityCommandToolTip));
+        OnPropertyChanged(nameof(DeleteSelectedEntityCommandToolTip));
     }
 
     private void AddLog(string message)
     {
         OperationLog.Insert(0, new OperationLogEntry(_clock.UtcNow, message));
+    }
+
+    private string CreateRefreshSelectedTopicSubscriptionsToolTip()
+    {
+        const string purpose = "Refresh child subscription counts and cache first active/DLQ pages without showing a combined topic grid.";
+        if (_selectedEntity is not { Kind: EntityKind.Topic })
+        {
+            return CreateToolTip(purpose, "Select a topic first.");
+        }
+
+        return CreateToolTip(purpose, !IsConnected ? "Connect to an emulator first." : GetShellBusyReason());
+    }
+
+    private string? CreateSelectedEntityUnavailableReason()
+    {
+        if (_selectedEntity is null)
+        {
+            return "Select a queue, topic, or subscription first.";
+        }
+
+        if (!IsConnected)
+        {
+            return "Connect to an emulator first.";
+        }
+
+        return GetShellBusyReason();
+    }
+
+    private string? GetShellBusyReason()
+    {
+        if (IsBusy)
+        {
+            return "Wait for the current shell operation to finish.";
+        }
+
+        return MessageInspection.IsBusy ? "Wait for the current message operation to finish." : null;
+    }
+
+    private static string CreateToolTip(string purpose, string? unavailableReason)
+    {
+        return unavailableReason is null ? purpose : $"{purpose} Unavailable: {unavailableReason}";
     }
 }

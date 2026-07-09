@@ -253,6 +253,84 @@ public sealed class ShellViewModelTests
     }
 
     [Fact]
+    public async Task Command_presentation_matches_selected_entity_context()
+    {
+        ServiceBusEntityNode queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 1, deadLetter: 0);
+        ServiceBusEntityNode topic = CreateEntity(EntityKind.Topic, "events", topicName: null, active: 0, deadLetter: 0);
+        ServiceBusEntityNode subscription = CreateEntity(EntityKind.Subscription, "billing", "events", active: 1, deadLetter: 0);
+        var viewModel = CreateViewModel(administrationService: new FakeAdministrationService([queue, topic, subscription]));
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+
+        Assert.Equal("✓ Connected", viewModel.ConnectControlContent);
+        Assert.Equal("Connected", viewModel.ConnectControlAutomationName);
+        Assert.False(viewModel.ConnectCommand.CanExecute(null));
+        Assert.Contains("Use Disconnect", viewModel.ConnectCommandToolTip);
+        Assert.False(viewModel.CanShowSelectedEntityCommands);
+
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0].Children[0]);
+
+        Assert.True(viewModel.MessageInspection.CanShowSendMessageCommand);
+        Assert.True(viewModel.MessageInspection.CanShowPeekMessageCommands);
+        Assert.False(viewModel.MessageInspection.CanShowDeadLetterCommands);
+        Assert.False(viewModel.CanShowRefreshSubscriptionsCommand);
+        Assert.True(viewModel.CanShowSelectedEntityCommands);
+        Assert.Contains("Select exactly one DLQ message first.", viewModel.MessageInspection.ReplayDeadLetterCommandToolTip);
+
+        viewModel.MessageInspection.SelectedMessageTabIndex = 2;
+
+        Assert.True(viewModel.MessageInspection.CanShowDeadLetterCommands);
+
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[1].Children[0]);
+
+        Assert.True(viewModel.MessageInspection.CanShowSendMessageCommand);
+        Assert.False(viewModel.MessageInspection.CanShowPeekMessageCommands);
+        Assert.False(viewModel.MessageInspection.CanShowDeadLetterCommands);
+        Assert.True(viewModel.CanShowRefreshSubscriptionsCommand);
+        Assert.Contains("cache first active/DLQ pages", viewModel.RefreshSelectedTopicSubscriptionsCommandToolTip);
+
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[1].Children[0].Children[0]);
+
+        Assert.False(viewModel.MessageInspection.CanShowSendMessageCommand);
+        Assert.True(viewModel.MessageInspection.CanShowPeekMessageCommands);
+        Assert.True(viewModel.MessageInspection.CanShowDeadLetterCommands);
+        Assert.False(viewModel.CanShowRefreshSubscriptionsCommand);
+    }
+
+    [Fact]
+    public async Task RefreshSelectedTopicSubscriptionsCommand_caches_child_pages_and_continues_after_subscription_failure()
+    {
+        ServiceBusEntityNode topic = CreateEntity(EntityKind.Topic, "events", topicName: null, active: 0, deadLetter: 0);
+        ServiceBusEntityNode billing = CreateEntity(EntityKind.Subscription, "billing", "events", active: 1, deadLetter: 1);
+        ServiceBusEntityNode shipping = CreateEntity(EntityKind.Subscription, "shipping", "events", active: 1, deadLetter: 1);
+        ExplorerMessage active = CreateMessage(sequenceNumber: 7, "active cached", new Dictionary<string, object?>());
+        ExplorerMessage deadLetter = CreateMessage(sequenceNumber: 17, "dlq cached", new Dictionary<string, object?>());
+        var messageService = new FakeMessageService();
+        messageService.PeekResults[(new EntityAddress(EntityKind.Subscription, "billing", "events"), MessageBucket.Active)] = [active];
+        messageService.PeekResults[(new EntityAddress(EntityKind.Subscription, "billing", "events"), MessageBucket.DeadLetter)] = [deadLetter];
+        messageService.FailingAddresses.Add(new EntityAddress(EntityKind.Subscription, "shipping", "events"));
+        var viewModel = CreateViewModel(
+            administrationService: new FakeAdministrationService([topic, billing, shipping]),
+            messageService: messageService);
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[1].Children[0]);
+        await viewModel.RefreshSelectedTopicSubscriptionsCommand.ExecuteAsync(null);
+
+        Assert.Equal(3, messageService.PeekCalls.Count);
+        Assert.Empty(viewModel.MessageInspection.ActiveMessages);
+        Assert.Empty(viewModel.MessageInspection.DeadLetterMessages);
+        Assert.Equal("Refreshed 1 subscription(s) for events; 1 failed.", viewModel.EntityBrowserStatus);
+        Assert.Contains(viewModel.OperationLog, entry => entry.Message.Contains("Refresh events/subscriptions/shipping failed:", StringComparison.Ordinal));
+
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[1].Children[0].Children[0]);
+
+        Assert.Equal("active cached", Assert.Single(viewModel.MessageInspection.ActiveMessages).Body);
+        Assert.Equal("dlq cached", Assert.Single(viewModel.MessageInspection.DeadLetterMessages).Body);
+        Assert.Equal("Loaded cached first pages for events/subscriptions/billing.", viewModel.MessageInspection.Status);
+    }
+
+    [Fact]
     public async Task PeekActiveMessagesCommand_loads_grid_and_detail_properties()
     {
         ServiceBusEntityNode queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 1, deadLetter: 0);
@@ -396,15 +474,21 @@ public sealed class ShellViewModelTests
         IServiceBusMessageService? messageService = null,
         IDeadLetterReplayService? deadLetterReplayService = null,
         IEntityManagementWorkflow? workflow = null,
+        ITopicSubscriptionRefreshWorkflow? topicSubscriptionRefreshWorkflow = null,
         IMessageDialogService? messageDialogService = null)
     {
+        IServiceBusAdministrationService resolvedAdministrationService =
+            administrationService ?? new FakeAdministrationService([]);
+        IServiceBusMessageService resolvedMessageService = messageService ?? new FakeMessageService();
+
         return new ShellViewModel(
             store ?? new FakeProfileStore([ConnectionProfileDefaults.LocalEmulator]),
             clientFactory ?? new FakeClientFactory(),
-            administrationService ?? new FakeAdministrationService([]),
-            messageService ?? new FakeMessageService(),
+            resolvedAdministrationService,
+            resolvedMessageService,
             deadLetterReplayService ?? new FakeDeadLetterReplayService(),
             workflow ?? new FakeEntityManagementWorkflow(),
+            topicSubscriptionRefreshWorkflow ?? new TopicSubscriptionRefreshWorkflow(resolvedAdministrationService, resolvedMessageService),
             messageDialogService ?? new FakeMessageDialogService(),
             new FixedClock());
     }
@@ -643,6 +727,12 @@ public sealed class ShellViewModelTests
 
         public IReadOnlyList<ExplorerMessage> PeekResult { get; init; } = [];
 
+        public Dictionary<(EntityAddress Address, MessageBucket Bucket), IReadOnlyList<ExplorerMessage>> PeekResults { get; } = [];
+
+        public HashSet<EntityAddress> FailingAddresses { get; } = [];
+
+        public List<(EntityAddress Address, MessageBucket Bucket)> PeekCalls { get; } = [];
+
         public EntityAddress? PeekAddress { get; private set; }
 
         public MessageBucket? PeekBucket { get; private set; }
@@ -683,7 +773,13 @@ public sealed class ShellViewModelTests
             PeekBucket = bucket;
             PeekFromSequenceNumber = fromSequenceNumber;
             PeekCallCount++;
+            PeekCalls.Add((address, bucket));
             _peekStarted?.TrySetResult();
+            if (FailingAddresses.Contains(address))
+            {
+                throw new InvalidOperationException($"Peek failed for {address.Name}.");
+            }
+
             return CompletePeekAsync(cancellationToken);
         }
 
@@ -694,7 +790,9 @@ public sealed class ShellViewModelTests
                 await _releasePeek.Task.WaitAsync(cancellationToken);
             }
 
-            return PeekResult;
+            return PeekResults.TryGetValue((PeekAddress!, PeekBucket!.Value), out IReadOnlyList<ExplorerMessage>? result)
+                ? result
+                : PeekResult;
         }
 
         public Task SendMessageAsync(SendMessageCommand command, CancellationToken cancellationToken)

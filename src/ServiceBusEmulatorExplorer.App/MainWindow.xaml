@@ -9,20 +9,36 @@
         MinHeight="640"
         MinWidth="980">
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+
         <Style x:Key="ToolbarButtonStyle" TargetType="{x:Type Button}">
             <Setter Property="MinHeight" Value="30" />
             <Setter Property="MinWidth" Value="88" />
-            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="Margin" Value="0,0,8,6" />
             <Setter Property="Padding" Value="10,4" />
             <Setter Property="Background" Value="White" />
             <Setter Property="BorderBrush" Value="#B9C5D4" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Foreground" Value="#172033" />
+            <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
+        </Style>
+
+        <Style x:Key="ConnectButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource ToolbarButtonStyle}">
+            <Setter Property="Background" Value="#0F6CBD" />
+            <Setter Property="BorderBrush" Value="#0F6CBD" />
+            <Setter Property="Foreground" Value="White" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                    <Setter Property="Background" Value="#EAF6EA" />
+                    <Setter Property="BorderBrush" Value="#8CCF8C" />
+                    <Setter Property="Foreground" Value="#107C10" />
+                </DataTrigger>
+            </Style.Triggers>
         </Style>
 
         <Style x:Key="ActionButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource ToolbarButtonStyle}">
             <Setter Property="MinWidth" Value="74" />
-            <Setter Property="Margin" Value="0,0,6,0" />
+            <Setter Property="Margin" Value="0,0,6,6" />
             <Setter Property="Padding" Value="9,4" />
         </Style>
 
@@ -44,19 +60,27 @@
             <Setter Property="Margin" Value="0,2,0,0" />
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
         </Style>
+
+        <Style x:Key="CompactFieldValueStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="Foreground" Value="#1F2A44" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
     </Window.Resources>
 
     <Grid Background="#F3F5F8">
         <Grid.RowDefinitions>
-            <RowDefinition Height="56" />
-            <RowDefinition Height="44" />
-            <RowDefinition Height="52" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="96" />
-            <RowDefinition Height="28" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="5*" MinHeight="360" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="1.2*" MinHeight="110" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="18,0">
+        <Border Grid.Row="0" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="18,0" MinHeight="56">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -82,83 +106,84 @@
             </Grid>
         </Border>
 
-        <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="18,6">
-            <DockPanel LastChildFill="False">
-                <StackPanel Orientation="Horizontal">
-                    <Button x:Name="ConnectButton"
-                            AutomationProperties.AutomationId="ConnectButton"
-                            AutomationProperties.Name="Connect"
-                            Content="Connect"
-                            Command="{Binding ConnectCommand}"
-                            Background="#0F6CBD"
-                            BorderBrush="#0F6CBD"
-                            Foreground="White"
-                            Style="{StaticResource ToolbarButtonStyle}" />
-                    <Button x:Name="DisconnectButton"
-                            AutomationProperties.AutomationId="DisconnectButton"
-                            AutomationProperties.Name="Disconnect"
-                            Content="Disconnect"
-                            Command="{Binding DisconnectCommand}"
-                            Style="{StaticResource ToolbarButtonStyle}" />
-                    <Button x:Name="RefreshButton"
-                            AutomationProperties.AutomationId="RefreshButton"
-                            AutomationProperties.Name="Refresh"
-                            Content="Refresh"
-                            Command="{Binding RefreshCommand}"
-                            Style="{StaticResource ToolbarButtonStyle}" />
-                    <Button x:Name="CancelRefreshButton"
-                            AutomationProperties.AutomationId="CancelRefreshButton"
-                            AutomationProperties.Name="Cancel refresh"
-                            Content="Cancel"
-                            Command="{Binding CancelRefreshCommand}"
-                            MinWidth="76"
-                            Style="{StaticResource ToolbarButtonStyle}" />
-                    <Rectangle Width="1" Height="24" Fill="#D8E0EA" Margin="0,3,12,3" />
-                    <Button x:Name="NewQueueButton"
-                            AutomationProperties.AutomationId="NewQueueButton"
-                            AutomationProperties.Name="New Queue"
-                            Content="New Queue"
-                            Command="{Binding CreateQueueCommand}"
-                            Style="{StaticResource ToolbarButtonStyle}" />
-                    <Button x:Name="NewTopicButton"
-                            AutomationProperties.AutomationId="NewTopicButton"
-                            AutomationProperties.Name="New Topic"
-                            Content="New Topic"
-                            Command="{Binding CreateTopicCommand}"
-                            Style="{StaticResource ToolbarButtonStyle}" />
-                    <Button x:Name="NewSubscriptionButton"
-                            AutomationProperties.AutomationId="NewSubscriptionButton"
-                            AutomationProperties.Name="New Subscription"
-                            Content="New Subscription"
-                            Command="{Binding CreateSubscriptionCommand}"
-                            MinWidth="118"
-                            Style="{StaticResource ToolbarButtonStyle}" />
-                </StackPanel>
-            </DockPanel>
+        <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="18,8,18,2">
+            <WrapPanel>
+                <Button x:Name="ConnectButton"
+                        AutomationProperties.AutomationId="ConnectButton"
+                        AutomationProperties.Name="{Binding ConnectControlAutomationName}"
+                        Content="{Binding ConnectControlContent}"
+                        Command="{Binding ConnectCommand}"
+                        ToolTip="{Binding ConnectCommandToolTip}"
+                        Style="{StaticResource ConnectButtonStyle}" />
+                <Button x:Name="DisconnectButton"
+                        AutomationProperties.AutomationId="DisconnectButton"
+                        AutomationProperties.Name="Disconnect"
+                        Content="Disconnect"
+                        Command="{Binding DisconnectCommand}"
+                        ToolTip="{Binding DisconnectCommandToolTip}"
+                        Style="{StaticResource ToolbarButtonStyle}" />
+                <Button x:Name="RefreshButton"
+                        AutomationProperties.AutomationId="RefreshButton"
+                        AutomationProperties.Name="Refresh"
+                        Content="Refresh"
+                        Command="{Binding RefreshCommand}"
+                        ToolTip="{Binding RefreshCommandToolTip}"
+                        Style="{StaticResource ToolbarButtonStyle}" />
+                <Button x:Name="CancelRefreshButton"
+                        AutomationProperties.AutomationId="CancelRefreshButton"
+                        AutomationProperties.Name="Cancel refresh"
+                        Content="Cancel"
+                        Command="{Binding CancelRefreshCommand}"
+                        ToolTip="{Binding CancelRefreshCommandToolTip}"
+                        Visibility="{Binding CanShowCancelRefreshCommand, Converter={StaticResource BoolToVisibility}}"
+                        MinWidth="76"
+                        Style="{StaticResource ToolbarButtonStyle}" />
+                <Rectangle Width="1" Height="24" Fill="#D8E0EA" Margin="0,3,12,3" />
+                <Button x:Name="NewQueueButton"
+                        AutomationProperties.AutomationId="NewQueueButton"
+                        AutomationProperties.Name="New Queue"
+                        Content="New Queue"
+                        Command="{Binding CreateQueueCommand}"
+                        ToolTip="{Binding CreateQueueCommandToolTip}"
+                        Style="{StaticResource ToolbarButtonStyle}" />
+                <Button x:Name="NewTopicButton"
+                        AutomationProperties.AutomationId="NewTopicButton"
+                        AutomationProperties.Name="New Topic"
+                        Content="New Topic"
+                        Command="{Binding CreateTopicCommand}"
+                        ToolTip="{Binding CreateTopicCommandToolTip}"
+                        Style="{StaticResource ToolbarButtonStyle}" />
+                <Button x:Name="NewSubscriptionButton"
+                        AutomationProperties.AutomationId="NewSubscriptionButton"
+                        AutomationProperties.Name="New Subscription"
+                        Content="New Subscription"
+                        Command="{Binding CreateSubscriptionCommand}"
+                        ToolTip="{Binding CreateSubscriptionCommandToolTip}"
+                        MinWidth="118"
+                        Style="{StaticResource ToolbarButtonStyle}" />
+            </WrapPanel>
         </Border>
 
-        <Border Grid.Row="2" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="18,5">
+        <Border Grid.Row="2" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="18,8">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="170" />
-                    <ColumnDefinition Width="12" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="12" />
-                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="1.1*" MinWidth="150" />
+                    <ColumnDefinition Width="3.2*" MinWidth="280" />
+                    <ColumnDefinition Width="3.2*" MinWidth="280" />
                 </Grid.ColumnDefinitions>
 
-                <StackPanel>
+                <StackPanel Margin="0,0,12,0">
                     <TextBlock Text="Profile" Style="{StaticResource FieldLabelStyle}" />
                     <TextBox AutomationProperties.AutomationId="ProfileNameTextBox"
                              Text="{Binding ProfileName, UpdateSourceTrigger=PropertyChanged}" />
                 </StackPanel>
-                <StackPanel Grid.Column="2">
+                <StackPanel Grid.Column="1" Margin="0,0,12,0">
                     <TextBlock Text="Runtime (messages)" Style="{StaticResource FieldLabelStyle}" />
                     <TextBox AutomationProperties.AutomationId="RuntimeConnectionStringTextBox"
                              Text="{Binding RuntimeConnectionString, UpdateSourceTrigger=PropertyChanged}"
                              ToolTip="Connection string used for sending, peeking, replaying, and deleting messages." />
                 </StackPanel>
-                <StackPanel Grid.Column="4">
+                <StackPanel Grid.Column="2">
                     <TextBlock Text="Administration (entities)" Style="{StaticResource FieldLabelStyle}" />
                     <TextBox AutomationProperties.AutomationId="AdministrationConnectionStringTextBox"
                              Text="{Binding AdministrationConnectionString, UpdateSourceTrigger=PropertyChanged}"
@@ -167,22 +192,22 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="3" Margin="12">
+        <Grid Grid.Row="3" Margin="12,12,12,8">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="308" />
-                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="0.28*" MinWidth="240" MaxWidth="380" />
+                <ColumnDefinition Width="8" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0" Background="White" BorderBrush="#D8E0EA" BorderThickness="1" CornerRadius="8">
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="42" />
-                        <RowDefinition Height="52" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <Border BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="12,0">
+                    <Border BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="12,12">
                         <TextBlock Text="Namespace" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </Border>
 
@@ -225,6 +250,14 @@
                 </Grid>
             </Border>
 
+            <GridSplitter Grid.Column="1"
+                          Width="8"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          Background="Transparent"
+                          ResizeBehavior="PreviousAndNext"
+                          ShowsPreview="True" />
+
             <Border Grid.Column="2" Background="White" BorderBrush="#D8E0EA" BorderThickness="1" CornerRadius="8">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -232,18 +265,18 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <Grid Grid.Row="0" Margin="16,14">
+                    <Grid Grid.Row="0" Margin="12,10,12,8">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" MinWidth="420" />
+                            <ColumnDefinition Width="*" MinWidth="360" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
                         <StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                 <TextBlock AutomationProperties.AutomationId="SelectedEntityTitleText"
                                            AutomationProperties.Name="{Binding SelectedEntityTitle}"
                                            Text="{Binding SelectedEntityHeading}"
-                                           FontSize="18"
+                                           FontSize="17"
                                            FontWeight="SemiBold"
                                            VerticalAlignment="Center" />
                                 <Border Background="#E0F2FE" CornerRadius="10" Padding="8,2" Margin="8,0,0,0">
@@ -256,70 +289,95 @@
                             </StackPanel>
 
                             <UniformGrid Columns="3" Rows="2">
-                                <StackPanel Margin="0,0,12,8">
-                                    <TextBlock Text="Relative URI" Style="{StaticResource FieldLabelStyle}" />
+                                <Grid Margin="0,0,14,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Relative URI" Style="{StaticResource FieldLabelStyle}" Margin="0,0,6,0" VerticalAlignment="Center" />
                                     <TextBlock AutomationProperties.AutomationId="SelectedEntityPathText"
+                                               Grid.Column="1"
                                                Text="{Binding SelectedEntityPath}"
-                                               Style="{StaticResource FieldValueStyle}" />
-                                </StackPanel>
-                                <StackPanel Margin="0,0,12,8">
-                                    <TextBlock Text="Created UTC" Style="{StaticResource FieldLabelStyle}" />
-                                    <TextBlock Text="{Binding SelectedEntityCreatedAtUtc}" Style="{StaticResource FieldValueStyle}" />
-                                </StackPanel>
-                                <StackPanel Margin="0,0,12,8">
-                                    <TextBlock Text="Max Delivery" Style="{StaticResource FieldLabelStyle}" />
-                                    <TextBlock Text="{Binding SelectedEntityMaxDeliveryCount}" Style="{StaticResource FieldValueStyle}" />
-                                </StackPanel>
-                                <StackPanel Margin="0,0,12,0">
-                                    <TextBlock Text="Lock Duration" Style="{StaticResource FieldLabelStyle}" />
-                                    <TextBlock Text="{Binding SelectedEntityLockDuration}" Style="{StaticResource FieldValueStyle}" />
-                                </StackPanel>
-                                <StackPanel Margin="0,0,12,0">
-                                    <TextBlock Text="Default TTL" Style="{StaticResource FieldLabelStyle}" />
-                                    <TextBlock Text="{Binding SelectedEntityDefaultTtl}" Style="{StaticResource FieldValueStyle}" />
-                                </StackPanel>
-                                <StackPanel Margin="0,0,12,0">
-                                    <TextBlock Text="Status" Style="{StaticResource FieldLabelStyle}" />
+                                               Style="{StaticResource CompactFieldValueStyle}" />
+                                </Grid>
+                                <Grid Margin="0,0,14,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Created UTC" Style="{StaticResource FieldLabelStyle}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding SelectedEntityCreatedAtUtc}" Style="{StaticResource CompactFieldValueStyle}" />
+                                </Grid>
+                                <Grid Margin="0,0,14,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Max Delivery" Style="{StaticResource FieldLabelStyle}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding SelectedEntityMaxDeliveryCount}" Style="{StaticResource CompactFieldValueStyle}" />
+                                </Grid>
+                                <Grid Margin="0,0,14,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Lock Duration" Style="{StaticResource FieldLabelStyle}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding SelectedEntityLockDuration}" Style="{StaticResource CompactFieldValueStyle}" />
+                                </Grid>
+                                <Grid Margin="0,0,14,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Default TTL" Style="{StaticResource FieldLabelStyle}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding SelectedEntityDefaultTtl}" Style="{StaticResource CompactFieldValueStyle}" />
+                                </Grid>
+                                <Grid Margin="0,0,14,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Status" Style="{StaticResource FieldLabelStyle}" Margin="0,0,6,0" VerticalAlignment="Center" />
                                     <TextBlock AutomationProperties.AutomationId="SelectedEntityMetadataText"
+                                               Grid.Column="1"
                                                AutomationProperties.Name="{Binding SelectedEntityMetadata}"
                                                Text="{Binding SelectedEntityStatus}"
-                                               Style="{StaticResource FieldValueStyle}" />
-                                </StackPanel>
+                                               Style="{StaticResource CompactFieldValueStyle}" />
+                                </Grid>
                             </UniformGrid>
                         </StackPanel>
 
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="16,0,0,0">
-                            <Border Width="58" BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="5" Padding="7,6" Margin="0,0,6,0">
+                        <UniformGrid Grid.Column="1" Columns="4" VerticalAlignment="Top" Margin="14,0,0,0">
+                            <Border BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="5" Padding="7,4" Margin="0,0,6,0" MinWidth="54">
                                 <StackPanel>
                                     <TextBlock Text="Active" Foreground="#637083" FontSize="11" />
-                                    <TextBlock Text="{Binding SelectedEntityActiveCount}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,2,0,0" />
+                                    <TextBlock Text="{Binding SelectedEntityActiveCount}" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Right" />
                                 </StackPanel>
                             </Border>
-                            <Border Width="58" BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="5" Padding="7,6" Margin="0,0,6,0">
+                            <Border BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="5" Padding="7,4" Margin="0,0,6,0" MinWidth="54">
                                 <StackPanel>
                                     <TextBlock Text="DLQ" Foreground="#637083" FontSize="11" />
-                                    <TextBlock Text="{Binding SelectedEntityDeadLetterCount}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,2,0,0" />
+                                    <TextBlock Text="{Binding SelectedEntityDeadLetterCount}" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Right" />
                                 </StackPanel>
                             </Border>
-                            <Border Width="72" BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="5" Padding="7,6" Margin="0,0,6,0">
+                            <Border BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="5" Padding="7,4" Margin="0,0,6,0" MinWidth="68">
                                 <StackPanel>
                                     <TextBlock Text="Scheduled" Foreground="#637083" FontSize="11" />
-                                    <TextBlock Text="{Binding SelectedEntityScheduledCount}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,2,0,0" />
+                                    <TextBlock Text="{Binding SelectedEntityScheduledCount}" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Right" />
                                 </StackPanel>
                             </Border>
-                            <Border Width="58" BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="5" Padding="7,6">
+                            <Border BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="5" Padding="7,4" MinWidth="54">
                                 <StackPanel>
                                     <TextBlock Text="Total" Foreground="#637083" FontSize="11" />
                                     <TextBlock AutomationProperties.AutomationId="SelectedEntityCountsText"
                                                AutomationProperties.Name="{Binding SelectedEntityCounts}"
                                                Text="{Binding SelectedEntityTotalCount}"
-                                               FontSize="16"
+                                               FontSize="15"
                                                FontWeight="SemiBold"
-                                               HorizontalAlignment="Right"
-                                               Margin="0,2,0,0" />
+                                               HorizontalAlignment="Right" />
                                 </StackPanel>
                             </Border>
-                        </StackPanel>
+                        </UniformGrid>
                     </Grid>
 
                     <Grid Grid.Row="1" Background="#F8FAFC">
@@ -338,26 +396,26 @@
 
                         <Grid Grid.Row="1" Margin="12,8,12,4">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="38" />
+                                <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
-                            <Border Background="White" BorderBrush="#D8E0EA" BorderThickness="1,1,1,0" CornerRadius="7,7,0,0" Padding="10,0">
+                            <Border Background="White" BorderBrush="#D8E0EA" BorderThickness="1,1,1,0" CornerRadius="7,7,0,0" Padding="10,6,10,0">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="120" />
-                                        <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
 
-                                    <TextBlock Text="Message List" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="Message List" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,18,6" />
+                                    <WrapPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
                                         <Button x:Name="PeekActiveMessagesButton"
                                                 AutomationProperties.AutomationId="PeekActiveMessagesButton"
                                                 AutomationProperties.Name="Peek Active"
                                                 Content="Peek Active"
                                                 Command="{Binding MessageInspection.PeekActiveMessagesCommand}"
-                                                ToolTip="Load the first page of active messages for the selected queue or subscription."
+                                                ToolTip="{Binding MessageInspection.PeekActiveMessagesCommandToolTip}"
+                                                Visibility="{Binding MessageInspection.CanShowPeekMessageCommands, Converter={StaticResource BoolToVisibility}}"
                                                 MinWidth="88"
                                                 Style="{StaticResource ActionButtonStyle}" />
                                         <Button x:Name="PeekNextActiveMessagesButton"
@@ -365,7 +423,8 @@
                                                 AutomationProperties.Name="Next Active"
                                                 Content="Next Active"
                                                 Command="{Binding MessageInspection.PeekNextActiveMessagesCommand}"
-                                                ToolTip="Load the next page of active messages."
+                                                ToolTip="{Binding MessageInspection.PeekNextActiveMessagesCommandToolTip}"
+                                                Visibility="{Binding MessageInspection.CanShowPeekMessageCommands, Converter={StaticResource BoolToVisibility}}"
                                                 MinWidth="88"
                                                 Style="{StaticResource ActionButtonStyle}" />
                                         <Button x:Name="PeekDeadLetterMessagesButton"
@@ -373,7 +432,8 @@
                                                 AutomationProperties.Name="Peek DLQ"
                                                 Content="Peek DLQ"
                                                 Command="{Binding MessageInspection.PeekDeadLetterMessagesCommand}"
-                                                ToolTip="Load the first page of dead-letter messages."
+                                                ToolTip="{Binding MessageInspection.PeekDeadLetterMessagesCommandToolTip}"
+                                                Visibility="{Binding MessageInspection.CanShowPeekMessageCommands, Converter={StaticResource BoolToVisibility}}"
                                                 MinWidth="82"
                                                 Style="{StaticResource ActionButtonStyle}" />
                                         <Button x:Name="PeekNextDeadLetterMessagesButton"
@@ -381,22 +441,24 @@
                                                 AutomationProperties.Name="Next DLQ"
                                                 Content="Next DLQ"
                                                 Command="{Binding MessageInspection.PeekNextDeadLetterMessagesCommand}"
-                                                ToolTip="Load the next page of dead-letter messages."
+                                                ToolTip="{Binding MessageInspection.PeekNextDeadLetterMessagesCommandToolTip}"
+                                                Visibility="{Binding MessageInspection.CanShowPeekMessageCommands, Converter={StaticResource BoolToVisibility}}"
                                                 MinWidth="82"
                                                 Style="{StaticResource ActionButtonStyle}" />
                                         <Button AutomationProperties.Name="Copy Body"
                                                 Content="Copy Body"
                                                 IsEnabled="False"
-                                                ToolTip="Copy the selected message body."
+                                                ToolTip="Copy the selected message body. Unavailable: copy body is not wired in this build."
+                                                AutomationProperties.HelpText="Copy the selected message body. Unavailable: copy body is not wired in this build."
                                                 MinWidth="84"
                                                 Style="{StaticResource ActionButtonStyle}" />
-                                    </StackPanel>
+                                    </WrapPanel>
                                 </Grid>
                             </Border>
 
                             <TabControl Grid.Row="1"
                                         AutomationProperties.AutomationId="MessageTabs"
-                                        SelectedIndex="1"
+                                        SelectedIndex="{Binding MessageInspection.SelectedMessageTabIndex, Mode=TwoWay}"
                                         BorderBrush="#D8E0EA"
                                         Background="White">
                                 <TabItem Header="Description">
@@ -413,7 +475,7 @@
                                               SelectionMode="Single"
                                               SelectionChanged="MessageGrid_SelectionChanged">
                                         <DataGrid.Columns>
-                                            <DataGridTemplateColumn Header="Select" Width="54">
+                                            <DataGridTemplateColumn Header="Select" Width="Auto" MinWidth="54">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <CheckBox IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}"
@@ -422,14 +484,14 @@
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
-                                            <DataGridTextColumn Header="MessageId" Binding="{Binding MessageId}" Width="160" />
-                                            <DataGridTextColumn Header="Seq" Binding="{Binding SequenceNumber}" Width="70" />
-                                            <DataGridTextColumn Header="Size" Binding="{Binding BodySizeBytes}" Width="70" />
-                                            <DataGridTextColumn Header="Subject" Binding="{Binding Subject}" Width="120" />
-                                            <DataGridTextColumn Header="EnqueuedTimeUtc" Binding="{Binding EnqueuedTime, StringFormat={}{0:yyyy-MM-ddTHH:mm:ss.fffZ}}" Width="170" />
-                                            <DataGridTextColumn Header="ExpiresAtUtc" Binding="{Binding ExpiresAt, StringFormat={}{0:yyyy-MM-ddTHH:mm:ss.fffZ}}" Width="170" />
-                                            <DataGridTextColumn Header="Delivery" Binding="{Binding DeliveryCount}" Width="70" />
-                                            <DataGridTextColumn Header="Preview" Binding="{Binding BodyPreview}" Width="*" />
+                                            <DataGridTextColumn Header="MessageId" Binding="{Binding MessageId}" Width="2*" MinWidth="130" />
+                                            <DataGridTextColumn Header="Seq" Binding="{Binding SequenceNumber}" Width="0.7*" MinWidth="56" />
+                                            <DataGridTextColumn Header="Size" Binding="{Binding BodySizeBytes}" Width="0.7*" MinWidth="56" />
+                                            <DataGridTextColumn Header="Subject" Binding="{Binding Subject}" Width="1.4*" MinWidth="90" />
+                                            <DataGridTextColumn Header="EnqueuedTimeUtc" Binding="{Binding EnqueuedTime, StringFormat={}{0:yyyy-MM-ddTHH:mm:ss.fffZ}}" Width="2*" MinWidth="150" />
+                                            <DataGridTextColumn Header="ExpiresAtUtc" Binding="{Binding ExpiresAt, StringFormat={}{0:yyyy-MM-ddTHH:mm:ss.fffZ}}" Width="2*" MinWidth="150" />
+                                            <DataGridTextColumn Header="Delivery" Binding="{Binding DeliveryCount}" Width="0.8*" MinWidth="64" />
+                                            <DataGridTextColumn Header="Preview" Binding="{Binding BodyPreview}" Width="3*" MinWidth="180" />
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </TabItem>
@@ -442,7 +504,7 @@
                                               SelectionMode="Extended"
                                               SelectionChanged="MessageGrid_SelectionChanged">
                                         <DataGrid.Columns>
-                                            <DataGridTemplateColumn Header="Select" Width="54">
+                                            <DataGridTemplateColumn Header="Select" Width="Auto" MinWidth="54">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <CheckBox IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}"
@@ -451,14 +513,14 @@
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
-                                            <DataGridTextColumn Header="MessageId" Binding="{Binding MessageId}" Width="160" />
-                                            <DataGridTextColumn Header="Seq" Binding="{Binding SequenceNumber}" Width="70" />
-                                            <DataGridTextColumn Header="Size" Binding="{Binding BodySizeBytes}" Width="70" />
-                                            <DataGridTextColumn Header="Subject" Binding="{Binding Subject}" Width="120" />
-                                            <DataGridTextColumn Header="EnqueuedTimeUtc" Binding="{Binding EnqueuedTime, StringFormat={}{0:yyyy-MM-ddTHH:mm:ss.fffZ}}" Width="170" />
-                                            <DataGridTextColumn Header="ExpiresAtUtc" Binding="{Binding ExpiresAt, StringFormat={}{0:yyyy-MM-ddTHH:mm:ss.fffZ}}" Width="170" />
-                                            <DataGridTextColumn Header="Delivery" Binding="{Binding DeliveryCount}" Width="70" />
-                                            <DataGridTextColumn Header="Preview" Binding="{Binding BodyPreview}" Width="*" />
+                                            <DataGridTextColumn Header="MessageId" Binding="{Binding MessageId}" Width="2*" MinWidth="130" />
+                                            <DataGridTextColumn Header="Seq" Binding="{Binding SequenceNumber}" Width="0.7*" MinWidth="56" />
+                                            <DataGridTextColumn Header="Size" Binding="{Binding BodySizeBytes}" Width="0.7*" MinWidth="56" />
+                                            <DataGridTextColumn Header="Subject" Binding="{Binding Subject}" Width="1.4*" MinWidth="90" />
+                                            <DataGridTextColumn Header="EnqueuedTimeUtc" Binding="{Binding EnqueuedTime, StringFormat={}{0:yyyy-MM-ddTHH:mm:ss.fffZ}}" Width="2*" MinWidth="150" />
+                                            <DataGridTextColumn Header="ExpiresAtUtc" Binding="{Binding ExpiresAt, StringFormat={}{0:yyyy-MM-ddTHH:mm:ss.fffZ}}" Width="2*" MinWidth="150" />
+                                            <DataGridTextColumn Header="Delivery" Binding="{Binding DeliveryCount}" Width="0.8*" MinWidth="64" />
+                                            <DataGridTextColumn Header="Preview" Binding="{Binding BodyPreview}" Width="3*" MinWidth="180" />
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </TabItem>
@@ -467,18 +529,18 @@
 
                         <Grid Grid.Row="2" Margin="12,4,12,8">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="12" />
-                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="1.2*" MinWidth="260" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" MinWidth="240" />
                             </Grid.ColumnDefinitions>
 
                             <Border Background="White" BorderBrush="#D8E0EA" BorderThickness="1" CornerRadius="7">
                                 <Grid>
                                     <Grid.RowDefinitions>
-                                        <RowDefinition Height="38" />
+                                        <RowDefinition Height="Auto" />
                                         <RowDefinition Height="*" />
                                     </Grid.RowDefinitions>
-                                    <Border BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="10,0">
+                                    <Border BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="10,8">
                                         <TextBlock Text="Message Text" FontWeight="SemiBold" VerticalAlignment="Center" />
                                     </Border>
                                     <TextBox Grid.Row="1"
@@ -499,10 +561,10 @@
                             <Border Grid.Column="2" Background="White" BorderBrush="#D8E0EA" BorderThickness="1" CornerRadius="7">
                                 <Grid>
                                     <Grid.RowDefinitions>
-                                        <RowDefinition Height="38" />
+                                        <RowDefinition Height="Auto" />
                                         <RowDefinition Height="*" />
                                     </Grid.RowDefinitions>
-                                    <Border BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="10,0">
+                                    <Border BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="10,8">
                                         <TextBlock Text="System and Custom Properties" FontWeight="SemiBold" VerticalAlignment="Center" />
                                     </Border>
                                     <Grid Grid.Row="1">
@@ -536,31 +598,51 @@
                             </Border>
                         </Grid>
 
-                        <Border Grid.Row="3" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,1,0,0" Padding="12,8">
-                            <DockPanel LastChildFill="False">
-                                <TextBlock AutomationProperties.AutomationId="MessageInspectionStatusText"
-                                           Text="{Binding MessageInspection.Status}"
-                                           Foreground="#637083"
-                                           TextTrimming="CharacterEllipsis"
-                                           VerticalAlignment="Center" />
-                                <TextBlock AutomationProperties.AutomationId="MessageInspectionErrorText"
-                                           Text="{Binding MessageInspection.Error}"
-                                           Foreground="#C50F1F"
-                                           TextTrimming="CharacterEllipsis"
-                                           VerticalAlignment="Center"
-                                           Margin="12,0,0,0" />
-                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Border Grid.Row="3" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,1,0,0" Padding="12,8,12,2">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <DockPanel>
+                                    <TextBlock AutomationProperties.AutomationId="MessageInspectionStatusText"
+                                               Text="{Binding MessageInspection.Status}"
+                                               Foreground="#637083"
+                                               TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock AutomationProperties.AutomationId="MessageInspectionErrorText"
+                                               Text="{Binding MessageInspection.Error}"
+                                               Foreground="#C50F1F"
+                                               TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center"
+                                               Margin="12,0,0,0" />
+                                </DockPanel>
+                                <WrapPanel Grid.Row="1" HorizontalAlignment="Right" Margin="0,6,0,0">
                                     <Button x:Name="SendMessageButton"
                                             AutomationProperties.AutomationId="SendMessageButton"
                                             AutomationProperties.Name="Send New Message"
                                             Content="Send"
                                             Command="{Binding MessageInspection.SendMessageCommand}"
+                                            ToolTip="{Binding MessageInspection.SendMessageCommandToolTip}"
+                                            Visibility="{Binding MessageInspection.CanShowSendMessageCommand, Converter={StaticResource BoolToVisibility}}"
+                                            Style="{StaticResource ActionButtonStyle}" />
+                                    <Button x:Name="RefreshSubscriptionsButton"
+                                            AutomationProperties.AutomationId="RefreshSubscriptionsButton"
+                                            AutomationProperties.Name="Refresh Subscriptions"
+                                            Content="Refresh Subscriptions"
+                                            Command="{Binding RefreshSelectedTopicSubscriptionsCommand}"
+                                            ToolTip="{Binding RefreshSelectedTopicSubscriptionsCommandToolTip}"
+                                            Visibility="{Binding CanShowRefreshSubscriptionsCommand, Converter={StaticResource BoolToVisibility}}"
+                                            MinWidth="136"
                                             Style="{StaticResource ActionButtonStyle}" />
                                     <Button x:Name="ReplayDeadLetterButton"
                                             AutomationProperties.AutomationId="ReplayDeadLetterButton"
                                             AutomationProperties.Name="Replay DLQ Copy"
+                                            AutomationProperties.HelpText="{Binding MessageInspection.ReplayDeadLetterCommandToolTip}"
                                             Content="Replay"
                                             Command="{Binding MessageInspection.ReplayDeadLetterCommand}"
+                                            ToolTip="{Binding MessageInspection.ReplayDeadLetterCommandToolTip}"
+                                            Visibility="{Binding MessageInspection.CanShowDeadLetterCommands, Converter={StaticResource BoolToVisibility}}"
                                             Background="#0F6CBD"
                                             BorderBrush="#0F6CBD"
                                             Foreground="White"
@@ -570,6 +652,8 @@
                                             AutomationProperties.Name="Edit and Replay DLQ"
                                             Content="Edit Replay"
                                             Command="{Binding MessageInspection.EditAndReplayDeadLetterCommand}"
+                                            ToolTip="{Binding MessageInspection.EditAndReplayDeadLetterCommandToolTip}"
+                                            Visibility="{Binding MessageInspection.CanShowDeadLetterCommands, Converter={StaticResource BoolToVisibility}}"
                                             MinWidth="98"
                                             Style="{StaticResource ActionButtonStyle}" />
                                     <Button x:Name="DeleteSelectedDeadLetterButton"
@@ -577,6 +661,8 @@
                                             AutomationProperties.Name="Delete Selected DLQ"
                                             Content="Selected"
                                             Command="{Binding MessageInspection.DeleteSelectedDeadLetterCommand}"
+                                            ToolTip="{Binding MessageInspection.DeleteSelectedDeadLetterCommandToolTip}"
+                                            Visibility="{Binding MessageInspection.CanShowDeadLetterCommands, Converter={StaticResource BoolToVisibility}}"
                                             MinWidth="82"
                                             Style="{StaticResource DangerActionButtonStyle}" />
                                     <Button x:Name="DeleteVisibleDeadLetterButton"
@@ -584,41 +670,56 @@
                                             AutomationProperties.Name="Delete Visible DLQ"
                                             Content="Visible"
                                             Command="{Binding MessageInspection.DeleteVisibleDeadLetterCommand}"
+                                            ToolTip="{Binding MessageInspection.DeleteVisibleDeadLetterCommandToolTip}"
+                                            Visibility="{Binding MessageInspection.CanShowDeadLetterCommands, Converter={StaticResource BoolToVisibility}}"
                                             MinWidth="76"
                                             Style="{StaticResource DangerActionButtonStyle}" />
                                     <Rectangle Width="1" Height="24" Fill="#D8E0EA" Margin="0,3,8,3" />
                                     <Button AutomationProperties.Name="Refresh"
                                             Content="Refresh"
                                             Command="{Binding RefreshCommand}"
+                                            ToolTip="{Binding RefreshCommandToolTip}"
                                             Style="{StaticResource ActionButtonStyle}" />
                                     <Button x:Name="UpdateEntityButton"
                                             AutomationProperties.AutomationId="UpdateEntityButton"
                                             AutomationProperties.Name="Update"
                                             Content="Update"
                                             Command="{Binding UpdateSelectedEntityCommand}"
+                                            ToolTip="{Binding UpdateSelectedEntityCommandToolTip}"
+                                            Visibility="{Binding CanShowSelectedEntityCommands, Converter={StaticResource BoolToVisibility}}"
                                             Style="{StaticResource ActionButtonStyle}" />
                                     <Button x:Name="DeleteEntityButton"
                                             AutomationProperties.AutomationId="DeleteEntityButton"
                                             AutomationProperties.Name="{Binding SelectedEntityDeleteLabel}"
                                             Content="{Binding SelectedEntityDeleteLabel}"
                                             Command="{Binding DeleteSelectedEntityCommand}"
+                                            ToolTip="{Binding DeleteSelectedEntityCommandToolTip}"
+                                            Visibility="{Binding CanShowSelectedEntityCommands, Converter={StaticResource BoolToVisibility}}"
                                             MinWidth="112"
                                             Style="{StaticResource DangerActionButtonStyle}" />
-                                </StackPanel>
-                            </DockPanel>
+                                </WrapPanel>
+                            </Grid>
                         </Border>
                     </Grid>
                 </Grid>
             </Border>
         </Grid>
 
-        <Border Grid.Row="4" Margin="12,0,12,12" Background="White" BorderBrush="#D8E0EA" BorderThickness="1" CornerRadius="8">
+        <GridSplitter Grid.Row="4"
+                      Height="8"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"
+                      Background="Transparent"
+                      ResizeBehavior="PreviousAndNext"
+                      ShowsPreview="True" />
+
+        <Border Grid.Row="5" Margin="12,0,12,8" Background="White" BorderBrush="#D8E0EA" BorderThickness="1" CornerRadius="8">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="36" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <Border BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="12,0">
+                <Border BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="12,9">
                     <TextBlock Text="Operation Log" FontWeight="SemiBold" VerticalAlignment="Center" />
                 </Border>
                 <ListBox Grid.Row="1"
@@ -638,7 +739,7 @@
             </Grid>
         </Border>
 
-        <Border Grid.Row="5" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,1,0,0" Padding="14,0">
+        <Border Grid.Row="6" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,1,0,0" Padding="14,0" MinHeight="28">
             <DockPanel>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="{Binding ConnectionStatus}" Foreground="#637083" Margin="0,0,16,0" />
