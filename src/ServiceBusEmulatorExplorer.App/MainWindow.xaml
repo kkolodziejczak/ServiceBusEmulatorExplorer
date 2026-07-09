@@ -290,37 +290,38 @@
                             </UniformGrid>
                         </StackPanel>
 
-                        <UniformGrid Grid.Column="1" Columns="4" Rows="1" Margin="16,0,0,0">
-                            <Border BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="7" Padding="8" Margin="0,0,8,0" MinWidth="78">
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="16,0,0,0">
+                            <Border Width="58" BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="5" Padding="7,6" Margin="0,0,6,0">
                                 <StackPanel>
                                     <TextBlock Text="Active" Foreground="#637083" FontSize="11" />
-                                    <TextBlock Text="{Binding SelectedEntityActiveCount}" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                                    <TextBlock Text="{Binding SelectedEntityActiveCount}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,2,0,0" />
                                 </StackPanel>
                             </Border>
-                            <Border BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="7" Padding="8" Margin="0,0,8,0" MinWidth="78">
+                            <Border Width="58" BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="5" Padding="7,6" Margin="0,0,6,0">
                                 <StackPanel>
                                     <TextBlock Text="DLQ" Foreground="#637083" FontSize="11" />
-                                    <TextBlock Text="{Binding SelectedEntityDeadLetterCount}" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                                    <TextBlock Text="{Binding SelectedEntityDeadLetterCount}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,2,0,0" />
                                 </StackPanel>
                             </Border>
-                            <Border BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="7" Padding="8" Margin="0,0,8,0" MinWidth="78">
+                            <Border Width="72" BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="5" Padding="7,6" Margin="0,0,6,0">
                                 <StackPanel>
                                     <TextBlock Text="Scheduled" Foreground="#637083" FontSize="11" />
-                                    <TextBlock Text="{Binding SelectedEntityScheduledCount}" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                                    <TextBlock Text="{Binding SelectedEntityScheduledCount}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,2,0,0" />
                                 </StackPanel>
                             </Border>
-                            <Border BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="7" Padding="8" MinWidth="78">
+                            <Border Width="58" BorderBrush="#D8E0EA" BorderThickness="1" Background="#F8FAFC" CornerRadius="5" Padding="7,6">
                                 <StackPanel>
                                     <TextBlock Text="Total" Foreground="#637083" FontSize="11" />
                                     <TextBlock AutomationProperties.AutomationId="SelectedEntityCountsText"
                                                AutomationProperties.Name="{Binding SelectedEntityCounts}"
                                                Text="{Binding SelectedEntityTotalCount}"
-                                               FontSize="20"
+                                               FontSize="16"
                                                FontWeight="SemiBold"
-                                               HorizontalAlignment="Right" />
+                                               HorizontalAlignment="Right"
+                                               Margin="0,2,0,0" />
                                 </StackPanel>
                             </Border>
-                        </UniformGrid>
+                        </StackPanel>
                     </Grid>
 
                     <Grid Grid.Row="1" Background="#F8FAFC">
