@@ -363,6 +363,89 @@ public sealed class MainWindowSmokeTests
         }
     }
 
+    [UiNavigationSmokeFact]
+    [Trait("TestCategory", "UiSmoke")]
+    public async Task Replay_dlq_copy_keeps_original_visible_until_explicit_delete()
+    {
+        string queueName = CreateEntityName("queue");
+        const string body = "ui smoke replay proof body";
+
+        var adminClient = new ServiceBusAdministrationClient(ServiceBusUiSmokeEnvironment.AdminConnectionString);
+        await using var runtimeClient = new ServiceBusClient(ServiceBusUiSmokeEnvironment.RuntimeConnectionString);
+        using var testTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        await ServiceBusUiSmokeEnvironment.WaitUntilReadyAsync(testTimeout.Token);
+        await adminClient.CreateQueueAsync(queueName, testTimeout.Token);
+        await SendSeedMessageAsync(runtimeClient, queueName, body, testTimeout.Token);
+        await DeadLetterSeedMessageAsync(runtimeClient, queueName, testTimeout.Token);
+
+        try
+        {
+            string executablePath = WpfAppPath.Resolve();
+            Assert.True(File.Exists(executablePath), $"Build the WPF app before running UI smoke tests. Missing: {executablePath}");
+
+            using Application application = LaunchWpfApp(executablePath);
+            using var automation = new UIA3Automation();
+
+            try
+            {
+                Window window = WaitForMainWindowWithAutomationId(
+                    application,
+                    automation,
+                    "ConnectButton",
+                    TimeSpan.FromSeconds(15));
+
+                SetText(window, "ProfileNameTextBox", "UI smoke emulator");
+                SetText(window, "RuntimeConnectionStringTextBox", ServiceBusUiSmokeEnvironment.RuntimeConnectionString);
+                SetText(window, "AdministrationConnectionStringTextBox", ServiceBusUiSmokeEnvironment.AdminConnectionString);
+                InvokeButton(window, "ConnectButton", TimeSpan.FromSeconds(5));
+
+                AutomationElement queueElement = WaitForText(window, queueName, TimeSpan.FromSeconds(30));
+                SelectTreeItem(queueElement);
+                InvokeButton(window, "PeekDeadLetterMessagesButton", TimeSpan.FromSeconds(10));
+
+                SelectTab(window, "Dead Letter", TimeSpan.FromSeconds(5));
+                SelectDataItem(WaitForText(window, body, TimeSpan.FromSeconds(20)));
+                InvokeButton(window, "ReplayDeadLetterButton", TimeSpan.FromSeconds(10));
+
+                ServiceBusReceivedMessage activeReplay = await WaitForSingleMessageAsync(
+                    runtimeClient,
+                    queueName,
+                    SubQueue.None,
+                    testTimeout.Token);
+                ServiceBusReceivedMessage remainingDeadLetter = await WaitForSingleMessageAsync(
+                    runtimeClient,
+                    queueName,
+                    SubQueue.DeadLetter,
+                    testTimeout.Token);
+
+                Assert.Equal(body, activeReplay.Body.ToString());
+                Assert.Equal("ui-smoke", activeReplay.ApplicationProperties["kind"]);
+                Assert.Equal(body, remainingDeadLetter.Body.ToString());
+                Assert.Equal("ui-smoke", remainingDeadLetter.ApplicationProperties["kind"]);
+
+                SelectTab(window, "Dead Letter", TimeSpan.FromSeconds(5));
+                SelectDataItem(WaitForText(window, body, TimeSpan.FromSeconds(20)));
+                ConfirmDeleteSelectedDlq(application, automation, window);
+
+                await WaitForMessageCountAsync(
+                    runtimeClient,
+                    queueName,
+                    SubQueue.DeadLetter,
+                    expectedCount: 0,
+                    testTimeout.Token);
+            }
+            finally
+            {
+                CloseApplication(application);
+            }
+        }
+        finally
+        {
+            using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await DeleteQueueAsync(adminClient, queueName, cleanupTimeout.Token);
+        }
+    }
+
     private static void AssertDeleteSelectedDlqRequiresConfirmation(
         Application application,
         UIA3Automation automation,
@@ -399,6 +482,22 @@ public sealed class MainWindowSmokeTests
         SetText(deleteDialog, "ConfirmDeleteDlqPhraseTextBox", "DELETE VISIBLE");
         Assert.True(WaitForAutomationId(deleteDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5)).AsButton().IsEnabled);
         InvokeButton(deleteDialog, "CancelDeleteDlqButton", TimeSpan.FromSeconds(5));
+    }
+
+    private static void ConfirmDeleteSelectedDlq(
+        Application application,
+        UIA3Automation automation,
+        Window window)
+    {
+        ClickButton(window, "DeleteSelectedDeadLetterButton", TimeSpan.FromSeconds(10));
+        Window deleteDialog = WaitForWindowWithAutomationId(
+            application,
+            automation,
+            "ConfirmDeleteDlqButton",
+            TimeSpan.FromSeconds(10));
+
+        ToggleCheckBox(deleteDialog, "ConfirmDeleteDlqCheckBox", TimeSpan.FromSeconds(5));
+        InvokeButton(deleteDialog, "ConfirmDeleteDlqButton", TimeSpan.FromSeconds(5));
     }
 
     private static string CreateEntityName(string prefix)
@@ -519,6 +618,83 @@ public sealed class MainWindowSmokeTests
         message.ApplicationProperties["kind"] = "ui-smoke";
 
         await sender.SendMessageAsync(message, cancellationToken);
+    }
+
+    private static async Task<ServiceBusReceivedMessage> WaitForSingleMessageAsync(
+        ServiceBusClient runtimeClient,
+        string queueName,
+        SubQueue subQueue,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<ServiceBusReceivedMessage> messages = await WaitForMessagesAsync(
+            runtimeClient,
+            queueName,
+            subQueue,
+            expectedCount: 1,
+            cancellationToken);
+
+        return messages[0];
+    }
+
+    private static async Task WaitForMessageCountAsync(
+        ServiceBusClient runtimeClient,
+        string queueName,
+        SubQueue subQueue,
+        int expectedCount,
+        CancellationToken cancellationToken)
+    {
+        _ = await WaitForMessagesAsync(runtimeClient, queueName, subQueue, expectedCount, cancellationToken);
+    }
+
+    private static async Task<IReadOnlyList<ServiceBusReceivedMessage>> WaitForMessagesAsync(
+        ServiceBusClient runtimeClient,
+        string queueName,
+        SubQueue subQueue,
+        int expectedCount,
+        CancellationToken cancellationToken)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(15);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            IReadOnlyList<ServiceBusReceivedMessage> messages = await PeekMessagesAsync(
+                runtimeClient,
+                queueName,
+                subQueue,
+                cancellationToken);
+            if (messages.Count == expectedCount)
+            {
+                return messages;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
+        }
+
+        IReadOnlyList<ServiceBusReceivedMessage> finalMessages = await PeekMessagesAsync(
+            runtimeClient,
+            queueName,
+            subQueue,
+            cancellationToken);
+        Assert.Equal(expectedCount, finalMessages.Count);
+        return finalMessages;
+    }
+
+    private static async Task<IReadOnlyList<ServiceBusReceivedMessage>> PeekMessagesAsync(
+        ServiceBusClient runtimeClient,
+        string queueName,
+        SubQueue subQueue,
+        CancellationToken cancellationToken)
+    {
+        var options = new ServiceBusReceiverOptions
+        {
+            SubQueue = subQueue
+        };
+
+        await using ServiceBusReceiver receiver = runtimeClient.CreateReceiver(queueName, options);
+        IReadOnlyList<ServiceBusReceivedMessage> messages = await receiver.PeekMessagesAsync(
+            maxMessages: 10,
+            cancellationToken: cancellationToken);
+
+        return messages;
     }
 
     private static async Task DeadLetterSeedMessageAsync(

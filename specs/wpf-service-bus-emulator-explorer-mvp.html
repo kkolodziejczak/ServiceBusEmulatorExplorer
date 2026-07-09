@@ -1020,7 +1020,7 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
       <li><input type="checkbox" checked> Unit tests cover service contracts, view model command states, and DLQ replay default behavior.</li>
       <li><input type="checkbox" checked> Docker-backed integration tests pass when the root compose emulator is running and integration tests are explicitly enabled.</li>
       <li><input type="checkbox" checked> An intentionally small FlaUI/UIA3 smoke suite covers launch, connect, navigation, and DLQ command enablement behind <code>SBE_RUN_UI_TESTS=true</code>.</li>
-      <li><input type="checkbox"> Manual proof confirms default replay leaves DLQ originals untouched.</li>
+      <li><input type="checkbox" checked> Manual proof confirms default replay leaves DLQ originals untouched.</li>
       <li><input type="checkbox" checked> Destructive operations require confirmation and report success/failure accurately.</li>
       <li><input type="checkbox" checked> README documents emulator startup, connection strings, and the DLQ workflow.</li>
       <li><input type="checkbox"> Code follows method ordering preference and keeps private helpers below their callers in invocation order.</li>
@@ -1093,6 +1093,12 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
           <td>Codex</td>
           <td>Reconciled completed WPF shell and acceptance checklist after fixing UI smoke automation to use UIA invoke/toggle patterns and rerunning gated integration and UI smoke verification.</td>
           <td><a href="../tests/ServiceBusEmulatorExplorer.UiSmoke.Tests/MainWindowSmokeTests.cs">UI smoke tests</a></td>
+        </tr>
+        <tr>
+          <td>2026-07-09</td>
+          <td>Codex</td>
+          <td>Ran the local proof script, verified the Docker-backed DLQ replay integration proof, and added a rendered WPF UI proof that replays a DLQ copy, observes the original still in DLQ, then deletes it explicitly.</td>
+          <td><a href="../scripts/Invoke-ManualProof.ps1">Manual proof script</a>, <a href="../tests/ServiceBusEmulatorExplorer.Integration.Tests/ServiceBusMessageServiceIntegrationTests.cs">DLQ replay integration proof</a>, <a href="../tests/ServiceBusEmulatorExplorer.UiSmoke.Tests/MainWindowSmokeTests.cs">WPF replay proof</a></td>
         </tr>
       </tbody>
     </table>
