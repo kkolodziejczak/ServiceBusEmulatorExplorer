@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Operations dashboard app icon">
+  <defs>
+    <linearGradient id="bg" x1="26" y1="20" x2="226" y2="230" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#155E75" />
+      <stop offset="1" stop-color="#1E293B" />
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="42" fill="url(#bg)" />
+  <rect x="48" y="54" width="160" height="148" rx="18" fill="#F8FAFC" />
+  <rect x="64" y="75" width="56" height="44" rx="12" fill="#BAE6FD" />
+  <rect x="136" y="75" width="56" height="44" rx="12" fill="#BBF7D0" />
+  <rect x="64" y="136" width="128" height="45" rx="12" fill="#FDE68A" />
+  <path d="M80 98h24M152 98h24M84 159h82" stroke="#0F172A" stroke-width="9" stroke-linecap="round" opacity=".78" />
+  <path d="M174 143l15 15-15 15" fill="none" stroke="#0F172A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity=".78" />
+  <circle cx="72" cy="64" r="15" fill="#38BDF8" />
+  <path d="M67 64h10" stroke="#0F172A" stroke-width="6" stroke-linecap="round" />
+</svg>

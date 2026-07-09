@@ -5,9 +5,10 @@
         Title="Service Bus Emulator Explorer"
         AutomationProperties.Name="Service Bus Emulator Explorer"
         Height="780"
-        Width="1180"
+        Width="1500"
         MinHeight="640"
-        MinWidth="980">
+        MinWidth="980"
+        WindowStartupLocation="CenterScreen">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
 
@@ -36,6 +37,14 @@
             </Style.Triggers>
         </Style>
 
+        <Style x:Key="ToolbarRowButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource ToolbarButtonStyle}">
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+
+        <Style x:Key="ConnectToolbarRowButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource ConnectButtonStyle}">
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+
         <Style x:Key="ActionButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource ToolbarButtonStyle}">
             <Setter Property="MinWidth" Value="74" />
             <Setter Property="Margin" Value="0,0,6,6" />
@@ -46,6 +55,14 @@
             <Setter Property="Foreground" Value="#C50F1F" />
             <Setter Property="Background" Value="#FFF8F8" />
             <Setter Property="BorderBrush" Value="#F0B9BF" />
+        </Style>
+
+        <Style x:Key="ActionStripButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource ActionButtonStyle}">
+            <Setter Property="Margin" Value="0,0,6,0" />
+        </Style>
+
+        <Style x:Key="DangerActionStripButtonStyle" TargetType="{x:Type Button}" BasedOn="{StaticResource DangerActionButtonStyle}">
+            <Setter Property="Margin" Value="0,0,6,0" />
         </Style>
 
         <Style x:Key="FieldLabelStyle" TargetType="{x:Type TextBlock}">
@@ -67,11 +84,24 @@
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
+
+        <Style x:Key="ToolbarTextBoxStyle" TargetType="{x:Type TextBox}">
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Padding" Value="4,2" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="HorizontalScrollBarVisibility" Value="Hidden" />
+            <Setter Property="VerticalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="TextWrapping" Value="NoWrap" />
+        </Style>
+
+        <Style x:Key="ToolbarFieldLabelStyle" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource FieldLabelStyle}">
+            <Setter Property="Margin" Value="0,0,4,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
     </Window.Resources>
 
     <Grid Background="#F3F5F8">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="5*" MinHeight="360" />
@@ -106,93 +136,101 @@
             </Grid>
         </Border>
 
-        <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="18,8,18,2">
-            <WrapPanel>
-                <Button x:Name="ConnectButton"
-                        AutomationProperties.AutomationId="ConnectButton"
-                        AutomationProperties.Name="{Binding ConnectControlAutomationName}"
-                        Content="{Binding ConnectControlContent}"
-                        Command="{Binding ConnectCommand}"
-                        ToolTip="{Binding ConnectCommandToolTip}"
-                        Style="{StaticResource ConnectButtonStyle}" />
-                <Button x:Name="DisconnectButton"
-                        AutomationProperties.AutomationId="DisconnectButton"
-                        AutomationProperties.Name="Disconnect"
-                        Content="Disconnect"
-                        Command="{Binding DisconnectCommand}"
-                        ToolTip="{Binding DisconnectCommandToolTip}"
-                        Style="{StaticResource ToolbarButtonStyle}" />
-                <Button x:Name="RefreshButton"
-                        AutomationProperties.AutomationId="RefreshButton"
-                        AutomationProperties.Name="Refresh"
-                        Content="Refresh"
-                        Command="{Binding RefreshCommand}"
-                        ToolTip="{Binding RefreshCommandToolTip}"
-                        Style="{StaticResource ToolbarButtonStyle}" />
-                <Button x:Name="CancelRefreshButton"
-                        AutomationProperties.AutomationId="CancelRefreshButton"
-                        AutomationProperties.Name="Cancel refresh"
-                        Content="Cancel"
-                        Command="{Binding CancelRefreshCommand}"
-                        ToolTip="{Binding CancelRefreshCommandToolTip}"
-                        Visibility="{Binding CanShowCancelRefreshCommand, Converter={StaticResource BoolToVisibility}}"
-                        MinWidth="76"
-                        Style="{StaticResource ToolbarButtonStyle}" />
-                <Rectangle Width="1" Height="24" Fill="#D8E0EA" Margin="0,3,12,3" />
-                <Button x:Name="NewQueueButton"
-                        AutomationProperties.AutomationId="NewQueueButton"
-                        AutomationProperties.Name="New Queue"
-                        Content="New Queue"
-                        Command="{Binding CreateQueueCommand}"
-                        ToolTip="{Binding CreateQueueCommandToolTip}"
-                        Style="{StaticResource ToolbarButtonStyle}" />
-                <Button x:Name="NewTopicButton"
-                        AutomationProperties.AutomationId="NewTopicButton"
-                        AutomationProperties.Name="New Topic"
-                        Content="New Topic"
-                        Command="{Binding CreateTopicCommand}"
-                        ToolTip="{Binding CreateTopicCommandToolTip}"
-                        Style="{StaticResource ToolbarButtonStyle}" />
-                <Button x:Name="NewSubscriptionButton"
-                        AutomationProperties.AutomationId="NewSubscriptionButton"
-                        AutomationProperties.Name="New Subscription"
-                        Content="New Subscription"
-                        Command="{Binding CreateSubscriptionCommand}"
-                        ToolTip="{Binding CreateSubscriptionCommandToolTip}"
-                        MinWidth="118"
-                        Style="{StaticResource ToolbarButtonStyle}" />
-            </WrapPanel>
-        </Border>
-
-        <Border Grid.Row="2" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="18,8">
+        <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="18,6">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1.1*" MinWidth="150" />
-                    <ColumnDefinition Width="3.2*" MinWidth="280" />
-                    <ColumnDefinition Width="3.2*" MinWidth="280" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="180" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Margin="0,0,12,0">
-                    <TextBlock Text="Profile" Style="{StaticResource FieldLabelStyle}" />
-                    <TextBox AutomationProperties.AutomationId="ProfileNameTextBox"
-                             Text="{Binding ProfileName, UpdateSourceTrigger=PropertyChanged}" />
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
+                    <Button x:Name="ConnectButton"
+                            AutomationProperties.AutomationId="ConnectButton"
+                            AutomationProperties.Name="{Binding ConnectControlAutomationName}"
+                            Content="{Binding ConnectControlContent}"
+                            Command="{Binding ConnectCommand}"
+                            ToolTip="{Binding ConnectCommandToolTip}"
+                            Style="{StaticResource ConnectToolbarRowButtonStyle}" />
+                    <Button x:Name="DisconnectButton"
+                            AutomationProperties.AutomationId="DisconnectButton"
+                            AutomationProperties.Name="Disconnect"
+                            Content="Disconnect"
+                            Command="{Binding DisconnectCommand}"
+                            ToolTip="{Binding DisconnectCommandToolTip}"
+                            Style="{StaticResource ToolbarRowButtonStyle}" />
+                    <Button x:Name="RefreshButton"
+                            AutomationProperties.AutomationId="RefreshButton"
+                            AutomationProperties.Name="Refresh"
+                            Content="Refresh"
+                            Command="{Binding RefreshCommand}"
+                            ToolTip="{Binding RefreshCommandToolTip}"
+                            Style="{StaticResource ToolbarRowButtonStyle}" />
+                    <Button x:Name="CancelRefreshButton"
+                            AutomationProperties.AutomationId="CancelRefreshButton"
+                            AutomationProperties.Name="Cancel refresh"
+                            Content="Cancel"
+                            Command="{Binding CancelRefreshCommand}"
+                            ToolTip="{Binding CancelRefreshCommandToolTip}"
+                            Visibility="{Binding CanShowCancelRefreshCommand, Converter={StaticResource BoolToVisibility}}"
+                            MinWidth="76"
+                            Style="{StaticResource ToolbarRowButtonStyle}" />
+                    <Rectangle Width="1" Height="24" Fill="#D8E0EA" Margin="0,0,12,0" />
+                    <Button x:Name="NewQueueButton"
+                            AutomationProperties.AutomationId="NewQueueButton"
+                            AutomationProperties.Name="New Queue"
+                            Content="New Queue"
+                            Command="{Binding CreateQueueCommand}"
+                            ToolTip="{Binding CreateQueueCommandToolTip}"
+                            Style="{StaticResource ToolbarRowButtonStyle}" />
+                    <Button x:Name="NewTopicButton"
+                            AutomationProperties.AutomationId="NewTopicButton"
+                            AutomationProperties.Name="New Topic"
+                            Content="New Topic"
+                            Command="{Binding CreateTopicCommand}"
+                            ToolTip="{Binding CreateTopicCommandToolTip}"
+                            Style="{StaticResource ToolbarRowButtonStyle}" />
+                    <Button x:Name="NewSubscriptionButton"
+                            AutomationProperties.AutomationId="NewSubscriptionButton"
+                            AutomationProperties.Name="New Subscription"
+                            Content="New Subscription"
+                            Command="{Binding CreateSubscriptionCommand}"
+                            ToolTip="{Binding CreateSubscriptionCommandToolTip}"
+                            MinWidth="118"
+                            Style="{StaticResource ToolbarRowButtonStyle}" />
                 </StackPanel>
-                <StackPanel Grid.Column="1" Margin="0,0,12,0">
-                    <TextBlock Text="Runtime (messages)" Style="{StaticResource FieldLabelStyle}" />
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Profile" Style="{StaticResource ToolbarFieldLabelStyle}" />
+                    <TextBox AutomationProperties.AutomationId="ProfileNameTextBox"
+                             Text="{Binding ProfileName, UpdateSourceTrigger=PropertyChanged}"
+                             Width="132"
+                             Style="{StaticResource ToolbarTextBoxStyle}" />
+                </StackPanel>
+                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Runtime" Style="{StaticResource ToolbarFieldLabelStyle}" />
                     <TextBox AutomationProperties.AutomationId="RuntimeConnectionStringTextBox"
                              Text="{Binding RuntimeConnectionString, UpdateSourceTrigger=PropertyChanged}"
+                             MinWidth="80"
+                             Style="{StaticResource ToolbarTextBoxStyle}"
                              ToolTip="Connection string used for sending, peeking, replaying, and deleting messages." />
                 </StackPanel>
-                <StackPanel Grid.Column="2">
-                    <TextBlock Text="Administration (entities)" Style="{StaticResource FieldLabelStyle}" />
+                <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Admin" Style="{StaticResource ToolbarFieldLabelStyle}" />
                     <TextBox AutomationProperties.AutomationId="AdministrationConnectionStringTextBox"
                              Text="{Binding AdministrationConnectionString, UpdateSourceTrigger=PropertyChanged}"
+                             MinWidth="80"
+                             Style="{StaticResource ToolbarTextBoxStyle}"
                              ToolTip="Connection string used for creating, updating, deleting, and refreshing queues, topics, and subscriptions." />
                 </StackPanel>
             </Grid>
         </Border>
 
-        <Grid Grid.Row="3" Margin="12,12,12,8">
+        <Grid Grid.Row="2" Margin="12,12,12,8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="0.28*" MinWidth="240" MaxWidth="380" />
                 <ColumnDefinition Width="8" />
@@ -233,6 +271,22 @@
                             <HierarchicalDataTemplate DataType="{x:Type viewModels:EntityTreeNodeViewModel}"
                                                       ItemsSource="{Binding Children}">
                                 <Grid MinHeight="28" Margin="0,1">
+                                    <Grid.Resources>
+                                        <Style x:Key="TreeNodeTextStyle" TargetType="{x:Type TextBlock}">
+                                            <Setter Property="Foreground" Value="#172033" />
+                                            <Setter Property="VerticalAlignment" Value="Center" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type TreeViewItem}}}" Value="True">
+                                                    <Setter Property="Foreground" Value="White" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                        <Style x:Key="TreeNodeCountsStyle" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource TreeNodeTextStyle}">
+                                            <Setter Property="Foreground" Value="#475569" />
+                                            <Setter Property="FontSize" Value="12" />
+                                            <Setter Property="TextAlignment" Value="Right" />
+                                        </Style>
+                                    </Grid.Resources>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="22" />
                                         <ColumnDefinition Width="*" />
@@ -241,8 +295,8 @@
                                     <Border Width="18" Height="18" CornerRadius="5" Background="{Binding IconBrush}" HorizontalAlignment="Center" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding IconText}" Foreground="White" FontWeight="Bold" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                     </Border>
-                                    <TextBlock Grid.Column="1" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0" />
-                                    <TextBlock Grid.Column="2" Text="{Binding CountsSummary}" Foreground="#637083" FontSize="12" TextAlignment="Right" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" Margin="6,0" Style="{StaticResource TreeNodeTextStyle}" />
+                                    <TextBlock Grid.Column="2" Text="{Binding CountsSummary}" Style="{StaticResource TreeNodeCountsStyle}" />
                                 </Grid>
                             </HierarchicalDataTemplate>
                         </TreeView.Resources>
@@ -598,13 +652,90 @@
                             </Border>
                         </Grid>
 
-                        <Border Grid.Row="3" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,1,0,0" Padding="12,8,12,2">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-                                <DockPanel>
+                        <Border Grid.Row="3" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,1,0,0" Padding="12,6">
+                            <DockPanel LastChildFill="True">
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" Margin="12,0,0,0">
+                                    <Button x:Name="SendMessageButton"
+                                            AutomationProperties.AutomationId="SendMessageButton"
+                                            AutomationProperties.Name="Send New Message"
+                                            Content="Send"
+                                            Command="{Binding MessageInspection.SendMessageCommand}"
+                                            ToolTip="{Binding MessageInspection.SendMessageCommandToolTip}"
+                                            Visibility="{Binding MessageInspection.CanShowSendMessageCommand, Converter={StaticResource BoolToVisibility}}"
+                                            Style="{StaticResource ActionStripButtonStyle}" />
+                                    <Button x:Name="RefreshSubscriptionsButton"
+                                            AutomationProperties.AutomationId="RefreshSubscriptionsButton"
+                                            AutomationProperties.Name="Refresh Subscriptions"
+                                            Content="Refresh Subscriptions"
+                                            Command="{Binding RefreshSelectedTopicSubscriptionsCommand}"
+                                            ToolTip="{Binding RefreshSelectedTopicSubscriptionsCommandToolTip}"
+                                            Visibility="{Binding CanShowRefreshSubscriptionsCommand, Converter={StaticResource BoolToVisibility}}"
+                                            MinWidth="136"
+                                            Style="{StaticResource ActionStripButtonStyle}" />
+                                    <Button x:Name="ReplayDeadLetterButton"
+                                            AutomationProperties.AutomationId="ReplayDeadLetterButton"
+                                            AutomationProperties.Name="Replay DLQ Copy"
+                                            AutomationProperties.HelpText="{Binding MessageInspection.ReplayDeadLetterCommandToolTip}"
+                                            Content="Replay"
+                                            Command="{Binding MessageInspection.ReplayDeadLetterCommand}"
+                                            ToolTip="{Binding MessageInspection.ReplayDeadLetterCommandToolTip}"
+                                            Visibility="{Binding MessageInspection.CanShowDeadLetterCommands, Converter={StaticResource BoolToVisibility}}"
+                                            Background="#0F6CBD"
+                                            BorderBrush="#0F6CBD"
+                                            Foreground="White"
+                                            Style="{StaticResource ActionStripButtonStyle}" />
+                                    <Button x:Name="EditReplayDeadLetterButton"
+                                            AutomationProperties.AutomationId="EditReplayDeadLetterButton"
+                                            AutomationProperties.Name="Edit and Replay DLQ"
+                                            Content="Edit Replay"
+                                            Command="{Binding MessageInspection.EditAndReplayDeadLetterCommand}"
+                                            ToolTip="{Binding MessageInspection.EditAndReplayDeadLetterCommandToolTip}"
+                                            Visibility="{Binding MessageInspection.CanShowDeadLetterCommands, Converter={StaticResource BoolToVisibility}}"
+                                            MinWidth="98"
+                                            Style="{StaticResource ActionStripButtonStyle}" />
+                                    <Button x:Name="DeleteSelectedDeadLetterButton"
+                                            AutomationProperties.AutomationId="DeleteSelectedDeadLetterButton"
+                                            AutomationProperties.Name="Delete Selected DLQ"
+                                            Content="Selected"
+                                            Command="{Binding MessageInspection.DeleteSelectedDeadLetterCommand}"
+                                            ToolTip="{Binding MessageInspection.DeleteSelectedDeadLetterCommandToolTip}"
+                                            Visibility="{Binding MessageInspection.CanShowDeadLetterCommands, Converter={StaticResource BoolToVisibility}}"
+                                            MinWidth="82"
+                                            Style="{StaticResource DangerActionStripButtonStyle}" />
+                                    <Button x:Name="DeleteVisibleDeadLetterButton"
+                                            AutomationProperties.AutomationId="DeleteVisibleDeadLetterButton"
+                                            AutomationProperties.Name="Delete Visible DLQ"
+                                            Content="Visible"
+                                            Command="{Binding MessageInspection.DeleteVisibleDeadLetterCommand}"
+                                            ToolTip="{Binding MessageInspection.DeleteVisibleDeadLetterCommandToolTip}"
+                                            Visibility="{Binding MessageInspection.CanShowDeadLetterCommands, Converter={StaticResource BoolToVisibility}}"
+                                            MinWidth="76"
+                                            Style="{StaticResource DangerActionStripButtonStyle}" />
+                                    <Rectangle Width="1" Height="24" Fill="#D8E0EA" Margin="0,3,8,3" VerticalAlignment="Center" />
+                                    <Button AutomationProperties.Name="Refresh"
+                                            Content="Refresh"
+                                            Command="{Binding RefreshCommand}"
+                                            ToolTip="{Binding RefreshCommandToolTip}"
+                                            Style="{StaticResource ActionStripButtonStyle}" />
+                                    <Button x:Name="UpdateEntityButton"
+                                            AutomationProperties.AutomationId="UpdateEntityButton"
+                                            AutomationProperties.Name="Update"
+                                            Content="Update"
+                                            Command="{Binding UpdateSelectedEntityCommand}"
+                                            ToolTip="{Binding UpdateSelectedEntityCommandToolTip}"
+                                            Visibility="{Binding CanShowSelectedEntityCommands, Converter={StaticResource BoolToVisibility}}"
+                                            Style="{StaticResource ActionStripButtonStyle}" />
+                                    <Button x:Name="DeleteEntityButton"
+                                            AutomationProperties.AutomationId="DeleteEntityButton"
+                                            AutomationProperties.Name="{Binding SelectedEntityDeleteLabel}"
+                                            Content="{Binding SelectedEntityDeleteLabel}"
+                                            Command="{Binding DeleteSelectedEntityCommand}"
+                                            ToolTip="{Binding DeleteSelectedEntityCommandToolTip}"
+                                            Visibility="{Binding CanShowSelectedEntityCommands, Converter={StaticResource BoolToVisibility}}"
+                                            MinWidth="112"
+                                            Style="{StaticResource DangerActionStripButtonStyle}" />
+                                </StackPanel>
+                                <DockPanel VerticalAlignment="Center">
                                     <TextBlock AutomationProperties.AutomationId="MessageInspectionStatusText"
                                                Text="{Binding MessageInspection.Status}"
                                                Foreground="#637083"
@@ -617,95 +748,14 @@
                                                VerticalAlignment="Center"
                                                Margin="12,0,0,0" />
                                 </DockPanel>
-                                <WrapPanel Grid.Row="1" HorizontalAlignment="Right" Margin="0,6,0,0">
-                                    <Button x:Name="SendMessageButton"
-                                            AutomationProperties.AutomationId="SendMessageButton"
-                                            AutomationProperties.Name="Send New Message"
-                                            Content="Send"
-                                            Command="{Binding MessageInspection.SendMessageCommand}"
-                                            ToolTip="{Binding MessageInspection.SendMessageCommandToolTip}"
-                                            Visibility="{Binding MessageInspection.CanShowSendMessageCommand, Converter={StaticResource BoolToVisibility}}"
-                                            Style="{StaticResource ActionButtonStyle}" />
-                                    <Button x:Name="RefreshSubscriptionsButton"
-                                            AutomationProperties.AutomationId="RefreshSubscriptionsButton"
-                                            AutomationProperties.Name="Refresh Subscriptions"
-                                            Content="Refresh Subscriptions"
-                                            Command="{Binding RefreshSelectedTopicSubscriptionsCommand}"
-                                            ToolTip="{Binding RefreshSelectedTopicSubscriptionsCommandToolTip}"
-                                            Visibility="{Binding CanShowRefreshSubscriptionsCommand, Converter={StaticResource BoolToVisibility}}"
-                                            MinWidth="136"
-                                            Style="{StaticResource ActionButtonStyle}" />
-                                    <Button x:Name="ReplayDeadLetterButton"
-                                            AutomationProperties.AutomationId="ReplayDeadLetterButton"
-                                            AutomationProperties.Name="Replay DLQ Copy"
-                                            AutomationProperties.HelpText="{Binding MessageInspection.ReplayDeadLetterCommandToolTip}"
-                                            Content="Replay"
-                                            Command="{Binding MessageInspection.ReplayDeadLetterCommand}"
-                                            ToolTip="{Binding MessageInspection.ReplayDeadLetterCommandToolTip}"
-                                            Visibility="{Binding MessageInspection.CanShowDeadLetterCommands, Converter={StaticResource BoolToVisibility}}"
-                                            Background="#0F6CBD"
-                                            BorderBrush="#0F6CBD"
-                                            Foreground="White"
-                                            Style="{StaticResource ActionButtonStyle}" />
-                                    <Button x:Name="EditReplayDeadLetterButton"
-                                            AutomationProperties.AutomationId="EditReplayDeadLetterButton"
-                                            AutomationProperties.Name="Edit and Replay DLQ"
-                                            Content="Edit Replay"
-                                            Command="{Binding MessageInspection.EditAndReplayDeadLetterCommand}"
-                                            ToolTip="{Binding MessageInspection.EditAndReplayDeadLetterCommandToolTip}"
-                                            Visibility="{Binding MessageInspection.CanShowDeadLetterCommands, Converter={StaticResource BoolToVisibility}}"
-                                            MinWidth="98"
-                                            Style="{StaticResource ActionButtonStyle}" />
-                                    <Button x:Name="DeleteSelectedDeadLetterButton"
-                                            AutomationProperties.AutomationId="DeleteSelectedDeadLetterButton"
-                                            AutomationProperties.Name="Delete Selected DLQ"
-                                            Content="Selected"
-                                            Command="{Binding MessageInspection.DeleteSelectedDeadLetterCommand}"
-                                            ToolTip="{Binding MessageInspection.DeleteSelectedDeadLetterCommandToolTip}"
-                                            Visibility="{Binding MessageInspection.CanShowDeadLetterCommands, Converter={StaticResource BoolToVisibility}}"
-                                            MinWidth="82"
-                                            Style="{StaticResource DangerActionButtonStyle}" />
-                                    <Button x:Name="DeleteVisibleDeadLetterButton"
-                                            AutomationProperties.AutomationId="DeleteVisibleDeadLetterButton"
-                                            AutomationProperties.Name="Delete Visible DLQ"
-                                            Content="Visible"
-                                            Command="{Binding MessageInspection.DeleteVisibleDeadLetterCommand}"
-                                            ToolTip="{Binding MessageInspection.DeleteVisibleDeadLetterCommandToolTip}"
-                                            Visibility="{Binding MessageInspection.CanShowDeadLetterCommands, Converter={StaticResource BoolToVisibility}}"
-                                            MinWidth="76"
-                                            Style="{StaticResource DangerActionButtonStyle}" />
-                                    <Rectangle Width="1" Height="24" Fill="#D8E0EA" Margin="0,3,8,3" />
-                                    <Button AutomationProperties.Name="Refresh"
-                                            Content="Refresh"
-                                            Command="{Binding RefreshCommand}"
-                                            ToolTip="{Binding RefreshCommandToolTip}"
-                                            Style="{StaticResource ActionButtonStyle}" />
-                                    <Button x:Name="UpdateEntityButton"
-                                            AutomationProperties.AutomationId="UpdateEntityButton"
-                                            AutomationProperties.Name="Update"
-                                            Content="Update"
-                                            Command="{Binding UpdateSelectedEntityCommand}"
-                                            ToolTip="{Binding UpdateSelectedEntityCommandToolTip}"
-                                            Visibility="{Binding CanShowSelectedEntityCommands, Converter={StaticResource BoolToVisibility}}"
-                                            Style="{StaticResource ActionButtonStyle}" />
-                                    <Button x:Name="DeleteEntityButton"
-                                            AutomationProperties.AutomationId="DeleteEntityButton"
-                                            AutomationProperties.Name="{Binding SelectedEntityDeleteLabel}"
-                                            Content="{Binding SelectedEntityDeleteLabel}"
-                                            Command="{Binding DeleteSelectedEntityCommand}"
-                                            ToolTip="{Binding DeleteSelectedEntityCommandToolTip}"
-                                            Visibility="{Binding CanShowSelectedEntityCommands, Converter={StaticResource BoolToVisibility}}"
-                                            MinWidth="112"
-                                            Style="{StaticResource DangerActionButtonStyle}" />
-                                </WrapPanel>
-                            </Grid>
+                            </DockPanel>
                         </Border>
                     </Grid>
                 </Grid>
             </Border>
         </Grid>
 
-        <GridSplitter Grid.Row="4"
+        <GridSplitter Grid.Row="3"
                       Height="8"
                       HorizontalAlignment="Stretch"
                       VerticalAlignment="Stretch"
@@ -713,7 +763,7 @@
                       ResizeBehavior="PreviousAndNext"
                       ShowsPreview="True" />
 
-        <Border Grid.Row="5" Margin="12,0,12,8" Background="White" BorderBrush="#D8E0EA" BorderThickness="1" CornerRadius="8">
+        <Border Grid.Row="4" Margin="12,0,12,8" Background="White" BorderBrush="#D8E0EA" BorderThickness="1" CornerRadius="8">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -739,7 +789,7 @@
             </Grid>
         </Border>
 
-        <Border Grid.Row="6" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,1,0,0" Padding="14,0" MinHeight="28">
+        <Border Grid.Row="5" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,1,0,0" Padding="14,0" MinHeight="28">
             <DockPanel>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="{Binding ConnectionStatus}" Foreground="#637083" Margin="0,0,16,0" />

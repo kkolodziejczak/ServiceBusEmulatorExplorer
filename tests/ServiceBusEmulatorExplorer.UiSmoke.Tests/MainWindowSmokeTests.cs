@@ -116,7 +116,7 @@ public sealed class MainWindowSmokeTests
 
     [UiNavigationSmokeFact]
     [Trait("TestCategory", "UiSmoke")]
-    public async Task Context_commands_hide_invalid_actions_and_topic_refresh_keeps_grid_scoped()
+    public async Task Context_commands_hide_invalid_actions_and_topic_refresh_keeps_topic_grid_available()
     {
         string queueName = CreateEntityName("queue");
         string topicName = CreateEntityName("topic");
@@ -159,7 +159,7 @@ public sealed class MainWindowSmokeTests
                 SelectTreeItem(WaitForText(window, topicName, TimeSpan.FromSeconds(10)));
                 Assert.NotNull(WaitForAutomationId(window, "SendMessageButton", TimeSpan.FromSeconds(5)));
                 Assert.NotNull(WaitForAutomationId(window, "RefreshSubscriptionsButton", TimeSpan.FromSeconds(5)));
-                Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("PeekActiveMessagesButton")));
+                Assert.NotNull(WaitForAutomationId(window, "PeekActiveMessagesButton", TimeSpan.FromSeconds(5)));
                 Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("ReplayDeadLetterButton")));
 
                 InvokeButton(window, "RefreshSubscriptionsButton", TimeSpan.FromSeconds(10));

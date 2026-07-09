@@ -65,6 +65,7 @@ public sealed class ShellViewModel : ObservableObject
         _clock = clock;
         MessageInspection = new MessageInspectionViewModel(messageService, deadLetterReplayService, messageDialogService, AddLog);
         MessageInspection.PropertyChanged += MessageInspection_PropertyChanged;
+        MessageInspection.MessageCountsLoaded += MessageInspection_MessageCountsLoaded;
         ConnectCommand = new AsyncRelayCommand(ConnectAsync, CanConnect);
         DisconnectCommand = new AsyncRelayCommand(DisconnectAsync, CanDisconnect);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, CanRefresh);
@@ -503,6 +504,17 @@ public sealed class ShellViewModel : ObservableObject
                     refreshedSubscription.Subscription,
                     refreshedSubscription.ActiveMessages,
                     refreshedSubscription.DeadLetterMessages);
+                ApplyMessageCountUpdates(
+                [
+                    new MessageCountUpdate(
+                        CreateEntityAddress(refreshedSubscription.Subscription),
+                        MessageBucket.Active,
+                        refreshedSubscription.ActiveMessages.Count),
+                    new MessageCountUpdate(
+                        CreateEntityAddress(refreshedSubscription.Subscription),
+                        MessageBucket.DeadLetter,
+                        refreshedSubscription.DeadLetterMessages.Count)
+                ]);
                 AddLog($"Refreshed {refreshedSubscription.Subscription.Metadata.Path}: cached {refreshedSubscription.ActiveMessages.Count} active and {refreshedSubscription.DeadLetterMessages.Count} DLQ message(s).");
             }
 
@@ -593,7 +605,13 @@ public sealed class ShellViewModel : ObservableObject
     {
         ServiceBusEntityNode? entity = node?.Entity;
         _selectedEntity = entity;
-        MessageInspection.SelectEntity(entity);
+        MessageInspection.SelectEntity(entity, GetSelectedTopicSubscriptions(entity));
+        ApplySelectedEntityDetails(entity);
+        NotifyCommandStateChanged();
+    }
+
+    private void ApplySelectedEntityDetails(ServiceBusEntityNode? entity)
+    {
         if (entity is null)
         {
             SelectedEntityTitle = "No entity selected";
@@ -612,7 +630,6 @@ public sealed class ShellViewModel : ObservableObject
             SelectedEntityScheduledCount = "0";
             SelectedEntityTotalCount = "0";
             SelectedEntityDeleteLabel = "Delete Entity";
-            NotifyCommandStateChanged();
             return;
         }
 
@@ -632,12 +649,25 @@ public sealed class ShellViewModel : ObservableObject
         SelectedEntityScheduledCount = entity.Counts.ScheduledMessageCount.ToString();
         SelectedEntityTotalCount = entity.Counts.TotalMessageCount.ToString();
         SelectedEntityDeleteLabel = $"Delete {entity.Kind}";
-        NotifyCommandStateChanged();
     }
 
     private static string CreateCountsText(ServiceBusEntityNode entity)
     {
         return $"Active {entity.Counts.ActiveMessageCount} | DLQ {entity.Counts.DeadLetterMessageCount} | Scheduled {entity.Counts.ScheduledMessageCount} | Total {entity.Counts.TotalMessageCount}";
+    }
+
+    private IReadOnlyList<ServiceBusEntityNode> GetSelectedTopicSubscriptions(ServiceBusEntityNode? entity)
+    {
+        if (entity is not { Kind: EntityKind.Topic })
+        {
+            return [];
+        }
+
+        return _loadedEntities
+            .Where(candidate => candidate.Kind == EntityKind.Subscription
+                && string.Equals(candidate.TopicName, entity.Name, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(candidate => candidate.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private static string CreateMetadataText(ServiceBusEntityNode entity)
@@ -701,6 +731,143 @@ public sealed class ShellViewModel : ObservableObject
         {
             NotifyCommandStateChanged();
         }
+    }
+
+    private void MessageInspection_MessageCountsLoaded(
+        object? sender,
+        IReadOnlyList<MessageCountUpdate> updates)
+    {
+        ApplyMessageCountUpdates(updates);
+    }
+
+    private void ApplyMessageCountUpdates(IReadOnlyList<MessageCountUpdate> updates)
+    {
+        if (updates.Count == 0 || _loadedEntities.Count == 0)
+        {
+            return;
+        }
+
+        _loadedEntities = RecalculateTopicCounts(_loadedEntities.Select(entity => ApplyMessageCountUpdates(entity, updates)).ToList());
+        UpdateEntityTreeNodes();
+        RefreshSelectedEntityCounts();
+    }
+
+    private static ServiceBusEntityNode ApplyMessageCountUpdates(
+        ServiceBusEntityNode entity,
+        IReadOnlyList<MessageCountUpdate> updates)
+    {
+        ServiceBusEntityNode updated = entity;
+        foreach (MessageCountUpdate update in updates)
+        {
+            if (EntityMatchesAddress(updated, update.Address))
+            {
+                updated = updated with { Counts = ApplyMessageCountUpdate(updated.Counts, update) };
+            }
+        }
+
+        return updated;
+    }
+
+    private static EntityRuntimeCounts ApplyMessageCountUpdate(
+        EntityRuntimeCounts counts,
+        MessageCountUpdate update)
+    {
+        long activeCount = update.Bucket == MessageBucket.Active
+            ? update.Count
+            : counts.ActiveMessageCount;
+        long deadLetterCount = update.Bucket == MessageBucket.DeadLetter
+            ? update.Count
+            : counts.DeadLetterMessageCount;
+
+        return counts with
+        {
+            ActiveMessageCount = activeCount,
+            DeadLetterMessageCount = deadLetterCount,
+            TotalMessageCount = activeCount + deadLetterCount + counts.ScheduledMessageCount
+        };
+    }
+
+    private static IReadOnlyList<ServiceBusEntityNode> RecalculateTopicCounts(IReadOnlyList<ServiceBusEntityNode> entities)
+    {
+        return entities
+            .Select(entity => entity.Kind == EntityKind.Topic
+                ? RecalculateTopicCounts(entity, entities)
+                : entity)
+            .ToList();
+    }
+
+    private static ServiceBusEntityNode RecalculateTopicCounts(
+        ServiceBusEntityNode topic,
+        IReadOnlyList<ServiceBusEntityNode> entities)
+    {
+        ServiceBusEntityNode[] subscriptions = entities
+            .Where(entity => entity.Kind == EntityKind.Subscription
+                && string.Equals(entity.TopicName, topic.Name, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (subscriptions.Length == 0)
+        {
+            return topic;
+        }
+
+        long activeCount = subscriptions.Sum(subscription => subscription.Counts.ActiveMessageCount);
+        long deadLetterCount = subscriptions.Sum(subscription => subscription.Counts.DeadLetterMessageCount);
+        long scheduledCount = subscriptions.Sum(subscription => subscription.Counts.ScheduledMessageCount);
+        return topic with
+        {
+            Counts = new EntityRuntimeCounts(
+                activeCount,
+                deadLetterCount,
+                scheduledCount,
+                activeCount + deadLetterCount + scheduledCount)
+        };
+    }
+
+    private void UpdateEntityTreeNodes()
+    {
+        foreach (EntityTreeNodeViewModel root in EntityTree)
+        {
+            UpdateEntityTreeNode(root);
+        }
+    }
+
+    private void UpdateEntityTreeNode(EntityTreeNodeViewModel node)
+    {
+        if (node.Entity is not null)
+        {
+            ServiceBusEntityNode? updatedEntity = FindLoadedEntity(node.Entity);
+            if (updatedEntity is not null)
+            {
+                node.UpdateEntity(updatedEntity);
+            }
+        }
+
+        foreach (EntityTreeNodeViewModel child in node.Children)
+        {
+            UpdateEntityTreeNode(child);
+        }
+    }
+
+    private ServiceBusEntityNode? FindLoadedEntity(ServiceBusEntityNode entity)
+    {
+        return _loadedEntities.FirstOrDefault(candidate => IsSameEntity(candidate, entity));
+    }
+
+    private void RefreshSelectedEntityCounts()
+    {
+        if (_selectedEntity is null)
+        {
+            return;
+        }
+
+        ServiceBusEntityNode? updatedSelectedEntity = FindLoadedEntity(_selectedEntity);
+        if (updatedSelectedEntity is null)
+        {
+            return;
+        }
+
+        _selectedEntity = updatedSelectedEntity;
+        ApplySelectedEntityDetails(updatedSelectedEntity);
+        NotifyCommandStateChanged();
     }
 
     private void CancelRefresh()
@@ -862,7 +1029,7 @@ public sealed class ShellViewModel : ObservableObject
 
     private string CreateRefreshSelectedTopicSubscriptionsToolTip()
     {
-        const string purpose = "Refresh child subscription counts and cache first active/DLQ pages without showing a combined topic grid.";
+        const string purpose = "Refresh child subscription counts and load/cache first active/DLQ pages for topic and subscription views.";
         if (_selectedEntity is not { Kind: EntityKind.Topic })
         {
             return CreateToolTip(purpose, "Select a topic first.");
@@ -899,5 +1066,23 @@ public sealed class ShellViewModel : ObservableObject
     private static string CreateToolTip(string purpose, string? unavailableReason)
     {
         return unavailableReason is null ? purpose : $"{purpose} Unavailable: {unavailableReason}";
+    }
+
+    private static EntityAddress CreateEntityAddress(ServiceBusEntityNode entity)
+    {
+        return entity.Kind switch
+        {
+            EntityKind.Queue => new EntityAddress(EntityKind.Queue, entity.Name),
+            EntityKind.Subscription => new EntityAddress(EntityKind.Subscription, entity.Name, entity.TopicName),
+            EntityKind.Topic => new EntityAddress(EntityKind.Topic, entity.Name),
+            _ => throw new ArgumentOutOfRangeException(nameof(entity), "Unsupported entity kind.")
+        };
+    }
+
+    private static bool EntityMatchesAddress(ServiceBusEntityNode entity, EntityAddress address)
+    {
+        return entity.Kind == address.Kind
+            && string.Equals(entity.Name, address.Name, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(entity.TopicName, address.TopicName, StringComparison.OrdinalIgnoreCase);
     }
 }

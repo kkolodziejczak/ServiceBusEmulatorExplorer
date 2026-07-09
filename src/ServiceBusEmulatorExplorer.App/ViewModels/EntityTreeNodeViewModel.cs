@@ -1,10 +1,14 @@
 using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
 namespace ServiceBusEmulatorExplorer.App.ViewModels;
 
-public sealed class EntityTreeNodeViewModel
+public sealed class EntityTreeNodeViewModel : ObservableObject
 {
+    private string _countsSummary;
+    private ServiceBusEntityNode? _entity;
+
     private EntityTreeNodeViewModel(
         string displayName,
         string countsSummary,
@@ -14,24 +18,38 @@ public sealed class EntityTreeNodeViewModel
         IEnumerable<EntityTreeNodeViewModel>? children = null)
     {
         DisplayName = displayName;
-        CountsSummary = countsSummary;
+        _countsSummary = countsSummary;
         IconText = iconText;
         IconBrush = iconBrush;
-        Entity = entity;
+        _entity = entity;
         Children = new ObservableCollection<EntityTreeNodeViewModel>(children ?? []);
     }
 
     public string DisplayName { get; }
 
-    public string CountsSummary { get; }
+    public string CountsSummary
+    {
+        get => _countsSummary;
+        private set => SetProperty(ref _countsSummary, value);
+    }
 
     public string IconText { get; }
 
     public string IconBrush { get; }
 
-    public ServiceBusEntityNode? Entity { get; }
+    public ServiceBusEntityNode? Entity
+    {
+        get => _entity;
+        private set => SetProperty(ref _entity, value);
+    }
 
     public ObservableCollection<EntityTreeNodeViewModel> Children { get; }
+
+    public void UpdateEntity(ServiceBusEntityNode entity)
+    {
+        Entity = entity;
+        CountsSummary = CreateCountsSummary(entity);
+    }
 
     public static IReadOnlyList<EntityTreeNodeViewModel> CreateTree(
         IEnumerable<ServiceBusEntityNode> entities,

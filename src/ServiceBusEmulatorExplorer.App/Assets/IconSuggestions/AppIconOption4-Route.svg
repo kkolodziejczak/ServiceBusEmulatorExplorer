@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Message route app icon">
+  <defs>
+    <linearGradient id="bg" x1="28" y1="20" x2="230" y2="230" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4338CA" />
+      <stop offset="1" stop-color="#0F766E" />
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="50" fill="url(#bg)" />
+  <path d="M68 83h58c26 0 45 19 45 45s-19 45-45 45H76" fill="none" stroke="#E0F2FE" stroke-width="22" stroke-linecap="round" />
+  <path d="M147 63l35 20-35 20" fill="none" stroke="#A7F3D0" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M88 153l-34 20 34 20" fill="none" stroke="#FDE68A" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="70" cy="83" r="20" fill="#FDE68A" />
+  <circle cx="186" cy="128" r="22" fill="#A7F3D0" />
+  <circle cx="70" cy="173" r="20" fill="#E0F2FE" />
+  <path d="M62 83h16M178 128h16M62 173h16" stroke="#0F172A" stroke-width="8" stroke-linecap="round" />
+</svg>

@@ -1,0 +1,907 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ServiceBusExplorer Reference Gap Analysis</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --text: #17202a;
+      --muted: #56616f;
+      --border: #ccd6e0;
+      --panel: #f7f9fb;
+      --accent: #1f6feb;
+      --ok: #1a7f37;
+      --warn: #9a6700;
+      --risk: #cf222e;
+      --added: #e8f5e9;
+      --changed: #fff8e1;
+      --removed: #ffebee;
+    }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: var(--text);
+      background: #ffffff;
+      line-height: 1.55;
+    }
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+    h1, h2, h3 {
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+    }
+    h2 {
+      margin-top: 34px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+      font-size: 1.35rem;
+    }
+    h3 {
+      margin-top: 24px;
+      font-size: 1.05rem;
+    }
+    a {
+      color: var(--accent);
+    }
+    .meta, .callout {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin: 16px 0;
+    }
+    .meta dl {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 6px 16px;
+      margin: 0;
+    }
+    dt {
+      font-weight: 600;
+    }
+    dd {
+      margin: 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0 22px;
+      font-size: 0.95rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 9px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #eef3f8;
+    }
+    code {
+      font-family: Consolas, "Liberation Mono", monospace;
+      font-size: 0.95em;
+      background: #eef3f8;
+      padding: 1px 4px;
+      border-radius: 4px;
+    }
+    pre {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      background: #0f1720;
+      color: #d6deeb;
+      border-radius: 6px;
+      padding: 16px;
+      line-height: 1.5;
+      tab-size: 4;
+      white-space: pre;
+    }
+    pre code {
+      display: block;
+      background: transparent;
+      color: inherit;
+      padding: 0;
+      border-radius: 0;
+      font-size: 0.92rem;
+    }
+    pre.mermaid {
+      background: #ffffff;
+      color: var(--text);
+      text-align: center;
+    }
+    pre.mermaid[data-processed="true"] {
+      padding: 10px;
+    }
+    .token-keyword {
+      color: #c792ea;
+      font-weight: 600;
+    }
+    .token-type {
+      color: #82aaff;
+    }
+    .token-string {
+      color: #ecc48d;
+    }
+    .token-comment {
+      color: #7f8c98;
+      font-style: italic;
+    }
+    .token-number {
+      color: #f78c6c;
+    }
+    ul {
+      padding-left: 24px;
+    }
+    li {
+      margin: 5px 0;
+    }
+    .status-ok {
+      color: var(--ok);
+      font-weight: 600;
+    }
+    .status-gap {
+      color: var(--warn);
+      font-weight: 600;
+    }
+    .status-risk {
+      color: var(--risk);
+      font-weight: 600;
+    }
+    .diff-added {
+      background: var(--added);
+      border-left: 4px solid var(--ok);
+    }
+    .diff-changed {
+      background: var(--changed);
+      border-left: 4px solid var(--warn);
+    }
+    .diff-removed {
+      background: var(--removed);
+      border-left: 4px solid var(--risk);
+    }
+    .small {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>ServiceBusExplorer Reference Gap Analysis</h1>
+    <p>
+      A comparison spec for improving and testing <strong>ServiceBusEmulatorExplorer</strong> using
+      <a href="https://github.com/paolosalvatori/ServiceBusExplorer">paolosalvatori/ServiceBusExplorer</a>
+      as an illustrative reference, not an architectural authority.
+    </p>
+    <div class="meta">
+      <dl>
+        <dt>Created</dt>
+        <dd>2026-07-09</dd>
+        <dt>Agent</dt>
+        <dd>Codex</dd>
+        <dt>Source Request</dt>
+        <dd>Investigate the reference repository test cases, compare feature set to the current application, and create a spec for improvements/tests.</dd>
+        <dt>Primary Branch</dt>
+        <dd>Existing behavior extension and system-scope gap analysis.</dd>
+        <dt>Related Local Spec</dt>
+        <dd><a href="./wpf-service-bus-emulator-explorer-mvp.html">WPF Service Bus Emulator Explorer MVP</a></dd>
+        <dt>Diagram Viewer</dt>
+        <dd><a id="open-diagram-viewer" href="./mermaid-viewer/mermaid-offline-viewer.html">Open interactive diagram viewer</a></dd>
+      </dl>
+    </div>
+  </header>
+
+  <section id="goal">
+    <h2>Goal</h2>
+    <p>
+      Identify the highest-value Service Bus Explorer parity opportunities that fit this repository's local-emulator
+      mission, and define testable implementation stages for those opportunities without diluting the existing MVP.
+    </p>
+    <p>
+      <strong>North-star constraint:</strong> keep the app focused on reliable local Azure Service Bus emulator
+      operations unless the user explicitly expands scope to cloud namespaces or adjacent Azure messaging products.
+    </p>
+  </section>
+
+  <section id="summary">
+    <h2>Summary</h2>
+    <p>
+      The current application already implements the MVP slice well: WPF shell, connection profiles, queue/topic/subscription
+      entity management, message send/peek, DLQ replay, explicit DLQ delete, integration tests, UI smoke tests, and
+      a manual proof workflow. The reference repository suggests several next improvements, but only some are appropriate
+      for this emulator-first tool.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Priority</th>
+          <th>Recommended Improvement</th>
+          <th>Reason</th>
+          <th>Primary Test Gap</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="diff-added">
+          <td>P1</td>
+          <td>Wire and test Copy Body for active and DLQ messages.</td>
+          <td>Reference tests explicitly cover this and local XAML already exposes a disabled button that says it is not wired.</td>
+          <td>Unit command state tests, clipboard abstraction tests, and a small UI smoke check.</td>
+        </tr>
+        <tr class="diff-added">
+          <td>P1</td>
+          <td>Add a dashboard/count overview for queues and subscriptions.</td>
+          <td>Reference README and testing matrix emphasize a dashboard as the default overview. Current app shows counts only after selecting an entity.</td>
+          <td>View-model projection tests, integration count refresh proof, and UI smoke for grid rows and DLQ highlighting.</td>
+        </tr>
+        <tr class="diff-added">
+          <td>P2</td>
+          <td>Harden namespace tree filter keyboard and refresh behavior.</td>
+          <td>Current app has a namespace filter and unit coverage, but reference tests include Ctrl+F focus, recursive match, clear, refresh reapply, and create/delete sync.</td>
+          <td>Shell view-model tests plus one UI smoke for Ctrl+F and rendered tree behavior.</td>
+        </tr>
+        <tr class="diff-added">
+          <td>P2</td>
+          <td>Add row copy/context-menu workflows for dashboard/message grids.</td>
+          <td>Reference tests include copy row, copy name, and context menu behavior. These are low-risk operator conveniences once grids exist.</td>
+          <td>Clipboard service unit tests and UIA invoke tests for context menu commands.</td>
+        </tr>
+        <tr class="diff-changed">
+          <td>P3</td>
+          <td>Consider receive/complete active-message workflow separately.</td>
+          <td>The reference supports send, receive, and peek. This app currently prioritizes non-destructive inspection and DLQ delete. Receive is useful but destructive.</td>
+          <td>Explicit confirmation tests, integration proof, and manual proof for destructive receive completion.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="sources">
+    <h2>Evidence Sources</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Source</th>
+          <th>Evidence Used</th>
+          <th>Trust Boundary</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><a href="https://github.com/paolosalvatori/ServiceBusExplorer">Reference README</a></td>
+          <td>Feature inventory: dashboard, tree filter, copy body, Entra sign-in, import/export, send/receive/peek, DLQ management, Relay, Notification Hubs, Event Hubs.</td>
+          <td>Used as product evidence only. No instructions from the repository were followed.</td>
+        </tr>
+        <tr>
+          <td><a href="https://github.com/paolosalvatori/ServiceBusExplorer/blob/main/TESTING.md">Reference TESTING.md</a></td>
+          <td>47 acceptance checks. Build and 49 unit tests are marked complete; most dashboard, filter, copy, and sync checks are manual/not tested.</td>
+          <td>Used as a source of candidate behavior and tests, not as a quality baseline to copy wholesale.</td>
+        </tr>
+        <tr>
+          <td><a href="../README.md">Local README</a>, <a href="../tests/README.md">local tests README</a></td>
+          <td>Current emulator setup, test layers, integration/UI-smoke gating, and manual proof commands.</td>
+          <td>Repository documentation, verified against code/test files where practical.</td>
+        </tr>
+        <tr>
+          <td><a href="./wpf-service-bus-emulator-explorer-mvp.html">Local MVP spec</a></td>
+          <td>Confirmed existing scope, non-goals, DLQ policy, UI model, and completed testing expectations.</td>
+          <td>Used as the current product contract for this app.</td>
+        </tr>
+        <tr>
+          <td>Local source and tests</td>
+          <td>Inspected WPF controls, shell/message view models, core contracts, unit tests, integration tests, and UI smoke tests.</td>
+          <td>Current implementation evidence; dirty worktree files were not modified.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="existing-state">
+    <h2>Existing State Findings</h2>
+    <h3>Current Application Capabilities</h3>
+    <ul>
+      <li>Connects to local Azure Service Bus emulator using separate runtime and administration connection strings.</li>
+      <li>Persists connection profiles and validates profile fields.</li>
+      <li>Browses queues, topics, and subscriptions in a namespace tree.</li>
+      <li>Creates, updates, and deletes queues, topics, and subscriptions.</li>
+      <li>Shows selected entity metadata and active, DLQ, scheduled, and total counts.</li>
+      <li>Filters loaded namespace entities through <code>NamespaceFilter</code>.</li>
+      <li>Sends messages to queues and topics.</li>
+      <li>Peeks active and DLQ messages for supported entity scopes with paging.</li>
+      <li>Shows selected message body, system properties, and application properties.</li>
+      <li>Replays selected DLQ messages as new active messages without deleting the original.</li>
+      <li>Deletes selected or visible DLQ messages only through explicit confirmation.</li>
+    </ul>
+
+    <h3>Current Test Coverage</h3>
+    <ul>
+      <li>Core unit tests cover connection validation, profile storage, message preview, replay ID policy, entity tree shaping, request mappers, validators, message projection, and DLQ replay mapping.</li>
+      <li>App unit tests cover shell profile load/connect/refresh, namespace filtering, entity workflow command states, topic subscription refresh failure isolation, send/peek behavior, DLQ command states, replay, edit replay, and delete confirmations.</li>
+      <li>Integration tests cover emulator readiness, entity CRUD, send/peek active and DLQ messages, topic subscription messages, non-destructive DLQ replay, and explicit DLQ delete.</li>
+      <li>UI smoke tests cover launch, connection/navigation, context-aware command visibility, entity dialogs, message detail rendering, DLQ command enablement, DLQ delete confirmation, and replay proof.</li>
+    </ul>
+
+    <h3>Notable Current Gaps</h3>
+    <ul>
+      <li>The XAML contains a visible <code>Copy Body</code> button, but it is intentionally disabled and not wired to a command.</li>
+      <li>No dashboard tab or all-entity count grid exists; counts are entity-detail scoped.</li>
+      <li>No auto-refresh interval or count-alert highlighting exists.</li>
+      <li>No grid row copy, name copy, TSV export, or context menu copy flow exists.</li>
+      <li>No active message receive/complete workflow exists; current message inspection is non-destructive except explicit DLQ delete.</li>
+      <li>No namespace import/export, Entra ID, Event Hubs, Relay, or Notification Hubs scope exists.</li>
+    </ul>
+  </section>
+
+  <section id="scope">
+    <h2>Scope And Non-goals</h2>
+    <h3>In Scope</h3>
+    <ul>
+      <li>Service Bus queue/topic/subscription workflows that can run against the local emulator.</li>
+      <li>Operator convenience improvements that reduce repetitive troubleshooting work.</li>
+      <li>Tests that convert manual/reference acceptance checks into automated local verification where feasible.</li>
+      <li>Preserving non-destructive defaults and explicit destructive confirmation.</li>
+    </ul>
+
+    <h3>Non-goals</h3>
+    <ul>
+      <li>No Entra ID sign-in unless the product scope changes from emulator-first to cloud namespace explorer.</li>
+      <li>No Event Hubs, Relay, or Notification Hubs support in this improvement track.</li>
+      <li>No import/export of full Azure namespace configuration in Stage 1 or Stage 2.</li>
+      <li>No silent receive/complete behavior for active messages.</li>
+      <li>No replacement of the existing MVP spec or rewrite of completed scope.</li>
+    </ul>
+  </section>
+
+  <section id="actors-systems">
+    <h2>Actors And Systems</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Actor/System</th>
+          <th>Role</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Developer or tester</td>
+          <td>Uses the WPF app to inspect and manipulate local emulator data during development and regression testing.</td>
+        </tr>
+        <tr>
+          <td>ServiceBusEmulatorExplorer.App</td>
+          <td>WPF shell, command surface, dashboard/message grids, dialogs, and clipboard interactions.</td>
+        </tr>
+        <tr>
+          <td>ServiceBusEmulatorExplorer.Core</td>
+          <td>Service Bus contracts, SDK mappings, message projection, entity management, and DLQ operations.</td>
+        </tr>
+        <tr>
+          <td>Azure Service Bus emulator</td>
+          <td>Local integration target for administration and runtime operations.</td>
+        </tr>
+        <tr>
+          <td>Windows clipboard</td>
+          <td>Target for copy-body, copy-row, and copy-name workflows through an app-owned abstraction.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="diagrams">
+    <h2>Diagrams</h2>
+    <h3>Use Case Model</h3>
+    <pre class="mermaid" data-title="Use Case Model">
+flowchart LR
+  Dev[Developer or tester]
+  subgraph App[ServiceBusEmulatorExplorer]
+    Connect[Connect to local emulator]
+    Browse[Browse queues, topics, subscriptions]
+    Filter[Filter namespace tree]
+    Dashboard[Review dashboard counts]
+    Copy[Copy body, row, or entity name]
+    SendPeek[Send and peek messages]
+    DLQ[Replay or delete DLQ messages]
+    Receive[Receive active messages with confirmation]
+  end
+  Emulator[Azure Service Bus emulator]
+  Clipboard[Windows clipboard]
+
+  Dev --> Connect
+  Dev --> Browse
+  Dev --> Filter
+  Dev --> Dashboard
+  Dev --> Copy
+  Dev --> SendPeek
+  Dev --> DLQ
+  Dev --> Receive
+  Connect --> Emulator
+  Browse --> Emulator
+  Dashboard --> Emulator
+  SendPeek --> Emulator
+  DLQ --> Emulator
+  Receive --> Emulator
+  Copy --> Clipboard
+    </pre>
+
+    <h3>Prioritized Improvement Flow</h3>
+    <pre class="mermaid" data-title="Prioritized Improvement Flow">
+flowchart TD
+  Start[Current MVP]
+  CopyBody[Stage 1: Copy Body]
+  FilterUx[Stage 2: Filter keyboard and refresh sync]
+  Dashboard[Stage 3: Dashboard overview]
+  RowCopy[Stage 4: Grid row and name copy]
+  Receive[Stage 5: Optional active receive workflow]
+  Cloud[Deferred: Cloud auth and adjacent Azure messaging products]
+
+  Start --> CopyBody
+  CopyBody --> FilterUx
+  FilterUx --> Dashboard
+  Dashboard --> RowCopy
+  RowCopy --> Receive
+  Receive -. requires product scope change .-> Cloud
+    </pre>
+  </section>
+
+  <section id="comparison-matrix">
+    <h2>Feature Comparison Matrix</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Reference Capability</th>
+          <th>Current App</th>
+          <th>Gap Assessment</th>
+          <th>Recommended Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Dashboard tab with active, DLQ, scheduled, and total counts for queues/subscriptions.</td>
+          <td>Selected entity detail shows counts; no all-entity dashboard grid.</td>
+          <td class="status-gap">Missing feature.</td>
+          <td>Add dashboard after copy-body/filter hardening. Reuse existing <code>ServiceBusEntityNode.Counts</code>.</td>
+        </tr>
+        <tr>
+          <td>Dashboard auto-refresh and explicit refresh.</td>
+          <td>Global refresh exists; no dashboard-scoped auto-refresh.</td>
+          <td class="status-gap">Partial.</td>
+          <td>Add manual dashboard refresh first. Defer auto-refresh until cancellation and busy-state behavior is proved.</td>
+        </tr>
+        <tr>
+          <td>DLQ count row highlighting.</td>
+          <td>DLQ count appears in detail text; no overview row highlighting.</td>
+          <td class="status-gap">Missing feature.</td>
+          <td>Add style trigger in dashboard grid and test with fake rows plus one UI smoke.</td>
+        </tr>
+        <tr>
+          <td>TreeView search/filter, recursive matching, Ctrl+F focus.</td>
+          <td>Namespace filter exists with unit coverage for matching subscription parent.</td>
+          <td class="status-ok">Partially implemented.</td>
+          <td>Add tests for Ctrl+F, clear, refresh reapply, and create/delete sync.</td>
+        </tr>
+        <tr>
+          <td>Copy message body.</td>
+          <td>Disabled button states copy body is not wired.</td>
+          <td class="status-risk">Visible incomplete workflow.</td>
+          <td>Wire through clipboard abstraction and test active, DLQ, empty selection, and subscription messages.</td>
+        </tr>
+        <tr>
+          <td>Copy dashboard row/name through Ctrl+C and context menu.</td>
+          <td>No dashboard row context exists.</td>
+          <td class="status-gap">Missing feature.</td>
+          <td>Add after dashboard exists; keep TSV formatting deterministic.</td>
+        </tr>
+        <tr>
+          <td>Send, receive, and peek messages.</td>
+          <td>Send and peek exist; active receive/complete does not.</td>
+          <td class="status-gap">Partial by design.</td>
+          <td>Plan receive as destructive optional workflow with explicit confirmation.</td>
+        </tr>
+        <tr>
+          <td>Dead-letter management.</td>
+          <td>Strong support: peek DLQ, replay copy, edit replay, delete selected, delete visible.</td>
+          <td class="status-ok">Implemented with stronger non-destructive default.</td>
+          <td>Preserve current behavior; do not adopt combined replay-and-delete shortcuts.</td>
+        </tr>
+        <tr>
+          <td>Import/export namespace configuration.</td>
+          <td>Not implemented.</td>
+          <td class="status-gap">Out of MVP.</td>
+          <td>Defer until dashboard and copy workflows are stable.</td>
+        </tr>
+        <tr>
+          <td>Microsoft Entra ID sign-in.</td>
+          <td>Not implemented; app targets local emulator connection strings.</td>
+          <td class="status-gap">Different product scope.</td>
+          <td>Keep out of scope unless cloud namespace exploration is approved.</td>
+        </tr>
+        <tr>
+          <td>Relay, Notification Hubs, Event Hubs support.</td>
+          <td>Not implemented.</td>
+          <td class="status-gap">Different product scope.</td>
+          <td>Do not add to this repository's emulator-first roadmap.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="reference-test-mapping">
+    <h2>Reference Test Mapping</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Reference Test Area</th>
+          <th>Representative Reference Checks</th>
+          <th>Local Status</th>
+          <th>Local Test Recommendation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Build and unit tests</td>
+          <td>Build solution; run 49 unit tests.</td>
+          <td class="status-ok">Local repo has fast unit/view-model tests plus gated integration/UI smoke layers.</td>
+          <td>Keep existing default test command. Add new tests to the same layers rather than copying the reference test structure.</td>
+        </tr>
+        <tr>
+          <td>Tree filter</td>
+          <td>Type filter, clear filter, recursive subscription match, filter after refresh, Ctrl+F focus.</td>
+          <td class="status-ok">Core filter behavior exists; rendered keyboard/focus behavior is not proved.</td>
+          <td>Add shell tests for refresh/create/delete sync and a bounded UI smoke test for Ctrl+F focus.</td>
+        </tr>
+        <tr>
+          <td>Dashboard visibility and counts</td>
+          <td>Default dashboard tab, grid columns, refresh timestamp, queue/subscription rows.</td>
+          <td class="status-gap">No dashboard.</td>
+          <td>Add dashboard view model projection tests before WPF grid work. Integration test should seed queue/topic/subscription counts.</td>
+        </tr>
+        <tr>
+          <td>Dashboard interactions</td>
+          <td>Single-click syncs tree, double-click opens explorer, right-click refresh, row copy, copy name.</td>
+          <td class="status-gap">No dashboard interactions.</td>
+          <td>Stage after dashboard grid exists. Test selection sync in view model first, then one UI smoke path.</td>
+        </tr>
+        <tr>
+          <td>Copy body</td>
+          <td>Enabled for selected active/DLQ/subscription message; disabled without selected body.</td>
+          <td class="status-risk">Visible disabled placeholder.</td>
+          <td>Implement first. Use fake clipboard for unit tests and a UI smoke test that verifies button enabled state without depending on OS clipboard when possible.</td>
+        </tr>
+        <tr>
+          <td>Create/delete sync</td>
+          <td>Dashboard and filter update after queue/topic/subscription creation/deletion.</td>
+          <td class="status-gap">Entity tree refresh exists; dashboard sync not applicable yet.</td>
+          <td>After dashboard, add tests that entity CRUD refresh updates both tree and dashboard projections.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="contracts">
+    <h2>Contracts And Data Examples</h2>
+    <h3>Clipboard Service</h3>
+    <pre><code class="language-csharp">public interface IClipboardService
+{
+    void SetText(string text);
+}
+
+public sealed record ClipboardWriteResult(
+    bool Succeeded,
+    string Message);</code></pre>
+    <p>
+      Keep clipboard access behind a service owned by the app layer so unit tests can verify exact text without touching
+      the real Windows clipboard. UI smoke can verify command enablement and status text; only add real clipboard checks
+      if the desktop session is stable enough.
+    </p>
+
+    <h3>Dashboard Row Projection</h3>
+    <pre><code class="language-csharp">public sealed record EntityDashboardRow(
+    EntityKind Kind,
+    string Name,
+    string Path,
+    long ActiveMessageCount,
+    long DeadLetterMessageCount,
+    long ScheduledMessageCount,
+    long TotalMessageCount,
+    DateTimeOffset? LastRefreshedAtUtc);</code></pre>
+
+    <h3>Example Test Data</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Scenario</th>
+          <th>Seed Data</th>
+          <th>Expected Result</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Copy body active message</td>
+          <td>Queue <code>copy-body-q</code>, active message body <code>{"event":"created"}</code>.</td>
+          <td>Copy Body enabled and clipboard receives the exact body text.</td>
+        </tr>
+        <tr>
+          <td>Dashboard DLQ alert</td>
+          <td>Queue <code>dashboard-dlq-q</code>, one DLQ message.</td>
+          <td>Dashboard row has DLQ count 1 and is visually marked as warning.</td>
+        </tr>
+        <tr>
+          <td>Recursive filter</td>
+          <td>Topic <code>orders</code>, subscription <code>failed-payments</code>.</td>
+          <td>Filtering <code>failed</code> keeps topic parent and matching subscription visible.</td>
+        </tr>
+        <tr>
+          <td>Dashboard copy row</td>
+          <td>Dashboard row for <code>orders / failed-payments</code> with counts 2, 1, 0, 3.</td>
+          <td>Clipboard receives deterministic TSV: <code>orders / failed-payments\tSubscription\t2\t1\t0\t3</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="stage-plan">
+    <h2>Stage Plan</h2>
+    <h3>Stage 1: Wire Copy Body</h3>
+    <ul>
+      <li><input type="checkbox"> Add an app-layer clipboard abstraction.</li>
+      <li><input type="checkbox"> Add <code>CopyBodyCommand</code> to <code>MessageInspectionViewModel</code>.</li>
+      <li><input type="checkbox"> Enable the button only when the selected message body is copyable.</li>
+      <li><input type="checkbox"> Add tests for active message, DLQ message, subscription message, empty selection, and empty body.</li>
+      <li><input type="checkbox"> Add a UI smoke check for rendered command state.</li>
+    </ul>
+
+    <h3>Stage 2: Harden Namespace Filter UX</h3>
+    <ul>
+      <li><input type="checkbox"> Add Ctrl+F input binding to focus and select the filter text box.</li>
+      <li><input type="checkbox"> Prove filter reapplication after refresh.</li>
+      <li><input type="checkbox"> Prove create/delete refresh invalidates stale filter snapshots.</li>
+      <li><input type="checkbox"> Add UI smoke coverage for Ctrl+F focus and one recursive rendered match.</li>
+    </ul>
+
+    <h3>Stage 3: Dashboard Overview</h3>
+    <ul>
+      <li><input type="checkbox"> Add dashboard row projection from loaded queue/subscription entities.</li>
+      <li><input type="checkbox"> Add a Dashboard tab or top-level overview pane without disrupting the existing entity detail workflow.</li>
+      <li><input type="checkbox"> Show columns: Name, Type, Active, DLQ, Scheduled, Total, Last Refreshed.</li>
+      <li><input type="checkbox"> Highlight rows with DLQ count greater than zero.</li>
+      <li><input type="checkbox"> Add manual refresh first; defer auto-refresh unless cancellation and busy-state tests are in place.</li>
+    </ul>
+
+    <h3>Stage 4: Grid Copy And Context Menus</h3>
+    <ul>
+      <li><input type="checkbox"> Add dashboard row copy as deterministic TSV.</li>
+      <li><input type="checkbox"> Add copy name/path context menu command.</li>
+      <li><input type="checkbox"> Add message-grid row copy after message columns are stable.</li>
+      <li><input type="checkbox"> Test keyboard and context-menu activation through command services before broad UI smoke coverage.</li>
+    </ul>
+
+    <h3>Stage 5: Optional Active Receive Workflow</h3>
+    <ul>
+      <li><input type="checkbox"> Decide whether destructive active receive belongs in the product.</li>
+      <li><input type="checkbox"> If approved, design receive/complete as an explicit command with confirmation and operation log entry.</li>
+      <li><input type="checkbox"> Add integration proof that selected active messages disappear only after confirmation.</li>
+      <li><input type="checkbox"> Keep DLQ replay/delete semantics unchanged.</li>
+    </ul>
+  </section>
+
+  <section id="acceptance-criteria">
+    <h2>Acceptance Criteria</h2>
+    <ul>
+      <li><input type="checkbox"> Copy Body works for active messages, DLQ messages, and subscription messages.</li>
+      <li><input type="checkbox"> Copy Body is disabled or blocked with a clear tooltip when no message body is selected.</li>
+      <li><input type="checkbox"> Ctrl+F focuses the namespace filter and selects existing filter text.</li>
+      <li><input type="checkbox"> Filtering preserves parent topic nodes for matching subscriptions.</li>
+      <li><input type="checkbox"> Refresh, create, and delete operations keep the tree filter state coherent.</li>
+      <li><input type="checkbox"> Dashboard shows one row for each queue and each subscription, not topic aggregate rows for subscriptions.</li>
+      <li><input type="checkbox"> Dashboard count columns match SDK runtime counts from the local emulator.</li>
+      <li><input type="checkbox"> Dashboard rows with DLQ count greater than zero are visually distinct and accessible.</li>
+      <li><input type="checkbox"> Dashboard refresh updates both dashboard rows and selected entity counts.</li>
+      <li><input type="checkbox"> Row/name copy formats are deterministic and covered by unit tests.</li>
+      <li><input type="checkbox"> Any destructive receive/complete command is explicitly confirmed and separately tested.</li>
+    </ul>
+  </section>
+
+  <section id="testing-strategy">
+    <h2>Testing Strategy</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Layer</th>
+          <th>Coverage To Add</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Unit: Core</td>
+          <td>Dashboard row projection if placed in core; TSV formatting if domain-owned.</td>
+          <td>Prefer pure projection/formatting tests with no WPF dependency.</td>
+        </tr>
+        <tr>
+          <td>Unit: App</td>
+          <td>Copy body command state, clipboard writes, filter refresh behavior, dashboard selection sync, auto-refresh state if added.</td>
+          <td>Use fake services and fake clipboard. Keep WPF clipboard out of unit tests.</td>
+        </tr>
+        <tr>
+          <td>Integration</td>
+          <td>Dashboard count correctness after seeding active, DLQ, scheduled where emulator supports it; destructive receive if approved.</td>
+          <td>Remain opt-in behind <code>SBE_RUN_INTEGRATION_TESTS</code>.</td>
+        </tr>
+        <tr>
+          <td>UI Smoke</td>
+          <td>Copy Body button enabled state, Ctrl+F focus, dashboard grid row rendering, DLQ row warning, one context-menu command.</td>
+          <td>Use UI Automation patterns. Avoid physical mouse input assumptions.</td>
+        </tr>
+        <tr>
+          <td>Manual Proof</td>
+          <td>Dashboard overview with live emulator data and copy workflows.</td>
+          <td>Add checklist items to manual proof only after the workflow is implemented.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="things-to-do">
+    <h2>Things To Do</h2>
+    <ul>
+      <li><input type="checkbox"> Confirm that the reference repository should remain illustrative, not authoritative.</li>
+      <li><input type="checkbox"> Implement Stage 1 Copy Body as the next narrow vertical slice.</li>
+      <li><input type="checkbox"> Add tests before removing the disabled Copy Body placeholder.</li>
+      <li><input type="checkbox"> Decide whether dashboard should be default tab on connect or a selectable overview tab.</li>
+      <li><input type="checkbox"> Convert only emulator-compatible reference acceptance checks into local automated tests.</li>
+      <li><input type="checkbox"> Leave Entra/Event Hubs/Relay/Notification Hubs out unless product scope changes.</li>
+    </ul>
+  </section>
+
+  <section id="risks-assumptions-deferred">
+    <h2>Risks, Assumptions, And Deferred Choices</h2>
+    <h3>Assumptions</h3>
+    <ul>
+      <li>The user wants improvements that fit the current emulator-first application, not a full clone of ServiceBusExplorer.</li>
+      <li>The reference repository is useful for workflows and tests, but the local MVP spec remains the authoritative product contract.</li>
+      <li>Clipboard behavior should be abstracted because UI smoke tests can be sensitive to desktop session state.</li>
+    </ul>
+    <h3>Risks</h3>
+    <ul>
+      <li>Auto-refresh can create confusing concurrency unless cancellation and busy-state behavior is designed first.</li>
+      <li>Dashboard click-to-select behavior can fight the existing tree/detail workflow if state ownership is not explicit.</li>
+      <li>Active receive/complete can surprise users if it is presented like a read-only inspection command.</li>
+    </ul>
+    <h3>Deferred Choices</h3>
+    <ul>
+      <li>Whether dashboard becomes the default selected tab after connect.</li>
+      <li>Whether to implement auto-refresh and what interval controls are acceptable.</li>
+      <li>Whether active receive/complete belongs in this app.</li>
+      <li>Whether import/export should mean namespace configuration, message bodies, or both.</li>
+      <li>Whether cloud authentication should ever be added to an emulator-focused tool.</li>
+    </ul>
+  </section>
+
+  <section id="definition-of-done">
+    <h2>Definition Of Done</h2>
+    <ul>
+      <li><input type="checkbox"> The selected stage is implemented as one vertical slice.</li>
+      <li><input type="checkbox"> Unit tests cover command state, projection, and formatting behavior.</li>
+      <li><input type="checkbox"> Integration tests cover emulator-dependent behavior when the stage depends on SDK/runtime state.</li>
+      <li><input type="checkbox"> UI smoke tests cover only the rendered behaviors that cannot be proved below WPF.</li>
+      <li><input type="checkbox"> Destructive operations remain explicit and separately confirmed.</li>
+      <li><input type="checkbox"> The existing fast test command remains green without requiring Docker or UI automation.</li>
+      <li><input type="checkbox"> Documentation and manual proof scripts are updated only for implemented behavior.</li>
+    </ul>
+  </section>
+
+  <section id="notes">
+    <h2>Notes</h2>
+    <p>
+      The reference repository's own test document is mostly an acceptance checklist rather than an automated suite.
+      That makes it valuable as a coverage prompt, but not as a direct model for this repository's test architecture.
+      This repo's layered test strategy is stronger for local development because emulator and WPF tests are explicitly gated.
+    </p>
+  </section>
+
+  <section id="change-history">
+    <h2>Change History</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Agent</th>
+          <th>Summary</th>
+          <th>Links</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>2026-07-09</td>
+          <td>Codex</td>
+          <td>Created comparison spec from ServiceBusExplorer README/TESTING evidence and local repository inspection.</td>
+          <td><a href="https://github.com/paolosalvatori/ServiceBusExplorer">Reference repo</a>, <a href="https://github.com/paolosalvatori/ServiceBusExplorer/blob/main/TESTING.md">reference tests</a>, <a href="./wpf-service-bus-emulator-explorer-mvp.html">local MVP spec</a></td>
+        </tr>
+      </tbody>
+    </table>
+</section>
+</main>
+<script src="./mermaid-viewer/vendor/mermaid.min.js"></script>
+<script>
+  (function () {
+    const rawDiagrams = new Map();
+    document.querySelectorAll("pre.mermaid").forEach((block) => {
+      rawDiagrams.set(block, block.textContent.trim());
+    });
+
+    const viewerLink = document.getElementById("open-diagram-viewer");
+    if (viewerLink) {
+      const diagrams = Array.from(rawDiagrams.entries()).map(([block, code], index) => ({
+        title: block.dataset.title || block.closest("section")?.querySelector("h2, h3")?.textContent || `Diagram ${index + 1}`,
+        code
+      }));
+
+      const payload = JSON.stringify({ title: document.title || "Spec diagrams", diagrams });
+      const bytes = new TextEncoder().encode(payload);
+      const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
+      const encoded = btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+      viewerLink.href = `${viewerLink.getAttribute("href")}#diagrams=${encoded}`;
+    }
+
+    document.querySelectorAll("pre code[class^='language-']").forEach((block) => {
+      const language = Array.from(block.classList).find((name) => name.startsWith("language-"))?.slice(9);
+      if (language === "csharp") {
+        highlightCSharp(block);
+      }
+    });
+
+    if (window.mermaid) {
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "strict",
+        theme: "base",
+        themeVariables: {
+          primaryColor: "#eef6ff",
+          primaryBorderColor: "#1f6feb",
+          primaryTextColor: "#17202a",
+          lineColor: "#56616f",
+          fontFamily: "Segoe UI, Arial, sans-serif"
+        }
+      });
+      mermaid.run({ querySelector: "pre.mermaid" });
+    } else {
+      document.querySelectorAll("pre.mermaid").forEach((block) => {
+        block.insertAdjacentHTML(
+          "beforebegin",
+          "<p class=\"small status-risk\">Mermaid runtime could not be loaded. Use the interactive diagram viewer link above.</p>");
+      });
+    }
+
+    function highlightCSharp(block) {
+      let escaped = block.textContent
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+      const protectedSpans = [];
+      escaped = escaped
+        .replace(/(\/\/.*)$/gm, (match) => protect(`<span class="token-comment">${match}</span>`))
+        .replace(/"([^"\\]|\\.)*"/g, (match) => protect(`<span class="token-string">${match}</span>`));
+
+      block.innerHTML = escaped
+        .replace(/\b(\d+)\b/g, '<span class="token-number">$1</span>')
+        .replace(/\b(public|private|protected|internal|sealed|record|class|interface|enum|void|string|bool|int|long|DateTimeOffset|Task|return|get|set|new|null|true|false)\b/g, '<span class="token-keyword">$1</span>')
+        .replace(/\b(IClipboardService|ClipboardWriteResult|EntityDashboardRow|EntityKind)\b/g, '<span class="token-type">$1</span>')
+        .replace(/\u0000(\d+)\u0000/g, (_, index) => protectedSpans[Number(index)]);
+
+      function protect(html) {
+        const index = protectedSpans.push(html) - 1;
+        return `\u0000${index}\u0000`;
+      }
+    }
+  })();
+</script>
+</body>
+</html>

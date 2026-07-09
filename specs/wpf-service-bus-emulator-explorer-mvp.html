@@ -558,9 +558,10 @@ stateDiagram-v2
     </table>
     <h3>Topic Subscription Refresh Workflow</h3>
     <p>
-      Selecting a topic should expose a topic-specific <code>Refresh Subscriptions</code> action. Running it refreshes all child subscriptions one after another,
-      updates counts and cached first active/DLQ pages for each subscription, logs progress, and leaves the message grid bound to the currently selected queue
-      or subscription. The topic view must not display a combined multi-subscription message list.
+      Selecting a topic should expose topic-level message loading through the normal active/DLQ peek commands and a topic-specific
+      <code>Refresh Subscriptions</code> action. Running it refreshes all child subscriptions one after another, updates counts, loads/caches first
+      active/DLQ pages for each subscription, logs progress, and shows a combined topic view annotated with each message's source subscription.
+      Destructive DLQ actions still require selecting a concrete queue or subscription.
     </p>
     <pre class="mermaid" data-title="Topic Subscription Refresh">sequenceDiagram
   actor User
@@ -578,15 +579,15 @@ stateDiagram-v2
     Shell-&gt;&gt;Cache: Store counts and first pages for subscription
     Shell--&gt;&gt;User: Log progress for subscription
   end
-  Shell--&gt;&gt;User: Keep grid unchanged unless a concrete subscription is selected</pre>
+  Shell--&gt;&gt;User: Show combined topic subscription message page</pre>
     <h3>Acceptance Criteria</h3>
     <ul>
       <li><input type="checkbox" checked> Selecting a queue shows queue-valid commands only: send, active/DLQ peek, update, delete, and DLQ actions when the DLQ context has data/selection.</li>
-      <li><input type="checkbox" checked> Selecting a topic shows topic-valid commands only: send, refresh subscriptions, update, and delete topic.</li>
+      <li><input type="checkbox" checked> Selecting a topic shows topic-valid commands only: send, active/DLQ peek across child subscriptions, refresh subscriptions, update, and delete topic.</li>
       <li><input type="checkbox" checked> Selecting a subscription shows subscription-valid commands only: active/DLQ peek, update, delete subscription, and DLQ actions when the DLQ context has data/selection.</li>
       <li><input type="checkbox" checked> Disabled visible commands have tooltips explaining purpose and the specific missing prerequisite or busy state.</li>
       <li><input type="checkbox" checked> The connected control changes from <code>Connect</code> to a disabled connected-state indicator after successful connection, while <code>Disconnect</code> remains available.</li>
-      <li><input type="checkbox" checked> Topic-level subscription refresh updates child subscription counts and cached first active/DLQ pages without switching the message grid to a combined topic view.</li>
+      <li><input type="checkbox" checked> Topic-level subscription refresh updates child subscription counts and loads/caches first active/DLQ pages in a combined topic view.</li>
       <li><input type="checkbox" checked> Topic-level refresh continues through per-subscription failures, reports failures in the operation log, and does not discard successful subscription results.</li>
     </ul>
   </section>
@@ -868,7 +869,7 @@ public interface IDeadLetterReplayService
         <tr><td>Message list</td><td>Copy Body</td><td>Copy the selected message body to clipboard.</td></tr>
         <tr><td>Message detail</td><td>Message Text, System and Custom Properties</td><td>Inspect body, system properties, and application properties.</td></tr>
         <tr><td>Bottom action strip</td><td>Send icon + <code>Send</code></td><td>Send a brand-new message composed by the user to the selected queue or topic.</td></tr>
-        <tr><td>Bottom action strip</td><td>Refresh icon + <code>Refresh Subscriptions</code></td><td>When a topic is selected, refresh all child subscription counts and cached first active/DLQ pages without changing the message grid to a combined topic view.</td></tr>
+        <tr><td>Bottom action strip</td><td>Refresh icon + <code>Refresh Subscriptions</code></td><td>When a topic is selected, refresh all child subscription counts and load/cache first active/DLQ pages in a combined topic view.</td></tr>
         <tr><td>Bottom action strip</td><td>Replay icon + <code>Replay</code></td><td>Replay selected DLQ message as a new active message and leave the original in DLQ.</td></tr>
         <tr><td>Bottom action strip</td><td>Edit icon + <code>Edit Replay</code></td><td>Edit body/properties before replaying a new active message and leave the original in DLQ.</td></tr>
         <tr><td>Bottom action strip</td><td>Delete icon + <code>Selected</code></td><td>Delete selected DLQ messages after explicit confirmation. Full automation name is <code>Delete Selected DLQ</code>.</td></tr>
@@ -1034,7 +1035,7 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
         <tr><td>Navigation smoke</td><td>Tree loads queues/topics/subscriptions, selection updates the detail header, and counts align with loaded data.</td><td>After Stage 2 entity browser is implemented.</td></tr>
         <tr><td>DLQ command smoke</td><td>Selecting a DLQ row enables replay/delete commands and destructive commands require confirmation.</td><td>After Stage 5 DLQ control is implemented.</td></tr>
         <tr><td>Context command smoke</td><td>Selecting queue, topic, and subscription nodes hides commands that do not apply, leaves context-valid blocked commands disabled, and exposes explanatory tooltip text through UI Automation when available.</td><td>When context-aware command visibility is implemented.</td></tr>
-        <tr><td>Topic refresh smoke</td><td>Selecting a topic exposes <code>Refresh Subscriptions</code>; invoking it logs per-subscription progress and leaves the message grid tied to the selected concrete subscription or queue.</td><td>When topic-level subscription refresh is implemented.</td></tr>
+        <tr><td>Topic refresh smoke</td><td>Selecting a topic exposes <code>Refresh Subscriptions</code>; invoking it logs per-subscription progress and shows the combined subscription message page for that topic.</td><td>When topic-level subscription refresh is implemented.</td></tr>
       </tbody>
     </table>
   </section>
@@ -1057,7 +1058,7 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
       <li><input type="checkbox" checked> Add command visibility properties or a command presentation model so commands hidden for context are collapsed while context-valid blocked commands remain visible and disabled.</li>
       <li><input type="checkbox" checked> Add tooltip text for every command describing what it does and, when disabled, why it is unavailable.</li>
       <li><input type="checkbox" checked> Change the connect control to a disabled connected-state indicator with lock/check affordance after a successful connection.</li>
-      <li><input type="checkbox" checked> Add topic-level <code>Refresh Subscriptions</code> that refreshes child subscription counts and cached first active/DLQ message pages without showing a combined topic message grid.</li>
+      <li><input type="checkbox" checked> Add topic-level <code>Refresh Subscriptions</code> that refreshes child subscription counts and loads/caches first active/DLQ message pages in a combined topic message grid.</li>
       <li><input type="checkbox" checked> Add unit and UI smoke coverage for queue/topic/subscription command visibility and topic-level subscription refresh behavior.</li>
     </ul>
   </section>
@@ -1112,7 +1113,7 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
       <li>Whether to add import/export of messages as JSON files.</li>
       <li>Whether to support Azure cloud namespaces with safer profile labeling.</li>
       <li>Whether the gated FlaUI/UIA3 smoke tests should later run in CI or remain local-only for the MVP.</li>
-      <li>Whether to add a later combined topic-level message view. The current decision is to keep message display tied to selected queues/subscriptions only.</li>
+      <li>Whether to add destructive DLQ replay/delete operations from the combined topic-level message view. The current decision is to require selecting a concrete subscription before destructive DLQ actions.</li>
     </ul>
   </section>
 
@@ -1128,7 +1129,7 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
       <li><input type="checkbox" checked> README documents emulator startup, connection strings, and the DLQ workflow.</li>
       <li><input type="checkbox" checked> Code follows method ordering preference and keeps private helpers below their callers in invocation order.</li>
       <li><input type="checkbox" checked> Command surfaces hide context-invalid actions and explain disabled context-valid actions through tooltips.</li>
-      <li><input type="checkbox" checked> Topic-level subscription refresh updates child subscription counts/cache while keeping message grids scoped to selected queues/subscriptions.</li>
+      <li><input type="checkbox" checked> Topic-level subscription refresh updates child subscription counts/cache and shows combined topic message pages with source subscription context.</li>
     </ul>
   </section>
 
@@ -1208,7 +1209,7 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
         <tr>
           <td>2026-07-09</td>
           <td>Codex</td>
-          <td>Added context-aware command visibility rules, connected-state button behavior, and topic-level child subscription refresh that updates counts/cache without introducing a combined topic message grid.</td>
+          <td>Added context-aware command visibility rules, connected-state button behavior, and topic-level child subscription refresh that updates counts/cache.</td>
           <td><a href="#amendment-context-aware-command-surface">Context-aware command amendment</a></td>
         </tr>
       </tbody>

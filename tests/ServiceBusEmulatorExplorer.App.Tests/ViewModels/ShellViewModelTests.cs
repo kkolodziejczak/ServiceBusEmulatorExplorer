@@ -244,7 +244,7 @@ public sealed class ShellViewModelTests
         viewModel.SelectEntity(viewModel.EntityTree[0].Children[1].Children[0]);
 
         Assert.True(viewModel.MessageInspection.SendMessageCommand.CanExecute(null));
-        Assert.False(viewModel.MessageInspection.PeekActiveMessagesCommand.CanExecute(null));
+        Assert.True(viewModel.MessageInspection.PeekActiveMessagesCommand.CanExecute(null));
 
         viewModel.SelectEntity(viewModel.EntityTree[0].Children[1].Children[0].Children[0]);
 
@@ -284,10 +284,10 @@ public sealed class ShellViewModelTests
         viewModel.SelectEntity(viewModel.EntityTree[0].Children[1].Children[0]);
 
         Assert.True(viewModel.MessageInspection.CanShowSendMessageCommand);
-        Assert.False(viewModel.MessageInspection.CanShowPeekMessageCommands);
+        Assert.True(viewModel.MessageInspection.CanShowPeekMessageCommands);
         Assert.False(viewModel.MessageInspection.CanShowDeadLetterCommands);
         Assert.True(viewModel.CanShowRefreshSubscriptionsCommand);
-        Assert.Contains("cache first active/DLQ pages", viewModel.RefreshSelectedTopicSubscriptionsCommandToolTip);
+        Assert.Contains("load/cache first active/DLQ pages", viewModel.RefreshSelectedTopicSubscriptionsCommandToolTip);
 
         viewModel.SelectEntity(viewModel.EntityTree[0].Children[1].Children[0].Children[0]);
 
@@ -318,8 +318,8 @@ public sealed class ShellViewModelTests
         await viewModel.RefreshSelectedTopicSubscriptionsCommand.ExecuteAsync(null);
 
         Assert.Equal(3, messageService.PeekCalls.Count);
-        Assert.Empty(viewModel.MessageInspection.ActiveMessages);
-        Assert.Empty(viewModel.MessageInspection.DeadLetterMessages);
+        Assert.Equal("active cached", Assert.Single(viewModel.MessageInspection.ActiveMessages).Body);
+        Assert.Equal("dlq cached", Assert.Single(viewModel.MessageInspection.DeadLetterMessages).Body);
         Assert.Equal("Refreshed 1 subscription(s) for events; 1 failed.", viewModel.EntityBrowserStatus);
         Assert.Contains(viewModel.OperationLog, entry => entry.Message.Contains("Refresh events/subscriptions/shipping failed:", StringComparison.Ordinal));
 
@@ -328,6 +328,41 @@ public sealed class ShellViewModelTests
         Assert.Equal("active cached", Assert.Single(viewModel.MessageInspection.ActiveMessages).Body);
         Assert.Equal("dlq cached", Assert.Single(viewModel.MessageInspection.DeadLetterMessages).Body);
         Assert.Equal("Loaded cached first pages for events/subscriptions/billing.", viewModel.MessageInspection.Status);
+    }
+
+    [Fact]
+    public async Task PeekActiveMessagesCommand_for_topic_loads_messages_from_all_subscriptions()
+    {
+        ServiceBusEntityNode topic = CreateEntity(EntityKind.Topic, "events", topicName: null, active: 0, deadLetter: 0);
+        ServiceBusEntityNode billing = CreateEntity(EntityKind.Subscription, "billing", "events", active: 1, deadLetter: 0);
+        ServiceBusEntityNode shipping = CreateEntity(EntityKind.Subscription, "shipping", "events", active: 1, deadLetter: 0);
+        ExplorerMessage billingMessage = CreateMessage(sequenceNumber: 7, "billing active", new Dictionary<string, object?>());
+        ExplorerMessage shippingMessage = CreateMessage(sequenceNumber: 11, "shipping active", new Dictionary<string, object?>());
+        var messageService = new FakeMessageService();
+        messageService.PeekResults[(new EntityAddress(EntityKind.Subscription, "billing", "events"), MessageBucket.Active)] = [billingMessage];
+        messageService.PeekResults[(new EntityAddress(EntityKind.Subscription, "shipping", "events"), MessageBucket.Active)] = [shippingMessage];
+        var viewModel = CreateViewModel(
+            administrationService: new FakeAdministrationService([topic, billing, shipping]),
+            messageService: messageService);
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[1].Children[0]);
+        await viewModel.MessageInspection.PeekActiveMessagesCommand.ExecuteAsync(null);
+
+        Assert.Equal(
+            [
+                (new EntityAddress(EntityKind.Subscription, "billing", "events"), MessageBucket.Active),
+                (new EntityAddress(EntityKind.Subscription, "shipping", "events"), MessageBucket.Active)
+            ],
+            messageService.PeekCalls);
+        Assert.Equal(["billing active", "shipping active"], viewModel.MessageInspection.ActiveMessages.Select(message => message.Body));
+        Assert.Contains("SourceSubscription: events/subscriptions/billing", viewModel.MessageInspection.SelectedSystemProperties);
+        Assert.Contains("Loaded 2 active message(s) from events subscriptions.", viewModel.MessageInspection.Status);
+        Assert.Equal("2 / 0", viewModel.EntityTree[0].Children[1].Children[0].CountsSummary);
+        Assert.Equal("1 / 0", viewModel.EntityTree[0].Children[1].Children[0].Children[0].CountsSummary);
+        Assert.Equal("1 / 0", viewModel.EntityTree[0].Children[1].Children[0].Children[1].CountsSummary);
+        Assert.Equal("2", viewModel.SelectedEntityActiveCount);
+        Assert.Equal("2", viewModel.SelectedEntityTotalCount);
     }
 
     [Fact]
@@ -358,6 +393,9 @@ public sealed class ShellViewModelTests
         Assert.Contains("SequenceNumber: 7", viewModel.MessageInspection.SelectedSystemProperties);
         Assert.Contains("source: test", viewModel.MessageInspection.SelectedApplicationProperties);
         Assert.True(viewModel.MessageInspection.PeekNextActiveMessagesCommand.CanExecute(null));
+        Assert.Equal("1 / 0", viewModel.EntityTree[0].Children[0].Children[0].CountsSummary);
+        Assert.Equal("1", viewModel.SelectedEntityActiveCount);
+        Assert.Equal("1", viewModel.SelectedEntityTotalCount);
 
         await viewModel.MessageInspection.PeekNextActiveMessagesCommand.ExecuteAsync(null);
 

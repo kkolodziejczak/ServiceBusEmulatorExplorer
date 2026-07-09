@@ -21,27 +21,37 @@ function Stop-UiSmokeProcesses {
         [System.Diagnostics.Process]$MainProcess
     )
 
-    $descendantProcessIds = @(Get-DescendantProcessIds -ParentProcessId $MainProcess.Id)
-    if (-not $MainProcess.HasExited) {
-        Stop-Process -Id $MainProcess.Id -Force -ErrorAction SilentlyContinue
-    }
-
-    $descendantProcessIds |
-        ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }
-
+    Stop-ProcessTree -ProcessId $MainProcess.Id
     Stop-LaunchedWpfApps -StartedAt $StartedAt
 }
 
-function Get-DescendantProcessIds {
+function Stop-ProcessTree {
     param(
         [Parameter(Mandatory = $true)]
-        [int]$ParentProcessId
+        [int]$ProcessId
     )
 
-    $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $ParentProcessId" -ErrorAction SilentlyContinue)
-    foreach ($child in $children) {
-        [int]$child.ProcessId
-        Get-DescendantProcessIds -ParentProcessId ([int]$child.ProcessId)
+    try {
+        $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+        if ($null -eq $process -or $process.HasExited) {
+            return
+        }
+
+        $taskkill = Join-Path $env:SystemRoot "System32\taskkill.exe"
+        $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+        $startInfo.FileName = $taskkill
+        $startInfo.Arguments = "/PID $ProcessId /T /F"
+        $startInfo.UseShellExecute = $false
+        $startInfo.CreateNoWindow = $true
+
+        $killer = [System.Diagnostics.Process]::Start($startInfo)
+        if ($null -ne $killer -and -not $killer.WaitForExit(5000)) {
+            $killer.Kill()
+            Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
+        }
+    }
+    catch {
+        Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
     }
 }
 
@@ -85,13 +95,16 @@ function Start-CheckedProcess {
     $startInfo.Arguments = Join-ProcessArguments $ArgumentList
     $startInfo.WorkingDirectory = $repoRoot
     $startInfo.UseShellExecute = $false
+    $startInfo.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0"
+    $startInfo.Environment["MSBUILDDISABLENODEREUSE"] = "1"
+    $startInfo.Environment["UseSharedCompilation"] = "false"
 
     $process = [System.Diagnostics.Process]::new()
     $process.StartInfo = $startInfo
+
     if (-not $process.Start()) {
         throw "Failed to start $FileName."
     }
-
     return $process
 }
 
@@ -147,14 +160,31 @@ $arguments = @(
     "--filter",
     $Filter,
     "--logger",
-    "console;verbosity=normal"
+    "console;verbosity=normal",
+    "--blame-hang",
+    "--blame-hang-timeout",
+    "${TimeoutSeconds}s",
+    "-p:UseSharedCompilation=false",
+    "-p:NodeReuse=false"
 )
 
 if ($NoBuild) {
-    $arguments = @("test", $uiSmokeProject, "--no-build", "--filter", $Filter, "--logger", "console;verbosity=normal")
+    $arguments = @(
+        "test",
+        $uiSmokeProject,
+        "--no-build",
+        "--filter",
+        $Filter,
+        "--logger",
+        "console;verbosity=normal",
+        "--blame-hang",
+        "--blame-hang-timeout",
+        "${TimeoutSeconds}s"
+    )
 }
 
 $startedAt = Get-Date
+Write-Host "UI smoke command: dotnet $(Join-ProcessArguments $arguments)"
 $process = Start-CheckedProcess -FileName "dotnet" -ArgumentList $arguments
 
 try {

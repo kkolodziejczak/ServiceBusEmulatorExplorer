@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Queue stack app icon">
+  <defs>
+    <linearGradient id="bg" x1="24" y1="28" x2="226" y2="226" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0E7490" />
+      <stop offset="1" stop-color="#164E63" />
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="44" fill="url(#bg)" />
+  <rect x="48" y="58" width="128" height="38" rx="19" fill="#F0FDFA" />
+  <rect x="48" y="109" width="146" height="38" rx="19" fill="#CCFBF1" />
+  <rect x="48" y="160" width="116" height="38" rx="19" fill="#99F6E4" />
+  <circle cx="70" cy="77" r="9" fill="#155E75" />
+  <circle cx="70" cy="128" r="9" fill="#155E75" />
+  <circle cx="70" cy="179" r="9" fill="#155E75" />
+  <path d="M94 77h54M94 128h72M94 179h42" stroke="#155E75" stroke-width="10" stroke-linecap="round" />
+  <path d="M174 76l30 30-30 30" fill="none" stroke="#FDE68A" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M184 106h-48" stroke="#FDE68A" stroke-width="18" stroke-linecap="round" />
+</svg>
