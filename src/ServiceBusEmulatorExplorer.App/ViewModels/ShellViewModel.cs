@@ -265,6 +265,34 @@ public sealed class ShellViewModel : ObservableObject
             AdministrationConnectionString);
     }
 
+    private async Task<bool> RunShellOperationAsync(
+        string failurePrefix,
+        Func<CancellationToken, Task> operation)
+    {
+        if (IsBusy)
+        {
+            return false;
+        }
+
+        try
+        {
+            IsBusy = true;
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await operation(timeout.Token);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ConnectionStatus = IsConnected ? ConnectionStatus : "Disconnected";
+            AddLog($"{failurePrefix}: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     private async Task DisconnectAsync()
     {
         await RunShellOperationAsync("Disconnect failed", async _ =>
@@ -510,34 +538,6 @@ public sealed class ShellViewModel : ObservableObject
         if (result.Changed && IsConnected)
         {
             await RefreshAsync();
-        }
-    }
-
-    private async Task<bool> RunShellOperationAsync(
-        string failurePrefix,
-        Func<CancellationToken, Task> operation)
-    {
-        if (IsBusy)
-        {
-            return false;
-        }
-
-        try
-        {
-            IsBusy = true;
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            await operation(timeout.Token);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            ConnectionStatus = IsConnected ? ConnectionStatus : "Disconnected";
-            AddLog($"{failurePrefix}: {ex.Message}");
-            return false;
-        }
-        finally
-        {
-            IsBusy = false;
         }
     }
 

@@ -34,18 +34,6 @@ public sealed class ServiceBusMessageService(IServiceBusClientFactory clientFact
         await sender.SendMessageAsync(message, cancellationToken);
     }
 
-    private ServiceBusReceiver CreateReceiver(EntityAddress address, MessageBucket bucket)
-    {
-        var options = new ServiceBusReceiverOptions
-        {
-            SubQueue = bucket == MessageBucket.DeadLetter ? SubQueue.DeadLetter : SubQueue.None
-        };
-
-        return address.Kind == EntityKind.Subscription
-            ? clientFactory.RuntimeClient.CreateReceiver(address.TopicName!, address.Name.Trim(), options)
-            : clientFactory.RuntimeClient.CreateReceiver(address.Name.Trim(), options);
-    }
-
     private static void EnsurePeekAddress(EntityAddress address)
     {
         if (address.Kind == EntityKind.Topic)
@@ -62,5 +50,17 @@ public sealed class ServiceBusMessageService(IServiceBusClientFactory clientFact
         {
             throw new ArgumentException("Topic name is required for subscription messages.");
         }
+    }
+
+    private ServiceBusReceiver CreateReceiver(EntityAddress address, MessageBucket bucket)
+    {
+        var options = new ServiceBusReceiverOptions
+        {
+            SubQueue = bucket == MessageBucket.DeadLetter ? SubQueue.DeadLetter : SubQueue.None
+        };
+
+        return address.Kind == EntityKind.Subscription
+            ? clientFactory.RuntimeClient.CreateReceiver(address.TopicName!, address.Name.Trim(), options)
+            : clientFactory.RuntimeClient.CreateReceiver(address.Name.Trim(), options);
     }
 }

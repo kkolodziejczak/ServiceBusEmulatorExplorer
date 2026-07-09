@@ -9,6 +9,11 @@ public static class DeadLetterReplayMessageMapper
     {
         EnsureValid(request);
 
+        return CreateReplayMessage(request, original);
+    }
+
+    private static ServiceBusMessage CreateReplayMessage(ReplayRequest request, ServiceBusReceivedMessage original)
+    {
         var message = new ServiceBusMessage(CreateBody(request, original))
         {
             MessageId = ReplayMessageIdFactory.Create(request.IdPolicy, original.MessageId),
@@ -20,6 +25,31 @@ public static class DeadLetterReplayMessageMapper
 
         AddApplicationProperties(message, request.ApplicationProperties ?? original.ApplicationProperties);
         return message;
+    }
+
+    private static BinaryData CreateBody(ReplayRequest request, ServiceBusReceivedMessage original)
+    {
+        return request.EditedBody is null
+            ? original.Body
+            : BinaryData.FromString(request.EditedBody);
+    }
+
+    private static string? UseRequestValueOrOriginal(string? requestValue, string? originalValue)
+    {
+        return string.IsNullOrWhiteSpace(requestValue) ? originalValue : requestValue.Trim();
+    }
+
+    private static void AddApplicationProperties(
+        ServiceBusMessage message,
+        IReadOnlyDictionary<string, object?> properties)
+    {
+        foreach (KeyValuePair<string, object?> property in properties)
+        {
+            if (!string.IsNullOrWhiteSpace(property.Key))
+            {
+                message.ApplicationProperties[property.Key.Trim()] = property.Value;
+            }
+        }
     }
 
     public static void EnsureValid(ReplayRequest request)
@@ -81,31 +111,6 @@ public static class DeadLetterReplayMessageMapper
         if (string.IsNullOrWhiteSpace(destination.Name))
         {
             throw new ArgumentException("Replay destination name is required.");
-        }
-    }
-
-    private static string? UseRequestValueOrOriginal(string? requestValue, string? originalValue)
-    {
-        return string.IsNullOrWhiteSpace(requestValue) ? originalValue : requestValue.Trim();
-    }
-
-    private static BinaryData CreateBody(ReplayRequest request, ServiceBusReceivedMessage original)
-    {
-        return request.EditedBody is null
-            ? original.Body
-            : BinaryData.FromString(request.EditedBody);
-    }
-
-    private static void AddApplicationProperties(
-        ServiceBusMessage message,
-        IReadOnlyDictionary<string, object?> properties)
-    {
-        foreach (KeyValuePair<string, object?> property in properties)
-        {
-            if (!string.IsNullOrWhiteSpace(property.Key))
-            {
-                message.ApplicationProperties[property.Key.Trim()] = property.Value;
-            }
         }
     }
 }

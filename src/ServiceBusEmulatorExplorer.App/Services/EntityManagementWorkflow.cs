@@ -20,6 +20,18 @@ public sealed class EntityManagementWorkflow(
             cancellationToken);
     }
 
+    private static async Task<EntityManagementOperationResult> RunAdministrationOperationAsync(
+        Func<CancellationToken, Task> operation,
+        string logMessage,
+        CancellationToken cancellationToken)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+
+        await operation(timeout.Token);
+        return EntityManagementOperationResult.ChangedWithLog(logMessage);
+    }
+
     public async Task<EntityManagementOperationResult> CreateTopicAsync(CancellationToken cancellationToken)
     {
         CreateTopicCommand? command = await entityDialogs.ShowCreateTopicDialogAsync();
@@ -122,18 +134,6 @@ public sealed class EntityManagementWorkflow(
             token => DeleteEntityAsync(entity, token),
             $"Deleted {entity.Kind.ToString().ToLowerInvariant()} {entity.Metadata.Path}.",
             cancellationToken);
-    }
-
-    private static async Task<EntityManagementOperationResult> RunAdministrationOperationAsync(
-        Func<CancellationToken, Task> operation,
-        string logMessage,
-        CancellationToken cancellationToken)
-    {
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(30));
-
-        await operation(timeout.Token);
-        return EntityManagementOperationResult.ChangedWithLog(logMessage);
     }
 
     private async Task DeleteEntityAsync(ServiceBusEntityNode entity, CancellationToken cancellationToken)

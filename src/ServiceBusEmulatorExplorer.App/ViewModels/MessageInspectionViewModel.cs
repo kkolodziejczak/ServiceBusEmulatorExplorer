@@ -191,6 +191,28 @@ public sealed class MessageInspectionViewModel : ObservableObject
         SelectedApplicationProperties = FormatProperties(message.ApplicationProperties);
     }
 
+    private static string FormatProperties(IReadOnlyDictionary<string, object?> properties)
+    {
+        if (properties.Count == 0)
+        {
+            return "(none)";
+        }
+
+        return string.Join(Environment.NewLine, properties.Select(property =>
+            $"{property.Key}: {FormatPropertyValue(property.Value)}"));
+    }
+
+    private static string FormatPropertyValue(object? value)
+    {
+        return value switch
+        {
+            null => "",
+            DateTimeOffset dateTimeOffset => dateTimeOffset.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fff'Z'"),
+            DateTime dateTime => new DateTimeOffset(dateTime).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fff'Z'"),
+            _ => value.ToString() ?? ""
+        };
+    }
+
     private void Reset()
     {
         ActiveMessages.Clear();
@@ -228,6 +250,34 @@ public sealed class MessageInspectionViewModel : ObservableObject
                 await PeekMessagesAsync(MessageBucket.Active, resetPage: true, selectionVersion, cancellationToken);
             }
         });
+    }
+
+    private async Task RunOperationAsync(
+        string failurePrefix,
+        Func<CancellationToken, Task> operation)
+    {
+        if (IsBusy || IsShellBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+            Error = null;
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await operation(timeout.Token);
+        }
+        catch (Exception ex)
+        {
+            Status = "Message operation failed.";
+            Error = ex.Message;
+            _addLog($"{failurePrefix}: {ex.Message}");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private async Task PeekActiveMessagesAsync()
@@ -396,7 +446,7 @@ public sealed class MessageInspectionViewModel : ObservableObject
         }
 
         SetNextSequenceNumber(bucket, messages.Count == 0 ? null : messages.Max(message => message.SequenceNumber) + 1);
-        SelectLoadedMessage(bucket, messages.FirstOrDefault());
+        SelectLoadedMessage(messages.FirstOrDefault());
         Status = $"Loaded {messages.Count} {CreateBucketLabel(bucket)} message(s).";
         _addLog($"Loaded {messages.Count} {CreateBucketLabel(bucket)} message(s) from {entity.Metadata.Path}.");
         NotifyCommandStateChanged();
@@ -411,22 +461,6 @@ public sealed class MessageInspectionViewModel : ObservableObject
             EntityKind.Topic => new EntityAddress(EntityKind.Topic, entity.Name),
             _ => throw new ArgumentOutOfRangeException(nameof(entity), "Unsupported entity kind.")
         };
-    }
-
-    private void SelectLoadedMessage(MessageBucket bucket, ExplorerMessage? message)
-    {
-        if (bucket == MessageBucket.DeadLetter)
-        {
-            _selectedDeadLetterMessage = null;
-            _selectedDeadLetterMessages = [];
-        }
-        else
-        {
-            _selectedDeadLetterMessage = null;
-            _selectedDeadLetterMessages = [];
-        }
-
-        SelectMessage(message);
     }
 
     private long? GetNextSequenceNumber(MessageBucket bucket)
@@ -451,59 +485,29 @@ public sealed class MessageInspectionViewModel : ObservableObject
         }
     }
 
+    private void SelectLoadedMessage(ExplorerMessage? message)
+    {
+        _selectedDeadLetterMessage = null;
+        _selectedDeadLetterMessages = [];
+        SelectMessage(message);
+    }
+
     private static string CreateBucketLabel(MessageBucket bucket)
     {
         return bucket == MessageBucket.Active ? "active" : "DLQ";
     }
 
-    private async Task RunOperationAsync(
-        string failurePrefix,
-        Func<CancellationToken, Task> operation)
+    private void NotifyCommandStateChanged()
     {
-        if (IsBusy || IsShellBusy)
-        {
-            return;
-        }
-
-        try
-        {
-            IsBusy = true;
-            Error = null;
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            await operation(timeout.Token);
-        }
-        catch (Exception ex)
-        {
-            Status = "Message operation failed.";
-            Error = ex.Message;
-            _addLog($"{failurePrefix}: {ex.Message}");
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
-
-    private static string FormatProperties(IReadOnlyDictionary<string, object?> properties)
-    {
-        if (properties.Count == 0)
-        {
-            return "(none)";
-        }
-
-        return string.Join(Environment.NewLine, properties.Select(property =>
-            $"{property.Key}: {FormatPropertyValue(property.Value)}"));
-    }
-
-    private static string FormatPropertyValue(object? value)
-    {
-        return value switch
-        {
-            null => "",
-            DateTimeOffset dateTimeOffset => dateTimeOffset.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fff'Z'"),
-            DateTime dateTime => new DateTimeOffset(dateTime).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fff'Z'"),
-            _ => value.ToString() ?? ""
-        };
+        SendMessageCommand.NotifyCanExecuteChanged();
+        PeekActiveMessagesCommand.NotifyCanExecuteChanged();
+        PeekNextActiveMessagesCommand.NotifyCanExecuteChanged();
+        PeekDeadLetterMessagesCommand.NotifyCanExecuteChanged();
+        PeekNextDeadLetterMessagesCommand.NotifyCanExecuteChanged();
+        ReplayDeadLetterCommand.NotifyCanExecuteChanged();
+        EditAndReplayDeadLetterCommand.NotifyCanExecuteChanged();
+        DeleteSelectedDeadLetterCommand.NotifyCanExecuteChanged();
+        DeleteVisibleDeadLetterCommand.NotifyCanExecuteChanged();
     }
 
     private bool CanSendMessage()
@@ -532,19 +536,6 @@ public sealed class MessageInspectionViewModel : ObservableObject
     private bool CanPeekNextDeadLetterMessages()
     {
         return CanPeekMessages() && _nextDeadLetterSequenceNumber is not null;
-    }
-
-    private void NotifyCommandStateChanged()
-    {
-        SendMessageCommand.NotifyCanExecuteChanged();
-        PeekActiveMessagesCommand.NotifyCanExecuteChanged();
-        PeekNextActiveMessagesCommand.NotifyCanExecuteChanged();
-        PeekDeadLetterMessagesCommand.NotifyCanExecuteChanged();
-        PeekNextDeadLetterMessagesCommand.NotifyCanExecuteChanged();
-        ReplayDeadLetterCommand.NotifyCanExecuteChanged();
-        EditAndReplayDeadLetterCommand.NotifyCanExecuteChanged();
-        DeleteSelectedDeadLetterCommand.NotifyCanExecuteChanged();
-        DeleteVisibleDeadLetterCommand.NotifyCanExecuteChanged();
     }
 
     private bool CanUseSelectedDeadLetterMessage()
