@@ -65,7 +65,6 @@ public sealed class ShellViewModel : ObservableObject
         _clock = clock;
         MessageInspection = new MessageInspectionViewModel(messageService, deadLetterReplayService, messageDialogService, AddLog);
         MessageInspection.PropertyChanged += MessageInspection_PropertyChanged;
-        MessageInspection.MessageCountsLoaded += MessageInspection_MessageCountsLoaded;
         ConnectCommand = new AsyncRelayCommand(ConnectAsync, CanConnect);
         DisconnectCommand = new AsyncRelayCommand(DisconnectAsync, CanDisconnect);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, CanRefresh);
@@ -110,7 +109,7 @@ public sealed class ShellViewModel : ObservableObject
         {
             if (SetProperty(ref _namespaceFilter, value))
             {
-                ApplyEntityTree();
+                ApplyEntityTree(GetSelectedEntityAddress());
             }
         }
     }
@@ -445,6 +444,8 @@ public sealed class ShellViewModel : ObservableObject
 
         try
         {
+            EntityAddress? selectedAddress = GetSelectedEntityAddress();
+            MessagePageContext visiblePageContext = MessageInspection.CaptureVisiblePageContext();
             IsBusy = true;
             IsRefreshing = true;
             EntityBrowserError = null;
@@ -452,7 +453,11 @@ public sealed class ShellViewModel : ObservableObject
 
             IReadOnlyList<ServiceBusEntityNode> entities = await _administrationService.GetEntityTreeAsync(timeout.Token);
             _loadedEntities = entities;
-            ApplyEntityTree();
+            ApplyEntityTree(selectedAddress);
+            if (_selectedEntity is not null)
+            {
+                await MessageInspection.RefreshVisiblePagesAsync(visiblePageContext, timeout.Token);
+            }
             EntityBrowserStatus = $"Loaded {entities.Count} entities.";
             AddLog($"Loaded {entities.Count} namespace entities.");
         }
@@ -496,7 +501,7 @@ public sealed class ShellViewModel : ObservableObject
 
             TopicSubscriptionRefreshResult result = await _topicSubscriptionRefreshWorkflow.RefreshAsync(selectedTopic.Name, timeout.Token);
             _loadedEntities = result.Entities;
-            ApplyEntityTree(selectedTopic);
+            ApplyEntityTree(CreateEntityAddress(selectedTopic));
 
             foreach (RefreshedSubscriptionMessages refreshedSubscription in result.RefreshedSubscriptions)
             {
@@ -504,17 +509,6 @@ public sealed class ShellViewModel : ObservableObject
                     refreshedSubscription.Subscription,
                     refreshedSubscription.ActiveMessages,
                     refreshedSubscription.DeadLetterMessages);
-                ApplyMessageCountUpdates(
-                [
-                    new MessageCountUpdate(
-                        CreateEntityAddress(refreshedSubscription.Subscription),
-                        MessageBucket.Active,
-                        refreshedSubscription.ActiveMessages.Count),
-                    new MessageCountUpdate(
-                        CreateEntityAddress(refreshedSubscription.Subscription),
-                        MessageBucket.DeadLetter,
-                        refreshedSubscription.DeadLetterMessages.Count)
-                ]);
                 AddLog($"Refreshed {refreshedSubscription.Subscription.Metadata.Path}: cached {refreshedSubscription.ActiveMessages.Count} active and {refreshedSubscription.DeadLetterMessages.Count} DLQ message(s).");
             }
 
@@ -548,7 +542,7 @@ public sealed class ShellViewModel : ObservableObject
         }
     }
 
-    private void ApplyEntityTree(ServiceBusEntityNode? entityToSelect = null)
+    private void ApplyEntityTree(EntityAddress? addressToSelect = null)
     {
         EntityTree.Clear();
         foreach (EntityTreeNodeViewModel node in EntityTreeNodeViewModel.CreateTree(_loadedEntities, NamespaceFilter))
@@ -556,14 +550,19 @@ public sealed class ShellViewModel : ObservableObject
             EntityTree.Add(node);
         }
 
-        SelectEntity(entityToSelect is null ? null : FindEntityNode(entityToSelect));
+        SelectEntity(addressToSelect is null ? null : FindEntityNode(addressToSelect));
     }
 
-    private EntityTreeNodeViewModel? FindEntityNode(ServiceBusEntityNode entity)
+    private EntityAddress? GetSelectedEntityAddress()
+    {
+        return _selectedEntity is null ? null : CreateEntityAddress(_selectedEntity);
+    }
+
+    private EntityTreeNodeViewModel? FindEntityNode(EntityAddress address)
     {
         foreach (EntityTreeNodeViewModel root in EntityTree)
         {
-            EntityTreeNodeViewModel? match = FindEntityNode(root, entity);
+            EntityTreeNodeViewModel? match = FindEntityNode(root, address);
             if (match is not null)
             {
                 return match;
@@ -575,16 +574,16 @@ public sealed class ShellViewModel : ObservableObject
 
     private static EntityTreeNodeViewModel? FindEntityNode(
         EntityTreeNodeViewModel current,
-        ServiceBusEntityNode entity)
+        EntityAddress address)
     {
-        if (current.Entity is not null && IsSameEntity(current.Entity, entity))
+        if (current.Entity is not null && EntityMatchesAddress(current.Entity, address))
         {
             return current;
         }
 
         foreach (EntityTreeNodeViewModel child in current.Children)
         {
-            EntityTreeNodeViewModel? match = FindEntityNode(child, entity);
+            EntityTreeNodeViewModel? match = FindEntityNode(child, address);
             if (match is not null)
             {
                 return match;
@@ -592,13 +591,6 @@ public sealed class ShellViewModel : ObservableObject
         }
 
         return null;
-    }
-
-    private static bool IsSameEntity(ServiceBusEntityNode first, ServiceBusEntityNode second)
-    {
-        return first.Kind == second.Kind
-            && string.Equals(first.Name, second.Name, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(first.TopicName, second.TopicName, StringComparison.OrdinalIgnoreCase);
     }
 
     public void SelectEntity(EntityTreeNodeViewModel? node)
@@ -731,143 +723,6 @@ public sealed class ShellViewModel : ObservableObject
         {
             NotifyCommandStateChanged();
         }
-    }
-
-    private void MessageInspection_MessageCountsLoaded(
-        object? sender,
-        IReadOnlyList<MessageCountUpdate> updates)
-    {
-        ApplyMessageCountUpdates(updates);
-    }
-
-    private void ApplyMessageCountUpdates(IReadOnlyList<MessageCountUpdate> updates)
-    {
-        if (updates.Count == 0 || _loadedEntities.Count == 0)
-        {
-            return;
-        }
-
-        _loadedEntities = RecalculateTopicCounts(_loadedEntities.Select(entity => ApplyMessageCountUpdates(entity, updates)).ToList());
-        UpdateEntityTreeNodes();
-        RefreshSelectedEntityCounts();
-    }
-
-    private static ServiceBusEntityNode ApplyMessageCountUpdates(
-        ServiceBusEntityNode entity,
-        IReadOnlyList<MessageCountUpdate> updates)
-    {
-        ServiceBusEntityNode updated = entity;
-        foreach (MessageCountUpdate update in updates)
-        {
-            if (EntityMatchesAddress(updated, update.Address))
-            {
-                updated = updated with { Counts = ApplyMessageCountUpdate(updated.Counts, update) };
-            }
-        }
-
-        return updated;
-    }
-
-    private static EntityRuntimeCounts ApplyMessageCountUpdate(
-        EntityRuntimeCounts counts,
-        MessageCountUpdate update)
-    {
-        long activeCount = update.Bucket == MessageBucket.Active
-            ? update.Count
-            : counts.ActiveMessageCount;
-        long deadLetterCount = update.Bucket == MessageBucket.DeadLetter
-            ? update.Count
-            : counts.DeadLetterMessageCount;
-
-        return counts with
-        {
-            ActiveMessageCount = activeCount,
-            DeadLetterMessageCount = deadLetterCount,
-            TotalMessageCount = activeCount + deadLetterCount + counts.ScheduledMessageCount
-        };
-    }
-
-    private static IReadOnlyList<ServiceBusEntityNode> RecalculateTopicCounts(IReadOnlyList<ServiceBusEntityNode> entities)
-    {
-        return entities
-            .Select(entity => entity.Kind == EntityKind.Topic
-                ? RecalculateTopicCounts(entity, entities)
-                : entity)
-            .ToList();
-    }
-
-    private static ServiceBusEntityNode RecalculateTopicCounts(
-        ServiceBusEntityNode topic,
-        IReadOnlyList<ServiceBusEntityNode> entities)
-    {
-        ServiceBusEntityNode[] subscriptions = entities
-            .Where(entity => entity.Kind == EntityKind.Subscription
-                && string.Equals(entity.TopicName, topic.Name, StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-        if (subscriptions.Length == 0)
-        {
-            return topic;
-        }
-
-        long activeCount = subscriptions.Sum(subscription => subscription.Counts.ActiveMessageCount);
-        long deadLetterCount = subscriptions.Sum(subscription => subscription.Counts.DeadLetterMessageCount);
-        long scheduledCount = subscriptions.Sum(subscription => subscription.Counts.ScheduledMessageCount);
-        return topic with
-        {
-            Counts = new EntityRuntimeCounts(
-                activeCount,
-                deadLetterCount,
-                scheduledCount,
-                activeCount + deadLetterCount + scheduledCount)
-        };
-    }
-
-    private void UpdateEntityTreeNodes()
-    {
-        foreach (EntityTreeNodeViewModel root in EntityTree)
-        {
-            UpdateEntityTreeNode(root);
-        }
-    }
-
-    private void UpdateEntityTreeNode(EntityTreeNodeViewModel node)
-    {
-        if (node.Entity is not null)
-        {
-            ServiceBusEntityNode? updatedEntity = FindLoadedEntity(node.Entity);
-            if (updatedEntity is not null)
-            {
-                node.UpdateEntity(updatedEntity);
-            }
-        }
-
-        foreach (EntityTreeNodeViewModel child in node.Children)
-        {
-            UpdateEntityTreeNode(child);
-        }
-    }
-
-    private ServiceBusEntityNode? FindLoadedEntity(ServiceBusEntityNode entity)
-    {
-        return _loadedEntities.FirstOrDefault(candidate => IsSameEntity(candidate, entity));
-    }
-
-    private void RefreshSelectedEntityCounts()
-    {
-        if (_selectedEntity is null)
-        {
-            return;
-        }
-
-        ServiceBusEntityNode? updatedSelectedEntity = FindLoadedEntity(_selectedEntity);
-        if (updatedSelectedEntity is null)
-        {
-            return;
-        }
-
-        _selectedEntity = updatedSelectedEntity;
-        ApplySelectedEntityDetails(updatedSelectedEntity);
-        NotifyCommandStateChanged();
     }
 
     private void CancelRefresh()

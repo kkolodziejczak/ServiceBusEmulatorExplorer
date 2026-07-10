@@ -355,6 +355,7 @@ public sealed class MainWindowSmokeTests
                 SelectDataItem(previewElement);
 
                 TextBox bodyTextBox = WaitForAutomationId(window, "SelectedMessageBodyText", TimeSpan.FromSeconds(10)).AsTextBox();
+                SelectTab(window, "Properties", TimeSpan.FromSeconds(5));
                 TextBox systemPropertiesTextBox = WaitForAutomationId(window, "SelectedMessageSystemPropertiesText", TimeSpan.FromSeconds(10)).AsTextBox();
                 TextBox applicationPropertiesTextBox = WaitForAutomationId(window, "SelectedMessageApplicationPropertiesText", TimeSpan.FromSeconds(10)).AsTextBox();
 

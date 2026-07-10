@@ -162,6 +162,117 @@ public sealed class ShellViewModelTests
     }
 
     [Fact]
+    public async Task PeekActiveMessagesCommand_does_not_replace_authoritative_total_with_page_length()
+    {
+        ServiceBusEntityNode queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 125, deadLetter: 3);
+        var messageService = new FakeMessageService
+        {
+            PeekResult = Enumerable.Range(1, 50)
+                .Select(sequenceNumber => CreateMessage(sequenceNumber, $"message {sequenceNumber}", new Dictionary<string, object?>()))
+                .ToList()
+        };
+        var viewModel = CreateViewModel(
+            administrationService: new FakeAdministrationService([queue]),
+            messageService: messageService);
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0].Children[0]);
+        await viewModel.MessageInspection.PeekActiveMessagesCommand.ExecuteAsync(null);
+
+        Assert.Equal(50, viewModel.MessageInspection.ActiveMessages.Count);
+        Assert.Equal("125", viewModel.SelectedEntityActiveCount);
+        Assert.Equal("128", viewModel.SelectedEntityTotalCount);
+        Assert.Equal("125 / 3", viewModel.EntityTree[0].Children[0].Children[0].CountsSummary);
+    }
+
+    [Fact]
+    public async Task RefreshCommand_preserves_selected_entity_and_refreshes_visible_page()
+    {
+        ServiceBusEntityNode initialQueue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 1, deadLetter: 0);
+        ServiceBusEntityNode refreshedQueue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 2, deadLetter: 0);
+        var administrationService = new FakeAdministrationService([initialQueue]);
+        var messageService = new FakeMessageService();
+        messageService.PeekResultSequence.Enqueue([CreateMessage(1, "before refresh", new Dictionary<string, object?>())]);
+        messageService.PeekResultSequence.Enqueue([CreateMessage(2, "after refresh", new Dictionary<string, object?>())]);
+        var viewModel = CreateViewModel(administrationService: administrationService, messageService: messageService);
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0].Children[0]);
+        await viewModel.MessageInspection.PeekActiveMessagesCommand.ExecuteAsync(null);
+        administrationService.NextEntityTreeResults.Enqueue([refreshedQueue]);
+
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+
+        Assert.Equal("orders", viewModel.SelectedEntityTitle);
+        Assert.Equal("2", viewModel.SelectedEntityActiveCount);
+        Assert.Equal("after refresh", Assert.Single(viewModel.MessageInspection.ActiveMessages).Body);
+        Assert.Equal(2, messageService.PeekCallCount);
+    }
+
+    [Fact]
+    public async Task RefreshCommand_clears_selection_and_pages_when_selected_entity_was_deleted()
+    {
+        ServiceBusEntityNode queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 1, deadLetter: 0);
+        var administrationService = new FakeAdministrationService([queue]);
+        var messageService = new FakeMessageService { PeekResult = [CreateMessage(1, "stale", new Dictionary<string, object?>())] };
+        var viewModel = CreateViewModel(administrationService: administrationService, messageService: messageService);
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0].Children[0]);
+        await viewModel.MessageInspection.PeekActiveMessagesCommand.ExecuteAsync(null);
+        administrationService.NextEntityTreeResults.Enqueue([]);
+
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+
+        Assert.Equal("No entity selected", viewModel.SelectedEntityTitle);
+        Assert.Empty(viewModel.MessageInspection.ActiveMessages);
+        Assert.False(viewModel.CanShowSelectedEntityCommands);
+    }
+
+    [Fact]
+    public async Task NamespaceFilter_clears_selection_and_pages_when_selected_entity_is_filtered_out()
+    {
+        ServiceBusEntityNode queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 1, deadLetter: 0);
+        var messageService = new FakeMessageService { PeekResult = [CreateMessage(1, "stale", new Dictionary<string, object?>())] };
+        var viewModel = CreateViewModel(
+            administrationService: new FakeAdministrationService([queue]),
+            messageService: messageService);
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0].Children[0]);
+        await viewModel.MessageInspection.PeekActiveMessagesCommand.ExecuteAsync(null);
+
+        viewModel.NamespaceFilter = "billing";
+
+        Assert.Equal("No entity selected", viewModel.SelectedEntityTitle);
+        Assert.Empty(viewModel.MessageInspection.ActiveMessages);
+        Assert.False(viewModel.CanShowSelectedEntityCommands);
+    }
+
+    [Fact]
+    public async Task Disconnect_and_reconnect_cannot_restore_cached_messages_from_prior_session()
+    {
+        ServiceBusEntityNode topic = CreateEntity(EntityKind.Topic, "events", topicName: null, active: 1, deadLetter: 0);
+        ServiceBusEntityNode subscription = CreateEntity(EntityKind.Subscription, "billing", "events", active: 1, deadLetter: 0);
+        var messageService = new FakeMessageService();
+        messageService.PeekResults[(new EntityAddress(EntityKind.Subscription, "billing", "events"), MessageBucket.Active)] =
+            [CreateMessage(1, "prior session", new Dictionary<string, object?>())];
+        var viewModel = CreateViewModel(
+            administrationService: new FakeAdministrationService([topic, subscription]),
+            messageService: messageService);
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[1].Children[0]);
+        await viewModel.RefreshSelectedTopicSubscriptionsCommand.ExecuteAsync(null);
+        await viewModel.DisconnectCommand.ExecuteAsync(null);
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[1].Children[0].Children[0]);
+
+        Assert.Empty(viewModel.MessageInspection.ActiveMessages);
+        Assert.DoesNotContain("prior session", viewModel.MessageInspection.SelectedBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task CreateQueueCommand_runs_workflow_and_refreshes_tree()
     {
         var administrationService = new FakeAdministrationService([]);
@@ -651,6 +762,8 @@ public sealed class ShellViewModelTests
 
     private sealed class FakeAdministrationService(IReadOnlyList<ServiceBusEntityNode> entities) : IServiceBusAdministrationService
     {
+        public Queue<IReadOnlyList<ServiceBusEntityNode>> NextEntityTreeResults { get; } = [];
+
         public bool GetEntityTreeCalled { get; private set; }
 
         public int GetEntityTreeCallCount { get; private set; }
@@ -665,7 +778,10 @@ public sealed class ShellViewModelTests
         {
             GetEntityTreeCalled = true;
             GetEntityTreeCallCount++;
-            return Task.FromResult(entities);
+            IReadOnlyList<ServiceBusEntityNode> snapshot = NextEntityTreeResults.Count == 0
+                ? entities
+                : NextEntityTreeResults.Dequeue();
+            return Task.FromResult(EntityTreeBuilder.AggregateTopicCounts(snapshot));
         }
 
         public Task CreateQueueAsync(CreateQueueCommand command, CancellationToken cancellationToken)
@@ -777,6 +893,8 @@ public sealed class ShellViewModelTests
 
         public IReadOnlyList<ExplorerMessage> PeekResult { get; init; } = [];
 
+        public Queue<IReadOnlyList<ExplorerMessage>> PeekResultSequence { get; } = [];
+
         public Dictionary<(EntityAddress Address, MessageBucket Bucket), IReadOnlyList<ExplorerMessage>> PeekResults { get; } = [];
 
         public HashSet<EntityAddress> FailingAddresses { get; } = [];
@@ -838,6 +956,11 @@ public sealed class ShellViewModelTests
             if (_releasePeek is not null)
             {
                 await _releasePeek.Task.WaitAsync(cancellationToken);
+            }
+
+            if (PeekResultSequence.Count > 0)
+            {
+                return PeekResultSequence.Dequeue();
             }
 
             return PeekResults.TryGetValue((PeekAddress!, PeekBucket!.Value), out IReadOnlyList<ExplorerMessage>? result)

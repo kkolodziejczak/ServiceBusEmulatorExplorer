@@ -57,6 +57,38 @@ public static class EntityTreeBuilder
         return source.Name;
     }
 
+    public static IReadOnlyList<ServiceBusEntityNode> AggregateTopicCounts(
+        IReadOnlyList<ServiceBusEntityNode> nodes)
+    {
+        return nodes
+            .Select(node => node.Kind == EntityKind.Topic
+                ? AggregateTopicCounts(node, nodes)
+                : node)
+            .ToList();
+    }
+
+    private static ServiceBusEntityNode AggregateTopicCounts(
+        ServiceBusEntityNode topic,
+        IReadOnlyList<ServiceBusEntityNode> nodes)
+    {
+        ServiceBusEntityNode[] subscriptions = nodes
+            .Where(node => node.Kind == EntityKind.Subscription
+                && string.Equals(node.TopicName, topic.Name, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        long activeCount = subscriptions.Sum(subscription => subscription.Counts.ActiveMessageCount);
+        long deadLetterCount = subscriptions.Sum(subscription => subscription.Counts.DeadLetterMessageCount);
+        long scheduledCount = topic.Counts.ScheduledMessageCount;
+        return topic with
+        {
+            Counts = new EntityRuntimeCounts(
+                activeCount,
+                deadLetterCount,
+                scheduledCount,
+                activeCount + deadLetterCount + scheduledCount)
+        };
+    }
+
     public static IReadOnlyList<ServiceBusEntityNode> SortForNavigation(IEnumerable<ServiceBusEntityNode> nodes)
     {
         return nodes

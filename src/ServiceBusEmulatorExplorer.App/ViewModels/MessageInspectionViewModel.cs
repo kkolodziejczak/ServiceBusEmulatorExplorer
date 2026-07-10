@@ -31,6 +31,8 @@ public sealed class MessageInspectionViewModel : ObservableObject
     private long? _nextDeadLetterSequenceNumber;
     private int _selectedMessageTabIndex = 1;
     private int _selectionVersion;
+    private bool _hasLoadedActivePage;
+    private bool _hasLoadedDeadLetterPage;
 
     public MessageInspectionViewModel(
         IServiceBusMessageService messageService,
@@ -90,6 +92,7 @@ public sealed class MessageInspectionViewModel : ObservableObject
         {
             if (SetProperty(ref _isConnected, value))
             {
+                ResetConnectionSession();
                 NotifyCommandStateChanged();
             }
         }
@@ -183,8 +186,6 @@ public sealed class MessageInspectionViewModel : ObservableObject
 
     public string DeleteVisibleDeadLetterCommandToolTip => CreateDeleteVisibleDeadLetterToolTip();
 
-    public event EventHandler<IReadOnlyList<MessageCountUpdate>>? MessageCountsLoaded;
-
     public void SelectEntity(ServiceBusEntityNode? entity)
     {
         SelectEntity(entity, []);
@@ -232,11 +233,17 @@ public sealed class MessageInspectionViewModel : ObservableObject
         EntityAddress address = CreateEntityAddress(entity);
         _cachedMessages[address] = new CachedMessagePages(activeMessages, deadLetterMessages);
 
-        if (_selectedEntity == entity || IsCachedSubscriptionForSelectedTopic(entity))
+        if (IsSelectedEntity(entity) || IsCachedSubscriptionForSelectedTopic(entity))
         {
             ApplyCachedMessages(_selectedEntity);
             NotifyCommandStateChanged();
         }
+    }
+
+    private bool IsSelectedEntity(ServiceBusEntityNode entity)
+    {
+        return _selectedEntity is not null
+            && CreateEntityAddress(_selectedEntity) == CreateEntityAddress(entity);
     }
 
     private bool IsCachedSubscriptionForSelectedTopic(ServiceBusEntityNode entity)
@@ -266,9 +273,11 @@ public sealed class MessageInspectionViewModel : ObservableObject
 
         ApplyCachedMessagePage(ActiveMessages, cachedMessages.ActiveMessages);
         ApplyCachedMessagePage(DeadLetterMessages, cachedMessages.DeadLetterMessages);
+        _hasLoadedActivePage = cachedMessages.ActiveMessages is not null;
+        _hasLoadedDeadLetterPage = cachedMessages.DeadLetterMessages is not null;
         _nextActiveSequenceNumber = GetNextSequenceNumber(cachedMessages.ActiveMessages);
         _nextDeadLetterSequenceNumber = GetNextSequenceNumber(cachedMessages.DeadLetterMessages);
-        SelectLoadedMessage(cachedMessages.ActiveMessages.FirstOrDefault() ?? cachedMessages.DeadLetterMessages.FirstOrDefault());
+        SelectLoadedMessage(cachedMessages.ActiveMessages?.FirstOrDefault() ?? cachedMessages.DeadLetterMessages?.FirstOrDefault());
         Status = $"Loaded cached first pages for {entity.Metadata.Path}.";
     }
 
@@ -289,10 +298,19 @@ public sealed class MessageInspectionViewModel : ObservableObject
             }
 
             cachedSubscriptionCount++;
-            activeMessages.AddRange(AddSourceProperties(cachedMessages.ActiveMessages, subscription));
-            deadLetterMessages.AddRange(AddSourceProperties(cachedMessages.DeadLetterMessages, subscription));
-            _nextTopicActiveSequenceNumbers[address] = GetNextSequenceNumber(cachedMessages.ActiveMessages);
-            _nextTopicDeadLetterSequenceNumbers[address] = GetNextSequenceNumber(cachedMessages.DeadLetterMessages);
+            if (cachedMessages.ActiveMessages is not null)
+            {
+                activeMessages.AddRange(AddSourceProperties(cachedMessages.ActiveMessages, subscription));
+                _nextTopicActiveSequenceNumbers[address] = GetNextSequenceNumber(cachedMessages.ActiveMessages);
+                _hasLoadedActivePage = true;
+            }
+
+            if (cachedMessages.DeadLetterMessages is not null)
+            {
+                deadLetterMessages.AddRange(AddSourceProperties(cachedMessages.DeadLetterMessages, subscription));
+                _nextTopicDeadLetterSequenceNumbers[address] = GetNextSequenceNumber(cachedMessages.DeadLetterMessages);
+                _hasLoadedDeadLetterPage = true;
+            }
         }
 
         if (cachedSubscriptionCount == 0)
@@ -308,8 +326,13 @@ public sealed class MessageInspectionViewModel : ObservableObject
 
     private static void ApplyCachedMessagePage(
         ObservableCollection<ExplorerMessage> target,
-        IReadOnlyList<ExplorerMessage> messages)
+        IReadOnlyList<ExplorerMessage>? messages)
     {
+        if (messages is null)
+        {
+            return;
+        }
+
         target.Clear();
         foreach (ExplorerMessage message in messages)
         {
@@ -317,9 +340,9 @@ public sealed class MessageInspectionViewModel : ObservableObject
         }
     }
 
-    private static long? GetNextSequenceNumber(IReadOnlyList<ExplorerMessage> messages)
+    private static long? GetNextSequenceNumber(IReadOnlyList<ExplorerMessage>? messages)
     {
-        return messages.Count == 0 ? null : messages.Max(message => message.SequenceNumber) + 1;
+        return messages is null || messages.Count == 0 ? null : messages.Max(message => message.SequenceNumber) + 1;
     }
 
     public void SelectActiveMessage(ExplorerMessage? message)
@@ -393,9 +416,41 @@ public sealed class MessageInspectionViewModel : ObservableObject
         _nextDeadLetterSequenceNumber = null;
         _nextTopicActiveSequenceNumbers.Clear();
         _nextTopicDeadLetterSequenceNumbers.Clear();
+        _hasLoadedActivePage = false;
+        _hasLoadedDeadLetterPage = false;
         SelectMessage(null);
         Error = null;
         Status = "Select a queue or subscription to inspect messages.";
+    }
+
+    private void ResetConnectionSession()
+    {
+        _cachedMessages.Clear();
+        _selectedEntity = null;
+        _selectedTopicSubscriptions = [];
+        _selectionVersion++;
+        Reset();
+    }
+
+    public MessagePageContext CaptureVisiblePageContext()
+    {
+        return new MessagePageContext(_hasLoadedActivePage, _hasLoadedDeadLetterPage);
+    }
+
+    public async Task RefreshVisiblePagesAsync(
+        MessagePageContext context,
+        CancellationToken cancellationToken)
+    {
+        int selectionVersion = _selectionVersion;
+        if (context.HasActivePage)
+        {
+            await PeekMessagesAsync(MessageBucket.Active, resetPage: true, selectionVersion, cancellationToken);
+        }
+
+        if (context.HasDeadLetterPage)
+        {
+            await PeekMessagesAsync(MessageBucket.DeadLetter, resetPage: true, selectionVersion, cancellationToken);
+        }
     }
 
     private async Task SendMessageAsync()
@@ -719,7 +774,8 @@ public sealed class MessageInspectionViewModel : ObservableObject
         }
 
         SetNextSequenceNumber(bucket, messages.Count == 0 ? null : messages.Max(message => message.SequenceNumber) + 1);
-        PublishMessageCountUpdate(new MessageCountUpdate(address, bucket, messages.Count));
+        CacheMessagePage(entity, bucket, messages);
+        SetPageLoaded(bucket);
         SelectLoadedMessage(messages.FirstOrDefault());
         Status = $"Loaded {messages.Count} {CreateBucketLabel(bucket)} message(s).";
         _addLog($"Loaded {messages.Count} {CreateBucketLabel(bucket)} message(s) from {entity.Metadata.Path}.");
@@ -751,7 +807,6 @@ public sealed class MessageInspectionViewModel : ObservableObject
         }
 
         List<ExplorerMessage> messages = [];
-        List<MessageCountUpdate> countUpdates = [];
         int failureCount = 0;
 
         foreach (ServiceBusEntityNode subscription in _selectedTopicSubscriptions)
@@ -779,7 +834,6 @@ public sealed class MessageInspectionViewModel : ObservableObject
                 messages.AddRange(AddSourceProperties(subscriptionMessages, subscription));
                 SetTopicNextSequenceNumber(bucket, address, GetNextSequenceNumber(subscriptionMessages));
                 CacheTopicSubscriptionPage(subscription, bucket, subscriptionMessages);
-                countUpdates.Add(new MessageCountUpdate(address, bucket, subscriptionMessages.Count));
             }
             catch (OperationCanceledException)
             {
@@ -805,7 +859,7 @@ public sealed class MessageInspectionViewModel : ObservableObject
             target.Add(message);
         }
 
-        PublishMessageCountUpdates(countUpdates);
+        SetPageLoaded(bucket);
         SelectLoadedMessage(messages.FirstOrDefault());
         Status = failureCount == 0
             ? $"Loaded {messages.Count} {CreateBucketLabel(bucket)} message(s) from {topic.Name} subscriptions."
@@ -821,14 +875,38 @@ public sealed class MessageInspectionViewModel : ObservableObject
     {
         EntityAddress address = CreateEntityAddress(subscription);
         _cachedMessages.TryGetValue(address, out CachedMessagePages? cachedMessages);
-        IReadOnlyList<ExplorerMessage> activeMessages = bucket == MessageBucket.Active
+        IReadOnlyList<ExplorerMessage>? activeMessages = bucket == MessageBucket.Active
             ? messages
-            : cachedMessages?.ActiveMessages ?? [];
-        IReadOnlyList<ExplorerMessage> deadLetterMessages = bucket == MessageBucket.DeadLetter
+            : cachedMessages?.ActiveMessages;
+        IReadOnlyList<ExplorerMessage>? deadLetterMessages = bucket == MessageBucket.DeadLetter
             ? messages
-            : cachedMessages?.DeadLetterMessages ?? [];
+            : cachedMessages?.DeadLetterMessages;
 
         _cachedMessages[address] = new CachedMessagePages(activeMessages, deadLetterMessages);
+    }
+
+    private void CacheMessagePage(
+        ServiceBusEntityNode entity,
+        MessageBucket bucket,
+        IReadOnlyList<ExplorerMessage> messages)
+    {
+        EntityAddress address = CreateEntityAddress(entity);
+        _cachedMessages.TryGetValue(address, out CachedMessagePages? cachedMessages);
+        _cachedMessages[address] = bucket == MessageBucket.Active
+            ? new CachedMessagePages(messages, cachedMessages?.DeadLetterMessages)
+            : new CachedMessagePages(cachedMessages?.ActiveMessages, messages);
+    }
+
+    private void SetPageLoaded(MessageBucket bucket)
+    {
+        if (bucket == MessageBucket.Active)
+        {
+            _hasLoadedActivePage = true;
+        }
+        else
+        {
+            _hasLoadedDeadLetterPage = true;
+        }
     }
 
     private static IEnumerable<ExplorerMessage> AddSourceProperties(
@@ -925,19 +1003,6 @@ public sealed class MessageInspectionViewModel : ObservableObject
     private static string CreateBucketLabel(MessageBucket bucket)
     {
         return bucket == MessageBucket.Active ? "active" : "DLQ";
-    }
-
-    private void PublishMessageCountUpdate(MessageCountUpdate update)
-    {
-        PublishMessageCountUpdates([update]);
-    }
-
-    private void PublishMessageCountUpdates(IReadOnlyList<MessageCountUpdate> updates)
-    {
-        if (updates.Count > 0)
-        {
-            MessageCountsLoaded?.Invoke(this, updates);
-        }
     }
 
     private void NotifyCommandStateChanged()
@@ -1156,11 +1221,8 @@ public sealed class MessageInspectionViewModel : ObservableObject
     }
 
     private sealed record CachedMessagePages(
-        IReadOnlyList<ExplorerMessage> ActiveMessages,
-        IReadOnlyList<ExplorerMessage> DeadLetterMessages);
+        IReadOnlyList<ExplorerMessage>? ActiveMessages,
+        IReadOnlyList<ExplorerMessage>? DeadLetterMessages);
 }
 
-public sealed record MessageCountUpdate(
-    EntityAddress Address,
-    MessageBucket Bucket,
-    long Count);
+public sealed record MessagePageContext(bool HasActivePage, bool HasDeadLetterPage);

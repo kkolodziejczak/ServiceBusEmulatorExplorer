@@ -5,6 +5,22 @@ namespace ServiceBusEmulatorExplorer.Core.Tests.ServiceBus;
 public sealed class EntityTreeBuilderTests
 {
     [Fact]
+    public void AggregateTopicCounts_uses_authoritative_subscription_counts_and_preserves_topic_scheduled_count()
+    {
+        ServiceBusEntityNode topic = CreateNode(EntityKind.Topic, "events", topicName: null, active: 0, deadLetter: 0, scheduled: 4);
+        ServiceBusEntityNode billing = CreateNode(EntityKind.Subscription, "billing", "events", active: 80, deadLetter: 3);
+        ServiceBusEntityNode shipping = CreateNode(EntityKind.Subscription, "shipping", "events", active: 25, deadLetter: 2);
+
+        IReadOnlyList<ServiceBusEntityNode> aggregated = EntityTreeBuilder.AggregateTopicCounts([topic, billing, shipping]);
+
+        EntityRuntimeCounts counts = Assert.Single(aggregated, entity => entity.Kind == EntityKind.Topic).Counts;
+        Assert.Equal(105, counts.ActiveMessageCount);
+        Assert.Equal(5, counts.DeadLetterMessageCount);
+        Assert.Equal(4, counts.ScheduledMessageCount);
+        Assert.Equal(114, counts.TotalMessageCount);
+    }
+
+    [Fact]
     public void CreateNode_maps_runtime_counts_metadata_and_subscription_path()
     {
         var createdAt = new DateTimeOffset(2026, 7, 8, 10, 0, 0, TimeSpan.Zero);
@@ -60,15 +76,21 @@ public sealed class EntityTreeBuilderTests
             node => Assert.Equal(subscription, node));
     }
 
-    private static ServiceBusEntityNode CreateNode(EntityKind kind, string name, string? topicName)
+    private static ServiceBusEntityNode CreateNode(
+        EntityKind kind,
+        string name,
+        string? topicName,
+        long active = 0,
+        long deadLetter = 0,
+        long scheduled = 0)
     {
         return EntityTreeBuilder.CreateNode(new EntityTreeSource(
             kind,
             name,
             topicName,
-            ActiveMessageCount: 0,
-            DeadLetterMessageCount: 0,
-            ScheduledMessageCount: 0,
+            ActiveMessageCount: active,
+            DeadLetterMessageCount: deadLetter,
+            ScheduledMessageCount: scheduled,
             Status: "Active",
             CreatedAtUtc: null,
             UpdatedAtUtc: null,

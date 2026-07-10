@@ -13,7 +13,8 @@ public sealed class ServiceBusAdministrationService(IServiceBusClientFactory cli
         await AddQueuesAsync(client, nodes, cancellationToken);
         await AddTopicsAndSubscriptionsAsync(client, nodes, cancellationToken);
 
-        return EntityTreeBuilder.SortForNavigation(nodes);
+        IReadOnlyList<ServiceBusEntityNode> authoritativeCounts = EntityTreeBuilder.AggregateTopicCounts(nodes);
+        return EntityTreeBuilder.SortForNavigation(authoritativeCounts);
     }
 
     public async Task CreateQueueAsync(CreateQueueCommand command, CancellationToken cancellationToken)

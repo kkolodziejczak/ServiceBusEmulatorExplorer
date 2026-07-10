@@ -94,6 +94,22 @@
             <Setter Property="TextWrapping" Value="NoWrap" />
         </Style>
 
+        <Style x:Key="InspectorTextBoxStyle" TargetType="{x:Type TextBox}">
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="AcceptsReturn" Value="True" />
+            <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+            <Setter Property="TextWrapping" Value="NoWrap" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+
+        <Style x:Key="MessageBodyTextBoxStyle" TargetType="{x:Type TextBox}" BasedOn="{StaticResource InspectorTextBoxStyle}">
+            <Setter Property="Background" Value="#0F172A" />
+            <Setter Property="Foreground" Value="#E5EDF8" />
+        </Style>
+
         <Style x:Key="ToolbarFieldLabelStyle" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource FieldLabelStyle}">
             <Setter Property="Margin" Value="0,0,4,0" />
             <Setter Property="VerticalAlignment" Value="Center" />
@@ -442,8 +458,7 @@
                     <Grid Grid.Row="1" Background="#F8FAFC">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="3*" MinHeight="155" />
-                            <RowDefinition Height="2*" MinHeight="110" />
+                            <RowDefinition Height="*" MinHeight="230" />
                             <RowDefinition Height="Auto" MinHeight="48" />
                         </Grid.RowDefinitions>
 
@@ -453,7 +468,14 @@
                                    TextWrapping="Wrap"
                                    Margin="12,8,12,0" />
 
-                        <Grid Grid.Row="1" Margin="12,8,12,4">
+                        <Grid Grid.Row="1" Margin="12,8,12,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1.15*" MinWidth="430" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" MinWidth="360" />
+                            </Grid.ColumnDefinitions>
+
+                        <Grid Grid.Column="0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
@@ -586,13 +608,16 @@
                             </TabControl>
                         </Grid>
 
-                        <Grid Grid.Row="2" Margin="12,4,12,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1.2*" MinWidth="260" />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="*" MinWidth="240" />
-                            </Grid.ColumnDefinitions>
+                        <GridSplitter Grid.Column="1"
+                                      Width="6"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Stretch"
+                                      Background="#E4EAF2"
+                                      ResizeDirection="Columns"
+                                      ResizeBehavior="PreviousAndNext"
+                                      ShowsPreview="True" />
 
+                        <Grid Grid.Column="2">
                             <Border Background="White" BorderBrush="#D8E0EA" BorderThickness="1" CornerRadius="7">
                                 <Grid>
                                     <Grid.RowDefinitions>
@@ -600,64 +625,61 @@
                                         <RowDefinition Height="*" />
                                     </Grid.RowDefinitions>
                                     <Border BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="10,8">
-                                        <TextBlock Text="Message Text" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <TextBlock Text="Selected Message" FontWeight="SemiBold" VerticalAlignment="Center" />
                                     </Border>
-                                    <TextBox Grid.Row="1"
-                                             AutomationProperties.AutomationId="SelectedMessageBodyText"
-                                             Text="{Binding MessageInspection.SelectedBody, Mode=OneWay}"
-                                             IsReadOnly="True"
-                                             AcceptsReturn="True"
-                                             TextWrapping="Wrap"
-                                             VerticalScrollBarVisibility="Auto"
-                                             Background="#0F172A"
-                                             Foreground="#E5EDF8"
-                                             FontFamily="Consolas"
-                                             BorderThickness="0"
-                                             Padding="12" />
-                                </Grid>
-                            </Border>
+                                    <TabControl Grid.Row="1"
+                                                AutomationProperties.AutomationId="SelectedMessageInspectorTabs"
+                                                Background="White"
+                                                BorderThickness="0">
+                                        <TabItem Header="Body">
+                                            <TextBox AutomationProperties.AutomationId="SelectedMessageBodyText"
+                                                     Text="{Binding MessageInspection.SelectedBody, Mode=OneWay}"
+                                                     Style="{StaticResource MessageBodyTextBoxStyle}" />
+                                        </TabItem>
+                                        <TabItem Header="Properties">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" MinWidth="220" />
+                                                    <ColumnDefinition Width="1" />
+                                                    <ColumnDefinition Width="*" MinWidth="220" />
+                                                </Grid.ColumnDefinitions>
 
-                            <Border Grid.Column="2" Background="White" BorderBrush="#D8E0EA" BorderThickness="1" CornerRadius="7">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="*" />
-                                    </Grid.RowDefinitions>
-                                    <Border BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="10,8">
-                                        <TextBlock Text="System and Custom Properties" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                    </Border>
-                                    <Grid Grid.Row="1">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="*" />
-                                            <RowDefinition Height="1" />
-                                            <RowDefinition Height="*" />
-                                        </Grid.RowDefinitions>
-                                        <TextBox AutomationProperties.AutomationId="SelectedMessageSystemPropertiesText"
-                                                 Text="{Binding MessageInspection.SelectedSystemProperties, Mode=OneWay}"
-                                                 IsReadOnly="True"
-                                                 AcceptsReturn="True"
-                                                 TextWrapping="Wrap"
-                                                 VerticalScrollBarVisibility="Auto"
-                                                 FontFamily="Consolas"
-                                                 BorderThickness="0"
-                                                 Padding="10" />
-                                        <Rectangle Grid.Row="1" Fill="#D8E0EA" />
-                                        <TextBox Grid.Row="2"
-                                                 AutomationProperties.AutomationId="SelectedMessageApplicationPropertiesText"
-                                                 Text="{Binding MessageInspection.SelectedApplicationProperties, Mode=OneWay}"
-                                                 IsReadOnly="True"
-                                                 AcceptsReturn="True"
-                                                 TextWrapping="Wrap"
-                                                 VerticalScrollBarVisibility="Auto"
-                                                 FontFamily="Consolas"
-                                                 BorderThickness="0"
-                                                 Padding="10" />
-                                    </Grid>
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="*" />
+                                                    </Grid.RowDefinitions>
+                                                    <Border BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="10,7">
+                                                        <TextBlock Text="System Properties" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <TextBox Grid.Row="1"
+                                                             AutomationProperties.AutomationId="SelectedMessageSystemPropertiesText"
+                                                             Text="{Binding MessageInspection.SelectedSystemProperties, Mode=OneWay}"
+                                                             Style="{StaticResource InspectorTextBoxStyle}" />
+                                                </Grid>
+                                                <Rectangle Grid.Column="1" Fill="#D8E0EA" />
+                                                <Grid Grid.Column="2">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="*" />
+                                                    </Grid.RowDefinitions>
+                                                    <Border BorderBrush="#D8E0EA" BorderThickness="0,0,0,1" Padding="10,7">
+                                                        <TextBlock Text="Custom Properties" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <TextBox Grid.Row="1"
+                                                             AutomationProperties.AutomationId="SelectedMessageApplicationPropertiesText"
+                                                             Text="{Binding MessageInspection.SelectedApplicationProperties, Mode=OneWay}"
+                                                             Style="{StaticResource InspectorTextBoxStyle}" />
+                                                </Grid>
+                                            </Grid>
+                                        </TabItem>
+                                    </TabControl>
                                 </Grid>
                             </Border>
                         </Grid>
+                        </Grid>
 
-                        <Border Grid.Row="3" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,1,0,0" Padding="12,6">
+                        <Border Grid.Row="2" Background="White" BorderBrush="#D8E0EA" BorderThickness="0,1,0,0" Padding="12,6">
                             <DockPanel LastChildFill="True">
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" Margin="12,0,0,0">
                                     <Button x:Name="SendMessageButton"

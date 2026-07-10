@@ -222,6 +222,8 @@ Stage 2 acceptance:
 - [ ] Global refresh preserves an existing selected entity and refreshes its visible page.
 - [ ] No cached message from a prior profile/session can appear after reconnect.
 
+Stage 2 live-proof blocker (2026-07-10): the local emulator accepted 60 messages published to a unique topic and returned 50 messages from the subscription's first peek page, but `GetSubscriptionRuntimePropertiesAsync` continued to report `ActiveMessageCount = 0` for three minutes. The verified 50-row page was not substituted as the subscription or topic total. Stage 2 remains unfinished pending an authoritative emulator count proof.
+
 ## Stage 3: Wire And Test Copy Body
 
 **Goal:** Satisfy the authoritative MVP wireframe's `Copy Body` workflow.
