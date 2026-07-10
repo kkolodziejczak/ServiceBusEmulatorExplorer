@@ -9,6 +9,74 @@ namespace ServiceBusEmulatorExplorer.App.Tests.ViewModels;
 public sealed class MessageInspectionViewModelTests
 {
     [Fact]
+    public async Task SendMessageCommand_preserves_success_when_refresh_fails()
+    {
+        ServiceBusEntityNode queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 0, deadLetter: 0);
+        var sendCommand = new SendMessageCommand(
+            new EntityAddress(EntityKind.Queue, "orders"),
+            "payload");
+        var messageService = new FakeMessageService
+        {
+            PeekException = new InvalidOperationException("refresh broke")
+        };
+        var messageDialog = new FakeMessageDialogService { SendResult = sendCommand };
+        List<string> log = [];
+        MessageInspectionViewModel viewModel = CreateViewModel(
+            messageService,
+            messageDialogService: messageDialog,
+            log: log);
+
+        viewModel.IsConnected = true;
+        viewModel.SelectEntity(queue);
+        await viewModel.SendMessageCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, messageService.SendCallCount);
+        Assert.Equal("Sent message to orders.", viewModel.Status);
+        Assert.Equal("Operation succeeded, but refresh failed: refresh broke", viewModel.Error);
+        Assert.Contains(log, entry => entry.Contains("Sent message to orders.", StringComparison.Ordinal));
+        Assert.Contains(log, entry => entry.Contains("Operation succeeded, but refresh failed: refresh broke", StringComparison.Ordinal));
+        Assert.DoesNotContain(log, entry => entry.Contains("Send message failed", StringComparison.Ordinal));
+
+        await viewModel.PeekActiveMessagesCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, messageService.SendCallCount);
+    }
+
+    [Fact]
+    public async Task SendMessageCommand_preserves_success_when_log_sink_fails_after_commit()
+    {
+        ServiceBusEntityNode queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 0, deadLetter: 0);
+        var sendCommand = new SendMessageCommand(
+            new EntityAddress(EntityKind.Queue, "orders"),
+            "payload");
+        var messageService = new FakeMessageService();
+        var messageDialog = new FakeMessageDialogService { SendResult = sendCommand };
+        List<string> log = [];
+        Action<string> addLog = entry =>
+        {
+            log.Add(entry);
+            if (entry == "Sent message to orders.")
+            {
+                throw new InvalidOperationException("log broke");
+            }
+        };
+        MessageInspectionViewModel viewModel = CreateViewModel(
+            messageService,
+            messageDialogService: messageDialog,
+            addLog: addLog);
+
+        viewModel.IsConnected = true;
+        viewModel.SelectEntity(queue);
+        await viewModel.SendMessageCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, messageService.SendCallCount);
+        Assert.Equal(1, messageService.PeekCallCount);
+        Assert.Equal("Sent message to orders.", viewModel.Status);
+        Assert.Equal("Operation succeeded, but reporting failed: log broke", viewModel.Error);
+        Assert.DoesNotContain(log, entry => entry.Contains("Send message failed", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task DeadLetter_commands_enable_after_selecting_dlq_message()
     {
         ServiceBusEntityNode queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 0, deadLetter: 1);
@@ -78,6 +146,42 @@ public sealed class MessageInspectionViewModelTests
         Assert.Null(replayService.ReplayRequest.ApplicationProperties);
         Assert.Equal(3, messageService.PeekCallCount);
         Assert.Contains(log, entry => entry.Contains("Original remains in DLQ.", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ReplayDeadLetterCommand_preserves_success_when_refresh_fails()
+    {
+        ServiceBusEntityNode queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 0, deadLetter: 1);
+        ExplorerMessage message = CreateMessage(sequenceNumber: 17, "dead letter body", new Dictionary<string, object?>());
+        var messageService = new FakeMessageService
+        {
+            PeekResult = [message],
+            PeekException = new InvalidOperationException("refresh broke"),
+            PeekExceptionAfterCallCount = 1
+        };
+        var replayService = new FakeDeadLetterReplayService
+        {
+            ReplayResult = new ReplayResult("new-message-id", OriginalDeleted: false)
+        };
+        List<string> log = [];
+        MessageInspectionViewModel viewModel = CreateViewModel(messageService, replayService, log: log);
+
+        viewModel.IsConnected = true;
+        viewModel.SelectEntity(queue);
+        await viewModel.PeekDeadLetterMessagesCommand.ExecuteAsync(null);
+        viewModel.SelectDeadLetterMessages([message]);
+        await viewModel.ReplayDeadLetterCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, replayService.ReplayCallCount);
+        Assert.Equal("Replayed DLQ sequence 17 as new-message-id. Original remains in DLQ.", viewModel.Status);
+        Assert.Equal("Operation succeeded, but refresh failed: refresh broke", viewModel.Error);
+        Assert.Contains(log, entry => entry.Contains("Replayed DLQ sequence 17 to orders as new-message-id. Original remains in DLQ.", StringComparison.Ordinal));
+        Assert.Contains(log, entry => entry.Contains("Operation succeeded, but refresh failed: refresh broke", StringComparison.Ordinal));
+        Assert.DoesNotContain(log, entry => entry.Contains("Replay DLQ message failed", StringComparison.Ordinal));
+
+        await viewModel.PeekDeadLetterMessagesCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, replayService.ReplayCallCount);
     }
 
     [Fact]
@@ -152,6 +256,40 @@ public sealed class MessageInspectionViewModelTests
         Assert.Equal(17, Assert.Single(replayService.DeleteRequest!.SequenceNumbers));
         Assert.Equal(2, messageService.PeekCallCount);
         Assert.Contains(log, entry => entry.Contains("Deleted 1 DLQ message(s) from orders.", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DeleteSelectedDeadLetterCommand_preserves_success_when_refresh_fails()
+    {
+        ServiceBusEntityNode queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 0, deadLetter: 1);
+        ExplorerMessage message = CreateMessage(sequenceNumber: 17, "dead letter body", new Dictionary<string, object?>());
+        var messageService = new FakeMessageService
+        {
+            PeekResult = [message],
+            PeekException = new InvalidOperationException("refresh broke"),
+            PeekExceptionAfterCallCount = 1
+        };
+        var messageDialog = new FakeMessageDialogService { ConfirmDeleteResult = true };
+        var replayService = new FakeDeadLetterReplayService();
+        List<string> log = [];
+        MessageInspectionViewModel viewModel = CreateViewModel(messageService, replayService, messageDialog, log);
+
+        viewModel.IsConnected = true;
+        viewModel.SelectEntity(queue);
+        await viewModel.PeekDeadLetterMessagesCommand.ExecuteAsync(null);
+        viewModel.SelectDeadLetterMessages([message]);
+        await viewModel.DeleteSelectedDeadLetterCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, replayService.DeleteCallCount);
+        Assert.Equal("Deleted 1 DLQ message(s).", viewModel.Status);
+        Assert.Equal("Operation succeeded, but refresh failed: refresh broke", viewModel.Error);
+        Assert.Contains(log, entry => entry.Contains("Deleted 1 DLQ message(s) from orders.", StringComparison.Ordinal));
+        Assert.Contains(log, entry => entry.Contains("Operation succeeded, but refresh failed: refresh broke", StringComparison.Ordinal));
+        Assert.DoesNotContain(log, entry => entry.Contains("Delete DLQ messages failed", StringComparison.Ordinal));
+
+        await viewModel.PeekDeadLetterMessagesCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, replayService.DeleteCallCount);
     }
 
     [Fact]
@@ -287,14 +425,15 @@ public sealed class MessageInspectionViewModelTests
         IServiceBusMessageService? messageService = null,
         IDeadLetterReplayService? deadLetterReplayService = null,
         IMessageDialogService? messageDialogService = null,
-        List<string>? log = null)
+        List<string>? log = null,
+        Action<string>? addLog = null)
     {
         List<string> operationLog = log ?? [];
         return new MessageInspectionViewModel(
             messageService ?? new FakeMessageService(),
             deadLetterReplayService ?? new FakeDeadLetterReplayService(),
             messageDialogService ?? new FakeMessageDialogService(),
-            operationLog.Add);
+            addLog ?? operationLog.Add);
     }
 
     private static ServiceBusEntityNode CreateEntity(
@@ -351,7 +490,13 @@ public sealed class MessageInspectionViewModelTests
     {
         public IReadOnlyList<ExplorerMessage> PeekResult { get; init; } = [];
 
+        public Exception? PeekException { get; init; }
+
+        public int PeekExceptionAfterCallCount { get; init; }
+
         public int PeekCallCount { get; private set; }
+
+        public int SendCallCount { get; private set; }
 
         public Task<IReadOnlyList<ExplorerMessage>> PeekMessagesAsync(
             EntityAddress address,
@@ -361,11 +506,17 @@ public sealed class MessageInspectionViewModelTests
             CancellationToken cancellationToken)
         {
             PeekCallCount++;
+            if (PeekException is not null && PeekCallCount > PeekExceptionAfterCallCount)
+            {
+                throw PeekException;
+            }
+
             return Task.FromResult(PeekResult);
         }
 
         public Task SendMessageAsync(SendMessageCommand command, CancellationToken cancellationToken)
         {
+            SendCallCount++;
             return Task.CompletedTask;
         }
     }
@@ -374,15 +525,20 @@ public sealed class MessageInspectionViewModelTests
     {
         public ReplayRequest? ReplayRequest { get; private set; }
 
+        public int ReplayCallCount { get; private set; }
+
         public ReplayResult ReplayResult { get; init; } = new("new-message-id", OriginalDeleted: false);
 
         public DeleteDeadLetterMessagesRequest? DeleteRequest { get; private set; }
+
+        public int DeleteCallCount { get; private set; }
 
         public DeleteDeadLetterMessagesResult DeleteResult { get; init; } = new(1);
 
         public Task<ReplayResult> ReplayAsync(ReplayRequest request, CancellationToken cancellationToken)
         {
             ReplayRequest = request;
+            ReplayCallCount++;
             return Task.FromResult(ReplayResult);
         }
 
@@ -391,6 +547,7 @@ public sealed class MessageInspectionViewModelTests
             CancellationToken cancellationToken)
         {
             DeleteRequest = request;
+            DeleteCallCount++;
             return Task.FromResult(DeleteResult);
         }
     }

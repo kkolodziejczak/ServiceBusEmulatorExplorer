@@ -413,15 +413,104 @@ public sealed class MessageInspectionViewModel : ObservableObject
             return;
         }
 
-        await RunOperationAsync("Send message failed", async cancellationToken =>
-        {
-            await _messageService.SendMessageAsync(command, cancellationToken);
-            _addLog($"Sent message to {command.Destination.Name}.");
-            if (CanInspectSelectedEntity() && selectionVersion == _selectionVersion)
+        await RunMutationAsync(
+            "Send message failed",
+            async cancellationToken =>
             {
-                await PeekMessagesAsync(MessageBucket.Active, resetPage: true, selectionVersion, cancellationToken);
+                await _messageService.SendMessageAsync(command, cancellationToken);
+                return command.Destination.Name;
+            },
+            destination => $"Sent message to {destination}.",
+            destination => $"Sent message to {destination}.",
+            async cancellationToken =>
+            {
+                if (CanInspectSelectedEntity() && selectionVersion == _selectionVersion)
+                {
+                    await PeekMessagesAsync(MessageBucket.Active, resetPage: true, selectionVersion, cancellationToken);
+                }
+            });
+    }
+
+    private async Task RunMutationAsync<TResult>(
+        string failurePrefix,
+        Func<CancellationToken, Task<TResult>> mutation,
+        Func<TResult, string> createSuccessStatus,
+        Func<TResult, string> createSuccessLog,
+        Func<CancellationToken, Task> refresh)
+    {
+        if (IsBusy || IsShellBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+            Error = null;
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+            TResult result;
+            try
+            {
+                result = await mutation(timeout.Token);
             }
-        });
+            catch (Exception ex)
+            {
+                Status = "Message operation failed.";
+                Error = ex.Message;
+                TryAddLog($"{failurePrefix}: {ex.Message}", out _);
+                return;
+            }
+
+            string successStatus = createSuccessStatus(result);
+            Status = successStatus;
+            if (!TryAddLog(createSuccessLog(result), out Exception? reportingFailure))
+            {
+                Error = $"Operation succeeded, but reporting failed: {reportingFailure!.Message}";
+            }
+
+            await RefreshAfterMutationAsync(refresh, successStatus, timeout.Token);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task RefreshAfterMutationAsync(
+        Func<CancellationToken, Task> refresh,
+        string successStatus,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await refresh(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            string warning = $"Operation succeeded, but refresh failed: {ex.Message}";
+            Error = warning;
+            TryAddLog(warning, out _);
+        }
+        finally
+        {
+            Status = successStatus;
+        }
+    }
+
+    private bool TryAddLog(string message, out Exception? failure)
+    {
+        try
+        {
+            _addLog(message);
+            failure = null;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
+            return false;
+        }
     }
 
     private async Task RunOperationAsync(
@@ -516,19 +605,24 @@ public sealed class MessageInspectionViewModel : ObservableObject
 
     private async Task ReplayDeadLetterAsync(ReplayRequest request, int selectionVersion)
     {
-        await RunOperationAsync("Replay DLQ message failed", async cancellationToken =>
-        {
-            ReplayResult result = await _deadLetterReplayService.ReplayAsync(request, cancellationToken);
-            string originalStatus = result.OriginalDeleted ? "Original was deleted." : "Original remains in DLQ.";
-            Status = "Replayed DLQ message copy.";
-            _addLog($"Replayed DLQ sequence {request.SequenceNumber} to {request.Destination.Name} as {result.NewMessageId}. {originalStatus}");
-
-            if (selectionVersion == _selectionVersion)
+        await RunMutationAsync(
+            "Replay DLQ message failed",
+            cancellationToken => _deadLetterReplayService.ReplayAsync(request, cancellationToken),
+            result => $"Replayed DLQ sequence {request.SequenceNumber} as {result.NewMessageId}. {CreateOriginalMessageStatus(result)}",
+            result => $"Replayed DLQ sequence {request.SequenceNumber} to {request.Destination.Name} as {result.NewMessageId}. {CreateOriginalMessageStatus(result)}",
+            async cancellationToken =>
             {
-                await PeekMessagesAsync(MessageBucket.Active, resetPage: true, selectionVersion, cancellationToken);
-                await PeekMessagesAsync(MessageBucket.DeadLetter, resetPage: true, selectionVersion, cancellationToken);
-            }
-        });
+                if (selectionVersion == _selectionVersion)
+                {
+                    await PeekMessagesAsync(MessageBucket.Active, resetPage: true, selectionVersion, cancellationToken);
+                    await PeekMessagesAsync(MessageBucket.DeadLetter, resetPage: true, selectionVersion, cancellationToken);
+                }
+            });
+    }
+
+    private static string CreateOriginalMessageStatus(ReplayResult result)
+    {
+        return result.OriginalDeleted ? "Original was deleted." : "Original remains in DLQ.";
     }
 
     private async Task DeleteSelectedDeadLetterAsync()
@@ -572,17 +666,18 @@ public sealed class MessageInspectionViewModel : ObservableObject
             CreateEntityAddress(entity),
             messages.Select(message => message.SequenceNumber).ToList());
 
-        await RunOperationAsync("Delete DLQ messages failed", async cancellationToken =>
-        {
-            DeleteDeadLetterMessagesResult result = await _deadLetterReplayService.DeleteAsync(request, cancellationToken);
-            Status = $"Deleted {result.DeletedCount} DLQ message(s).";
-            _addLog($"Deleted {result.DeletedCount} DLQ message(s) from {entity.Metadata.Path}.");
-
-            if (selectionVersion == _selectionVersion)
+        await RunMutationAsync(
+            "Delete DLQ messages failed",
+            cancellationToken => _deadLetterReplayService.DeleteAsync(request, cancellationToken),
+            result => $"Deleted {result.DeletedCount} DLQ message(s).",
+            result => $"Deleted {result.DeletedCount} DLQ message(s) from {entity.Metadata.Path}.",
+            async cancellationToken =>
             {
-                await PeekMessagesAsync(MessageBucket.DeadLetter, resetPage: true, selectionVersion, cancellationToken);
-            }
-        });
+                if (selectionVersion == _selectionVersion)
+                {
+                    await PeekMessagesAsync(MessageBucket.DeadLetter, resetPage: true, selectionVersion, cancellationToken);
+                }
+            });
     }
 
     private async Task PeekMessagesAsync(
