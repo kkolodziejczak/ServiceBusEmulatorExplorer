@@ -19,6 +19,8 @@ public sealed class ShellViewModel : ObservableObject
     private string _profileName = ConnectionProfileDefaults.LocalEmulator.Name;
     private string _runtimeConnectionString = ConnectionProfileDefaults.LocalEmulator.RuntimeConnectionString;
     private string _administrationConnectionString = ConnectionProfileDefaults.LocalEmulator.AdministrationConnectionString;
+    private ConnectionAuthenticationMode _authenticationMode = ConnectionAuthenticationMode.ConnectionString;
+    private string _fullyQualifiedNamespace = "";
     private string _connectionStatus = "Disconnected";
     private string _namespaceFilter = "";
     private string _entityBrowserStatus = "Connect to load queues, topics, and subscriptions.";
@@ -94,6 +96,31 @@ public sealed class ShellViewModel : ObservableObject
     {
         get => _administrationConnectionString;
         set => SetProperty(ref _administrationConnectionString, value);
+    }
+
+    public ConnectionAuthenticationMode AuthenticationMode
+    {
+        get => _authenticationMode;
+        set
+        {
+            if (SetProperty(ref _authenticationMode, value))
+            {
+                OnPropertyChanged(nameof(IsConnectionStringMode));
+                OnPropertyChanged(nameof(IsAzureCliMode));
+            }
+        }
+    }
+
+    public IReadOnlyList<ConnectionAuthenticationMode> AuthenticationModes { get; } = Enum.GetValues<ConnectionAuthenticationMode>();
+
+    public bool IsConnectionStringMode => AuthenticationMode == ConnectionAuthenticationMode.ConnectionString;
+
+    public bool IsAzureCliMode => AuthenticationMode == ConnectionAuthenticationMode.AzureCli;
+
+    public string FullyQualifiedNamespace
+    {
+        get => _fullyQualifiedNamespace;
+        set => SetProperty(ref _fullyQualifiedNamespace, value);
     }
 
     public string ConnectionStatus
@@ -271,16 +298,16 @@ public sealed class ShellViewModel : ObservableObject
     public string ConnectControlAutomationName => IsConnected ? "Connected" : "Connect";
 
     public string ConnectCommandToolTip => IsConnected
-        ? "Connected to the selected emulator profile. Use Disconnect to end this session."
-        : CreateToolTip("Connect to the selected emulator profile.", GetShellBusyReason());
+        ? "Connected to the selected profile. Use Disconnect to end this session."
+        : CreateToolTip("Connect to the selected profile.", GetShellBusyReason());
 
     public string DisconnectCommandToolTip => CreateToolTip(
-        "Disconnect from the current emulator profile.",
-        !IsConnected ? "Connect to an emulator first." : GetShellBusyReason());
+        "Disconnect from the current profile.",
+        !IsConnected ? "Connect first." : GetShellBusyReason());
 
     public string RefreshCommandToolTip => CreateToolTip(
         "Refresh the namespace tree, selected metadata, counts, and visible message page.",
-        !IsConnected ? "Connect to an emulator first." : GetShellBusyReason());
+        !IsConnected ? "Connect first." : GetShellBusyReason());
 
     public bool CanShowCancelRefreshCommand => IsRefreshing;
 
@@ -288,15 +315,15 @@ public sealed class ShellViewModel : ObservableObject
 
     public string CreateQueueCommandToolTip => CreateToolTip(
         "Create a new queue.",
-        !IsConnected ? "Connect to an emulator first." : GetShellBusyReason());
+        !IsConnected ? "Connect first." : GetShellBusyReason());
 
     public string CreateTopicCommandToolTip => CreateToolTip(
         "Create a new topic.",
-        !IsConnected ? "Connect to an emulator first." : GetShellBusyReason());
+        !IsConnected ? "Connect first." : GetShellBusyReason());
 
     public string CreateSubscriptionCommandToolTip => CreateToolTip(
         "Create a new subscription.",
-        !IsConnected ? "Connect to an emulator first." : GetShellBusyReason());
+        !IsConnected ? "Connect first." : GetShellBusyReason());
 
     public bool CanShowRefreshSubscriptionsCommand => _selectedEntity is { Kind: EntityKind.Topic };
 
@@ -351,6 +378,8 @@ public sealed class ShellViewModel : ObservableObject
         ProfileName = profile.Name;
         RuntimeConnectionString = profile.RuntimeConnectionString;
         AdministrationConnectionString = profile.AdministrationConnectionString;
+        AuthenticationMode = profile.AuthenticationMode;
+        FullyQualifiedNamespace = profile.FullyQualifiedNamespace?.Trim() ?? "";
     }
 
     private async Task ConnectAsync()
@@ -383,8 +412,10 @@ public sealed class ShellViewModel : ObservableObject
     {
         return new ConnectionProfile(
             ProfileName,
-            RuntimeConnectionString,
-            AdministrationConnectionString);
+            AuthenticationMode == ConnectionAuthenticationMode.ConnectionString ? RuntimeConnectionString : "",
+            AuthenticationMode == ConnectionAuthenticationMode.ConnectionString ? AdministrationConnectionString : "",
+            AuthenticationMode,
+            AuthenticationMode == ConnectionAuthenticationMode.AzureCli ? FullyQualifiedNamespace.Trim() : "");
     }
 
     private async Task<bool> RunShellOperationAsync(
@@ -890,7 +921,7 @@ public sealed class ShellViewModel : ObservableObject
             return CreateToolTip(purpose, "Select a topic first.");
         }
 
-        return CreateToolTip(purpose, !IsConnected ? "Connect to an emulator first." : GetShellBusyReason());
+        return CreateToolTip(purpose, !IsConnected ? "Connect first." : GetShellBusyReason());
     }
 
     private string? CreateSelectedEntityUnavailableReason()
@@ -902,7 +933,7 @@ public sealed class ShellViewModel : ObservableObject
 
         if (!IsConnected)
         {
-            return "Connect to an emulator first.";
+            return "Connect first.";
         }
 
         return GetShellBusyReason();

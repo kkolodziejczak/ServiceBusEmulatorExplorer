@@ -159,7 +159,7 @@
                     <ColumnDefinition Width="16" />
                     <ColumnDefinition Width="180" />
                     <ColumnDefinition Width="12" />
-                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="150" />
                     <ColumnDefinition Width="12" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
@@ -228,21 +228,45 @@
                              Style="{StaticResource ToolbarTextBoxStyle}" />
                 </StackPanel>
                 <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Runtime" Style="{StaticResource ToolbarFieldLabelStyle}" />
-                    <TextBox AutomationProperties.AutomationId="RuntimeConnectionStringTextBox"
-                             Text="{Binding RuntimeConnectionString, UpdateSourceTrigger=PropertyChanged}"
-                             MinWidth="80"
-                             Style="{StaticResource ToolbarTextBoxStyle}"
-                             ToolTip="Connection string used for sending, peeking, replaying, and deleting messages." />
+                    <TextBlock Text="Auth" Style="{StaticResource ToolbarFieldLabelStyle}" />
+                    <ComboBox AutomationProperties.AutomationId="AuthenticationModeSelector"
+                              AutomationProperties.Name="Authentication mode"
+                              ItemsSource="{Binding AuthenticationModes}"
+                              SelectedItem="{Binding AuthenticationMode, UpdateSourceTrigger=PropertyChanged}"
+                              Width="110"
+                              ToolTip="Choose connection strings or the Azure CLI account cached by az login." />
                 </StackPanel>
-                <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Admin" Style="{StaticResource ToolbarFieldLabelStyle}" />
-                    <TextBox AutomationProperties.AutomationId="AdministrationConnectionStringTextBox"
-                             Text="{Binding AdministrationConnectionString, UpdateSourceTrigger=PropertyChanged}"
-                             MinWidth="80"
-                             Style="{StaticResource ToolbarTextBoxStyle}"
-                             ToolTip="Connection string used for creating, updating, deleting, and refreshing queues, topics, and subscriptions." />
-                </StackPanel>
+                <Grid Grid.Column="6" VerticalAlignment="Center">
+                    <Grid Visibility="{Binding IsConnectionStringMode, Converter={StaticResource BoolToVisibility}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Runtime" Style="{StaticResource ToolbarFieldLabelStyle}" />
+                            <TextBox AutomationProperties.AutomationId="RuntimeConnectionStringTextBox"
+                                     Text="{Binding RuntimeConnectionString, UpdateSourceTrigger=PropertyChanged}"
+                                     MinWidth="80" Style="{StaticResource ToolbarTextBoxStyle}"
+                                     ToolTip="Connection string used for sending, peeking, replaying, and deleting messages." />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                            <TextBlock Text="Admin" Style="{StaticResource ToolbarFieldLabelStyle}" />
+                            <TextBox AutomationProperties.AutomationId="AdministrationConnectionStringTextBox"
+                                     Text="{Binding AdministrationConnectionString, UpdateSourceTrigger=PropertyChanged}"
+                                     MinWidth="80" Style="{StaticResource ToolbarTextBoxStyle}"
+                                     ToolTip="Connection string used for creating, updating, deleting, and refreshing queues, topics, and subscriptions." />
+                        </StackPanel>
+                    </Grid>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                Visibility="{Binding IsAzureCliMode, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="Namespace" Style="{StaticResource ToolbarFieldLabelStyle}" />
+                        <TextBox AutomationProperties.AutomationId="FullyQualifiedNamespaceTextBox"
+                                 Text="{Binding FullyQualifiedNamespace, UpdateSourceTrigger=PropertyChanged}"
+                                 MinWidth="220" Style="{StaticResource ToolbarTextBoxStyle}"
+                                 ToolTip="Service Bus namespace hostname used with the account cached by az login." />
+                    </StackPanel>
+                </Grid>
             </Grid>
         </Border>
 

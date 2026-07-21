@@ -1,3 +1,4 @@
+using Azure.Identity;
 using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
 using ServiceBusEmulatorExplorer.Core.Connection;
@@ -23,8 +24,7 @@ public sealed class DirectServiceBusClientFactory : IServiceBusClientFactory
             throw new ArgumentException(string.Join(" ", validation.Errors), nameof(profile));
         }
 
-        var administrationClient = new ServiceBusAdministrationClient(profile.AdministrationConnectionString);
-        var runtimeClient = new ServiceBusClient(profile.RuntimeConnectionString);
+        (ServiceBusAdministrationClient administrationClient, ServiceBusClient runtimeClient) = CreateClients(profile);
 
         try
         {
@@ -39,6 +39,23 @@ public sealed class DirectServiceBusClientFactory : IServiceBusClientFactory
         await DisposeAsync();
         _administrationClient = administrationClient;
         _runtimeClient = runtimeClient;
+    }
+
+    internal static (ServiceBusAdministrationClient AdministrationClient, ServiceBusClient RuntimeClient) CreateClients(ConnectionProfile profile)
+    {
+        return profile.AuthenticationMode == ConnectionAuthenticationMode.AzureCli
+            ? CreateAzureCliClients(profile.FullyQualifiedNamespace)
+            : (
+                new ServiceBusAdministrationClient(profile.AdministrationConnectionString),
+                new ServiceBusClient(profile.RuntimeConnectionString));
+    }
+
+    private static (ServiceBusAdministrationClient AdministrationClient, ServiceBusClient RuntimeClient) CreateAzureCliClients(string fullyQualifiedNamespace)
+    {
+        var credential = new AzureCliCredential();
+        return (
+            new ServiceBusAdministrationClient(fullyQualifiedNamespace, credential),
+            new ServiceBusClient(fullyQualifiedNamespace, credential));
     }
 
     private static async Task ValidateAdministrationConnectionAsync(

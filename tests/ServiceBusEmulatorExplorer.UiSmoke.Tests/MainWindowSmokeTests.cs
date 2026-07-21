@@ -32,6 +32,13 @@ public sealed class MainWindowSmokeTests
             Assert.NotNull(WaitForAutomationId(window, "ConnectButton", TimeSpan.FromSeconds(10)));
             Assert.NotNull(WaitForAutomationId(window, "DisconnectButton", TimeSpan.FromSeconds(10)));
             Assert.NotNull(WaitForAutomationId(window, "RefreshButton", TimeSpan.FromSeconds(10)));
+            AutomationElement authenticationMode = WaitForAutomationId(window, "AuthenticationModeSelector", TimeSpan.FromSeconds(10));
+            Assert.NotNull(WaitForAutomationId(window, "RuntimeConnectionStringTextBox", TimeSpan.FromSeconds(10)));
+            Assert.NotNull(WaitForAutomationId(window, "AdministrationConnectionStringTextBox", TimeSpan.FromSeconds(10)));
+            authenticationMode.AsComboBox().Select("AzureCli");
+            Assert.NotNull(WaitForAutomationId(window, "FullyQualifiedNamespaceTextBox", TimeSpan.FromSeconds(10)));
+            Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("RuntimeConnectionStringTextBox")));
+            Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("AdministrationConnectionStringTextBox")));
             Assert.DoesNotContain(
                 application.GetAllTopLevelWindows(automation),
                 topLevelWindow => topLevelWindow.Title.Contains("Exception", StringComparison.OrdinalIgnoreCase));

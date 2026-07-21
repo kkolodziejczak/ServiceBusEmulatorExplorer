@@ -26,6 +26,44 @@ public sealed class ShellViewModelTests
     }
 
     [Fact]
+    public async Task LoadProfilesAsync_applies_azure_cli_mode_and_namespace()
+    {
+        var profile = new ConnectionProfile("Azure", "", "", ConnectionAuthenticationMode.AzureCli, "orders.servicebus.windows.net");
+        var viewModel = CreateViewModel(store: new FakeProfileStore([profile]));
+
+        await viewModel.LoadProfilesAsync(CancellationToken.None);
+
+        Assert.Equal(ConnectionAuthenticationMode.AzureCli, viewModel.AuthenticationMode);
+        Assert.Equal("orders.servicebus.windows.net", viewModel.FullyQualifiedNamespace);
+        Assert.True(viewModel.IsAzureCliMode);
+        Assert.False(viewModel.IsConnectionStringMode);
+    }
+
+    [Fact]
+    public async Task ConnectCommand_saves_sanitized_azure_cli_profile_and_preserves_connection_string_values_when_switching_modes()
+    {
+        var store = new FakeProfileStore([]);
+        var factory = new FakeClientFactory();
+        var viewModel = CreateViewModel(store: store, clientFactory: factory);
+        string runtime = viewModel.RuntimeConnectionString;
+        string administration = viewModel.AdministrationConnectionString;
+        viewModel.AuthenticationMode = ConnectionAuthenticationMode.AzureCli;
+        viewModel.FullyQualifiedNamespace = "orders.servicebus.windows.net";
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+
+        ConnectionProfile savedProfile = Assert.Single(store.SavedProfiles);
+        Assert.Equal(ConnectionAuthenticationMode.AzureCli, savedProfile.AuthenticationMode);
+        Assert.Equal("orders.servicebus.windows.net", savedProfile.FullyQualifiedNamespace);
+        Assert.Equal("", savedProfile.RuntimeConnectionString);
+        Assert.Equal("", savedProfile.AdministrationConnectionString);
+        Assert.Equal(savedProfile, factory.LastProfile);
+        viewModel.AuthenticationMode = ConnectionAuthenticationMode.ConnectionString;
+        Assert.Equal(runtime, viewModel.RuntimeConnectionString);
+        Assert.Equal(administration, viewModel.AdministrationConnectionString);
+    }
+
+    [Fact]
     public async Task ConnectCommand_saves_profile_connects_factory_and_enables_disconnect_refresh()
     {
         var store = new FakeProfileStore([]);
@@ -54,6 +92,17 @@ public sealed class ShellViewModelTests
 
         Assert.Equal("Shell ready. Direct SDK mode.", viewModel.OperationLog[0].Message);
         Assert.Contains("Runtime connection string is required.", viewModel.OperationLog[^1].Message);
+    }
+
+    [Fact]
+    public void Disconnected_tooltips_are_connection_mode_neutral()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.AuthenticationMode = ConnectionAuthenticationMode.AzureCli;
+
+        Assert.Contains("selected profile", viewModel.ConnectCommandToolTip, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Connect first.", viewModel.RefreshCommandToolTip, StringComparison.Ordinal);
+        Assert.DoesNotContain("emulator", viewModel.ConnectCommandToolTip, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -742,6 +791,8 @@ public sealed class ShellViewModelTests
     {
         public bool ConnectCalled { get; private set; }
 
+        public ConnectionProfile? LastProfile { get; private set; }
+
         public ServiceBusAdministrationClient AdministrationClient =>
             throw new NotSupportedException("The shell tests do not use a live administration client.");
 
@@ -751,6 +802,7 @@ public sealed class ShellViewModelTests
         public Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken)
         {
             ConnectCalled = true;
+            LastProfile = profile;
             return Task.CompletedTask;
         }
 

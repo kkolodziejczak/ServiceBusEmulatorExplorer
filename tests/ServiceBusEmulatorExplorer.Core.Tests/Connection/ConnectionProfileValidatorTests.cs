@@ -37,4 +37,39 @@ public sealed class ConnectionProfileValidatorTests
         Assert.Contains("Runtime connection string must include an Endpoint=sb:// value.", result.Errors);
         Assert.Contains("Administration connection string must include an Endpoint=sb:// value.", result.Errors);
     }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("https://orders.servicebus.windows.net")]
+    [InlineData("orders.servicebus.windows.net/path")]
+    [InlineData("Endpoint=sb://orders.servicebus.windows.net;")]
+    [InlineData("orders.servicebus.windows.net:443")]
+    public void Validate_rejects_invalid_azure_cli_namespace(string fullyQualifiedNamespace)
+    {
+        var profile = new ConnectionProfile(
+            "Azure",
+            "ignored",
+            "ignored",
+            ConnectionAuthenticationMode.AzureCli,
+            fullyQualifiedNamespace);
+
+        ValidationResult result = ConnectionProfileValidator.Validate(profile);
+
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public void Validate_accepts_trimmed_azure_cli_namespace_and_ignores_connection_strings()
+    {
+        var profile = new ConnectionProfile(
+            "Azure",
+            "not a connection string",
+            "not a connection string",
+            ConnectionAuthenticationMode.AzureCli,
+            " orders.servicebus.windows.net ");
+
+        ValidationResult result = ConnectionProfileValidator.Validate(profile);
+
+        Assert.True(result.IsValid);
+    }
 }
