@@ -66,7 +66,8 @@ function Stop-LaunchedWpfApps {
     }
 
     $expectedPath = [System.IO.Path]::GetFullPath($env:SBE_APP_EXE)
-    Get-Process -Name "ServiceBusEmulatorExplorer.App" -ErrorAction SilentlyContinue |
+    $expectedProcessName = [System.IO.Path]::GetFileNameWithoutExtension($expectedPath)
+    Get-Process -Name $expectedProcessName -ErrorAction SilentlyContinue |
         Where-Object {
             try {
                 $_.StartTime -ge $StartedAt.AddSeconds(-2) -and
