@@ -42,6 +42,27 @@ public sealed class MessageInspectionViewModelTests
     }
 
     [Fact]
+    public async Task Unauthorized_access_during_peek_keeps_azure_cli_session_connected_and_shows_data_owner_guidance()
+    {
+        ServiceBusEntityNode queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 0, deadLetter: 0);
+        var messageService = new FakeMessageService
+        {
+            PeekException = new UnauthorizedAccessException("authorization details must not be logged")
+        };
+        List<string> log = [];
+        MessageInspectionViewModel viewModel = CreateViewModel(messageService, log: log);
+        viewModel.AuthenticationMode = ConnectionAuthenticationMode.AzureCli;
+        viewModel.IsConnected = true;
+        viewModel.SelectEntity(queue);
+
+        await viewModel.PeekActiveMessagesCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.IsConnected);
+        Assert.Contains("Data Owner at namespace scope", viewModel.Error!, StringComparison.Ordinal);
+        Assert.DoesNotContain(log, entry => entry.Contains("authorization details", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task Send_authorization_failure_keeps_message_inspection_connected()
     {
         ServiceBusEntityNode queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 0, deadLetter: 0);

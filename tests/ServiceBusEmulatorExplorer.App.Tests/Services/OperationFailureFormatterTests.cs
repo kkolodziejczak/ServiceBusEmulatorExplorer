@@ -39,6 +39,21 @@ public sealed class OperationFailureFormatterTests
     }
 
     [Theory]
+    [InlineData(ConnectionAuthenticationMode.AzureCli, "Data Owner at namespace scope")]
+    [InlineData(ConnectionAuthenticationMode.ConnectionString, "connection string")]
+    public void Format_maps_unauthorized_access_to_mode_appropriate_guidance(
+        ConnectionAuthenticationMode authenticationMode,
+        string expectedGuidance)
+    {
+        OperationFailure failure = OperationFailureFormatter.Format(
+            new UnauthorizedAccessException("authorization details must not be logged"),
+            authenticationMode);
+
+        Assert.Contains(expectedGuidance, failure.UserMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("authorization details", failure.Detail, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
     [InlineData("SharedAccessKey=secret-value")]
     [InlineData("access_token=secret-value")]
     [InlineData("Bearer secret-value")]

@@ -22,6 +22,7 @@ public static class OperationFailureFormatter
                 "Credential details are omitted from the operation log."),
             RequestFailedException { Status: 401 } requestFailedException => CreateAuthenticationFailure(requestFailedException, isAzureCli),
             RequestFailedException { Status: 403 } requestFailedException => CreateAuthorizationFailure(requestFailedException, isAzureCli),
+            UnauthorizedAccessException => CreateAuthorizationFailure(isAzureCli),
             _ => new("The operation failed.", $"{exception.GetType().Name}; raw exception details are omitted.")
         };
     }
@@ -37,11 +38,21 @@ public static class OperationFailureFormatter
 
     private static OperationFailure CreateAuthorizationFailure(RequestFailedException exception, bool isAzureCli)
     {
+        return CreateAuthorizationFailure(isAzureCli, CreateRequestDetail(exception));
+    }
+
+    private static OperationFailure CreateAuthorizationFailure(bool isAzureCli)
+    {
+        return CreateAuthorizationFailure(isAzureCli, "UnauthorizedAccessException; raw exception details are omitted.");
+    }
+
+    private static OperationFailure CreateAuthorizationFailure(bool isAzureCli, string detail)
+    {
         return new OperationFailure(
             isAzureCli
                 ? "The current account does not have permission for this operation. Request Azure Service Bus Data Owner at namespace scope, then retry."
                 : "Connection-string authorization failed. Verify the connection string and its SAS permissions, then retry.",
-            CreateRequestDetail(exception));
+            detail);
     }
 
     private static string CreateRequestDetail(RequestFailedException exception)
