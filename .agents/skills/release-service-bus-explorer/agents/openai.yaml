@@ -1,0 +1,6 @@
+interface:
+  display_name: "Release Service Bus Explorer"
+  short_description: "Release the app through verified GitHub gates"
+  default_prompt: "Use $release-service-bus-explorer to publish the current app as the next patch release."
+policy:
+  allow_implicit_invocation: false
