@@ -367,7 +367,7 @@ Stage 1 acceptance:
 Stage 2 acceptance:
 
 - [x] Pushing a valid authorized `vX.Y.Z` tag produces a draft, never an automatic public release.
-- [ ] A malformed tag or failed gate creates no release assets.
+- [x] A malformed tag or failed gate creates no release assets.
 - [x] The draft contains exactly the two agreed executables and accurate guidance.
 - [x] Workflow permissions are limited to repository contents.
 - [x] README and release notes explain runtime requirements and SmartScreen behavior.
@@ -376,6 +376,8 @@ Stage 2 evidence (2026-07-21): the bundled `v0.1.0` push with
 `push.followTags=true` created no push-triggered run while the workflow was first
 registered. The isolated annotated `v0.1.1` push created successful
 [`event=push` run 29860580505](https://github.com/kkolodziejczak/ServiceBusEmulatorExplorer/actions/runs/29860580505), which passed tests, both launch smokes, and produced an unpublished draft with the exact two assets. Use `scripts/Push-ReleaseTag.ps1` to keep the branch push and tag push separate for future releases.
+
+The manual malformed-tag [`workflow_dispatch` run 29862643105](https://github.com/kkolodziejczak/ServiceBusEmulatorExplorer/actions/runs/29862643105) with `v0.1` failed in `Validate release tag` before checkout; publishing, both launch smokes, and draft-release creation were skipped. No local or remote `v0.1` tag or release existed before or after, and the existing draft-release asset inventory was unchanged. This exercises the shared validator through `workflow_dispatch`, rather than a pushed malformed tag.
 
 ## Test Strategy
 
