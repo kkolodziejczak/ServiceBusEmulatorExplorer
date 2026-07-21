@@ -336,7 +336,7 @@ Stage 2 acceptance:
 - [ ] The supported browse/read/send workflow is proven against a real Azure namespace.
 - [x] Missing or wrongly scoped authorization fails clearly without corrupting UI state or disconnecting the usable session.
 - [x] README explicitly states that Azure RBAC entity management is out of scope.
-- [ ] Emulator/SAS behavior remains working.
+- [x] Emulator/SAS behavior remains working.
 
 ## Test Strategy
 
@@ -435,6 +435,7 @@ No existing feature or file should be removed.
 - 2026-07-21 Stage 2: Added a default-skipped Azure RBAC E2E proof using only pre-provisioned entities. It is implemented but not executed here: `az` is unavailable, and `SBE_RUN_AZURE_RBAC_TESTS`, `SBE_AZURE_NAMESPACE`, `SBE_AZURE_TOPIC`, and `SBE_AZURE_SUBSCRIPTION` are unset. Real-Azure Data Owner namespace-scope proof remains unchecked until an authorized operator runs it.
 - 2026-07-21 Superseded scope-conflict record: the previous plan promised entity-scoped roles although the authoritative topology-first workflow enumerates the namespace. The user resolved this by narrowing the supported Azure RBAC contract to Azure Service Bus Data Owner at namespace scope; no direct entity-entry workflow will be added.
 - 2026-07-21 Local verification: focused App tests and the fast non-integration/non-UI loop passed; `git diff --check` passed. The default UI smoke command is opt-in and skipped without its environment flag. Docker has no running emulator, so emulator integration remains unexecuted. These are recorded external/local-environment limits, not Azure credential prerequisites.
+- 2026-07-21 Final local verification: fast loop passed (Core 48, App 62; Azure proof 1 skipped by design); Docker SQL and Service Bus emulator started from `.env.example` and were healthy on the documented ports; direct emulator integration passed 4 tests (Azure proof 1 skipped, 0 failed, about 20 seconds); bounded UI runner passed `App_launches_main_window_and_exposes_shell_commands` 1/1 in about 2 seconds with execution-policy bypass. `git diff --check` was clean apart from line-ending notices. Real-Azure proof remains unexecuted because `az` and the required proof inputs are unavailable.
 
 ## Authoritative References
 
