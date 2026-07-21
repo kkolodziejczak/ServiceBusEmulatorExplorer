@@ -6,6 +6,7 @@
 
 ServiceBusEmulatorExplorer is a WPF desktop app for inspecting Azure Service Bus through the Azure SDK, with both local-emulator/SAS and Azure CLI/RBAC connection modes.
 
+<!-- Updated automatically from a deterministic WPF UI scenario built from released source by .github/workflows/update-readme-screenshot.yml. -->
 ![ServiceBusEmulatorExplorer showing a retail order-events topic, business subscriptions, and an OrderDispatched event](docs/images/service-bus-emulator-explorer.png)
 
 ## Azure CLI / RBAC

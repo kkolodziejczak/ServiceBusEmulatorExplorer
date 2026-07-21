@@ -1,0 +1,165 @@
+name: Update README Screenshot
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing published release tag whose UI should be captured.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-readme-screenshot
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    name: Capture released UI
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
+
+    steps:
+      - name: Validate published release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+$') {
+            throw "Release tags must match vMAJOR.MINOR.PATCH. Received '$env:RELEASE_TAG'."
+          }
+
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $release.draft -or [string]::IsNullOrWhiteSpace($release.published_at)) {
+            throw "Release '$env:RELEASE_TAG' does not exist or is not published."
+          }
+
+      - name: Check out released source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          persist-credentials: false
+
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build screenshot generator
+        shell: pwsh
+        timeout-minutes: 3
+        run: dotnet build tools\ServiceBusEmulatorExplorer.ReadmeScreenshot\ServiceBusEmulatorExplorer.ReadmeScreenshot.csproj --configuration Release -p:UseSharedCompilation=false -p:NodeReuse=false
+
+      - name: Capture released application
+        shell: pwsh
+        timeout-minutes: 2
+        run: |
+          $outputPath = Join-Path $env:RUNNER_TEMP "readme-screenshot\service-bus-emulator-explorer.png"
+          .\scripts\Update-ReadmeScreenshot.ps1 -OutputPath $outputPath -TimeoutSeconds 120
+
+      - name: Upload validated screenshot
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: readme-screenshot-${{ env.RELEASE_TAG }}
+          path: ${{ runner.temp }}\readme-screenshot\service-bus-emulator-explorer.png
+          if-no-files-found: error
+          retention-days: 7
+
+  commit:
+    name: Update documentation image
+    needs: capture
+    runs-on: windows-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+
+    steps:
+      - name: Check out documentation branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ env.DEFAULT_BRANCH }}
+
+      - name: Download generated screenshot
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: readme-screenshot-${{ env.RELEASE_TAG }}
+          path: generated-screenshot
+
+      - name: Validate isolated screenshot artifact
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem -LiteralPath generated-screenshot -File -Recurse)
+          if ($files.Count -ne 1 -or $files[0].Name -ne 'service-bus-emulator-explorer.png') {
+            throw 'The screenshot artifact must contain exactly service-bus-emulator-explorer.png.'
+          }
+          if ($files[0].Length -lt 50000) {
+            throw "The screenshot artifact is unexpectedly small: $($files[0].Length) bytes."
+          }
+
+          Add-Type -AssemblyName PresentationCore
+          $stream = [System.IO.File]::OpenRead($files[0].FullName)
+          try {
+            $decoder = [System.Windows.Media.Imaging.PngBitmapDecoder]::new(
+              $stream,
+              [System.Windows.Media.Imaging.BitmapCreateOptions]::PreservePixelFormat,
+              [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad)
+            $frame = $decoder.Frames[0]
+          }
+          finally {
+            $stream.Dispose()
+          }
+
+          if ($frame.PixelWidth -lt 1200 -or $frame.PixelWidth -gt 2000
+              -or $frame.PixelHeight -lt 650 -or $frame.PixelHeight -gt 1000) {
+            throw "The screenshot artifact has unexpected dimensions: $($frame.PixelWidth)x$($frame.PixelHeight)."
+          }
+
+      - name: Commit screenshot when visuals changed
+        shell: pwsh
+        run: |
+          $imagePath = 'docs/images/service-bus-emulator-explorer.png'
+          Copy-Item -LiteralPath 'generated-screenshot/service-bus-emulator-explorer.png' -Destination $imagePath -Force
+
+          $imageStatus = git status --porcelain -- $imagePath
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not inspect the generated README screenshot."
+          }
+          if ([string]::IsNullOrWhiteSpace($imageStatus)) {
+            Write-Host "The released UI matches the current README screenshot."
+            exit 0
+          }
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- $imagePath
+          git diff --cached --check
+          if ($LASTEXITCODE -ne 0) {
+            throw "The generated README screenshot failed the staged diff check."
+          }
+
+          $stagedFiles = @(git diff --cached --name-only)
+          if ($LASTEXITCODE -ne 0 -or $stagedFiles.Count -ne 1 -or $stagedFiles[0] -ne $imagePath) {
+            throw "The screenshot workflow must stage exactly $imagePath."
+          }
+
+          git commit -m "docs: refresh app screenshot for $env:RELEASE_TAG"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not commit the generated README screenshot."
+          }
+
+          git push origin "HEAD:$env:DEFAULT_BRANCH"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not push the generated README screenshot to $env:DEFAULT_BRANCH. Ensure branch protection permits this workflow to update the documentation image."
+          }

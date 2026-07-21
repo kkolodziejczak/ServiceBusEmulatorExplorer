@@ -9,4 +9,7 @@
     <Project Path="tests/ServiceBusEmulatorExplorer.Integration.Tests/ServiceBusEmulatorExplorer.Integration.Tests.csproj" />
     <Project Path="tests/ServiceBusEmulatorExplorer.UiSmoke.Tests/ServiceBusEmulatorExplorer.UiSmoke.Tests.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/ServiceBusEmulatorExplorer.ReadmeScreenshot.csproj" />
+  </Folder>
 </Solution>
