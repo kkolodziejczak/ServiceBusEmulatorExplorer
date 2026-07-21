@@ -121,8 +121,9 @@ jobs:
             $stream.Dispose()
           }
 
-          if ($frame.PixelWidth -lt 1200 -or $frame.PixelWidth -gt 2000
-              -or $frame.PixelHeight -lt 650 -or $frame.PixelHeight -gt 1000) {
+          $widthIsValid = $frame.PixelWidth -ge 1200 -and $frame.PixelWidth -le 2000
+          $heightIsValid = $frame.PixelHeight -ge 650 -and $frame.PixelHeight -le 1000
+          if (-not $widthIsValid -or -not $heightIsValid) {
             throw "The screenshot artifact has unexpected dimensions: $($frame.PixelWidth)x$($frame.PixelHeight)."
           }
 
