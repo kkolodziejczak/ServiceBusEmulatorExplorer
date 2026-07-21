@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ServiceBusEmulatorExplorer.App.Services;
+using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
 namespace ServiceBusEmulatorExplorer.App.ViewModels;
@@ -25,6 +26,7 @@ public sealed class MessageInspectionViewModel : ObservableObject
     private string _selectedSystemProperties = "";
     private string _selectedApplicationProperties = "";
     private bool _isConnected;
+    private ConnectionAuthenticationMode _authenticationMode = ConnectionAuthenticationMode.ConnectionString;
     private bool _isShellBusy;
     private bool _isBusy;
     private long? _nextActiveSequenceNumber;
@@ -96,6 +98,12 @@ public sealed class MessageInspectionViewModel : ObservableObject
                 NotifyCommandStateChanged();
             }
         }
+    }
+
+    public ConnectionAuthenticationMode AuthenticationMode
+    {
+        get => _authenticationMode;
+        set => SetProperty(ref _authenticationMode, value);
     }
 
     public bool IsShellBusy
@@ -511,9 +519,10 @@ public sealed class MessageInspectionViewModel : ObservableObject
             }
             catch (Exception ex)
             {
+                OperationFailure failure = OperationFailureFormatter.Format(ex, AuthenticationMode);
                 Status = "Message operation failed.";
-                Error = ex.Message;
-                TryAddLog($"{failurePrefix}: {ex.Message}", out _);
+                Error = failure.UserMessage;
+                TryAddLog($"{failurePrefix}: {failure.UserMessage} Detail: {failure.Detail}", out _);
                 return;
             }
 
@@ -543,7 +552,12 @@ public sealed class MessageInspectionViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            string warning = $"Operation succeeded, but refresh failed: {ex.Message}";
+            OperationFailure failure = OperationFailureFormatter.Format(ex, AuthenticationMode);
+            string warning = $"Operation succeeded, but refresh failed: {failure.UserMessage}";
+            if (!string.Equals(failure.UserMessage, failure.Detail, StringComparison.Ordinal))
+            {
+                warning += $" Detail: {failure.Detail}";
+            }
             Error = warning;
             TryAddLog(warning, out _);
         }
@@ -586,9 +600,10 @@ public sealed class MessageInspectionViewModel : ObservableObject
         }
         catch (Exception ex)
         {
+            OperationFailure failure = OperationFailureFormatter.Format(ex, AuthenticationMode);
             Status = "Message operation failed.";
-            Error = ex.Message;
-            _addLog($"{failurePrefix}: {ex.Message}");
+            Error = failure.UserMessage;
+            _addLog($"{failurePrefix}: {failure.UserMessage} Detail: {failure.Detail}");
         }
         finally
         {
@@ -843,7 +858,8 @@ public sealed class MessageInspectionViewModel : ObservableObject
             {
                 failureCount++;
                 SetTopicNextSequenceNumber(bucket, address, null);
-                _addLog($"Load {CreateBucketLabel(bucket)} messages from {subscription.Metadata.Path} failed: {ex.Message}");
+                OperationFailure failure = OperationFailureFormatter.Format(ex, AuthenticationMode);
+                _addLog($"Load {CreateBucketLabel(bucket)} messages from {subscription.Metadata.Path} failed: {failure.UserMessage} Detail: {failure.Detail}");
             }
         }
 
@@ -1191,7 +1207,7 @@ public sealed class MessageInspectionViewModel : ObservableObject
     {
         if (!IsConnected)
         {
-            return "Connect to an emulator first.";
+            return "Connect first.";
         }
 
         if (IsShellBusy)

@@ -48,6 +48,20 @@ The script checks progress every 15 seconds and stops the test process plus WPF 
 
 Navigation and DLQ UI smoke tests also require `SBE_CONNECTION_STRING` or `SBE_RUNTIME_CONNECTION_STRING`, plus `SBE_ADMIN_CONNECTION_STRING`.
 
+Azure RBAC proof tests are a separate, opt-in E2E layer. They require Azure CLI to be installed and signed in, plus pre-provisioned inputs; they do not create/update/delete resources or settle/delete messages:
+
+```powershell
+$env:SBE_RUN_AZURE_RBAC_TESTS = "true"
+$env:SBE_AZURE_NAMESPACE = "orders.servicebus.windows.net"
+$env:SBE_AZURE_TOPIC = "pre-provisioned-topic"
+$env:SBE_AZURE_SUBSCRIPTION = "pre-provisioned-subscription"
+dotnet test ServiceBusEmulatorExplorer.Integration.Tests\ServiceBusEmulatorExplorer.Integration.Tests.csproj --filter TestCategory=AzureRbac
+```
+
+The proof browses the configured topic/subscription, peeks at most one subscription message, and sends one uniquely tagged non-sensitive text message. It is skipped unless explicitly enabled, so Azure credentials are never a normal-test prerequisite. Run it with **Azure Service Bus Data Owner at namespace scope**; Sender-only, Receiver-only, combined, and entity-scoped-only role configurations are not supported proof targets.
+
+The proof uses the app's namespace topology workflow, which requires the supported Data Owner namespace assignment.
+
 Manual local proof:
 
 ```powershell

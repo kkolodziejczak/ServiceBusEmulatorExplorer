@@ -1,13 +1,69 @@
 using Azure.Messaging.ServiceBus;
+using Azure;
 using ServiceBusEmulatorExplorer.App;
 using ServiceBusEmulatorExplorer.App.Services;
 using ServiceBusEmulatorExplorer.App.ViewModels;
+using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
 namespace ServiceBusEmulatorExplorer.App.Tests.ViewModels;
 
 public sealed class MessageInspectionViewModelTests
 {
+    [Fact]
+    public void Disconnected_message_tooltips_are_connection_mode_neutral()
+    {
+        MessageInspectionViewModel viewModel = CreateViewModel();
+
+        Assert.Contains("Connect first.", viewModel.PeekActiveMessagesCommandToolTip, StringComparison.Ordinal);
+        Assert.DoesNotContain("emulator", viewModel.PeekActiveMessagesCommandToolTip, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Authorization_failure_keeps_message_inspection_connected_and_preserves_non_secret_detail_in_log()
+    {
+        ServiceBusEntityNode queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 0, deadLetter: 0);
+        var messageService = new FakeMessageService
+        {
+            PeekException = new RequestFailedException(403, "Entity authorization denied", "AuthorizationFailed", null)
+        };
+        List<string> log = [];
+        MessageInspectionViewModel viewModel = CreateViewModel(messageService, log: log);
+        viewModel.AuthenticationMode = ConnectionAuthenticationMode.AzureCli;
+        viewModel.IsConnected = true;
+        viewModel.SelectEntity(queue);
+
+        await viewModel.PeekActiveMessagesCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.IsConnected);
+        Assert.Equal("Message operation failed.", viewModel.Status);
+        Assert.Contains("permission", viewModel.Error!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(log, entry => entry.Contains("HTTP 403 (AuthorizationFailed).", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Send_authorization_failure_keeps_message_inspection_connected()
+    {
+        ServiceBusEntityNode queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 0, deadLetter: 0);
+        var messageService = new FakeMessageService
+        {
+            SendException = new RequestFailedException(403, "Send authorization denied", "AuthorizationFailed", null)
+        };
+        var messageDialog = new FakeMessageDialogService
+        {
+            SendResult = new SendMessageCommand(new EntityAddress(EntityKind.Queue, "orders"), "non-sensitive payload")
+        };
+        MessageInspectionViewModel viewModel = CreateViewModel(messageService, messageDialogService: messageDialog);
+        viewModel.AuthenticationMode = ConnectionAuthenticationMode.AzureCli;
+        viewModel.IsConnected = true;
+        viewModel.SelectEntity(queue);
+
+        await viewModel.SendMessageCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.IsConnected);
+        Assert.Contains("permission", viewModel.Error!, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public async Task SendMessageCommand_preserves_success_when_refresh_fails()
     {
@@ -32,9 +88,9 @@ public sealed class MessageInspectionViewModelTests
 
         Assert.Equal(1, messageService.SendCallCount);
         Assert.Equal("Sent message to orders.", viewModel.Status);
-        Assert.Equal("Operation succeeded, but refresh failed: refresh broke", viewModel.Error);
+        Assert.Equal("Operation succeeded, but refresh failed: The operation failed. Detail: InvalidOperationException; raw exception details are omitted.", viewModel.Error);
         Assert.Contains(log, entry => entry.Contains("Sent message to orders.", StringComparison.Ordinal));
-        Assert.Contains(log, entry => entry.Contains("Operation succeeded, but refresh failed: refresh broke", StringComparison.Ordinal));
+        Assert.Contains(log, entry => entry.Contains("Operation succeeded, but refresh failed: The operation failed.", StringComparison.Ordinal));
         Assert.DoesNotContain(log, entry => entry.Contains("Send message failed", StringComparison.Ordinal));
 
         await viewModel.PeekActiveMessagesCommand.ExecuteAsync(null);
@@ -174,9 +230,9 @@ public sealed class MessageInspectionViewModelTests
 
         Assert.Equal(1, replayService.ReplayCallCount);
         Assert.Equal("Replayed DLQ sequence 17 as new-message-id. Original remains in DLQ.", viewModel.Status);
-        Assert.Equal("Operation succeeded, but refresh failed: refresh broke", viewModel.Error);
+        Assert.Equal("Operation succeeded, but refresh failed: The operation failed. Detail: InvalidOperationException; raw exception details are omitted.", viewModel.Error);
         Assert.Contains(log, entry => entry.Contains("Replayed DLQ sequence 17 to orders as new-message-id. Original remains in DLQ.", StringComparison.Ordinal));
-        Assert.Contains(log, entry => entry.Contains("Operation succeeded, but refresh failed: refresh broke", StringComparison.Ordinal));
+        Assert.Contains(log, entry => entry.Contains("Operation succeeded, but refresh failed: The operation failed.", StringComparison.Ordinal));
         Assert.DoesNotContain(log, entry => entry.Contains("Replay DLQ message failed", StringComparison.Ordinal));
 
         await viewModel.PeekDeadLetterMessagesCommand.ExecuteAsync(null);
@@ -282,9 +338,9 @@ public sealed class MessageInspectionViewModelTests
 
         Assert.Equal(1, replayService.DeleteCallCount);
         Assert.Equal("Deleted 1 DLQ message(s).", viewModel.Status);
-        Assert.Equal("Operation succeeded, but refresh failed: refresh broke", viewModel.Error);
+        Assert.Equal("Operation succeeded, but refresh failed: The operation failed. Detail: InvalidOperationException; raw exception details are omitted.", viewModel.Error);
         Assert.Contains(log, entry => entry.Contains("Deleted 1 DLQ message(s) from orders.", StringComparison.Ordinal));
-        Assert.Contains(log, entry => entry.Contains("Operation succeeded, but refresh failed: refresh broke", StringComparison.Ordinal));
+        Assert.Contains(log, entry => entry.Contains("Operation succeeded, but refresh failed: The operation failed.", StringComparison.Ordinal));
         Assert.DoesNotContain(log, entry => entry.Contains("Delete DLQ messages failed", StringComparison.Ordinal));
 
         await viewModel.PeekDeadLetterMessagesCommand.ExecuteAsync(null);
@@ -492,6 +548,8 @@ public sealed class MessageInspectionViewModelTests
 
         public Exception? PeekException { get; init; }
 
+        public Exception? SendException { get; init; }
+
         public int PeekExceptionAfterCallCount { get; init; }
 
         public int PeekCallCount { get; private set; }
@@ -517,6 +575,11 @@ public sealed class MessageInspectionViewModelTests
         public Task SendMessageAsync(SendMessageCommand command, CancellationToken cancellationToken)
         {
             SendCallCount++;
+            if (SendException is not null)
+            {
+                throw SendException;
+            }
+
             return Task.CompletedTask;
         }
     }

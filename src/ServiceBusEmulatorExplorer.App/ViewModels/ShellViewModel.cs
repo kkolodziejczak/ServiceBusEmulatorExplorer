@@ -107,6 +107,10 @@ public sealed class ShellViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(IsConnectionStringMode));
                 OnPropertyChanged(nameof(IsAzureCliMode));
+                OnPropertyChanged(nameof(IsEntityManagementSupported));
+                OnPropertyChanged(nameof(EntityManagementUnavailableReason));
+                MessageInspection.AuthenticationMode = value;
+                NotifyCommandStateChanged();
             }
         }
     }
@@ -116,6 +120,11 @@ public sealed class ShellViewModel : ObservableObject
     public bool IsConnectionStringMode => AuthenticationMode == ConnectionAuthenticationMode.ConnectionString;
 
     public bool IsAzureCliMode => AuthenticationMode == ConnectionAuthenticationMode.AzureCli;
+
+    public bool IsEntityManagementSupported => IsConnectionStringMode;
+
+    public string EntityManagementUnavailableReason =>
+        "Azure RBAC entity management is not supported. Connect with connection strings to create, update, or delete entities.";
 
     public string FullyQualifiedNamespace
     {
@@ -315,15 +324,15 @@ public sealed class ShellViewModel : ObservableObject
 
     public string CreateQueueCommandToolTip => CreateToolTip(
         "Create a new queue.",
-        !IsConnected ? "Connect first." : GetShellBusyReason());
+        CreateEntityManagementUnavailableReason());
 
     public string CreateTopicCommandToolTip => CreateToolTip(
         "Create a new topic.",
-        !IsConnected ? "Connect first." : GetShellBusyReason());
+        CreateEntityManagementUnavailableReason());
 
     public string CreateSubscriptionCommandToolTip => CreateToolTip(
         "Create a new subscription.",
-        !IsConnected ? "Connect first." : GetShellBusyReason());
+        CreateEntityManagementUnavailableReason());
 
     public bool CanShowRefreshSubscriptionsCommand => _selectedEntity is { Kind: EntityKind.Topic };
 
@@ -437,7 +446,8 @@ public sealed class ShellViewModel : ObservableObject
         catch (Exception ex)
         {
             ConnectionStatus = IsConnected ? ConnectionStatus : "Disconnected";
-            AddLog($"{failurePrefix}: {ex.Message}");
+            OperationFailure failure = OperationFailureFormatter.Format(ex, AuthenticationMode);
+            AddLog($"{failurePrefix}: {failure.UserMessage} Detail: {failure.Detail}");
             return false;
         }
         finally
@@ -501,8 +511,9 @@ public sealed class ShellViewModel : ObservableObject
         catch (Exception ex)
         {
             EntityBrowserStatus = "Refresh failed.";
-            EntityBrowserError = ex.Message;
-            AddLog($"Refresh failed: {ex.Message}");
+            OperationFailure failure = OperationFailureFormatter.Format(ex, AuthenticationMode);
+            EntityBrowserError = failure.UserMessage;
+            AddLog($"Refresh failed: {failure.UserMessage} Detail: {failure.Detail}");
         }
         finally
         {
@@ -562,8 +573,9 @@ public sealed class ShellViewModel : ObservableObject
         catch (Exception ex)
         {
             EntityBrowserStatus = "Subscription refresh failed.";
-            EntityBrowserError = ex.Message;
-            AddLog($"Subscription refresh failed: {ex.Message}");
+            OperationFailure failure = OperationFailureFormatter.Format(ex, AuthenticationMode);
+            EntityBrowserError = failure.UserMessage;
+            AddLog($"Subscription refresh failed: {failure.UserMessage} Detail: {failure.Detail}");
         }
         finally
         {
@@ -830,7 +842,8 @@ public sealed class ShellViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            AddLog($"{failurePrefix}: {ex.Message}");
+            OperationFailure failure = OperationFailureFormatter.Format(ex, AuthenticationMode);
+            AddLog($"{failurePrefix}: {failure.UserMessage} Detail: {failure.Detail}");
             return;
         }
         finally
@@ -871,12 +884,12 @@ public sealed class ShellViewModel : ObservableObject
 
     private bool CanManageEntities()
     {
-        return IsConnected && !IsBusy && !MessageInspection.IsBusy;
+        return IsEntityManagementSupported && IsConnected && !IsBusy && !MessageInspection.IsBusy;
     }
 
     private bool CanUpdateOrDeleteSelectedEntity()
     {
-        return IsConnected && !IsBusy && !MessageInspection.IsBusy && _selectedEntity is not null;
+        return IsEntityManagementSupported && IsConnected && !IsBusy && !MessageInspection.IsBusy && _selectedEntity is not null;
     }
 
     private void NotifyCommandStateChanged()
@@ -926,6 +939,11 @@ public sealed class ShellViewModel : ObservableObject
 
     private string? CreateSelectedEntityUnavailableReason()
     {
+        if (!IsEntityManagementSupported)
+        {
+            return EntityManagementUnavailableReason;
+        }
+
         if (_selectedEntity is null)
         {
             return "Select a queue, topic, or subscription first.";
@@ -937,6 +955,13 @@ public sealed class ShellViewModel : ObservableObject
         }
 
         return GetShellBusyReason();
+    }
+
+    private string? CreateEntityManagementUnavailableReason()
+    {
+        return !IsEntityManagementSupported
+            ? EntityManagementUnavailableReason
+            : !IsConnected ? "Connect first." : GetShellBusyReason();
     }
 
     private string? GetShellBusyReason()

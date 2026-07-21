@@ -1,5 +1,6 @@
 using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
+using Azure;
 using ServiceBusEmulatorExplorer.App.Services;
 using ServiceBusEmulatorExplorer.App.ViewModels;
 using ServiceBusEmulatorExplorer.Core.Connection;
@@ -9,6 +10,57 @@ namespace ServiceBusEmulatorExplorer.App.Tests.ViewModels;
 
 public sealed class ShellViewModelTests
 {
+    [Fact]
+    public async Task Azure_cli_mode_disables_entity_management_with_an_explanation_but_keeps_message_actions_optimistic()
+    {
+        ServiceBusEntityNode queue = CreateEntity(EntityKind.Queue, "orders", topicName: null, active: 0, deadLetter: 0);
+        var viewModel = CreateViewModel(administrationService: new FakeAdministrationService([queue]));
+        viewModel.AuthenticationMode = ConnectionAuthenticationMode.AzureCli;
+        viewModel.FullyQualifiedNamespace = "orders.servicebus.windows.net";
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+        viewModel.SelectEntity(viewModel.EntityTree[0].Children[0].Children[0]);
+
+        Assert.False(viewModel.IsEntityManagementSupported);
+        Assert.Contains("Azure RBAC entity management is not supported", viewModel.EntityManagementUnavailableReason, StringComparison.Ordinal);
+        Assert.Contains("Azure RBAC entity management is not supported", viewModel.CreateQueueCommandToolTip, StringComparison.Ordinal);
+        Assert.False(viewModel.CreateQueueCommand.CanExecute(null));
+        Assert.False(viewModel.CreateTopicCommand.CanExecute(null));
+        Assert.False(viewModel.CreateSubscriptionCommand.CanExecute(null));
+        Assert.False(viewModel.UpdateSelectedEntityCommand.CanExecute(null));
+        Assert.False(viewModel.DeleteSelectedEntityCommand.CanExecute(null));
+        Assert.True(viewModel.MessageInspection.SendMessageCommand.CanExecute(null));
+        Assert.True(viewModel.MessageInspection.PeekActiveMessagesCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task Connection_string_mode_retains_entity_management_actions()
+    {
+        var viewModel = CreateViewModel();
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.IsEntityManagementSupported);
+        Assert.True(viewModel.CreateQueueCommand.CanExecute(null));
+        Assert.True(viewModel.CreateTopicCommand.CanExecute(null));
+        Assert.True(viewModel.CreateSubscriptionCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task Authorization_failure_during_refresh_preserves_connection_and_shows_actionable_guidance()
+    {
+        var viewModel = CreateViewModel(administrationService: new AuthorizationFailingAdministrationService());
+        viewModel.AuthenticationMode = ConnectionAuthenticationMode.AzureCli;
+        viewModel.FullyQualifiedNamespace = "orders.servicebus.windows.net";
+
+        await viewModel.ConnectCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.IsConnected);
+        Assert.Equal("Refresh failed.", viewModel.EntityBrowserStatus);
+        Assert.Contains("permission", viewModel.EntityBrowserError!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Data Owner at namespace scope", viewModel.OperationLog[^1].Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task LoadProfilesAsync_applies_first_saved_profile()
     {
@@ -206,8 +258,8 @@ public sealed class ShellViewModelTests
 
         Assert.True(viewModel.IsConnected);
         Assert.Equal("Refresh failed.", viewModel.EntityBrowserStatus);
-        Assert.Equal("Administration endpoint unavailable.", viewModel.EntityBrowserError);
-        Assert.Contains("Refresh failed: Administration endpoint unavailable.", viewModel.OperationLog[^1].Message);
+        Assert.Equal("The operation failed.", viewModel.EntityBrowserError);
+        Assert.Contains("Refresh failed: The operation failed.", viewModel.OperationLog[^1].Message);
     }
 
     [Fact]
@@ -885,9 +937,9 @@ public sealed class ShellViewModelTests
         }
     }
 
-    private sealed class ThrowingAdministrationService : IServiceBusAdministrationService
+    private class ThrowingAdministrationService : IServiceBusAdministrationService
     {
-        public Task<IReadOnlyList<ServiceBusEntityNode>> GetEntityTreeAsync(CancellationToken cancellationToken)
+        public virtual Task<IReadOnlyList<ServiceBusEntityNode>> GetEntityTreeAsync(CancellationToken cancellationToken)
         {
             throw new InvalidOperationException("Administration endpoint unavailable.");
         }
@@ -935,6 +987,14 @@ public sealed class ShellViewModelTests
         public Task DeleteSubscriptionAsync(string topicName, string subscriptionName, CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
+        }
+    }
+
+    private sealed class AuthorizationFailingAdministrationService : ThrowingAdministrationService
+    {
+        public override Task<IReadOnlyList<ServiceBusEntityNode>> GetEntityTreeAsync(CancellationToken cancellationToken)
+        {
+            throw new RequestFailedException(403, "Entity authorization denied", "AuthorizationFailed", null);
         }
     }
 

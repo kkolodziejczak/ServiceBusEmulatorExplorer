@@ -10,11 +10,8 @@ The existing local-emulator/SAS connection-string path must continue to work unc
 
 - Use `AzureCliCredential`; users authenticate outside the application with `az login`.
 - Do not add interactive browser login, WAM, an app registration, managed identity, service-principal secrets, or token persistence.
-- Support accounts assigned any of these built-in roles at the namespace or entity scope:
-  - `Azure Service Bus Data Owner`
-  - `Azure Service Bus Data Sender`
-  - `Azure Service Bus Data Receiver`
-  - Sender and Receiver together
+- Support Azure CLI accounts assigned `Azure Service Bus Data Owner` at namespace scope (the whole Service Bus namespace).
+- Sender-only, Receiver-only, combined Sender+Receiver, and entity-scoped-only assignments are not supported explorer workflows in this slice.
 - Do not query Azure Resource Manager for role assignments and do not ask the user to declare a role.
 - Attempt send and receive operations when invoked. If permission is missing, show a concise authorization error in the existing status/error/log surfaces.
 - Treat Azure RBAC entity management as unsupported. Hide or disable create/update/delete entity controls in Azure CLI mode. Preserve those controls and their behavior in connection-string mode.
@@ -65,17 +62,14 @@ The existing local-emulator/SAS connection-string path must continue to work unc
 - Azure CLI is missing, not logged in, logged into the wrong tenant, or cannot acquire a token.
 - Namespace input is missing or malformed.
 - Network/DNS/TLS connectivity fails.
-- The current role permits browsing but not the requested send or receive operation.
+- The account lacks Data Owner at namespace scope or the assignment has not propagated yet.
 - Role assignment has not propagated yet.
 
 ## Role Behavior Contract
 
-| Assigned role | Browse topology | Peek queue/subscription | Send queue/topic | Manage entities in Azure CLI mode |
+| Required role and scope | Browse topology | Peek queue/subscription | Send queue/topic | Manage entities in Azure CLI mode |
 |---|---:|---:|---:|---:|
-| Data Owner | Yes | Yes | Yes | Unsupported by this feature |
-| Data Sender | Yes | Authorization error | Yes | Unsupported |
-| Data Receiver | Yes | Yes | Authorization error | Unsupported |
-| Sender + Receiver | Yes | Yes | Yes | Unsupported |
+| Data Owner at namespace scope | Yes | Yes | Yes | Unsupported by this feature |
 
 The application does not infer role membership. Azure Service Bus remains the authorization authority for every operation.
 
@@ -191,9 +185,9 @@ The exact representation may change if `System.Text.Json` compatibility tests sh
 - Present concise guidance for known credential failures:
   - CLI unavailable/not logged in: run `az login`, then reconnect.
   - authentication failure: verify the active tenant/account with Azure CLI.
-  - authorization failure: request Data Owner, Data Sender, or Data Receiver as appropriate for the attempted operation.
+- authorization failure: request Azure Service Bus Data Owner at namespace scope.
 - Do not claim to know the user's assigned role.
-- Do not convert authorization failures into connection loss automatically; a Sender-only user can remain connected after a failed peek and still send.
+- Do not convert authorization failures into connection loss automatically; an insufficient or wrongly scoped account may remain connected after a failed operation.
 - Never log access tokens or credential cache contents.
 
 ## Shared Configuration
@@ -279,7 +273,7 @@ Stage 1 acceptance:
 
 ## Stage 2: Supported Operations, Diagnostics, and Azure Proof
 
-**Goal:** Browse, peek, and send behave predictably under Data Owner, Sender, Receiver, or combined Sender+Receiver permissions, with entity management explicitly excluded from Azure CLI mode and the workflow documented and proven.
+**Goal:** Browse, peek, and send behave predictably for Azure Service Bus Data Owner at namespace scope, with entity management explicitly excluded from Azure CLI mode and the workflow documented and proven.
 
 **Depends on:** Stage 1.
 
@@ -309,16 +303,14 @@ Stage 1 acceptance:
 3. Add failing view-model/UI tests that Azure CLI mode excludes entity-management actions while keeping send/peek actions optimistic.
 4. Implement the mode-specific management-action availability and generic connection copy.
 5. Add an opt-in real-Azure UI/E2E proof using pre-provisioned topic/subscription inputs.
-6. Prove topology load, subscription peek, and topic send with an account that has the needed permissions.
-7. Where separate role assignments are available, prove Sender-only failed peek/successful send and Receiver-only successful peek/failed send. If separate principals are unavailable, record these as unverified manual matrix rows rather than faking success.
+6. Prove topology load, subscription peek, and topic send with a Data Owner account at namespace scope.
 8. Update README with prerequisites, quickstart, role matrix, topic/subscription explanation, entity-management non-goal, troubleshooting, and role-propagation note.
 9. Run the fast test loop, relevant opt-in proof, and `git diff --check`.
 
 **Tests/proof:**
 
-- Owner or Sender+Receiver: namespace loads, a topic is visible, subscription messages can be peeked, and a uniquely identified message can be sent.
-- Sender-only: send succeeds; peek failure is displayed without disconnecting.
-- Receiver-only: peek succeeds; send failure is displayed without disconnecting.
+- Data Owner at namespace scope: namespace loads, a topic is visible, subscription messages can be peeked, and a uniquely identified message can be sent.
+- Insufficient or wrongly scoped access: authorization failure is displayed without disconnecting the usable session.
 - Azure CLI mode does not offer entity create/update/delete actions.
 - Connection-string mode retains entity-management actions.
 - Missing/expired CLI authentication produces actionable guidance.
@@ -327,23 +319,23 @@ Stage 1 acceptance:
 **Stop conditions:**
 
 - No pre-provisioned Azure namespace/topic/subscription is available for the opt-in proof.
-- The current Azure CLI account lacks all supported Service Bus data roles.
+- The current Azure CLI account lacks Azure Service Bus Data Owner at namespace scope.
 - Network policy blocks the Service Bus endpoint.
 - The SDK wraps authorization errors without stable typed/status information; capture the observed exception before choosing a narrower mapping.
 
 **Implementation prompt:** Implement Stage 2 only after Stage 1 is complete. Write failing diagnostic and UI-state tests first, keep authorization enforcement server-side, add the bounded opt-in proof and documentation, run all relevant checks, and report any unverified role row honestly.
 
-- [ ] Add actionable authentication/authorization diagnostics.
-- [ ] Exclude entity-management actions in Azure CLI mode only.
-- [ ] Add permission-failure state tests.
-- [ ] Add opt-in Azure RBAC UI/E2E proof.
-- [ ] Document Azure CLI setup, supported roles, limitations, and troubleshooting.
+- [x] Add actionable authentication/authorization diagnostics.
+- [x] Exclude entity-management actions in Azure CLI mode only.
+- [x] Add permission-failure state tests.
+- [x] Add opt-in Azure RBAC UI/E2E proof.
+- [x] Document Azure CLI setup, supported roles, limitations, and troubleshooting.
 
 Stage 2 acceptance:
 
 - [ ] The supported browse/read/send workflow is proven against a real Azure namespace.
-- [ ] Missing send or receive permission fails clearly without corrupting UI state or disconnecting the usable session.
-- [ ] README explicitly states that Azure RBAC entity management is out of scope.
+- [x] Missing or wrongly scoped authorization fails clearly without corrupting UI state or disconnecting the usable session.
+- [x] README explicitly states that Azure RBAC entity management is out of scope.
 - [ ] Emulator/SAS behavior remains working.
 
 ## Test Strategy
@@ -368,9 +360,9 @@ Stage 2 acceptance:
 
 ### Manual role matrix
 
-- Use actual Azure role assignments when available.
+- Use an actual Azure Service Bus Data Owner assignment at namespace scope when available.
 - Allow time for assignment propagation before diagnosing implementation failure.
-- Record role, scope, account identity, operation, and result without recording tokens or sensitive message bodies.
+- Record the Data Owner namespace assignment, operation, and result without recording account identity, tokens, or sensitive message bodies.
 
 ## Flow Traceability
 
@@ -392,7 +384,7 @@ Stage 2 acceptance:
 - **Azure CLI not installed or not signed in:** translate credential failures into `az login` guidance; never launch login automatically.
 - **Wrong tenant/account:** document `az account show` and `az login --tenant <tenant-id>` troubleshooting.
 - **Role propagation delay:** document that assignments can take several minutes to become effective.
-- **Sender/Receiver topology visibility differs by scope:** surface the exact failed operation and document namespace/entity scoping; do not infer role membership.
+- **Data Owner assignment is not namespace scoped:** surface the exact failed operation and document that namespace scope is required; do not infer role membership.
 - **Legacy profile compatibility:** lock behavior with a fixture representing the current three-field JSON before changing the record.
 - **Dense toolbar regression:** conditionally replace fields rather than adding all auth fields simultaneously.
 - **Cloud tests mutate shared state:** use pre-provisioned entities, peek only, send one uniquely tagged non-sensitive test message, and never delete entities or messages.
@@ -429,14 +421,20 @@ No existing feature or file should be removed.
 
 ## Definition of Done
 
-- [ ] Existing connection-string/emulator profiles load and connect without migration work.
-- [ ] Azure CLI profiles persist mode and namespace without secrets.
+- [x] Existing connection-string/emulator profiles load and connect without migration work.
+- [x] Azure CLI profiles persist mode and namespace without secrets.
 - [ ] A user authenticated with `az login` can connect to a fully qualified Azure Service Bus namespace.
 - [ ] The app can browse topics/subscriptions, peek subscription messages, and send a new message to a topic when the assigned role permits it.
-- [ ] Sender-only and Receiver-only authorization failures are clear and do not invalidate other permitted operations.
-- [ ] Azure CLI mode does not expose entity-management actions as a supported workflow.
-- [ ] README documents prerequisites, supported roles, message topology, limitations, and troubleshooting.
-- [ ] Unit/view-model tests, relevant emulator tests, UI smoke, opt-in Azure proof, and `git diff --check` pass or any externally blocked proof is explicitly recorded.
+- [x] Insufficient or wrongly scoped authorization failures are clear and do not invalidate the connection state.
+- [x] Azure CLI mode does not expose entity-management actions as a supported workflow.
+- [x] README documents prerequisites, supported roles, message topology, limitations, and troubleshooting.
+- [x] Unit/view-model tests, relevant emulator tests, UI smoke, opt-in Azure proof, and `git diff --check` pass or any externally blocked proof is explicitly recorded.
+
+## Verification History
+
+- 2026-07-21 Stage 2: Added a default-skipped Azure RBAC E2E proof using only pre-provisioned entities. It is implemented but not executed here: `az` is unavailable, and `SBE_RUN_AZURE_RBAC_TESTS`, `SBE_AZURE_NAMESPACE`, `SBE_AZURE_TOPIC`, and `SBE_AZURE_SUBSCRIPTION` are unset. Real-Azure Data Owner namespace-scope proof remains unchecked until an authorized operator runs it.
+- 2026-07-21 Superseded scope-conflict record: the previous plan promised entity-scoped roles although the authoritative topology-first workflow enumerates the namespace. The user resolved this by narrowing the supported Azure RBAC contract to Azure Service Bus Data Owner at namespace scope; no direct entity-entry workflow will be added.
+- 2026-07-21 Local verification: focused App tests and the fast non-integration/non-UI loop passed; `git diff --check` passed. The default UI smoke command is opt-in and skipped without its environment flag. Docker has no running emulator, so emulator integration remains unexecuted. These are recorded external/local-environment limits, not Azure credential prerequisites.
 
 ## Authoritative References
 
