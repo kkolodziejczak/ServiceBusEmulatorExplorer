@@ -104,15 +104,47 @@ Run the scripted local proof from the repository root:
 
 The script starts the compose emulator, runs the gated integration proof, publishes the app, and prints the WPF checklist for confirming the DLQ workflow manually. The key manual result is that replaying a DLQ copy creates a new active message while the original DLQ message remains until the separate delete command is confirmed.
 
-## Packaging
+## Packaging and GitHub Releases
 
-Publish a self-contained Windows artifact:
+For a local self-contained Windows publish, run:
 
 ```powershell
 .\scripts\Publish-Windows.ps1
 ```
 
 The default output is `artifacts\publish\win-x64`, which is ignored by git.
+
+GitHub Releases provide two single-file `win-x64` downloads for every authorized
+`vMAJOR.MINOR.PATCH` tag. The tag workflow validates the repository, publishes and
+validates both artifacts, launch-smokes each final executable, then creates or
+updates a **draft** release. It never publishes the release automatically.
+
+- **Portable** (`ServiceBusEmulatorExplorer-vX.Y.Z-win-x64-portable.exe`) includes
+  the .NET runtime and is the recommended choice when you are unsure.
+- **Smaller download** (`ServiceBusEmulatorExplorer-vX.Y.Z-win-x64-requires-dotnet10.exe`)
+  requires the [.NET 10 Desktop Runtime for Windows x64](https://dotnet.microsoft.com/en-us/download/dotnet/10.0/runtime).
+
+Initial executables are unsigned. Windows Defender SmartScreen may show an
+unrecognized-app warning. Download only from this repository and verify that the
+release tag is the version you intended to install.
+
+After an authorized tag workflow succeeds, a maintainer must inspect the draft:
+confirm the two asset names and download guidance, then use GitHub's **Publish
+release** button to make it public. Do not push a release tag or publish a draft
+without the required authorization and review.
+
+GitHub-hosted Windows runners normally execute the same launch smoke for both
+artifacts. If their desktop session blocks the FlaUI launch smoke, the tag run
+fails before creating a draft and reports the failed proof rather than treating it
+as passed. Preserve the successful build and artifact-validation logs, then run
+the two explicit `SBE_APP_EXE` launch-smoke commands from the Stage 1 plan in an
+interactive Windows session. Only after both pass may an authorized maintainer use
+the workflow's **Run workflow** control with the existing strict tag and confirm
+**use_manual_launch_smoke_proof**, supplying the proof reference that includes
+both SHA-256 hashes. The `manual-launch-smoke` GitHub Environment must be
+configured with required reviewers before this fallback is used. That protected
+fallback skips only the hosted launch proof; it still runs every other gate and
+creates a draft only.
 
 Stop the emulator:
 

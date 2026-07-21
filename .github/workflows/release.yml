@@ -1,0 +1,219 @@
+name: Draft GitHub Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing vMAJOR.MINOR.PATCH tag to validate and draft.
+        required: true
+        type: string
+      use_manual_launch_smoke_proof:
+        description: Confirm both final EXEs passed the documented interactive Windows launch smoke because a hosted desktop session blocked it.
+        required: false
+        default: false
+        type: boolean
+      manual_launch_smoke_proof_reference:
+        description: Link or identifier for the interactive proof, including both asset hashes.
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Validate and draft release
+    runs-on: windows-latest
+    timeout-minutes: 30
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.use_manual_launch_smoke_proof && 'manual-launch-smoke' || '' }}
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+    steps:
+      - name: Validate release tag
+        id: tag
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          if ($tag -notmatch '^v\d+\.\d+\.\d+$') {
+            throw "Release tags must match vMAJOR.MINOR.PATCH. Received '$tag'."
+          }
+
+          $tagRef = gh api "repos/$env:GITHUB_REPOSITORY/git/ref/tags/$tag" --jq .ref
+          if ($LASTEXITCODE -ne 0 -or $tagRef -ne "refs/tags/$tag") {
+            throw "Release tag '$tag' does not exist in this repository."
+          }
+
+          $version = $tag.Substring(1)
+          "tag=$tag" | Add-Content -Path $env:GITHUB_OUTPUT
+          "version=$version" | Add-Content -Path $env:GITHUB_OUTPUT
+
+      - name: Check out the tagged commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Run fast tests
+        shell: pwsh
+        run: dotnet test ServiceBusEmulatorExplorer.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
+
+      - name: Publish and validate release assets
+        id: publish
+        shell: pwsh
+        run: |
+          .\scripts\Publish-Release.ps1 -Version '${{ steps.tag.outputs.version }}' -PublishTimeoutSeconds 300 -GitHubOutputPath $env:GITHUB_OUTPUT
+          .\scripts\Test-ReleaseArtifacts.ps1 -Version '${{ steps.tag.outputs.version }}'
+
+      - name: Launch-smoke runtime-required asset
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.use_manual_launch_smoke_proof) }}
+        shell: pwsh
+        env:
+          SBE_RUN_UI_TESTS: "true"
+          SBE_APP_EXE: ${{ steps.publish.outputs.runtime_required_asset }}
+        run: .\scripts\Invoke-UiSmoke.ps1 -NoBuild -TimeoutSeconds 90
+
+      - name: Launch-smoke portable asset
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.use_manual_launch_smoke_proof) }}
+        shell: pwsh
+        env:
+          SBE_RUN_UI_TESTS: "true"
+          SBE_APP_EXE: ${{ steps.publish.outputs.portable_asset }}
+        run: .\scripts\Invoke-UiSmoke.ps1 -NoBuild -TimeoutSeconds 90
+
+      - name: Record interactive launch-smoke gate
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.use_manual_launch_smoke_proof }}
+        shell: pwsh
+        env:
+          MANUAL_PROOF_REFERENCE: ${{ inputs.manual_launch_smoke_proof_reference }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:MANUAL_PROOF_REFERENCE)) {
+            throw 'A manual launch-smoke proof reference is required when hosted launch smoke is skipped.'
+          }
+
+          $runtimeRequiredHash = (Get-FileHash -LiteralPath '${{ steps.publish.outputs.runtime_required_asset }}' -Algorithm SHA256).Hash
+          $portableHash = (Get-FileHash -LiteralPath '${{ steps.publish.outputs.portable_asset }}' -Algorithm SHA256).Hash
+          Write-Host "Hosted launch smoke is skipped only because a maintainer explicitly confirmed the documented interactive proof for both final assets."
+          Write-Host "This run remains draft-only and must still complete every other validation gate."
+          @"
+          ## Interactive launch-smoke gate
+
+          - Tag: `${{ steps.tag.outputs.tag }}`
+          - Proof reference: `$env:MANUAL_PROOF_REFERENCE`
+          - Runtime-required SHA-256: `$runtimeRequiredHash`
+          - Portable SHA-256: `$portableHash`
+          "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+
+      - name: Create or update the draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          $runtimeRequiredAsset = '${{ steps.publish.outputs.runtime_required_asset }}'
+          $portableAsset = '${{ steps.publish.outputs.portable_asset }}'
+          $runtimeRequiredName = Split-Path -Leaf $runtimeRequiredAsset
+          $portableName = Split-Path -Leaf $portableAsset
+          $targetCommit = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($targetCommit)) {
+            throw "Could not determine the checked-out tag commit for '$env:TAG'."
+          }
+          $notesPath = Join-Path $env:RUNNER_TEMP "release-notes-$env:TAG.md"
+
+          $notes = @"
+          ## Choose a download
+
+          ### Portable — recommended if you are unsure
+
+          ``$portableName``
+
+          - Includes the .NET runtime.
+          - No separate .NET installation is required.
+          - Larger download.
+
+          ### Smaller download — .NET 10 required
+
+          ``$runtimeRequiredName``
+
+          - Requires the [.NET 10 Desktop Runtime for Windows x64](https://dotnet.microsoft.com/en-us/download/dotnet/10.0/runtime).
+          - If the application reports a missing framework, install the Desktop Runtime and retry.
+
+          ## Windows security notice
+
+          This release is currently unsigned. Windows Defender SmartScreen may display an unrecognized-app warning. Download releases only from this repository and verify that the tag and release correspond to the version you intended to install.
+          "@
+          Set-Content -LiteralPath $notesPath -Value $notes -NoNewline
+
+          function Remove-DraftRelease {
+            param([Parameter(Mandatory = $true)][string]$FailureMessage)
+
+            gh release delete $env:TAG --yes
+            if ($LASTEXITCODE -ne 0) {
+              throw "$FailureMessage Draft cleanup for '$env:TAG' also failed."
+            }
+          }
+
+          $generatedNotes = gh api --method POST "repos/$env:GITHUB_REPOSITORY/releases/generate-notes" -f "tag_name=$env:TAG" -f "target_commitish=$targetCommit" --jq .body
+          if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($generatedNotes)) {
+            Add-Content -LiteralPath $notesPath -Value "`n`n## Changes`n`n$generatedNotes"
+          }
+
+          $release = gh release view $env:TAG --json isDraft,assets 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            $releaseInfo = $release | ConvertFrom-Json
+            if (-not $releaseInfo.isDraft) {
+              throw "Release '$env:TAG' is already published. This workflow refuses to overwrite published releases."
+            }
+
+            foreach ($asset in $releaseInfo.assets) {
+              gh release delete-asset $env:TAG $asset.name --yes
+              if ($LASTEXITCODE -ne 0) {
+                throw "Could not remove existing draft asset '$($asset.name)' from '$env:TAG'."
+              }
+            }
+
+            gh release edit $env:TAG --draft --title "Service Bus Emulator Explorer $env:TAG" --notes-file $notesPath
+          }
+          else {
+            gh release create $env:TAG --draft --title "Service Bus Emulator Explorer $env:TAG" --notes-file $notesPath
+          }
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not create or update draft release '$env:TAG'."
+          }
+
+          foreach ($assetPath in @($runtimeRequiredAsset, $portableAsset)) {
+            $assetName = Split-Path -Leaf $assetPath
+            gh release upload $env:TAG $assetPath
+            if ($LASTEXITCODE -ne 0) {
+              $failureMessage = "Could not upload release asset '$assetName' for '$env:TAG'."
+              Remove-DraftRelease -FailureMessage $failureMessage
+              throw $failureMessage
+            }
+          }
+
+          $releaseView = gh release view $env:TAG --json assets
+          if ($LASTEXITCODE -ne 0) {
+            $failureMessage = "Could not inspect uploaded assets for draft release '$env:TAG'."
+            Remove-DraftRelease -FailureMessage $failureMessage
+            throw $failureMessage
+          }
+
+          $uploadedAssets = ($releaseView | ConvertFrom-Json).assets
+          $uploadedNames = @($uploadedAssets.name | Sort-Object)
+          $expectedNames = @($runtimeRequiredName, $portableName) | Sort-Object
+          if ($uploadedNames.Count -ne 2 -or (Compare-Object $uploadedNames $expectedNames)) {
+            $failureMessage = "Draft release '$env:TAG' does not contain exactly the two expected executable assets."
+            Remove-DraftRelease -FailureMessage $failureMessage
+            throw $failureMessage
+          }

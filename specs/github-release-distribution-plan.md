@@ -357,11 +357,11 @@ Stage 1 acceptance:
 **Implementation prompt:** Implement Stage 2 only after Stage 1 is complete. Add a least-privilege tag-triggered Windows workflow that calls the tested release scripts, creates a draft only after all gates pass, uploads exactly the two agreed assets, updates user documentation, validate locally, and stop before pushing a real tag or creating a GitHub release unless the user explicitly authorizes it.
 
 - [ ] Add and validate the least-privilege release workflow.
-- [ ] Pin official workflow actions to reviewed immutable revisions.
-- [ ] Reuse Stage 1 publishing and validation scripts.
-- [ ] Gate release creation behind tests and both launch proofs.
-- [ ] Create a draft release with exactly two application assets.
-- [ ] Add download-choice and unsigned-release documentation.
+- [x] Pin official workflow actions to reviewed immutable revisions.
+- [x] Reuse Stage 1 publishing and validation scripts.
+- [x] Gate release creation behind tests and both launch proofs.
+- [x] Create a draft release with exactly two application assets.
+- [x] Add download-choice and unsigned-release documentation.
 - [ ] Verify the draft end to end with explicit authorization.
 
 Stage 2 acceptance:
@@ -445,6 +445,6 @@ Automatic checks cannot prove that download guidance is understandable or that t
 - [ ] A valid authorized semantic tag creates a draft GitHub Release only after all gates pass.
 - [ ] The draft has exactly two application assets and accurate choice guidance.
 - [x] Version metadata and filenames match the tag.
-- [ ] Initial unsigned status and SmartScreen risk are documented.
-- [ ] No ARM64, signing, installer, trimming, or auto-publication scope was added.
+- [x] Initial unsigned status and SmartScreen risk are documented.
+- [x] No ARM64, signing, installer, trimming, or auto-publication scope was added.
 - [ ] Relevant tests, workflow logs, exact sizes, unverified items, and residual risks are reported before publication.
