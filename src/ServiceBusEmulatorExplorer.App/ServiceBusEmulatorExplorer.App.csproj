@@ -11,7 +11,6 @@
 
   <ItemGroup>
     <Resource Include="Assets\AppIcon.ico" />
-    <None Include="Assets\AppIcon.svg" />
   </ItemGroup>
 
   <ItemGroup>

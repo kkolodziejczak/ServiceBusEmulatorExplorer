@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:viewModels="clr-namespace:ServiceBusEmulatorExplorer.App.ViewModels"
         Title="Service Bus Emulator Explorer"
+        Icon="Assets/AppIcon.ico"
         AutomationProperties.Name="Service Bus Emulator Explorer"
         Height="780"
         Width="1500"
@@ -135,9 +136,12 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Width="30" Height="30" CornerRadius="7" Background="#0F6CBD" Margin="0,0,10,0">
-                        <TextBlock Text="SB" Foreground="White" FontWeight="SemiBold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
+                    <Image Width="30"
+                           Height="30"
+                           Margin="0,0,10,0"
+                           Source="Assets/AppIcon.ico"
+                           Stretch="Uniform"
+                           AutomationProperties.Name="Service Bus Emulator Explorer icon" />
                     <TextBlock AutomationProperties.AutomationId="ShellTitleText"
                                Text="Service Bus Emulator Explorer"
                                FontSize="15"
