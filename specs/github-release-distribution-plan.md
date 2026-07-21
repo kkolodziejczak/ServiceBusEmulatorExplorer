@@ -356,21 +356,26 @@ Stage 1 acceptance:
 
 **Implementation prompt:** Implement Stage 2 only after Stage 1 is complete. Add a least-privilege tag-triggered Windows workflow that calls the tested release scripts, creates a draft only after all gates pass, uploads exactly the two agreed assets, updates user documentation, validate locally, and stop before pushing a real tag or creating a GitHub release unless the user explicitly authorizes it.
 
-- [ ] Add and validate the least-privilege release workflow.
+- [x] Add and validate the least-privilege release workflow.
 - [x] Pin official workflow actions to reviewed immutable revisions.
 - [x] Reuse Stage 1 publishing and validation scripts.
 - [x] Gate release creation behind tests and both launch proofs.
 - [x] Create a draft release with exactly two application assets.
 - [x] Add download-choice and unsigned-release documentation.
-- [ ] Verify the draft end to end with explicit authorization.
+- [x] Verify the draft end to end with explicit authorization.
 
 Stage 2 acceptance:
 
-- [ ] Pushing a valid authorized `vX.Y.Z` tag produces a draft, never an automatic public release.
+- [x] Pushing a valid authorized `vX.Y.Z` tag produces a draft, never an automatic public release.
 - [ ] A malformed tag or failed gate creates no release assets.
-- [ ] The draft contains exactly the two agreed executables and accurate guidance.
-- [ ] Workflow permissions are limited to repository contents.
-- [ ] README and release notes explain runtime requirements and SmartScreen behavior.
+- [x] The draft contains exactly the two agreed executables and accurate guidance.
+- [x] Workflow permissions are limited to repository contents.
+- [x] README and release notes explain runtime requirements and SmartScreen behavior.
+
+Stage 2 evidence (2026-07-21): the bundled `v0.1.0` push with
+`push.followTags=true` created no push-triggered run while the workflow was first
+registered. The isolated annotated `v0.1.1` push created successful
+[`event=push` run 29860580505](https://github.com/kkolodziejczak/ServiceBusEmulatorExplorer/actions/runs/29860580505), which passed tests, both launch smokes, and produced an unpublished draft with the exact two assets. Use `scripts/Push-ReleaseTag.ps1` to keep the branch push and tag push separate for future releases.
 
 ## Test Strategy
 
@@ -442,9 +447,9 @@ Automatic checks cannot prove that download guidance is understandable or that t
 - [x] Runtime-required and portable assets satisfy their documented dependency models.
 - [x] Both final renamed assets pass artifact validation and WPF launch smoke.
 - [x] The existing manual-proof publish path remains working.
-- [ ] A valid authorized semantic tag creates a draft GitHub Release only after all gates pass.
-- [ ] The draft has exactly two application assets and accurate choice guidance.
+- [x] A valid authorized semantic tag creates a draft GitHub Release only after all gates pass.
+- [x] The draft has exactly two application assets and accurate choice guidance.
 - [x] Version metadata and filenames match the tag.
 - [x] Initial unsigned status and SmartScreen risk are documented.
 - [x] No ARM64, signing, installer, trimming, or auto-publication scope was added.
-- [ ] Relevant tests, workflow logs, exact sizes, unverified items, and residual risks are reported before publication.
+- [x] Relevant tests, workflow logs, exact sizes, unverified items, and residual risks are reported before publication.

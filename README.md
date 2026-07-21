@@ -119,6 +119,21 @@ GitHub Releases provide two single-file `win-x64` downloads for every authorized
 validates both artifacts, launch-smokes each final executable, then creates or
 updates a **draft** release. It never publishes the release automatically.
 
+Prepare a new release with the guarded helper rather than pushing a branch and an
+annotated tag together. It first pushes the checked-out branch with
+`push.followTags=false`, verifies GitHub has the active release workflow on that
+branch, then creates and pushes only the requested tag:
+
+```powershell
+.\scripts\Push-ReleaseTag.ps1 -Tag vX.Y.Z
+```
+
+Use `-WhatIf` to inspect the command ordering without creating a tag or pushing
+anything. The helper requires a clean branch tracking `origin/<branch>` with a
+GitHub.com `origin` URL, rejects existing local or remote tags, never
+force-pushes, and requires authenticated GitHub CLI access for the workflow
+checks.
+
 - **Portable** (`ServiceBusEmulatorExplorer-vX.Y.Z-win-x64-portable.exe`) includes
   the .NET runtime and is the recommended choice when you are unsure.
 - **Smaller download** (`ServiceBusEmulatorExplorer-vX.Y.Z-win-x64-requires-dotnet10.exe`)
