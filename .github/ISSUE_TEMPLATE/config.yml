@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Support guide
+    url: https://github.com/kkolodziejczak/ServiceBusEmulatorExplorer/blob/master/SUPPORT.md
+    about: Read setup guidance and learn what information makes a useful support request.
+  - name: Security policy
+    url: https://github.com/kkolodziejczak/ServiceBusEmulatorExplorer/blob/master/SECURITY.md
+    about: Report vulnerabilities privately instead of opening a public issue.

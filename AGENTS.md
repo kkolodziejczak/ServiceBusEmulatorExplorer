@@ -13,6 +13,14 @@ These notes are repo-specific guidance gathered from prior planning, implementat
   - explicit FlaUI/UIA3 WPF smoke tests in `tests/ServiceBusEmulatorExplorer.UiSmoke.Tests`.
 - `Lessons/` has been used for planning notes and may be untracked. Do not stage or rewrite it unless the task explicitly asks for lesson work.
 
+## Public Documentation Boundaries
+
+- Keep the root `README.md` user-facing: what the application does, how to download it, how to connect and use it safely, where to get help, and the license.
+- Put human contribution setup and pull-request expectations in `CONTRIBUTING.md` and detailed test commands in `tests/README.md`.
+- Keep maintainer-only release mechanics in this `AGENTS.md`; do not expose tagging and publishing procedures as contributor instructions.
+- Keep repository architecture, implementation constraints, agent workflows, and internal development lessons in this `AGENTS.md` instead of expanding the README with technical internals.
+- When behavior changes, update the narrowest authoritative document and avoid duplicating the same technical procedure across public-facing files.
+
 ## Command Discipline
 
 - Estimate runtime before every command and set an explicit timeout.
@@ -137,3 +145,23 @@ $env:SBE_APP_EXE = "$PWD\src\ServiceBusEmulatorExplorer.App\bin\Debug\net10.0-wi
 
 - Publish output goes under `artifacts\publish\win-x64` and should remain ignored.
 - NuGet vulnerability-feed warnings can appear when network/proxy access is restricted. Report them separately from build or test failures.
+
+## Maintainer Release Process
+
+- Only an authorized maintainer creates release tags or publishes GitHub Releases. Contributors should not be instructed to prepare or push tags.
+- Releases use strict `vMAJOR.MINOR.PATCH` tags and provide two Windows x64 executables:
+  - `ServiceBusEmulatorExplorer-vX.Y.Z-win-x64-portable.exe`, which includes the .NET runtime;
+  - `ServiceBusEmulatorExplorer-vX.Y.Z-win-x64-requires-dotnet10.exe`, which requires the .NET 10 Desktop Runtime.
+- Use the guarded helper instead of pushing a branch and annotated tag together:
+
+```powershell
+.\scripts\Push-ReleaseTag.ps1 -Tag vX.Y.Z
+```
+
+- Run the helper with `-WhatIf` first. It requires a clean branch tracking `origin/<branch>`, a GitHub.com origin, authenticated GitHub CLI access, and a tag that does not already exist locally or remotely. It never force-pushes.
+- The helper pushes the checked-out branch with `push.followTags=false`, verifies the active release workflow on GitHub, and then creates and pushes only the requested tag.
+- The tag workflow validates the repository, publishes and checks both artifacts, launch-smokes both final executables, and creates or updates a draft release. It must never publish automatically.
+- Before publishing the draft, inspect the tag, generated notes, asset names, download guidance, validation logs, and launch-smoke results. Keep the unsigned-executable and SmartScreen warning in the release notes.
+- If a GitHub-hosted desktop session blocks FlaUI, preserve the successful build and artifact-validation logs, run both explicit `SBE_APP_EXE` launch-smoke commands in an interactive Windows session, and record a proof reference with both SHA-256 hashes.
+- The hosted-smoke fallback uses the existing strict tag and workflow-dispatch inputs `use_manual_launch_smoke_proof` and `manual_launch_smoke_proof_reference`. The `manual-launch-smoke` GitHub Environment must have required reviewers. This fallback skips only hosted launch proof and still creates only a draft.
+- Publishing a release triggers `.github/workflows/update-readme-screenshot.yml`. That workflow builds the deterministic screenshot generator from the released tag, validates the PNG, and updates `docs/images/service-bus-emulator-explorer.png` only when the rendered UI changed. Do not replace the README screenshot manually.
