@@ -75,12 +75,14 @@ jobs:
           retention-days: 7
 
   commit:
-    name: Update documentation image
+    name: Open documentation pull request
     needs: capture
     runs-on: windows-latest
     timeout-minutes: 5
     permissions:
+      actions: write
       contents: write
+      pull-requests: write
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -127,8 +129,10 @@ jobs:
             throw "The screenshot artifact has unexpected dimensions: $($frame.PixelWidth)x$($frame.PixelHeight)."
           }
 
-      - name: Commit screenshot when visuals changed
+      - name: Open pull request when visuals changed
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           $imagePath = 'docs/images/service-bus-emulator-explorer.png'
           Copy-Item -LiteralPath 'generated-screenshot/service-bus-emulator-explorer.png' -Destination $imagePath -Force
@@ -160,7 +164,27 @@ jobs:
             throw "Could not commit the generated README screenshot."
           }
 
-          git push origin "HEAD:$env:DEFAULT_BRANCH"
+          $automationBranch = "automation/readme-screenshot-$env:RELEASE_TAG-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          git push origin "HEAD:refs/heads/$automationBranch"
           if ($LASTEXITCODE -ne 0) {
-            throw "Could not push the generated README screenshot to $env:DEFAULT_BRANCH. Ensure branch protection permits this workflow to update the documentation image."
+            throw "Could not push the generated README screenshot branch '$automationBranch'."
+          }
+
+          $pullRequestBody = @"
+          Updates the README screenshot from the deterministic UI scenario built from release ``$env:RELEASE_TAG``.
+
+          - Source workflow: $env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID
+          - Generated file: ``$imagePath``
+
+          The fast CI workflow is dispatched explicitly because pull requests created with ``GITHUB_TOKEN`` do not emit another ``pull_request`` workflow run.
+          "@
+
+          gh pr create --base $env:DEFAULT_BRANCH --head $automationBranch --title "docs: refresh app screenshot for $env:RELEASE_TAG" --body $pullRequestBody
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not open the generated README screenshot pull request from '$automationBranch'."
+          }
+
+          gh workflow run ci.yml --ref $automationBranch
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not dispatch fast CI for the generated README screenshot pull request."
           }
