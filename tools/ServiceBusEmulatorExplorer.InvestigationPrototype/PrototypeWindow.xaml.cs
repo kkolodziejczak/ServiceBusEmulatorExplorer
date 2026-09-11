@@ -60,6 +60,7 @@ public partial class PrototypeWindow : Window
         ActiveTab.IsEnabled = Workspace.IsConnected;
         DeadLetterTab.IsEnabled = Workspace.IsConnected;
         NamespaceTree.IsEnabled = Workspace.IsConnected;
+        if (!Workspace.IsConnected) EntitySuggestionsPopup.IsOpen = false;
     }
 
     private void UpdateEmpty()
@@ -75,7 +76,11 @@ public partial class PrototypeWindow : Window
     }
     private void Search_Changed(object sender, TextChangedEventArgs e)
     {
-        if (DataContext is global::ServiceBusEmulatorExplorer.InvestigationPrototype.Workspace) Workspace.SetSearch(SearchBox.Text);
+        if (DataContext is not global::ServiceBusEmulatorExplorer.InvestigationPrototype.Workspace) return;
+        Workspace.SetSearch(SearchBox.Text);
+        ClearEntitySearchButton.Visibility = SearchBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        NamespaceEmpty.Visibility = Workspace.Roots.Any(node => node.IsVisible) ? Visibility.Collapsed : Visibility.Visible;
+        UpdateEntitySuggestions();
     }
 
     private void Tree_Selected(object sender, RoutedPropertyChangedEventArgs<object> e)

@@ -20,6 +20,32 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Properties tab retains correlation metadata
 - PASS: Find selects a match in the inline JSON editor
 - PASS: Primary controls fit the 1500 × 900 viewport
+- PASS: desktop: namespace typing renders entity suggestions
+- PASS: desktop: namespace suggestions match complete entity paths
+- PASS: desktop: namespace typing filters the tree live
+- PASS: desktop: namespace clear action is visible and accessible
+- PASS: desktop: repeated Down advances namespace suggestions
+- PASS: desktop: Up returns to the first namespace suggestion
+- PASS: desktop: Escape dismisses suggestions without clearing the namespace filter
+- PASS: desktop: Enter fills the full subscription path and opens its messages
+- PASS: desktop: clicking a queue suggestion opens that queue
+- PASS: desktop: unmatched namespace search shows its empty state
+- PASS: desktop: clear restores the entire namespace tree
+- PASS: desktop: clearing namespace search preserves the open entity
+- PASS: desktop: namespace search preserves MessageCount and DLQ totals
+- PASS: compact: namespace typing renders entity suggestions
+- PASS: compact: namespace suggestions match complete entity paths
+- PASS: compact: namespace typing filters the tree live
+- PASS: compact: namespace clear action is visible and accessible
+- PASS: compact: repeated Down advances namespace suggestions
+- PASS: compact: Up returns to the first namespace suggestion
+- PASS: compact: Escape dismisses suggestions without clearing the namespace filter
+- PASS: compact: Enter fills the full subscription path and opens its messages
+- PASS: compact: clicking a queue suggestion opens that queue
+- PASS: compact: unmatched namespace search shows its empty state
+- PASS: compact: clear restores the entire namespace tree
+- PASS: compact: clearing namespace search preserves the open entity
+- PASS: compact: namespace search preserves MessageCount and DLQ totals
 - PASS: Typing a correlation prefix suggests known IDs
 - PASS: Suggestion popup is rendered while typing
 - PASS: Repeated Down advances to the second suggestion

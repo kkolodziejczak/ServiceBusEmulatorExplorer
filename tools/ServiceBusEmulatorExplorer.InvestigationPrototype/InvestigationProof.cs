@@ -22,6 +22,7 @@ internal static class InvestigationProof
         {
             await Settle();
             await Browse(window, report, output);
+            await NamespaceSearchProof.Exercise(window, report, output);
             await CorrelationSearch(window, report, output);
             await InlineReplay(window, report, output);
             await EmptySearch(window, report, output);

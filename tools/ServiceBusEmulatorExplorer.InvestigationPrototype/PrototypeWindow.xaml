@@ -58,10 +58,21 @@
   <Grid Grid.Row="2"><Grid.ColumnDefinitions><ColumnDefinition Width="315" MinWidth="240" MaxWidth="420"/><ColumnDefinition Width="5"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
    <Grid Margin="15,16,8,8"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
     <TextBlock Text="Namespace" FontSize="18" FontWeight="SemiBold" Margin="2,0,0,15"/>
-    <TextBox x:Name="SearchBox" Grid.Row="1" TextChanged="Search_Changed" ToolTip="Search queues, topics and subscriptions" AutomationProperties.Name="Search entities" AutomationProperties.AutomationId="SearchEntities"/>
+    <TextBox x:Name="SearchBox" Grid.Row="1" Padding="9,7,35,7" TextChanged="Search_Changed" PreviewKeyDown="EntitySearchKeyDown" GotKeyboardFocus="EntitySearchFocused" ToolTip="Search queues, topics and subscriptions" AutomationProperties.Name="Search entities" AutomationProperties.AutomationId="SearchEntities"/>
+    <Button x:Name="ClearEntitySearchButton" Grid.Row="1" HorizontalAlignment="Right" Width="30" Margin="2" Padding="0" Background="Transparent" BorderThickness="0" Visibility="Collapsed" Click="ClearEntitySearch" ToolTip="Clear namespace search" AutomationProperties.Name="Clear namespace search" AutomationProperties.AutomationId="ClearEntitySearchButton"><Path Data="M0,0 L10,10 M10,0 L0,10" Width="10" Height="10" Stroke="#52708D" StrokeThickness="1.8"/></Button>
+    <Popup x:Name="EntitySuggestionsPopup" PlacementTarget="{Binding ElementName=SearchBox}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
+     <Border Width="{Binding ActualWidth, ElementName=SearchBox}" Background="White" BorderBrush="#CBD8E8" BorderThickness="1" Padding="0,5">
+      <StackPanel><TextBlock Text="Matching entities" Foreground="#617693" FontSize="12" Margin="10,3,10,5"/>
+       <ListBox x:Name="EntitySuggestionsList" BorderThickness="0" MaxHeight="220" ScrollViewer.HorizontalScrollBarVisibility="Disabled" PreviewKeyDown="EntitySuggestionKeyDown" PreviewMouseLeftButtonUp="EntitySuggestionPicked" AutomationProperties.Name="Namespace entity suggestions">
+        <ListBox.ItemTemplate><DataTemplate><StackPanel Margin="5,3"><TextBlock Text="{Binding Path}" TextWrapping="Wrap"/><TextBlock Text="{Binding Kind}" Foreground="#617693" FontSize="11"/></StackPanel></DataTemplate></ListBox.ItemTemplate>
+       </ListBox><TextBlock Text="↑ ↓ to choose · Enter to open" Foreground="#617693" FontSize="11" Margin="10,7"/>
+      </StackPanel>
+     </Border>
+    </Popup>
     <TextBlock Grid.Row="1" Text="Search entities" Foreground="#627692" Margin="10,0" VerticalAlignment="Center" IsHitTestVisible="False"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
     <Grid Grid.Row="2" Margin="0,9,5,4"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="65"/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions><TextBlock Text="Entities" Foreground="#63748D" FontSize="12"/><TextBlock Grid.Column="1" Text="Messages" HorizontalAlignment="Right" Foreground="#63748D" FontSize="12"/><TextBlock Grid.Column="2" Text="DLQ" HorizontalAlignment="Right" Foreground="#63748D" FontSize="12"/></Grid>
     <TreeView x:Name="NamespaceTree" Grid.Row="3" ItemsSource="{Binding Roots}" SelectedItemChanged="Tree_Selected" BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Namespace entities" AutomationProperties.AutomationId="NamespaceTree"/>
+    <TextBlock x:Name="NamespaceEmpty" Grid.Row="3" Text="No matching entities. Clear the search to show all entities." TextWrapping="Wrap" Foreground="#617693" Margin="10,15" VerticalAlignment="Top" Visibility="Collapsed"/>
    </Grid>
    <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="#DFE6EE" AutomationProperties.Name="Resize namespace pane"/>
    <Grid x:Name="ContentGrid" Grid.Column="2"><Grid.ColumnDefinitions><ColumnDefinition Width="1.1*" MinWidth="370"/><ColumnDefinition Width="5"/><ColumnDefinition Width="1*" MinWidth="380"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="0"/><RowDefinition Height="0"/></Grid.RowDefinitions>

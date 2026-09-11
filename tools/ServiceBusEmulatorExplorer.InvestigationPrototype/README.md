@@ -32,6 +32,8 @@ The replay counter is local to this prototype run, not a shared audit of all use
 
 ## Browse and refresh
 
+The **Namespace** search filters entity paths as you type, ignoring case. Suggestions show the full path and entity type; use Up/Down and Enter or click a suggestion to open it. Escape dismisses suggestions. The **×** button clears the namespace filter and restores the full tree while keeping the current message view. A search with no matches shows an explicit empty state. Message and DLQ totals remain unchanged by filtering.
+
 Selecting an entity or switching Active/DLQ loads its first 50 messages. **Load more** adds another 50. Refresh preserves focused and checked rows; retention can temporarily show more than the nominal page limit. Automatic refresh can be paused and resumes after leaving search through the tree. Search pauses automatic sample arrivals.
 
 Resize to switch between side-by-side and stacked panes. The compact layout reduces heading space to retain usable rows and editor lines. Namespace totals are preserved, including unknown totals. The known emulator count limitation must not be used to skip future broker searches.
