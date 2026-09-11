@@ -36,7 +36,7 @@
   <Grid.RowDefinitions><RowDefinition Height="40"/><RowDefinition Height="52"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
   <Border Background="#F5F9FE" BorderBrush="#D7E0EB" BorderThickness="0,0,0,1">
    <DockPanel Margin="18,0" LastChildFill="False">
-    <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Text="▣" FontSize="27" Foreground="#087BC1" Margin="0,0,12,0"/><TextBlock Text="Service Bus Emulator Explorer" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"/><TextBlock Text="Prototype · sample data" Foreground="#64758A" FontSize="11" Margin="16,0,0,0" VerticalAlignment="Center"/></StackPanel>
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Text="▣" FontSize="27" Foreground="#087BC1" Margin="0,0,12,0"/><TextBlock Text="Service Bus Emulator Explorer" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"/></StackPanel>
     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Text="Local emulator" Margin="10,0,14,0" VerticalAlignment="Center"/><Button x:Name="ConnectionButton" Content="{Binding ConnectionLabel}" Click="Connection_Click" AutomationProperties.AutomationId="ConnectionButton" AutomationProperties.Name="Toggle simulated connection"/></StackPanel>
    </DockPanel>
   </Border>
