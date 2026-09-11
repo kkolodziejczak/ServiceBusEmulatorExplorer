@@ -21,7 +21,7 @@ public sealed class WatchNotificationWindow : Window
         Icon = new BitmapImage(new Uri("pack://application:,,,/Assets/AppIcon.png"));
         var panel = new StackPanel { Margin = new Thickness(16) };
         var header = new DockPanel { Margin = new(0, 0, 0, 12) };
-        var close = new Button { Content = "×", FontSize = 21, Background = Brushes.Transparent, BorderThickness = new(0), Padding = new(5, 0, 0, 0) };
+        var close = CreateCloseButton();
         System.Windows.Automation.AutomationProperties.SetName(close, "Dismiss notification");
         close.Click += (_, _) => dismiss();
         DockPanel.SetDock(close, Dock.Right); header.Children.Add(close);
@@ -37,6 +37,31 @@ public sealed class WatchNotificationWindow : Window
         panel.Children.Add(new TextBlock { Text = "Remains until you respond", FontSize = 11, Margin = new(0, 10, 0, 0), Foreground = new SolidColorBrush(Color.FromRgb(90, 110, 150)) });
         Content = new Border { Background = new SolidColorBrush(Color.FromRgb(248, 251, 255)), BorderBrush = new SolidColorBrush(Color.FromRgb(204, 220, 240)), BorderThickness = new(1), CornerRadius = new(9), Child = panel };
         Loaded += (_, _) => Position(); SizeChanged += (_, _) => Position();
+    }
+
+    private static Button CreateCloseButton()
+    {
+        var close = new Button
+        {
+            Width = 28, Height = 28, VerticalAlignment = VerticalAlignment.Center,
+            Background = Brushes.Transparent, BorderThickness = new(0),
+            ToolTip = "Dismiss notification", Cursor = System.Windows.Input.Cursors.Hand
+        };
+        close.Template = (ControlTemplate)System.Windows.Markup.XamlReader.Parse("""
+            <ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" TargetType="Button">
+              <Border x:Name="Surface" Background="Transparent" CornerRadius="4" BorderThickness="1" BorderBrush="Transparent">
+                <Path Data="M0,0 L8,8 M8,0 L0,8" Width="8" Height="8" Stroke="#526887" StrokeThickness="1.5"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#EAF4FF"/></Trigger>
+                <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#0078F8"/></Trigger>
+                <Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="Background" Value="#DBEDFF"/></Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+            """);
+        return close;
     }
 
     private void Position()

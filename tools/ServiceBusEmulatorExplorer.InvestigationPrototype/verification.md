@@ -151,6 +151,7 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Background arrivals preserve the investigation scope and focused message
 - PASS: Watch notification is a separate visible desktop window, independent of the main window
 - PASS: Repeated arrivals group by entity and Active/DLQ bucket in one persistent notification
+- PASS: Notification close uses a square target and soft blue hover (simulated pointer state)
 - PASS: Desktop notification remains visible while the application is hidden
 - PASS: Investigate restores the app, searches across the connection, and focuses the latest notified message
 - PASS: Grouped notification searches all distinct notified correlation IDs without unrelated results

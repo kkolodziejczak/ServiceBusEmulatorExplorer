@@ -52,7 +52,7 @@ Search by correlation ID or message ID supports `case-123 OR case-456` and `case
 
 ## Rendered evidence
 
-Build: zero warnings and errors. Final walkthrough: **205 passing checks**, with rendered visual inspection. A separate [real tray lifetime proof](tray-verification.md) adds **11 passing checks**, including timer-driven arrivals while hidden, Investigate, disabling close-to-tray, and Exit cleanup.
+Build: zero warnings and errors. Final walkthrough: **206 passing checks**, with rendered visual inspection. A separate [real tray lifetime proof](tray-verification.md) adds **11 passing checks**, including timer-driven arrivals while hidden, Investigate, disabling close-to-tray, and Exit cleanup.
 
 | UI gate | Result | Evidence |
 | --- | --- | --- |

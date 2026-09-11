@@ -32,6 +32,17 @@ internal static class WatchProof
             "Repeated arrivals group by entity and Active/DLQ bucket in one persistent notification", report);
         ProofCapture.CheckBounds(notification, ProofCapture.Descendants(notification).OfType<Button>());
         ProofCapture.Save(notification, output, "watch-desktop-notification");
+        var close = ProofCapture.Descendants(notification).OfType<Button>().Single(button => button.ToolTip?.ToString() == "Dismiss notification");
+        var hoverKey = typeof(UIElement).GetFields(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
+            .Where(field => field.FieldType == typeof(DependencyPropertyKey)).Select(field => (DependencyPropertyKey)field.GetValue(null)!)
+            .Single(key => key.DependencyProperty == UIElement.IsMouseOverProperty);
+        close.SetValue(hoverKey, true);
+        await Settle();
+        var closeSurface = (Border)close.Template.FindName("Surface", close);
+        Check(closeSurface.Background is System.Windows.Media.SolidColorBrush hover && hover.Color == System.Windows.Media.Color.FromRgb(234, 244, 255)
+            && close.ActualWidth == close.ActualHeight, "Notification close uses a square target and soft blue hover (simulated pointer state)", report);
+        ProofCapture.Save(notification, output, "watch-close-hover");
+        close.SetValue(hoverKey, false);
         window.Hide();
         await Task.Delay(300);
         await Settle();
