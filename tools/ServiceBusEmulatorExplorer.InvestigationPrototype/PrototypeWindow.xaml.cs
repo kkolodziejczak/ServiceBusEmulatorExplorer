@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -55,6 +54,7 @@ public partial class PrototypeWindow : Window
     {
         if (e.PropertyName is "FocusedMessage" or "" or null) UpdateInspector();
         UpdateEmpty();
+        if (e.PropertyName == nameof(Workspace.SelectedCount)) return;
         SourceColumn.Visibility = Workspace.SelectedEntity?.Kind == "Topic" ? Visibility.Visible : Visibility.Collapsed;
         ActiveTab.IsChecked = !Workspace.IsDeadLetter;
         DeadLetterTab.IsChecked = Workspace.IsDeadLetter;
@@ -108,11 +108,8 @@ public partial class PrototypeWindow : Window
     private void Messages_Selected(object sender, SelectionChangedEventArgs e)
     {
         if (synchronizingSelection || DataContext is not global::ServiceBusEmulatorExplorer.InvestigationPrototype.Workspace) return;
-        foreach (var row in e.RemovedItems.OfType<MessageRow>()) row.IsSelected = false;
-        foreach (var row in e.AddedItems.OfType<MessageRow>()) row.IsSelected = true;
         if (e.AddedItems.OfType<MessageRow>().LastOrDefault() is { } focused) Workspace.FocusedMessage = focused;
         else if (MessageGrid.CurrentItem is MessageRow current) Workspace.FocusedMessage = current;
-        Workspace.NotifySelectionChanged();
     }
 
     private void Messages_CurrentCellChanged(object? sender, EventArgs e)
@@ -127,7 +124,6 @@ public partial class PrototypeWindow : Window
         {
             Workspace.FocusedMessage = row;
             SynchronizeSelection();
-            Workspace.NotifySelectionChanged();
             e.Handled = true;
         }
     }
@@ -135,9 +131,7 @@ public partial class PrototypeWindow : Window
     private void SelectAll_Click(object sender, RoutedEventArgs e)
     {
         var select = Workspace.SelectedCount < Workspace.Messages.Count;
-        foreach (var row in Workspace.Messages) row.IsSelected = select;
-        SynchronizeSelection();
-        Workspace.NotifySelectionChanged();
+        Workspace.SetAllChecked(select);
     }
 
     private void SynchronizeSelection()
@@ -147,8 +141,7 @@ public partial class PrototypeWindow : Window
         synchronizingSelection = true;
         try
         {
-            MessageGrid.SelectedItems.Clear();
-            foreach (var row in Workspace.Messages.Where(row => row.IsSelected)) MessageGrid.SelectedItems.Add(row);
+            MessageGrid.SelectedItem = Workspace.FocusedMessage;
         }
         finally { synchronizingSelection = false; }
         scroll?.ScrollToVerticalOffset(offset);
@@ -164,6 +157,8 @@ public partial class PrototypeWindow : Window
 
     private void Messages_KeyDown(object sender, KeyEventArgs e)
     {
+        for (var source = e.OriginalSource as DependencyObject; source is not null && source != MessageGrid; source = VisualTreeHelper.GetParent(source))
+            if (source is CheckBox) return;
         if (e.Key != Key.Space || MessageGrid.CurrentItem is not MessageRow row) return;
         row.IsSelected = !row.IsSelected;
         Workspace.FocusedMessage = row;
@@ -220,7 +215,10 @@ public partial class PrototypeWindow : Window
 
     private void Connection_Click(object sender, RoutedEventArgs e)
     {
-        Workspace.ToggleConnection();
+        synchronizingSelection = true;
+        try { Workspace.ToggleConnection(); }
+        finally { synchronizingSelection = false; }
+        SynchronizeSelection();
         if (Workspace.IsConnected) SelectInitialEntity();
         ConfigureTimer();
         AddLog(Workspace.IsConnected ? "Reconnected to sample data." : "Disconnected. Reconnect to inspect messages.");
@@ -288,13 +286,11 @@ public partial class PrototypeWindow : Window
     private static void AddHighlightedJson(Paragraph paragraph, string text)
     {
         var position = 0;
-        foreach (Match match in Regex.Matches(text, "\"(?:\\\\.|[^\"\\\\])*\"(?=\\s*:)|\"(?:\\\\.|[^\"\\\\])*\"|\\b(?:true|false|null|-?\\d+(?:\\.\\d+)?)\\b"))
+        foreach (var token in JsonPresentation.Highlights(text))
         {
-            if (match.Index > position) paragraph.Inlines.Add(new Run(text[position..match.Index]));
-            var after = text[(match.Index + match.Length)..].TrimStart();
-            var color = match.Value.StartsWith('"') ? after.StartsWith(':') ? "#D9A0F5" : "#56E5E5" : "#F4D071";
-            paragraph.Inlines.Add(new Run(match.Value) { Foreground = (Brush)new BrushConverter().ConvertFromString(color)! });
-            position = match.Index + match.Length;
+            if (token.Start > position) paragraph.Inlines.Add(new Run(text[position..token.Start]));
+            paragraph.Inlines.Add(new Run(text.Substring(token.Start, token.Length)) { Foreground = token.Color });
+            position = token.Start + token.Length;
         }
         if (position < text.Length) paragraph.Inlines.Add(new Run(text[position..]));
     }

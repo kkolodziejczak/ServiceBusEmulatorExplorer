@@ -8,6 +8,7 @@
     <ApplicationIcon>..\..\src\ServiceBusEmulatorExplorer.App\Assets\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="AvalonEdit" Version="6.3.1.120" />
     <Resource Include="..\..\src\ServiceBusEmulatorExplorer.App\Assets\AppIcon.png" Link="Assets\AppIcon.png" />
   </ItemGroup>
 </Project>

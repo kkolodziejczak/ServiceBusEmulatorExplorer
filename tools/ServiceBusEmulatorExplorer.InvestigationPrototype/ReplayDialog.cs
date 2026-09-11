@@ -9,7 +9,7 @@ namespace ServiceBusEmulatorExplorer.InvestigationPrototype;
 public sealed class ReplayDialog : Window
 {
     private readonly TextBox messageId;
-    private readonly TextBox body;
+    private readonly JsonEditor body;
     private readonly TextBlock error;
     private readonly string originalId;
     private readonly Func<string, string?>? validateId;
@@ -48,12 +48,12 @@ public sealed class ReplayDialog : Window
         Grid.SetRow(idPanel, 1);
         layout.Children.Add(idPanel);
 
-        body = new TextBox
+        body = new JsonEditor
         {
-            Name = "ReplayBody", Text = source.Body, AcceptsReturn = true, AcceptsTab = false,
-            TextWrapping = TextWrapping.Wrap, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Name = "ReplayBody", Text = JsonPresentation.Format(source.Body),
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto, FontFamily = new FontFamily("Consolas"),
-            FontSize = 13, Background = new SolidColorBrush(Color.FromRgb(23, 33, 51)), Foreground = Brushes.White,
+            FontSize = 14, Background = new SolidColorBrush(Color.FromRgb(23, 33, 51)),
             Padding = new Thickness(12), BorderThickness = new Thickness(0)
         };
         AutomationProperties.SetAutomationId(body, "ReplayBody");

@@ -2,10 +2,18 @@
 
 - PASS: Initial billing scope: 50 loaded of 120 fixture messages
 - PASS: Initial multi-selection and focused inspector
+PASS: Preview changes preserve checked messages; header and row checkbox centers align within 1 pixel.
+PASS: Two ordinary checkbox clicks keep both messages checked without modifiers.
+PASS: Row preview does not alter the checked set.
+PASS: Header checkbox selects all loaded messages from a partial selection.
+PASS: Select all batches selection notifications instead of notifying once per row.
+PASS: Header checkbox clears all loaded messages.
+PASS: Space on the header selects all, not a current row.
+PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Refresh preserves focused body and checked rows
 - PASS: Load more adds a second page without replacing inspector
 - PASS: Selecting a different grid row updates inspector
-- PASS: Returning to an already selected row updates focus after reducing selection
+- PASS: Returning to a checked row updates preview without reducing selection
 - PASS: Raw inspector preserves original body text
 - PASS: Copy writes exact original body to clipboard
 - PASS: Properties tab shows metadata
@@ -17,7 +25,15 @@
 - PASS: Editing is disabled for multiple checked DLQ messages
 - PASS: Batch replay creates one new send per checked message without deleting originals
 - PASS: Cancelling Edit and Replay does not create a copy
+- PASS: Replay editor opens with formatted JSON
+- PASS: Rendered editor uses preview colors for keys, strings and scalars
+- PASS: Editing a middle value preserves the caret and refreshes coloring
+- PASS: Undo reverses text editing without a formatting-only step
+- PASS: Redo restores exact edited JSON
+- PASS: Incomplete JSON stays editable without rewriting text
+- PASS: Editor always wraps and keeps horizontal scrolling disabled
 - PASS: Replay editor rejects original message ID
+- PASS: Long JSON strings wrap in the compact replay editor
 - PASS: Edit and Replay leaves original DLQ body unchanged
 - PASS: Returning to Active resets to 50 and shows edited copy with new ID
 - PASS: Topic view shows copies from all three subscriptions
@@ -30,6 +46,14 @@
 - PASS: Pause stops automatic arrivals
 - PASS: Disconnect clears messages and inspector
 - PASS: Reconnect restores a usable sample scope
+PASS: Preview changes preserve checked messages; header and row checkbox centers align within 1 pixel.
+PASS: Two ordinary checkbox clicks keep both messages checked without modifiers.
+PASS: Row preview does not alter the checked set.
+PASS: Header checkbox selects all loaded messages from a partial selection.
+PASS: Select all batches selection notifications instead of notifying once per row.
+PASS: Header checkbox clears all loaded messages.
+PASS: Space on the header selects all, not a current row.
+PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: 980 × 640 window: primary controls remain in bounds
 - PASS: DLQ replay actions fit the compact window
 - PASS: Search accepts keyboard focus

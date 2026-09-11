@@ -25,6 +25,7 @@ internal static class PrototypeProof
             Check(workspace.SelectedCount == 2 && workspace.FocusedMessage is not null,
                 "Initial multi-selection and focused inspector", report);
             ProofCapture.Save(window, output, "01-desktop");
+            await CheckboxSelectionProof.Exercise(window, report);
 
             var focused = workspace.FocusedMessage!.Key;
             var checkedKeys = workspace.Messages.Where(row => row.IsSelected).Select(row => row.Key).ToArray();
@@ -43,15 +44,11 @@ internal static class PrototypeProof
             Check(workspace.FocusedMessage?.Key == workspace.Messages[2].Key,
                 "Selecting a different grid row updates inspector", report);
             var first = workspace.Messages[0];
-            var second = workspace.Messages[1];
-            grid.SelectedItems.Clear();
-            grid.SelectedItems.Add(first);
-            grid.SelectedItems.Add(second);
+            grid.SelectedItem = first;
             grid.CurrentCell = new DataGridCellInfo(first, grid.Columns[1]);
-            grid.SelectedItems.Remove(second);
             await Settle();
             Check(workspace.FocusedMessage?.Key == first.Key,
-                "Returning to an already selected row updates focus after reducing selection", report);
+                "Returning to a checked row updates preview without reducing selection", report);
             grid.CurrentCell = new DataGridCellInfo(workspace.Messages[2], grid.Columns[1]);
             grid.SelectedItem = workspace.Messages[2];
             await Settle();
@@ -103,8 +100,8 @@ internal static class PrototypeProof
             Check(int.Parse(workspace.SelectedEntity.MessageCount) == activeCount + 1 && workspace.Messages.Count == originalDlq
                 && workspace.Messages.Contains(original) && original.Body == originalBody,
                 "Replay adds an active copy while retaining original DLQ message and body", report);
-            grid.SelectedItems.Add(workspace.Messages[0]);
-            grid.SelectedItems.Add(workspace.Messages[1]);
+            CheckboxSelectionProof.Click(CheckboxSelectionProof.RowCheck(grid, workspace.Messages[0]));
+            CheckboxSelectionProof.Click(CheckboxSelectionProof.RowCheck(grid, workspace.Messages[1]));
             await Settle();
             Check(!ProofCapture.Control<Button>(window, "EditReplayButton").IsEnabled,
                 "Editing is disabled for multiple checked DLQ messages", report);
@@ -112,8 +109,8 @@ internal static class PrototypeProof
             await Settle();
             Check(int.Parse(workspace.SelectedEntity.MessageCount) == activeCount + 3 && workspace.Messages.Count == originalDlq,
                 "Batch replay creates one new send per checked message without deleting originals", report);
-            grid.SelectedItems.Clear();
-            grid.SelectedItems.Add(original);
+            CheckboxSelectionProof.Click(CheckboxSelectionProof.RowCheck(grid, workspace.Messages[1]));
+            grid.SelectedItem = original;
             grid.CurrentCell = new DataGridCellInfo(original, grid.Columns[1]);
             await Settle();
             DriveReplayDialog(window, dialog => Invoke(dialog, "CancelReplay"));
@@ -121,17 +118,26 @@ internal static class PrototypeProof
                 "Cancelling Edit and Replay does not create a copy", report);
             DriveReplayDialog(window, dialog =>
             {
+                var editor = ProofCapture.Control<JsonEditor>(dialog, "ReplayBody");
+                Check(editor.Text.Contains('\n') && editor.Text == JsonPresentation.Format(original.Body),
+                    "Replay editor opens with formatted JSON", report);
+                EditorProof.Exercise(editor, report);
+                ProofCapture.Save(dialog, output, "13-formatted-editor");
                 ProofCapture.Control<TextBox>(dialog, "ReplayId").Text = original.MessageId;
                 Invoke(dialog, "ConfirmReplay");
                 Check(dialog.IsVisible, "Replay editor rejects original message ID", report);
                 ProofCapture.Control<TextBox>(dialog, "ReplayId").Text = "edited-prototype-proof";
-                ProofCapture.Control<TextBox>(dialog, "ReplayBody").Text = "{\"edited\":true}";
+                editor.Text = "{\"edited\":true}";
                 ProofCapture.Save(dialog, output, "10-edit-replay");
                 dialog.Width = 560;
                 dialog.Height = 440;
+                editor.Text = System.Text.Json.JsonSerializer.Serialize(new { description = string.Join(" ", Enumerable.Repeat("A long delivery note that should wrap inside the editor.", 12)) }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
                 dialog.UpdateLayout();
-                ProofCapture.CheckBounds(dialog, new FrameworkElement[] { ProofCapture.Control<TextBox>(dialog, "ReplayId"), ProofCapture.Control<TextBox>(dialog, "ReplayBody"), ProofCapture.Control<Button>(dialog, "ConfirmReplay"), ProofCapture.Control<Button>(dialog, "CancelReplay") });
+                ProofCapture.CheckBounds(dialog, new FrameworkElement[] { ProofCapture.Control<TextBox>(dialog, "ReplayId"), editor, ProofCapture.Control<Button>(dialog, "ConfirmReplay"), ProofCapture.Control<Button>(dialog, "CancelReplay") });
                 ProofCapture.Save(dialog, output, "12-compact-editor");
+                Check(editor.TextArea.TextView.VisualLines.Any(line => line.TextLines.Count > 1),
+                    "Long JSON strings wrap in the compact replay editor", report);
+                editor.Text = "{\"edited\":true}";
                 Invoke(dialog, "ConfirmReplay");
             });
             await Settle();
@@ -198,6 +204,7 @@ internal static class PrototypeProof
             window.Height = 640;
             await Settle();
             VerifyGeometry(window);
+            await CheckboxSelectionProof.Exercise(window, report);
             ProofCapture.Save(window, output, "08-compact");
             Check(true, "980 × 640 window: primary controls remain in bounds", report);
             Invoke(window, "DeadLetterTab");

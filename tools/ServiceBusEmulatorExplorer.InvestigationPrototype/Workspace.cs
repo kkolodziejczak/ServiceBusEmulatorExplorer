@@ -12,6 +12,7 @@ public sealed class Workspace : INotifyPropertyChanged
     private int visibleLimit = 50;
     private int incomingSequence = 10000;
     private int pendingIncoming;
+    private bool changingChecks;
     private MessageRow? focusedMessage;
     public ObservableCollection<EntityNode> Roots { get; } = PrototypeData.CreateTree();
     public ObservableCollection<MessageRow> Messages { get; } = [];
@@ -221,8 +222,19 @@ public sealed class Workspace : INotifyPropertyChanged
         return node.IsVisible;
     }
 
-    public void NotifySelectionChanged() => Changed();
-    private void RowChanged(object? sender, PropertyChangedEventArgs args) => NotifySelectionChanged();
+    public void SetAllChecked(bool value)
+    {
+        changingChecks = true;
+        try { foreach (var row in Messages) row.IsSelected = value; }
+        finally { changingChecks = false; }
+        NotifySelectionChanged();
+    }
+
+    public void NotifySelectionChanged() => PropertyChanged?.Invoke(this, new(nameof(SelectedCount)));
+    private void RowChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (!changingChecks) NotifySelectionChanged();
+    }
 
     public void SimulateIncoming()
     {
