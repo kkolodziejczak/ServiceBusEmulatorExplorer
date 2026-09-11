@@ -24,6 +24,10 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Repeated Down advances to the second suggestion
 - PASS: Up returns to the first suggestion
 - PASS: Keyboard Down and Enter choose a complete correlation ID
+- PASS: Applied search changes the primary action to Clear search criteria
+- PASS: Changing the ID offers a new search
+- PASS: Emptying the input still allows clearing the applied filter
+- PASS: Primary Clear search criteria removes filter and restores browsing
 - PASS: Global correlation search completes visibly
 - PASS: Global results match the complete correlation ID exactly
 - PASS: Search returns every matching fixture across the namespace, including later pages
@@ -31,6 +35,7 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Correlation results include both active and dead-letter messages
 - PASS: Global search scans beyond the first page
 - PASS: Rendered search status reports scan progress or completion
+- PASS: Correlation copy icon sits within 10 pixels of its ID
 - PASS: Copy correlation sends the exact ID to the clipboard for log lookup
 - PASS: Find related searches the focused message correlation globally
 - PASS: Correlation matching is case sensitive
@@ -86,6 +91,9 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Minimum viewport displays at least one complete message row
 - PASS: Message ID text fits fully inside the compact row
 - PASS: Minimum viewport exposes replay and discard for a draft
+- PASS: Plain text and malformed JSON are labelled and preserved exactly
+- PASS: Plain text and malformed JSON are labelled and preserved exactly
+- PASS: Valid JSON returns to the formatted JSON label
 - PASS: Exiting search through the tree resumes five-second automatic refresh and preserves preview
 - PASS: Pausing automatic refresh prevents incoming sample messages
 - PASS: Disconnect clears rows and focused inspector

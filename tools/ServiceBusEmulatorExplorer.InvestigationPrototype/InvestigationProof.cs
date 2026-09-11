@@ -26,6 +26,7 @@ internal static class InvestigationProof
             await InlineReplay(window, report, output);
             await EmptySearch(window, report, output);
             await Compact(window, report, output);
+            await BodyKinds(window, report, output);
             await RefreshAndConnection(window, report);
             File.WriteAllLines(Path.Combine(output, "report.md"), report);
             return 0;
@@ -95,6 +96,14 @@ internal static class InvestigationProof
         Key(box, System.Windows.Input.Key.Enter);
         await Settle();
         Check(box.Text.Length > 5, "Keyboard Down and Enter choose a complete correlation ID", report);
+        Check(Control<Button>(window, "FindMessagesButton").Content.ToString()!.Contains("Clear search criteria"), "Applied search changes the primary action to Clear search criteria", report);
+        box.Text = "another-correlation";
+        Check(Control<Button>(window, "FindMessagesButton").Content.ToString()!.Contains("Find messages"), "Changing the ID offers a new search", report);
+        box.Text = "";
+        Check(Control<Button>(window, "FindMessagesButton").IsEnabled && Control<Button>(window, "FindMessagesButton").Content.ToString()!.Contains("Clear search criteria"), "Emptying the input still allows clearing the applied filter", report);
+        Invoke(window, "FindMessagesButton");
+        await Settle();
+        Check(!workspace.IsCorrelationSearch && box.Text == "" && workspace.Messages.Count > 0, "Primary Clear search criteria removes filter and restores browsing", report);
         box.Text = query;
         Invoke(window, "FindMessagesButton");
         await CompleteSearch(window);
@@ -110,6 +119,7 @@ internal static class InvestigationProof
         var dlq = workspace.Messages.First(row => row.IsDeadLetter);
         Control<DataGrid>(window, "MessageGrid").SelectedItem = dlq;
         await Settle();
+        CheckCopySpacing(window, report);
         var clipboard = Clipboard.GetDataObject();
         try
         {
@@ -131,7 +141,7 @@ internal static class InvestigationProof
         Invoke(window, "FindMessagesButton");
         await CompleteSearch(window);
         Check(workspace.Messages.Count == 0, "Correlation matching is case sensitive", report);
-        Invoke(window, "ClearSearchButton");
+        Invoke(window, "FindMessagesButton");
         await Settle();
         Check(!workspace.IsCorrelationSearch && workspace.Messages.Count > 0, "Clear search returns to the entity workspace", report);
     }
@@ -234,7 +244,7 @@ internal static class InvestigationProof
         Invoke(window, "ReplayButton");
         await Settle();
         Check(dead.All(row => row.Body.Length > 0 && row.IsDeadLetter), "Batch replay retains both DLQ originals", report);
-        Invoke(window, "ClearSearchButton");
+        Invoke(window, "FindMessagesButton");
         await Settle();
     }
 
@@ -254,7 +264,7 @@ internal static class InvestigationProof
         await Settle();
         Check(!workspace.SearchComplete && !workspace.IsSearching && workspace.SearchStatus.Contains("incomplete", StringComparison.OrdinalIgnoreCase), "Canceled zero-result scan explicitly says search incomplete", report);
         ProofCapture.Save(window, output, "06-incomplete-search");
-        Invoke(window, "ClearSearchButton");
+        Invoke(window, "FindMessagesButton");
         await Settle();
         Check(!workspace.IsCorrelationSearch && workspace.Messages.Count > 0, "Empty search clear action restores entity browsing", report);
     }
@@ -331,6 +341,37 @@ internal static class InvestigationProof
         Invoke(window, "ConnectionButton");
         await Settle();
         Check(workspace.IsConnected && workspace.Messages.Count == 50 && workspace.FocusedMessage is not null, "Reconnect restores a focused first page of sample messages", report);
+    }
+
+    private static async Task BodyKinds(PrototypeWindow window, List<string> report, string output)
+    {
+        var audit = ProofCapture.Descendants(window).OfType<TreeViewItem>().First(item => item.DataContext is EntityNode node && node.Path == "audit-events");
+        audit.IsSelected = true;
+        Invoke(window, "ActiveTab");
+        await Settle();
+        var grid = Control<DataGrid>(window, "MessageGrid");
+        foreach (var row in window.Workspace.Messages.Take(2))
+        {
+            grid.SelectedItem = row;
+            await Settle();
+            Check(Control<JsonEditor>(window, "BodyEditor").Text == row.Body && Control<ToggleButton>(window, "JsonTab").Content.ToString() == "Body (not JSON)", "Plain text and malformed JSON are labelled and preserved exactly", report);
+        }
+        ProofCapture.Save(window, output, "09-non-json");
+        grid.SelectedItem = window.Workspace.Messages[2];
+        await Settle();
+        Check(Control<ToggleButton>(window, "JsonTab").Content.ToString() == "JSON", "Valid JSON returns to the formatted JSON label", report);
+        var billing = ProofCapture.Descendants(window).OfType<TreeViewItem>().First(item => item.DataContext is EntityNode node && node.Path == "order-events/billing");
+        billing.IsSelected = true;
+        await Settle();
+    }
+
+    private static void CheckCopySpacing(PrototypeWindow window, List<string> report)
+    {
+        var value = Control<TextBlock>(window, "CorrelationValue");
+        var copy = Control<Button>(window, "CopyCorrelationButton");
+        var end = value.TranslatePoint(new Point(value.ActualWidth, 0), window).X;
+        var start = copy.TranslatePoint(new Point(0, 0), window).X;
+        Check(start - end is >= 0 and <= 10, "Correlation copy icon sits within 10 pixels of its ID", report);
     }
 
     private static async Task CompleteSearch(PrototypeWindow window)

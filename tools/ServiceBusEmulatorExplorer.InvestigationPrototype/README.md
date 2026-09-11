@@ -12,9 +12,9 @@ dotnet run --project tools/ServiceBusEmulatorExplorer.InvestigationPrototype
 
 Type `checkout-` in **Correlation ID**. Suggestions include known IDs and recent searches. Use Up/Down and Enter, click a suggestion, or type any complete ID and choose **Find messages**. Search matches the full ID exactly, including case.
 
-Results combine queues and subscriptions, including Active and DLQ messages. The location and state stay visible for every delivery. Use **Copy** beside a correlation ID to search your logs, or **Find related** in the inspector to search the namespace.
+Results combine queues and subscriptions, including Active and DLQ messages. The location and state stay visible for every delivery. Use the copy icon directly beside a correlation ID to search your logs, or **Find related** in the inspector to search the namespace.
 
-Search scans the synthetic snapshot in pages of 50, yielding to the UI between pages. Its completed, in-progress and stopped states distinguish “No matching messages” from “No matches found so far.” The sample scan is usually almost instant; there is no artificial waiting animation. Namespace totals remain overall counts, separate from matches and scanned messages. **Clear** returns to entity browsing.
+Search scans the synthetic snapshot in pages of 50, yielding to the UI between pages. Its completed, in-progress and stopped states distinguish “No matching messages” from “No matches found so far.” The sample scan is usually almost instant; there is no artificial waiting animation. Namespace totals remain overall counts, separate from matches and scanned messages. After a search, the primary button becomes **Clear search criteria** and returns to entity browsing. Typing a different ID restores **Find messages**; emptying the field still allows clearing the applied filter.
 
 A real broker implementation will need cancellable paged peeking and explicit incomplete/error reporting; this prototype is not proof of broker-wide search.
 
@@ -22,7 +22,7 @@ A real broker implementation will need cancellable paged peeking and explicit in
 
 The grid shows event name, message ID, correlation ID, location and state. Checkboxes toggle independently without Shift. The aligned header checkbox selects or clears the displayed results. Clicking a row previews it without changing checked messages.
 
-JSON is formatted and colored directly in the inspector. DLQ JSON is editable; Raw and Properties retain original text and metadata. **Replay** sends an unchanged sample copy with a default ID such as `evt-001042-replay-1`. A subsequent replay advances the suffix. Correlation ID stays unchanged.
+JSON is formatted and colored directly in the inspector. DLQ JSON is editable; Raw and Properties retain original text and metadata. Plain-text and malformed-JSON sample messages are deliberately included and labelled **Body (not JSON)**; their contents are preserved. **Replay** sends an unchanged sample copy with a default ID such as `evt-001042-replay-1`. A subsequent replay advances the suffix. Correlation ID stays unchanged.
 
 Editing the JSON changes the single action to **Edit and Replay** and reveals **Modified** and **Discard changes**. Drafts and undo history stay with their message when you switch rows. Discard restores the original formatted JSON. Successful edited replay resets the editor to the retained DLQ original. Invalid JSON blocks edited replay; untouched non-JSON messages can still replay unchanged.
 
@@ -38,7 +38,7 @@ Resize to switch between side-by-side and stacked panes. The compact layout redu
 
 ## Rendered evidence
 
-Build: zero warnings and errors. Final walkthrough: **89 passing checks**, followed by independent source and visual review.
+Build: zero warnings and errors. Final walkthrough: **97 passing checks**, followed by independent source and visual review.
 
 | UI gate | Result | Evidence |
 | --- | --- | --- |

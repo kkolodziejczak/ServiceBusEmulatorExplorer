@@ -13,7 +13,7 @@ public partial class PrototypeWindow
     {
         if (!IsLoaded) return;
         UpdateSuggestions();
-        FindMessagesButton.IsEnabled = Workspace.IsConnected && !string.IsNullOrWhiteSpace(CorrelationBox.Text);
+        UpdateSearchAction();
     }
 
     private void CorrelationFocused(object sender, KeyboardFocusChangedEventArgs e) => UpdateSuggestions();
@@ -63,7 +63,21 @@ public partial class PrototypeWindow
         BeginSearch();
     }
 
-    private void FindMessages_Click(object sender, RoutedEventArgs e) => BeginSearch();
+    private bool ShowsAppliedQuery => Workspace.IsCorrelationSearch
+        && (string.IsNullOrWhiteSpace(CorrelationBox.Text) || CorrelationBox.Text.Trim() == Workspace.CorrelationQuery);
+
+    private void FindMessages_Click(object sender, RoutedEventArgs e)
+    {
+        if (ShowsAppliedQuery) ClearSearch_Click(sender, e);
+        else BeginSearch();
+    }
+
+    private void UpdateSearchAction()
+    {
+        FindMessagesButton.Content = ShowsAppliedQuery ? "×  Clear search criteria" : "⌕  Find messages";
+        FindMessagesButton.ToolTip = ShowsAppliedQuery ? "Remove the correlation filter and return to entity browsing" : "Search for this correlation ID";
+        FindMessagesButton.IsEnabled = Workspace.IsConnected && (ShowsAppliedQuery || !string.IsNullOrWhiteSpace(CorrelationBox.Text));
+    }
 
     private void BeginSearch()
     {
@@ -143,7 +157,7 @@ public partial class PrototypeWindow
         ListToolbar.Visibility = searching ? Visibility.Collapsed : Visibility.Visible;
         LoadMoreButton.Visibility = searching ? Visibility.Collapsed : Visibility.Visible;
         StopSearchButton.Visibility = Workspace.IsSearching ? Visibility.Visible : Visibility.Collapsed;
-        FindMessagesButton.IsEnabled = Workspace.IsConnected && !string.IsNullOrWhiteSpace(CorrelationBox.Text);
+        UpdateSearchAction();
         CorrelationBox.IsEnabled = Workspace.IsConnected;
         EmptyMessage.Text = !searching ? "No messages in this view" : Workspace.SearchComplete ? "No matching messages" : "No matches found so far";
         EmptyDescription.Text = !searching ? "Choose another entity to browse messages." : Workspace.SearchComplete

@@ -73,6 +73,14 @@ public partial class PrototypeWindow
         if (ReplayActions is null) return;
         var row = Workspace.FocusedMessage;
         var dirty = row is not null && IsDirty(row);
+        var validJson = true;
+        if (row is not null)
+        {
+            try { using var parsed = JsonDocument.Parse(BodyEditor.Text); }
+            catch (JsonException) { validJson = false; }
+        }
+        JsonTab.Content = validJson ? "JSON" : "Body (not JSON)";
+        JsonTab.ToolTip = validJson ? "Formatted JSON" : "Plain text or invalid JSON cannot be formatted; the body is shown as received.";
         ModifiedBadge.Visibility = dirty && inspectorMode == "JSON" ? Visibility.Visible : Visibility.Collapsed;
         DiscardButton.Visibility = dirty ? Visibility.Visible : Visibility.Collapsed;
         var targets = Workspace.ReplayTargets;
