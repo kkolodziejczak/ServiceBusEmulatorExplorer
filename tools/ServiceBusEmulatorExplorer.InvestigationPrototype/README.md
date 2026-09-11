@@ -44,13 +44,13 @@ Select a queue or subscription and choose **Watch** for Active messages, DLQ mes
 
 Notifications use a separate, persistent WPF desktop window, not a timed native Windows toast. They remain while the main window is hidden, group arrivals by entity/bucket, and offer **Investigate** and **Dismiss**. Investigate restores the main window and opens the exact new message; Dismiss leaves messages untouched. Stop watching clears that target's pending notifications.
 
-Closing the main window sends it to the Windows tray by default. Double-click the real app tray icon or use **Open Service Bus Explorer** to restore it; **Exit** stops the process. The Settings gear provides in-session close-to-tray and notification toggles. Connection-profile editing and persistence are not part of this mockup implementation.
+Closing the main window sends it to the Windows tray by default. Double-click the real app tray icon or use **Open Service Bus Explorer** to restore it; **Exit** stops the process. The Settings gear opens **General** and **Connections** pages. General controls close-to-tray and desktop notifications. Connections demonstrates two editable sample profiles with masked runtime and administration fields; saved edits survive reopening Settings within this session only. There is no real connection or disk persistence.
 
-The dark **Activity log** spans all three panes, with timestamped colored entries and a last-operation footer. Collapse releases space; Clear removes log history. The console height adapts at compact sizes.
+The Watch selector has independent Active and DLQ checkboxes and **Stop watching**. The refresh interval dropdown uses the same flat blue-and-white treatment. The dark **Activity log** spans all three panes, with timestamped colored entries and a last-operation footer. Collapse releases space; the clear-history icon is visible only while expanded. The console height adapts at compact sizes.
 
 ## Rendered evidence
 
-Build: zero warnings and errors. Final walkthrough: **158 passing checks**, followed by independent visual review. A separate [real tray lifetime proof](tray-verification.md) adds **11 passing checks**, including timer-driven arrivals while hidden, Investigate, disabling close-to-tray, and Exit cleanup.
+Build: zero warnings and errors. Final walkthrough: **180 passing checks**, with rendered visual inspection. A separate [real tray lifetime proof](tray-verification.md) adds **11 passing checks**, including timer-driven arrivals while hidden, Investigate, disabling close-to-tray, and Exit cleanup.
 
 | UI gate | Result | Evidence |
 | --- | --- | --- |
@@ -65,6 +65,10 @@ Build: zero warnings and errors. Final walkthrough: **158 passing checks**, foll
 ![Inline edited replay in correlation results](editor-preview.png)
 
 ![Completed search without matches](empty-preview.png)
+
+![General settings](settings-preview.png)
+
+![Connection profile mockup](connections-preview.png)
 
 The [walkthrough report](verification.md) covers actual rendered WPF controls, suggestions, exact namespace results, copy, drafts, undo/redo, replay IDs, mixed selections, empty/stopped searches, refresh/pause, disconnect, and desktop/compact geometry. The original [checkbox regression](selection-regression.md) is retained as historical evidence.
 

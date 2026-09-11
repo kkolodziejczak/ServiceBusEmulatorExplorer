@@ -3,10 +3,10 @@
 - PASS: The independent 15-second Watch timer creates a desktop notification while the main window is hidden
 - PASS: Investigate from the desktop notification restores the hidden application and selects the new message
 - PASS: Settings exposes close-to-system-tray enabled by default
-- PASS: The Settings menu action turns close-to-system-tray off
+- PASS: The Settings switch turns close-to-system-tray off
 - PASS: With close-to-tray disabled, Close closes the application window and disposes its tray icon
 - PASS: A second real application lifetime initializes its tray icon
 - PASS: A new prototype session restores the documented default close preference
-- PASS: Explicit Settings Exit closes the app and tray even when close-to-tray is enabled
+- PASS: Explicit tray Exit closes the app and tray even when close-to-tray is enabled
 - PASS: No watch notification windows remain after Exit
 - Scope: real NotifyIcon lifetime and desktop WPF notification verified; taskbar icon pixels and Windows toast delivery are not tested.

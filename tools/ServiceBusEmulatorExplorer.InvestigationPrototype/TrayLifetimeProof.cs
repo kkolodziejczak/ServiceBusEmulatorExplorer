@@ -42,13 +42,13 @@ internal static class TrayLifetimeProof
             Check(window.IsVisible && window.WindowState != WindowState.Minimized && window.Workspace.FocusedMessage?.Key == latest.Key,
                 "Investigate from the desktop notification restores the hidden application and selects the new message", report);
             window.SetWatched(window.Workspace.EntityPath, true, false);
-            var menu = await OpenSettings(window);
-            var closePreference = menu.Items.OfType<MenuItem>().Single(item => Equals(item.Header, "Close to system tray"));
-            Check(closePreference.IsChecked, "Settings exposes close-to-system-tray enabled by default", report);
-            Invoke(closePreference);
+            var settings = await OpenSettings(window);
+            var closePreference = ProofCapture.Control<ToggleButton>(settings, "CloseToTrayToggle");
+            Check(closePreference.IsChecked == true, "Settings exposes close-to-system-tray enabled by default", report);
+            Toggle(closePreference);
             await Settle();
-            Check(!closePreference.IsChecked, "The Settings menu action turns close-to-system-tray off", report);
-            menu.IsOpen = false;
+            Check(closePreference.IsChecked == false, "The Settings switch turns close-to-system-tray off", report);
+            settings.Close();
             window.Close();
             await Settle();
             Check(!Application.Current.Windows.Cast<Window>().Contains(window) && !TrayIsVisible(window),
@@ -59,13 +59,14 @@ internal static class TrayLifetimeProof
             exitWindow.Show();
             await Settle();
             Check(TrayIsVisible(exitWindow), "A second real application lifetime initializes its tray icon", report);
-            menu = await OpenSettings(exitWindow);
-            Check(menu.Items.OfType<MenuItem>().Single(item => Equals(item.Header, "Close to system tray")).IsChecked,
+            settings = await OpenSettings(exitWindow);
+            Check(ProofCapture.Control<ToggleButton>(settings, "CloseToTrayToggle").IsChecked == true,
                 "A new prototype session restores the documented default close preference", report);
-            Invoke(menu.Items.OfType<MenuItem>().Single(item => Equals(item.Header, "Exit")));
+            settings.Close();
+            InvokeTrayExit(exitWindow);
             await Settle();
             Check(!Application.Current.Windows.Cast<Window>().Contains(exitWindow) && !TrayIsVisible(exitWindow),
-                "Explicit Settings Exit closes the app and tray even when close-to-tray is enabled", report);
+                "Explicit tray Exit closes the app and tray even when close-to-tray is enabled", report);
             Check(!Application.Current.Windows.OfType<WatchNotificationWindow>().Any(), "No watch notification windows remain after Exit", report);
             report.Add("- Scope: real NotifyIcon lifetime and desktop WPF notification verified; taskbar icon pixels and Windows toast delivery are not tested.");
             await File.WriteAllLinesAsync(Path.Combine(output, "tray-report.md"), report);
@@ -85,23 +86,26 @@ internal static class TrayLifetimeProof
         return tray?.GetType().GetField("icon", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(tray) is Forms.NotifyIcon { Visible: true };
     }
 
-    private static async Task<ContextMenu> OpenSettings(PrototypeWindow window)
+    private static async Task<PrototypeSettingsWindow> OpenSettings(PrototypeWindow window)
     {
         ProofCapture.Descendants(window).OfType<Button>().Single(button => AutomationProperties.GetName(button) == "Settings")
             .RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
         await Settle();
-        return PresentationSource.CurrentSources.Cast<PresentationSource>().Where(source => source.RootVisual is not null)
-            .SelectMany(source => ProofCapture.Descendants(source.RootVisual)).OfType<ContextMenu>().Single(menu => menu.IsOpen);
+        return Application.Current.Windows.OfType<PrototypeSettingsWindow>().Single(settings => settings.IsVisible);
     }
 
-    private static void Invoke(MenuItem item)
+    private static void Toggle(ToggleButton button)
     {
-        var peer = new MenuItemAutomationPeer(item);
-        if (peer.GetPattern(PatternInterface.Invoke) is not IInvokeProvider invoke)
-            throw new InvalidOperationException($"Menu action has no Invoke provider: {item.Header}");
-        invoke.Invoke();
+        var peer = new ToggleButtonAutomationPeer(button);
+        ((IToggleProvider)peer.GetPattern(PatternInterface.Toggle)).Toggle();
     }
 
+    private static void InvokeTrayExit(PrototypeWindow window)
+    {
+        var tray = typeof(PrototypeWindow).GetField("tray", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+        var menu = (Forms.ContextMenuStrip)tray.GetType().GetField("menu", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(tray)!;
+        menu.Items.OfType<Forms.ToolStripMenuItem>().Single(item => item.Text == "Exit").PerformClick();
+    }
     private static Task Settle() => Application.Current.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle).Task;
     private static void Check(bool condition, string message, List<string> report)
     {

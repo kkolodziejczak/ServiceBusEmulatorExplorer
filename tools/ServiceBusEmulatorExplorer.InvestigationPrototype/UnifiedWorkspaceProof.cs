@@ -47,15 +47,23 @@ internal static class UnifiedWorkspaceProof
         await Settle();
         var text = (RichTextBox)window.FindName("LogText");
         Check(text.IsVisible && text.ActualWidth >= window.ActualWidth - 80, "Expanded activity log spans the application width", report);
-        ProofCapture.CheckBounds(window, [log, text]);
+        var clear = (Button)window.FindName("ClearLogButton");
+        Check(clear.IsVisible && clear.ToolTip is not null && !ProofCapture.Descendants(clear).OfType<TextBlock>().Any(label => !string.IsNullOrWhiteSpace(label.Text)), "Expanded log exposes an icon-only clear action with a tooltip", report);
+        ProofCapture.CheckBounds(window, [log, text, clear]);
         ProofCapture.Save(window, output, "unified-expanded-log");
         Click(window, "LogToggle");
         await Settle();
+        Check(!clear.IsVisible, "Collapsed activity log hides its clear action", report);
         Check(!text.IsVisible && !log.IsVisible, "Collapsing the full-width activity log releases workspace height", report);
         Click(window, "LogToggle");
         await Settle();
         Check(text.IsVisible && new TextRange(text.Document.ContentStart, text.Document.ContentEnd).Text.Length > 0, "Reopening the activity log retains operation history", report);
-        Check(((TextBlock)window.FindName("LastOperation")).IsVisible, "Last operation remains visible in the bottom footer", report);
+        var lastOperation = (TextBlock)window.FindName("LastOperation");
+        Check(lastOperation.IsVisible && clear.IsVisible, "Expanded log restores clear action while last operation remains in the footer", report);
+        var previousOperation = lastOperation.Text;
+        Click(window, "ClearLogButton");
+        await Settle();
+        Check(string.IsNullOrWhiteSpace(new TextRange(text.Document.ContentStart, text.Document.ContentEnd).Text) && lastOperation.Text == previousOperation, "Clear removes console history and preserves the last-operation footer", report);
         ProofCapture.Descendants(window).OfType<TreeViewItem>().First(item => ReferenceEquals(item.DataContext, original)).IsSelected = true;
         await Settle();
     }

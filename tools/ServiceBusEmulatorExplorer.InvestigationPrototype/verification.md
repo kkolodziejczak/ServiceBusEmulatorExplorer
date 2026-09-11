@@ -53,9 +53,12 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Unified clear restores browsing and the complete namespace tree
 - PASS: Clicking a loaded message suggestion opens its entity and focuses that message
 - PASS: Expanded activity log spans the application width
+- PASS: Expanded log exposes an icon-only clear action with a tooltip
+- PASS: Collapsed activity log hides its clear action
 - PASS: Collapsing the full-width activity log releases workspace height
 - PASS: Reopening the activity log retains operation history
-- PASS: Last operation remains visible in the bottom footer
+- PASS: Expanded log restores clear action while last operation remains in the footer
+- PASS: Clear removes console history and preserves the last-operation footer
 - PASS: Empty correlation input has no suggestions or clear action
 - PASS: Typing a correlation prefix suggests known IDs
 - PASS: Suggestion popup is rendered while typing
@@ -160,3 +163,22 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Stopping the final bucket closes pending notifications and restores the Watch label
 - PASS: Proof lifetime can exercise a real desktop notification without starting tray services
 - PASS: Closing in proof mode closes the app window and all owned watch resources without lingering windows
+- PASS: Watch opens a selector with independent Active and DLQ choices
+- PASS: Unwatched entity starts with both Watch choices off
+- PASS: Active can be enabled independently without closing the Watch selector
+- PASS: Both Watch buckets can be enabled in one selector visit
+- PASS: Reopened Watch selector retains both selected buckets
+- PASS: Stop watching clears the entity Watch state and closes its selector
+- PASS: Stop watching resets both choices on reopening
+- PASS: Settings opens a dedicated owned window
+- PASS: General settings expose enabled close-to-tray and notification defaults
+- PASS: General switches respond independently to UI Automation Toggle
+- PASS: Done closes Settings
+- PASS: Reopening Settings retains this session's general preferences
+- PASS: Connections page exposes named profile and masked runtime and administration fields
+- PASS: Saved connection draft survives closing and reopening Settings within this session
+- PASS: Saving connection draft retains its profile identity
+- PASS: Compact Settings scrolls the form to keep Save and Done reachable
+- PASS: General tab returns from Connections to preferences
+- PASS: Refresh selector opens all four supported intervals
+- PASS: Styled refresh selector retains selectable 30-second interval

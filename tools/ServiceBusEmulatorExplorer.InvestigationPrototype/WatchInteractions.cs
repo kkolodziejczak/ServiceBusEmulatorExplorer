@@ -17,6 +17,10 @@ public partial class PrototypeWindow
     private bool notificationsEnabled = true;
     private bool proofLifetime = true;
     private bool exiting;
+    private PrototypeSettingsWindow? settingsWindow;
+    private readonly PrototypeConnectionSettings connectionSettings = new();
+    private string? watchPopupPath;
+    private bool updatingWatchChoices;
 
     private void InitializeWatch()
     {
@@ -61,26 +65,45 @@ public partial class PrototypeWindow
         watchTimer.Stop();
         watchNotification?.Close(); watchNotification = null;
         tray?.Dispose(); tray = null;
+        settingsWindow?.Close(); settingsWindow = null;
     }
 
     private void Watch_Click(object sender, RoutedEventArgs e)
     {
-        var menu = NewWatchMenu(sender);
         var entity = Workspace.SelectedEntity;
         if (entity is null || entity.IsGroup || entity.Kind == "Topic" || Workspace.IsCorrelationSearch)
         {
-            menu.Items.Add(new MenuItem { Header = "Select a queue or subscription to watch", IsEnabled = false });
+            watchPopupPath = null;
+            WatchPopupTitle.Text = "Select a queue or subscription to watch";
         }
         else
         {
-            menu.Items.Add(new MenuItem { Header = $"Watch {entity.Name}", IsEnabled = false });
-            AddWatchChoice(menu, entity.Path, "Active messages", false);
-            AddWatchChoice(menu, entity.Path, "Dead-letter messages", true);
-            var both = new MenuItem { Header = "Active + dead letter", IsCheckable = true, IsChecked = watchedLocations.Contains((entity.Path, false)) && watchedLocations.Contains((entity.Path, true)), IsEnabled = Workspace.IsConnected };
-            both.Click += (_, _) => { SetWatched(entity.Path, false, both.IsChecked); SetWatched(entity.Path, true, both.IsChecked); };
-            menu.Items.Add(both);
+            watchPopupPath = entity.Path;
+            WatchPopupTitle.Text = $"Watch {entity.Name}";
         }
-        menu.IsOpen = true;
+        WatchActiveChoice.IsEnabled = WatchDlqChoice.IsEnabled = watchPopupPath is not null && Workspace.IsConnected;
+        updatingWatchChoices = true;
+        WatchActiveChoice.IsChecked = watchedLocations.Contains((watchPopupPath ?? "", false));
+        WatchDlqChoice.IsChecked = watchedLocations.Contains((watchPopupPath ?? "", true));
+        updatingWatchChoices = false;
+        StopWatchingButton.IsEnabled = WatchActiveChoice.IsChecked == true || WatchDlqChoice.IsChecked == true;
+        WatchPopup.IsOpen = true;
+    }
+
+    private void WatchChoice_Click(object sender, RoutedEventArgs e)
+    {
+        if (updatingWatchChoices || watchPopupPath is null || !Workspace.IsConnected) return;
+        var deadLetter = ReferenceEquals(sender, WatchDlqChoice);
+        SetWatched(watchPopupPath, deadLetter, ((CheckBox)sender).IsChecked == true);
+        StopWatchingButton.IsEnabled = watchedLocations.Any(location => location.Path == watchPopupPath);
+    }
+
+    private void StopWatching_Click(object sender, RoutedEventArgs e)
+    {
+        if (watchPopupPath is null) return;
+        SetWatched(watchPopupPath, false, false);
+        SetWatched(watchPopupPath, true, false);
+        WatchPopup.IsOpen = false;
     }
 
     private static ContextMenu NewWatchMenu(object sender) => new() { PlacementTarget = sender as UIElement, Placement = PlacementMode.Bottom };
@@ -108,6 +131,7 @@ public partial class PrototypeWindow
 
     private void UpdateWatchSurface()
     {
+        if (!Workspace.IsConnected) WatchPopup.IsOpen = false;
         if (FindName("WatchButtonLabel") is not TextBlock label) return;
         var path = Workspace.SelectedEntity?.Path;
         label.Text = !Workspace.IsCorrelationSearch && watchedLocations.Any(location => location.Path == path) ? "Watching" : "Watch";
@@ -193,19 +217,15 @@ public partial class PrototypeWindow
 
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
-        var menu = NewWatchMenu(sender);
-        menu.Items.Add(new MenuItem { Header = "Settings · this session", IsEnabled = false });
-        var close = new MenuItem { Header = "Close to system tray", IsCheckable = true, IsChecked = closeToTray, IsEnabled = tray is not null || proofLifetime };
-        close.Click += (_, _) => closeToTray = close.IsChecked; menu.Items.Add(close);
-        var notifications = new MenuItem { Header = "Desktop watch notifications", IsCheckable = true, IsChecked = notificationsEnabled };
-        notifications.Click += (_, _) =>
-        {
-            notificationsEnabled = notifications.IsChecked;
-            if (notificationsEnabled) ShowWatchNotification();
-            else { watchNotification?.Close(); watchNotification = null; }
-        };
-        menu.Items.Add(notifications); menu.Items.Add(new Separator());
-        var exit = new MenuItem { Header = "Exit" }; exit.Click += (_, _) => ExitPrototype(); menu.Items.Add(exit);
-        menu.IsOpen = true;
+        if (settingsWindow is not null) { settingsWindow.Activate(); return; }
+        settingsWindow = new PrototypeSettingsWindow(closeToTray, notificationsEnabled, tray is not null || proofLifetime,
+            value => closeToTray = value, value =>
+            {
+                notificationsEnabled = value;
+                if (value) ShowWatchNotification();
+                else { watchNotification?.Close(); watchNotification = null; }
+            }, connectionSettings) { Owner = this };
+        settingsWindow.Closed += (_, _) => settingsWindow = null;
+        settingsWindow.Show();
     }
 }
