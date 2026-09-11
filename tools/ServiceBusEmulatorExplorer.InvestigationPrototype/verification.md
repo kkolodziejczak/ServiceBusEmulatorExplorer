@@ -208,3 +208,14 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Incomplete OR query surfaces a validation error without starting a scan
 - PASS: Invalid search explanation is visible in the rendered workspace
 - PASS: Clear recovers from invalid query into normal browsing
+- PASS: Normal entity browsing hides redundant Location / State column
+- PASS: Global correlation search shows Location / State for cross-entity results
+- PASS: OR search shows only matching sources and parents with exact Active / DLQ aggregate counts
+- PASS: Search projections preserve underlying namespace totals
+- PASS: Global message ID search also shows Location / State
+- PASS: Wildcard message search shows only matching sources and parents with exact Active / DLQ aggregate counts
+- PASS: Stopping after one page retains a bounded partial search
+- PASS: Stopped partial search shows only matching sources and parents with exact Active / DLQ aggregate counts
+- PASS: No-results search hides every unmatched tree branch
+- PASS: Clearing search restores the whole namespace tree and removes redundant result location column
+- PASS: Clearing search restores displayed namespace totals for every node

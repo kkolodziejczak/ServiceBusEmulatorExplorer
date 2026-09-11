@@ -229,6 +229,12 @@ public sealed class Workspace : INotifyPropertyChanged
 
     private void ResetCorrelationSearch()
     {
+        if (IsCorrelationSearch)
+            foreach (var node in Roots.SelectMany(PrototypeData.Flatten))
+            {
+                node.SetMatchingCounts(null, null);
+                node.IsVisible = true;
+            }
         IsCorrelationSearch = false;
         SearchByMessageId = false;
         CorrelationQuery = "";
@@ -407,7 +413,30 @@ public sealed class Workspace : INotifyPropertyChanged
 
     public void SetSearch(string text)
     {
+        if (IsCorrelationSearch) { UpdateMatchingTree(); return; }
         foreach (var root in Roots) Filter(root, text.Trim());
+    }
+
+    private void UpdateMatchingTree()
+    {
+        var counts = Messages.GroupBy(row => row.Source).ToDictionary(group => group.Key,
+            group => (Active: group.Count(row => !row.IsDeadLetter), DeadLetter: group.Count(row => row.IsDeadLetter)));
+        foreach (var root in Roots) UpdateMatchingNode(root, counts);
+    }
+
+    private static (int Active, int DeadLetter) UpdateMatchingNode(EntityNode node, IReadOnlyDictionary<string, (int Active, int DeadLetter)> counts)
+    {
+        var count = counts.TryGetValue(node.Path, out var own) ? own : (Active: 0, DeadLetter: 0);
+        foreach (var child in node.Children)
+        {
+            var childCount = UpdateMatchingNode(child, counts);
+            count.Active += childCount.Active;
+            count.DeadLetter += childCount.DeadLetter;
+        }
+        node.SetMatchingCounts(node.IsGroup ? null : count.Active, node.IsGroup ? null : count.DeadLetter);
+        node.IsVisible = count.Active + count.DeadLetter > 0;
+        if (node.IsVisible && node.Children.Count > 0) node.IsExpanded = true;
+        return count;
     }
 
     private static bool Filter(EntityNode node, string search)
@@ -470,5 +499,9 @@ public sealed class Workspace : INotifyPropertyChanged
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
-    private void Changed() => PropertyChanged?.Invoke(this, new(string.Empty));
+    private void Changed()
+    {
+        if (IsCorrelationSearch) UpdateMatchingTree();
+        PropertyChanged?.Invoke(this, new(string.Empty));
+    }
 }

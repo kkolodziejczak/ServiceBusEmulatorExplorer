@@ -14,12 +14,22 @@ public sealed class EntityNode : INotifyPropertyChanged
     public ObservableCollection<EntityNode> Children { get; } = [];
     public string MessageCount { get; set; } = "";
     public string DlqCount { get; set; } = "";
+    private int? matchingActive;
+    private int? matchingDeadLetter;
+    public string DisplayMessageCount => matchingActive?.ToString() ?? MessageCount;
+    public string DisplayDlqCount => matchingDeadLetter?.ToString() ?? DlqCount;
+    public void SetMatchingCounts(int? active, int? deadLetter)
+    {
+        matchingActive = active;
+        matchingDeadLetter = deadLetter;
+        NotifyCounts();
+    }
     private bool isExpanded = true;
     public bool IsExpanded { get => isExpanded; set { isExpanded = value; Changed(); } }
     private bool isVisible = true;
     public bool IsVisible { get => isVisible; set { isVisible = value; Changed(); } }
     public event PropertyChangedEventHandler? PropertyChanged;
-    public void NotifyCounts() { Changed(nameof(MessageCount)); Changed(nameof(DlqCount)); }
+    public void NotifyCounts() { Changed(nameof(MessageCount)); Changed(nameof(DlqCount)); Changed(nameof(DisplayMessageCount)); Changed(nameof(DisplayDlqCount)); }
     private void Changed([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new(name));
 }
 

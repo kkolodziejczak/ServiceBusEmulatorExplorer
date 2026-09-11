@@ -84,6 +84,12 @@ public partial class PrototypeWindow
             else if (!Workspace.IsSearching) pendingSearchFocusKey = null;
         }
         var searching = Workspace.IsCorrelationSearch;
+        SourceColumn.Visibility = searching ? Visibility.Visible : Visibility.Collapsed;
+        NamespaceEmpty.Visibility = Workspace.Roots.Any(node => node.IsVisible) ? Visibility.Collapsed : Visibility.Visible;
+        NamespaceEmpty.Text = searching
+            ? Workspace.IsSearching ? "Searching for matching entities…" : "No matching entities found. Clear the search to show all entities."
+            : "No matching entities. Clear the search to show all entities.";
+        NamespaceTree.ToolTip = searching ? "Counts show matching messages found so far. Clear search to restore entity totals." : null;
         ListBreadcrumb.Text = searching ? "Search / Related messages" : Workspace.EntityPath;
         MessagesHeading.Text = searching ? "Related messages" : "Messages";
         SearchSummary.Text = $"{Workspace.CorrelationQuery} · {Workspace.Messages.Count} matches{(Workspace.SearchComplete ? "" : " so far")}";

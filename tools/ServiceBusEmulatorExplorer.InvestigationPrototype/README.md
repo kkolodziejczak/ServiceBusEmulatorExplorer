@@ -48,11 +48,11 @@ Closing the main window sends it to the Windows tray by default. Double-click th
 
 The Watch selector has independent Active and DLQ checkboxes and **Stop watching**. The toolbar bell is crossed out when off and filled when watching. The header bell appears only while entities are watched, shows their count, and opens the overview. The overview uses the same white panel and blue checked rows as the other selectors; each row can stop its Active or DLQ watch independently. The refresh interval dropdown uses the same flat blue-and-white treatment. The dark **Activity log** spans all three panes, with timestamped colored entries and a last-operation footer. Collapse releases space; the clear-history icon is visible only while expanded. The console height adapts at compact sizes.
 
-Search by correlation ID or message ID supports `case-123 OR case-456` and `case-*`. ID matching is case-sensitive; the OR keyword is case-insensitive. Quote an entire ID to treat stars or OR literally. Clear search restores browsing. Invalid expressions display a correction message without scanning.
+Search by correlation ID or message ID supports `case-123 OR case-456` and `case-*`. ID matching is case-sensitive; the OR keyword is case-insensitive. Quote an entire ID to treat stars or OR literally. The Location / State column appears only in global ID search results. During a search, the namespace tree shows matching sources and parent topics only; Active and DLQ counts reflect matches found so far, with topic totals aggregated from matching subscriptions. Clear search restores browsing, the complete tree, and the original entity totals. Invalid expressions display a correction message without scanning.
 
 ## Rendered evidence
 
-Build: zero warnings and errors. Final walkthrough: **206 passing checks**, with rendered visual inspection. A separate [real tray lifetime proof](tray-verification.md) adds **11 passing checks**, including timer-driven arrivals while hidden, Investigate, disabling close-to-tray, and Exit cleanup.
+Build: zero warnings and errors. Final walkthrough: **217 passing checks**, with rendered visual inspection. A separate [real tray lifetime proof](tray-verification.md) adds **11 passing checks**, including timer-driven arrivals while hidden, Investigate, disabling close-to-tray, and Exit cleanup.
 
 | UI gate | Result | Evidence |
 | --- | --- | --- |
