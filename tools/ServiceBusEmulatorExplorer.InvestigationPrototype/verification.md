@@ -2,6 +2,7 @@
 
 Actual rendered WPF with synthetic messages; routed actions, no physical pointer automation.
 
+- PASS: Search button visible label is vertically centered (offset 1,0px)
 - PASS: Opening scope loads its first 50 sample messages
 PASS: Preview changes preserve checked messages; header and row checkbox centers align within 1 pixel.
 PASS: Two ordinary checkbox clicks keep both messages checked without modifiers.
@@ -29,6 +30,7 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Emptying the input still allows clearing the applied filter
 - PASS: Primary Clear search criteria removes filter and restores browsing
 - PASS: Global correlation search completes visibly
+- PASS: Search button visible label is vertically centered (offset 0,5px)
 - PASS: Global results match the complete correlation ID exactly
 - PASS: Search returns every matching fixture across the namespace, including later pages
 - PASS: Correlation results include multiple entity locations

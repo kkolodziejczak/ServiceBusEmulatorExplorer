@@ -42,6 +42,7 @@ internal static class InvestigationProof
 
     private static async Task Browse(PrototypeWindow window, List<string> report, string output)
     {
+        CheckSearchTextCenter(window, report);
         var workspace = window.Workspace;
         Check(workspace.Messages.Count == 50 && workspace.EntityPath == "order-events/billing", "Opening scope loads its first 50 sample messages", report);
         ProofCapture.Save(window, output, "01-desktop");
@@ -108,6 +109,7 @@ internal static class InvestigationProof
         Invoke(window, "FindMessagesButton");
         await CompleteSearch(window);
         Check(workspace.IsCorrelationSearch && workspace.SearchComplete && !workspace.IsSearching, "Global correlation search completes visibly", report);
+        CheckSearchTextCenter(window, report);
         Check(workspace.Messages.Count > 0 && workspace.Messages.All(row => row.CorrelationId == query), "Global results match the complete correlation ID exactly", report);
         var expectedKeys = PrototypeData.CreateMessages(workspace.Roots).Values.SelectMany(rows => rows)
             .Where(row => row.CorrelationId == query).Select(row => row.Key).ToHashSet(StringComparer.Ordinal);
@@ -125,7 +127,7 @@ internal static class InvestigationProof
         {
             Invoke(window, "CopyCorrelationButton");
             for (var attempt = 0; Clipboard.GetText() != dlq.CorrelationId && attempt < 2
-                && Control<TextBox>(window, "LogText").Text.Contains("Clipboard is busy", StringComparison.Ordinal); attempt++)
+                && ((TextBox)window.FindName("LogText")).Text.Contains("Clipboard is busy", StringComparison.Ordinal); attempt++)
             {
                 await Task.Delay(150);
                 Invoke(window, "CopyCorrelationButton");
@@ -372,6 +374,26 @@ internal static class InvestigationProof
         var end = value.TranslatePoint(new Point(value.ActualWidth, 0), window).X;
         var start = copy.TranslatePoint(new Point(0, 0), window).X;
         Check(start - end is >= 0 and <= 10, "Correlation copy icon sits within 10 pixels of its ID", report);
+    }
+
+    private static void CheckSearchTextCenter(PrototypeWindow window, List<string> report)
+    {
+        var button = Control<Button>(window, "FindMessagesButton");
+        button.UpdateLayout();
+        var bitmap = new RenderTargetBitmap((int)button.ActualWidth, (int)button.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+        var visual = new DrawingVisual();
+        using (var drawing = visual.RenderOpen()) drawing.DrawRectangle(new VisualBrush(button), null, new Rect(0, 0, button.ActualWidth, button.ActualHeight));
+        bitmap.Render(visual);
+        var pixels = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 4];
+        bitmap.CopyPixels(pixels, bitmap.PixelWidth * 4, 0);
+        var rows = Enumerable.Range(0, bitmap.PixelHeight).Where(y => Enumerable.Range(0, bitmap.PixelWidth).Any(x =>
+        {
+            var i = (y * bitmap.PixelWidth + x) * 4;
+            return pixels[i + 3] > 32 && pixels[i] >= pixels[i + 3] * 0.85 && pixels[i + 1] >= pixels[i + 3] * 0.85 && pixels[i + 2] >= pixels[i + 3] * 0.85;
+        })).ToArray();
+        var center = (rows.First() + rows.Last() + 1) / 2.0;
+        var offset = Math.Abs(center - button.ActualHeight / 2);
+        Check(offset <= 1, $"Search button visible label is vertically centered (offset {offset:F1}px)", report);
     }
 
     private static async Task CompleteSearch(PrototypeWindow window)

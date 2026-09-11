@@ -52,7 +52,7 @@
       </StackPanel>
      </Border>
     </Popup>
-    <Button x:Name="FindMessagesButton" Grid.Column="2" Content="⌕  Find messages" Click="FindMessages_Click" Background="#0078F8" Foreground="White" BorderBrush="#0078F8" Margin="14,0,0,0" FontWeight="SemiBold" AutomationProperties.AutomationId="FindMessagesButton"/>
+    <Button x:Name="FindMessagesButton" Grid.Column="2" Padding="12,2,12,5" Content="⌕  Find messages" Click="FindMessages_Click" Background="#0078F8" Foreground="White" BorderBrush="#0078F8" Margin="14,0,0,0" FontWeight="SemiBold" AutomationProperties.AutomationId="FindMessagesButton"/>
    </Grid>
   </Border>
   <Grid Grid.Row="2"><Grid.ColumnDefinitions><ColumnDefinition Width="315" MinWidth="240" MaxWidth="420"/><ColumnDefinition Width="5"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>

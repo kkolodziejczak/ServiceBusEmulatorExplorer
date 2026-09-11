@@ -38,7 +38,7 @@ Resize to switch between side-by-side and stacked panes. The compact layout redu
 
 ## Rendered evidence
 
-Build: zero warnings and errors. Final walkthrough: **97 passing checks**, followed by independent source and visual review.
+Build: zero warnings and errors. Final walkthrough: **99 passing checks**, followed by independent source and visual review.
 
 | UI gate | Result | Evidence |
 | --- | --- | --- |
