@@ -100,7 +100,7 @@ public partial class PrototypeWindow
                 AddLog($"Opened {suggestion.Message!.MessageId}.");
                 break;
             case "correlation":
-                SearchBox.Text = suggestion.Title;
+                SearchBox.Text = SearchLiteral(suggestion.Title);
                 BeginGlobalSearch(false);
                 break;
             default:
@@ -113,6 +113,7 @@ public partial class PrototypeWindow
     private void BeginGlobalSearch(bool byMessageId)
     {
         if (!Workspace.IsConnected || string.IsNullOrWhiteSpace(SearchBox.Text)) return;
+        pendingSearchFocusKey = null;
         Workspace.SetSearch("");
         NamespaceEmpty.Visibility = Visibility.Collapsed;
         SuggestionsPopup.IsOpen = false;
@@ -124,4 +125,7 @@ public partial class PrototypeWindow
     }
 
     private void UpdateClearSearch() => ClearSearchButton.Visibility = Workspace.IsCorrelationSearch || SearchBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    private static string SearchLiteral(string value) => value.Equals("OR", StringComparison.OrdinalIgnoreCase) || value.Any(character => char.IsWhiteSpace(character) || character is '*' or '"')
+        ? MessageSearchQuery.QuoteLiteral(value) : value;
 }

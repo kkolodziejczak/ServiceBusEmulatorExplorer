@@ -15,6 +15,7 @@ internal static class SettingsSelectorProof
 {
     public static async Task Exercise(PrototypeWindow window, List<string> report, string output)
     {
+        Check(!((Button)window.FindName("WatchSummaryButton")).IsVisible && ((FrameworkElement)window.FindName("WatchOffSlash")).IsVisible, "No watches hides header bell and crosses out toolbar bell", report);
         Click(window, "WatchButton");
         await Settle();
         var popup = (Popup)window.FindName("WatchPopup");
@@ -28,6 +29,7 @@ internal static class SettingsSelectorProof
         Toggle(dlq);
         await Settle();
         Check(active.IsChecked == true && dlq.IsChecked == true && popup.IsOpen, "Both Watch buckets can be enabled in one selector visit", report);
+        Check(((Button)window.FindName("WatchSummaryButton")).IsVisible && !((FrameworkElement)window.FindName("WatchOffSlash")).IsVisible && ((System.Windows.Shapes.Path)window.FindName("WatchBell")).Fill is SolidColorBrush brush && brush.Color.A > 0, "Enabled Watch fills toolbar bell and reveals header bell", report);
         SavePopup(popup, output, "watch-selector");
         popup.IsOpen = false;
         Click(window, "WatchButton");
@@ -42,6 +44,7 @@ internal static class SettingsSelectorProof
         popup.IsOpen = false;
         await ExerciseSettings(window, report, output);
         await ExerciseRefresh(window, report, output);
+        await ExerciseConnectionPicker(window, report, output);
     }
 
     private static async Task ExerciseRefresh(PrototypeWindow window, List<string> report, string output)
@@ -123,6 +126,39 @@ internal static class SettingsSelectorProof
         await Settle();
     }
 
+    private static async Task ExerciseConnectionPicker(PrototypeWindow window, List<string> report, string output)
+    {
+        var settings = await OpenSettings(window);
+        var picker = (ListBox)settings.FindName("ConnectionPicker");
+        var local = picker.Items.Cast<PrototypeConnectionProfile>().First(profile => profile.Name == "Local emulator");
+        var azure = picker.Items.Cast<PrototypeConnectionProfile>().First(profile => profile != local);
+        Check(ReferenceEquals(picker.SelectedItem, local), "General connection picker starts on the current local emulator profile", report);
+        picker.SelectedItem = azure;
+        await Settle();
+        Check(((TextBlock)window.FindName("ConnectionName")).Text == local.Name, "Highlighting another profile does not switch the current connection", report);
+        window.SetWatched(window.Workspace.EntityPath, true, true);
+        var before = window.Workspace.SnapshotMessages().Count;
+        window.SimulateWatchedArrivals();
+        await Settle();
+        Check(Application.Current.Windows.OfType<WatchNotificationWindow>().Any(), "Connection-switch proof starts with a pending watched arrival", report);
+        Click(settings, "UseConnectionButton");
+        await Settle();
+        Check(((TextBlock)window.FindName("ConnectionName")).Text == azure.Name && !window.Workspace.IsConnected,
+            "Using a selected connection updates header and disconnects before investigation", report);
+        Check(!((Button)window.FindName("WatchSummaryButton")).IsVisible && !Application.Current.Windows.OfType<WatchNotificationWindow>().Any()
+            && ((TextBox)window.FindName("SearchBox")).Text.Length == 0,
+            "Connection switch clears watches, pending notifications, and search", report);
+        Check(window.Workspace.SnapshotMessages().Count < before + 1, "Connection switch resets the previous session's synthetic arrivals", report);
+        ProofCapture.Save(settings, output, "settings-connection-picker");
+        picker.SelectedItem = local;
+        Click(settings, "UseConnectionButton");
+        Click(settings, "DoneButton");
+        await Settle();
+        if (!window.Workspace.IsConnected) Click(window, "ConnectionButton");
+        await Settle();
+        Check(((TextBlock)window.FindName("ConnectionName")).Text == local.Name && window.Workspace.IsConnected,
+            "Local emulator can be selected again and reconnected", report);
+    }
     private static async Task<PrototypeSettingsWindow> OpenSettings(PrototypeWindow window)
     {
         ProofCapture.Descendants(window).OfType<Button>().Single(button => AutomationProperties.GetName(button) == "Settings")

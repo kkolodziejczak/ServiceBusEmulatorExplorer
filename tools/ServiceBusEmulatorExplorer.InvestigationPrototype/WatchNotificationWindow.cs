@@ -45,9 +45,9 @@ public sealed class WatchNotificationWindow : Window
         Left = desktop.Right - ActualWidth - 16; Top = desktop.Bottom - ActualHeight - 16;
     }
 
-    public void Update(MessageRow message, int count, int otherGroups)
+    public void Update(MessageRow message, int count, int otherGroups, string connectionName)
     {
         summary.Text = $"{count} new {(message.IsDeadLetter ? "dead-letter" : "active")} message{(count == 1 ? "" : "s")}";
-        source.Text = $"Local emulator / {message.Source.Replace("/", " / ")}" + (otherGroups > 0 ? $"\n+ {otherGroups} other watched location{(otherGroups == 1 ? "" : "s")}" : "");
+        source.Text = $"{connectionName} / {message.Source.Replace("/", " / ")}" + (otherGroups > 0 ? $"\n+ {otherGroups} other watched location{(otherGroups == 1 ? "" : "s")}" : "");
     }
 }

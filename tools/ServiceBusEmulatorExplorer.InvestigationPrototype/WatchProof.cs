@@ -40,12 +40,18 @@ internal static class WatchProof
             .OrderByDescending(row => row.Enqueued).First();
         Click(notification, "Investigate");
         await Settle();
-        Check(window.IsVisible && window.WindowState != WindowState.Minimized && workspace.SelectedEntity?.Path == target.Path
-            && workspace.IsDeadLetter && workspace.FocusedMessage?.Key == expected.Key,
-            "Investigate restores the app and opens the exact new DLQ message", report);
-        Check(!workspace.IsCorrelationSearch && ((TextBox)window.FindName("SearchBox")).Text.Length == 0,
-            "Investigating a watched message clears the unified search", report);
-        Check(((TextBlock)window.FindName("WatchButtonLabel")).Text == "Watching", "Opening a watched entity visibly changes the action to Watching", report);
+        for (var page = 0; workspace.IsSearching && page < 1000; page++) workspace.ScanNext();
+        await Settle();
+        Check(window.IsVisible && window.WindowState != WindowState.Minimized && workspace.IsCorrelationSearch
+            && workspace.FocusedMessage?.Key == expected.Key,
+            "Investigate restores the app, searches across the connection, and focuses the latest notified message", report);
+        var notifiedCorrelations = workspace.SnapshotMessages().Where(row => row.Source == target.Path && row.IsDeadLetter)
+            .OrderByDescending(row => row.Enqueued).Take(2).Select(row => row.CorrelationId).Distinct().ToArray();
+        Check(notifiedCorrelations.All(id => ((TextBox)window.FindName("SearchBox")).Text.Contains(id))
+            && workspace.Messages.All(row => notifiedCorrelations.Contains(row.CorrelationId)),
+            "Grouped notification searches all distinct notified correlation IDs without unrelated results", report);
+        Check(workspace.Messages.Count == workspace.SnapshotMessages().Count(row => notifiedCorrelations.Contains(row.CorrelationId)),
+            "Notification investigation includes every matching active and DLQ message across the connection", report);
         notification = Notification() ?? throw new InvalidOperationException("Remaining Active notification missing.");
         Check(Text(notification).Contains("2 new active messages"), "Responding advances to the next pending watched bucket", report);
         var snapshot = workspace.SnapshotMessages().Select(row => row.Key).ToArray();

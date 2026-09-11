@@ -24,8 +24,26 @@
      <Border Height="1" Background="#DCE5F0" Margin="0,24"/>
      <TextBlock Text="Connections" FontSize="16" FontWeight="SemiBold"/>
      <TextBlock Text="Sample profiles · session only. No broker connection is made." TextWrapping="Wrap" Foreground="#627692" FontSize="12" Margin="0,8,0,14"/>
-     <ItemsControl x:Name="GeneralProfiles" AutomationProperties.Name="Saved sample profiles"><ItemsControl.ItemTemplate><DataTemplate><Border Background="White" BorderBrush="#D7E0EB" BorderThickness="1" CornerRadius="4" Padding="12,9" Margin="0,0,0,7"><StackPanel><TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/><TextBlock Text="••••••••••••••••••••••••••••" Foreground="#627692" Margin="0,4,0,0" AutomationProperties.Name="Masked sample connection string"/></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-     <Button Content="Manage connections" HorizontalAlignment="Left" Margin="0,12,0,0" Click="ManageConnections_Click" AutomationProperties.AutomationId="ManageConnectionsButton"/>
+     <ListBox x:Name="ConnectionPicker" Background="Transparent" BorderThickness="0" SelectionMode="Single" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="ConnectionPicker_Selected" AutomationProperties.AutomationId="ConnectionPicker" AutomationProperties.Name="Connection to use">
+      <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem">
+       <Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Foreground" Value="#234266"/><Setter Property="Cursor" Value="Hand"/><Setter Property="AutomationProperties.Name" Value="{Binding Name}"/>
+       <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+        <Border x:Name="ProfileBorder" Background="White" BorderBrush="#D7E0EB" BorderThickness="1" CornerRadius="4" Padding="12,11" Margin="0,0,0,7">
+         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+          <Grid Width="18" Height="18" Margin="0,0,10,0"><Ellipse x:Name="Ring" Stroke="#879AB3" StrokeThickness="1.5"/><Ellipse x:Name="SelectedDot" Width="8" Height="8" Fill="#087CF0" Visibility="Collapsed"/></Grid>
+          <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" VerticalAlignment="Center"/>
+         </Grid>
+        </Border>
+        <ControlTemplate.Triggers>
+         <Trigger Property="IsSelected" Value="True"><Setter TargetName="ProfileBorder" Property="Background" Value="#EAF3FF"/><Setter TargetName="ProfileBorder" Property="BorderBrush" Value="#087CF0"/><Setter TargetName="Ring" Property="Stroke" Value="#087CF0"/><Setter TargetName="SelectedDot" Property="Visibility" Value="Visible"/></Trigger>
+         <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ProfileBorder" Property="BorderBrush" Value="#087CF0"/></Trigger>
+         <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="ProfileBorder" Property="BorderBrush" Value="#17213D"/></Trigger>
+        </ControlTemplate.Triggers>
+       </ControlTemplate></Setter.Value></Setter>
+      </Style></ListBox.ItemContainerStyle>
+     </ListBox>
+     <WrapPanel Margin="0,8,0,0"><Button x:Name="UseConnectionButton" Content="Use connection" Background="#087CF0" Foreground="White" BorderBrush="#087CF0" Margin="0,0,8,8" Click="UseConnection_Click" AutomationProperties.AutomationId="UseConnectionButton"/><Button Content="Manage connections" Margin="0,0,0,8" Click="ManageConnections_Click" AutomationProperties.AutomationId="ManageConnectionsButton"/></WrapPanel>
+     <TextBlock x:Name="ConnectionStatus" TextWrapping="Wrap" Foreground="#42689A" FontSize="12" Margin="0,2,0,0" AutomationProperties.AutomationId="ConnectionStatus" AutomationProperties.LiveSetting="Polite"/>
     </StackPanel></ScrollViewer>
    </TabItem>
    <TabItem x:Name="ConnectionsTab" Header="Connections" AutomationProperties.AutomationId="ConnectionsTab">

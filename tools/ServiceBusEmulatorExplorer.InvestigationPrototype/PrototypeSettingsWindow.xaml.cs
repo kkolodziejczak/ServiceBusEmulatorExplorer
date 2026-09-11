@@ -5,6 +5,10 @@ namespace ServiceBusEmulatorExplorer.InvestigationPrototype;
 
 public sealed class PrototypeConnectionSettings
 {
+    public PrototypeConnectionSettings() => SelectedProfile = Profiles[0];
+
+    public PrototypeConnectionProfile SelectedProfile { get; set; }
+
     public List<PrototypeConnectionProfile> Profiles { get; } =
     [
         new("Local emulator", "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=sample-only;UseDevelopmentEmulator=true;", "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=sample-only;UseDevelopmentEmulator=true;"),
@@ -23,21 +27,28 @@ public partial class PrototypeSettingsWindow : Window
 {
     private readonly Action<bool> _setClose;
     private readonly Action<bool> _setNotifications;
+    private readonly PrototypeConnectionSettings _connections;
+    private readonly Action<PrototypeConnectionProfile>? _useConnection;
     private bool _ready;
 
     public PrototypeSettingsWindow(bool closeToTray, bool notificationsEnabled, bool canCloseToTray,
-        Action<bool> setClose, Action<bool> setNotifications, PrototypeConnectionSettings connections)
+        Action<bool> setClose, Action<bool> setNotifications, PrototypeConnectionSettings connections,
+        Action<PrototypeConnectionProfile>? useConnection = null)
     {
         _setClose = setClose;
         _setNotifications = setNotifications;
+        _connections = connections;
+        _useConnection = useConnection;
         InitializeComponent();
         CloseToTrayToggle.IsChecked = closeToTray;
         CloseToTrayToggle.IsEnabled = canCloseToTray;
         TrayUnavailableText.Visibility = canCloseToTray ? Visibility.Collapsed : Visibility.Visible;
         NotificationsToggle.IsChecked = notificationsEnabled;
         ProfilesList.ItemsSource = connections.Profiles;
-        GeneralProfiles.ItemsSource = connections.Profiles;
-        ProfilesList.SelectedIndex = 0;
+        ConnectionPicker.ItemsSource = connections.Profiles;
+        ConnectionPicker.SelectedItem = connections.SelectedProfile;
+        ProfilesList.SelectedItem = connections.SelectedProfile;
+        UpdateConnectionStatus();
         _ready = true;
     }
 
@@ -49,7 +60,34 @@ public partial class PrototypeSettingsWindow : Window
     {
         if (_ready) _setNotifications(NotificationsToggle.IsChecked == true);
     }
-    private void ManageConnections_Click(object sender, RoutedEventArgs e) => SettingsTabs.SelectedItem = ConnectionsTab;
+    private void ManageConnections_Click(object sender, RoutedEventArgs e)
+    {
+        ProfilesList.SelectedItem = ConnectionPicker.SelectedItem;
+        SettingsTabs.SelectedItem = ConnectionsTab;
+    }
+
+    private void ConnectionPicker_Selected(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_ready) return;
+        UseConnectionButton.IsEnabled = ConnectionPicker.SelectedItem is PrototypeConnectionProfile;
+        UpdateConnectionStatus();
+    }
+
+    private void UpdateConnectionStatus()
+    {
+        ConnectionStatus.Text = $"Current connection: {_connections.SelectedProfile.Name}.";
+        if (ConnectionPicker.SelectedItem is PrototypeConnectionProfile selected &&
+            !ReferenceEquals(selected, _connections.SelectedProfile))
+            ConnectionStatus.Text += " Select Use connection to switch.";
+    }
+
+    private void UseConnection_Click(object sender, RoutedEventArgs e)
+    {
+        if (ConnectionPicker.SelectedItem is not PrototypeConnectionProfile profile) return;
+        _connections.SelectedProfile = profile;
+        _useConnection?.Invoke(profile);
+        UpdateConnectionStatus();
+    }
 
     private void Profile_Selected(object sender, SelectionChangedEventArgs e)
     {
@@ -74,7 +112,9 @@ public partial class PrototypeSettingsWindow : Window
         profile.RuntimeConnection = RuntimeConnection.Password;
         profile.AdministrationConnection = AdministrationConnection.Password;
         ProfilesList.Items.Refresh();
-        GeneralProfiles.Items.Refresh();
+        ConnectionPicker.Items.Refresh();
+        if (ReferenceEquals(profile, _connections.SelectedProfile)) _useConnection?.Invoke(profile);
+        UpdateConnectionStatus();
         ProfileStatus.Text = "Profile saved for this session. No connection was attempted.";
     }
 

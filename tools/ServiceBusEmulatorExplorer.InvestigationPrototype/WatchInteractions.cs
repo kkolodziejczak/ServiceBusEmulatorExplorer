@@ -21,9 +21,11 @@ public partial class PrototypeWindow
     private readonly PrototypeConnectionSettings connectionSettings = new();
     private string? watchPopupPath;
     private bool updatingWatchChoices;
+    private PrototypeConnectionProfile? activeConnection;
 
     private void InitializeWatch()
     {
+        activeConnection = connectionSettings.SelectedProfile;
         watchTimer.Tick += (_, _) => SimulateWatchedArrivals();
         Closing += OnPrototypeClosing;
     }
@@ -135,6 +137,14 @@ public partial class PrototypeWindow
         if (FindName("WatchButtonLabel") is not TextBlock label) return;
         var path = Workspace.SelectedEntity?.Path;
         label.Text = !Workspace.IsCorrelationSearch && watchedLocations.Any(location => location.Path == path) ? "Watching" : "Watch";
+        var isWatching = label.Text == "Watching";
+        WatchBell.Fill = isWatching ? System.Windows.Media.Brushes.White : System.Windows.Media.Brushes.Transparent;
+        WatchOffSlash.Visibility = isWatching ? Visibility.Collapsed : Visibility.Visible;
+        var entityCount = watchedLocations.Select(location => location.Path).Distinct().Count();
+        WatchSummaryButton.Visibility = entityCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+        WatchCount.Text = entityCount.ToString();
+        WatchSummaryButton.ToolTip = $"Overview of {entityCount} watched entities and pending notifications";
+        System.Windows.Automation.AutomationProperties.SetName(WatchSummaryButton, $"Overview of {entityCount} watched entities");
     }
 
     public void SimulateWatchedArrivals()
@@ -159,7 +169,7 @@ public partial class PrototypeWindow
             watchNotification = new WatchNotificationWindow(InvestigateWatchNotification, DismissWatchNotification);
             watchNotification.Closed += (_, _) => watchNotification = null;
         }
-        watchNotification.Update(pending[^1], pending.Count, pendingWatchMessages.Count - 1);
+        watchNotification.Update(pending[^1], pending.Count, pendingWatchMessages.Count - 1, activeConnection?.Name ?? "Local emulator");
         if (!watchNotification.IsVisible) watchNotification.Show();
     }
 
@@ -169,7 +179,7 @@ public partial class PrototypeWindow
         var pending = pendingWatchMessages.First();
         RestorePrototype();
         if (!Workspace.IsConnected) { AddLog("Reconnect to investigate the watched message. Notification retained."); return; }
-        if (!OpenWatchedMessage(pending.Value[^1])) return;
+        InvestigateWatchedCases(pending.Value);
         pendingWatchMessages.Remove(pending.Key);
         AdvanceWatchNotification();
     }
@@ -191,6 +201,16 @@ public partial class PrototypeWindow
         MessageGrid.ScrollIntoView(message);
         AddLog($"Opened watched {(message.IsDeadLetter ? "dead-letter" : "active")} message {message.MessageId} · {message.Source}.");
         return true;
+    }
+
+    private void InvestigateWatchedCases(IReadOnlyList<MessageRow> messages)
+    {
+        var byMessageId = messages.Any(message => string.IsNullOrWhiteSpace(message.CorrelationId));
+        SearchBox.Text = string.Join(" OR ", messages.Select(message => byMessageId ? message.MessageId : message.CorrelationId)
+            .Distinct(StringComparer.Ordinal).Select(MessageSearchQuery.QuoteLiteral));
+        BeginGlobalSearch(byMessageId);
+        pendingSearchFocusKey = messages[^1].Key;
+        SuggestionsPopup.IsOpen = false;
     }
 
     private void DismissWatchNotification()
@@ -224,8 +244,34 @@ public partial class PrototypeWindow
                 notificationsEnabled = value;
                 if (value) ShowWatchNotification();
                 else { watchNotification?.Close(); watchNotification = null; }
-            }, connectionSettings) { Owner = this };
+            }, connectionSettings, UseConnection) { Owner = this };
         settingsWindow.Closed += (_, _) => settingsWindow = null;
         settingsWindow.Show();
+    }
+
+    private void UseConnection(PrototypeConnectionProfile profile)
+    {
+        ConnectionName.Text = profile.Name;
+        ConnectionName.ToolTip = profile.Name;
+        if (ReferenceEquals(activeConnection, profile)) return;
+        activeConnection = profile;
+        refreshTimer.Stop();
+        watchTimer.Stop();
+        watchedLocations.Clear();
+        pendingWatchMessages.Clear();
+        watchNotification?.Close();
+        watchNotification = null;
+        WatchPopup.IsOpen = SuggestionsPopup.IsOpen = false;
+        SearchBox.Clear();
+        loadedSearchMessages.Clear();
+        drafts.Clear();
+        pendingSearchFocusKey = null;
+        ChangeScope(() =>
+        {
+            if (Workspace.IsConnected) Workspace.ToggleConnection();
+            Workspace.ResetConnectionSimulation();
+        });
+        UpdateWatchSurface();
+        AddLog($"Selected {profile.Name}. Connect to load its sample messages.");
     }
 }

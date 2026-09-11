@@ -152,9 +152,9 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Watch notification is a separate visible desktop window, independent of the main window
 - PASS: Repeated arrivals group by entity and Active/DLQ bucket in one persistent notification
 - PASS: Desktop notification remains visible while the application is hidden
-- PASS: Investigate restores the app and opens the exact new DLQ message
-- PASS: Investigating a watched message clears the unified search
-- PASS: Opening a watched entity visibly changes the action to Watching
+- PASS: Investigate restores the app, searches across the connection, and focuses the latest notified message
+- PASS: Grouped notification searches all distinct notified correlation IDs without unrelated results
+- PASS: Notification investigation includes every matching active and DLQ message across the connection
 - PASS: Responding advances to the next pending watched bucket
 - PASS: Dismiss closes the final notification without removing any messages
 - PASS: Watch pauses arrivals and notifications while disconnected
@@ -163,10 +163,12 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Stopping the final bucket closes pending notifications and restores the Watch label
 - PASS: Proof lifetime can exercise a real desktop notification without starting tray services
 - PASS: Closing in proof mode closes the app window and all owned watch resources without lingering windows
+- PASS: No watches hides header bell and crosses out toolbar bell
 - PASS: Watch opens a selector with independent Active and DLQ choices
 - PASS: Unwatched entity starts with both Watch choices off
 - PASS: Active can be enabled independently without closing the Watch selector
 - PASS: Both Watch buckets can be enabled in one selector visit
+- PASS: Enabled Watch fills toolbar bell and reveals header bell
 - PASS: Reopened Watch selector retains both selected buckets
 - PASS: Stop watching clears the entity Watch state and closes its selector
 - PASS: Stop watching resets both choices on reopening
@@ -182,3 +184,21 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: General tab returns from Connections to preferences
 - PASS: Refresh selector opens all four supported intervals
 - PASS: Styled refresh selector retains selectable 30-second interval
+- PASS: General connection picker starts on the current local emulator profile
+- PASS: Highlighting another profile does not switch the current connection
+- PASS: Connection-switch proof starts with a pending watched arrival
+- PASS: Using a selected connection updates header and disconnects before investigation
+- PASS: Connection switch clears watches, pending notifications, and search
+- PASS: Connection switch resets the previous session's synthetic arrivals
+- PASS: Local emulator can be selected again and reconnected
+- PASS: Correlation OR returns both exact IDs across the connection
+- PASS: Compound searches are not offered as literal correlation IDs
+- PASS: Correlation wildcard matches every ID with the requested prefix
+- PASS: Message wildcard can search every sample message across the connection
+- PASS: Message search supports case-insensitive OR operator syntax
+- PASS: Search value matching stays case-sensitive
+- PASS: Regex punctuation is treated as literal text rather than executable search syntax
+- PASS: Quoted exact correlation searches preserve literal IDs
+- PASS: Incomplete OR query surfaces a validation error without starting a scan
+- PASS: Invalid search explanation is visible in the rendered workspace
+- PASS: Clear recovers from invalid query into normal browsing

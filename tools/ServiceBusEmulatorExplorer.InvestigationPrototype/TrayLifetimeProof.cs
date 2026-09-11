@@ -39,6 +39,8 @@ internal static class TrayLifetimeProof
             ProofCapture.Descendants(notification!).OfType<Button>().Single(button => Equals(button.Content, "Investigate"))
                 .RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
             await Settle();
+            for (var page = 0; window.Workspace.IsSearching && page < 1000; page++) window.Workspace.ScanNext();
+            await Settle();
             Check(window.IsVisible && window.WindowState != WindowState.Minimized && window.Workspace.FocusedMessage?.Key == latest.Key,
                 "Investigate from the desktop notification restores the hidden application and selects the new message", report);
             window.SetWatched(window.Workspace.EntityPath, true, false);

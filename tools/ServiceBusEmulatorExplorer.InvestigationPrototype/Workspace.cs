@@ -16,6 +16,7 @@ public sealed class Workspace : INotifyPropertyChanged
     private readonly Dictionary<string, int> replayNumbers = new(StringComparer.Ordinal);
     private readonly List<string> recentCorrelations = [];
     private List<MessageRow> searchSnapshot = [];
+    private MessageSearchQuery? parsedSearch;
     private MessageRow? focusedMessage;
     public ObservableCollection<EntityNode> Roots { get; } = PrototypeData.CreateTree();
     public ObservableCollection<MessageRow> Messages { get; } = [];
@@ -38,6 +39,7 @@ public sealed class Workspace : INotifyPropertyChanged
     public bool SearchByMessageId { get; private set; }
     public string CorrelationQuery { get; private set; } = "";
     public string SearchStatus { get; private set; } = "";
+    public string SearchQueryError { get; private set; } = "";
     public bool IsSearching { get; private set; }
     public bool SearchComplete { get; private set; }
     public int ScannedMessages { get; private set; }
@@ -155,7 +157,21 @@ public sealed class Workspace : INotifyPropertyChanged
         IsCorrelationSearch = true;
         SearchByMessageId = messageId;
         CorrelationQuery = query;
-        if (!messageId)
+        ScannedMessages = 0;
+        SearchComplete = false;
+        IsSearching = false;
+        searchSnapshot.Clear();
+        if (!MessageSearchQuery.TryParse(query, out parsedSearch, out var error))
+        {
+            SearchQueryError = error;
+            SearchStatus = $"Invalid search · {error}";
+            Footer = "0 matches · Search not started";
+            Status = SearchStatus;
+            Changed();
+            return;
+        }
+        SearchQueryError = "";
+        if (!messageId && fixtures.Values.SelectMany(rows => rows).Any(row => row.CorrelationId == query))
         {
             recentCorrelations.Remove(query);
             recentCorrelations.Insert(0, query);
@@ -174,7 +190,7 @@ public sealed class Workspace : INotifyPropertyChanged
         if (!IsSearching) return;
         var page = searchSnapshot.Skip(ScannedMessages).Take(50).ToArray();
         foreach (var row in page)
-            if (string.Equals(SearchByMessageId ? row.MessageId : row.CorrelationId, CorrelationQuery, StringComparison.Ordinal)) Messages.Add(row);
+            if (parsedSearch!.Matches(SearchByMessageId ? row.MessageId : row.CorrelationId)) Messages.Add(row);
         ScannedMessages += page.Length;
         if (ScannedMessages >= searchSnapshot.Count)
         {
@@ -198,7 +214,7 @@ public sealed class Workspace : INotifyPropertyChanged
             : SearchComplete ? "Search complete" : "Search incomplete";
         SearchStatus += $" · {SearchScannedEntities} of {SearchTotalEntities} entities scanned";
         Footer = $"{Messages.Count} match{(Messages.Count == 1 ? "" : "es")}{(SearchComplete ? "" : " so far")} · {ScannedMessages} scanned · {SearchStatus}";
-        Status = $"{SearchStatus} · Exact {(SearchByMessageId ? "message" : "correlation")} ID · Sample data";
+        Status = $"{SearchStatus} · Case-sensitive {(SearchByMessageId ? "message" : "correlation")} ID · Sample data";
         Changed();
     }
 
@@ -217,6 +233,8 @@ public sealed class Workspace : INotifyPropertyChanged
         SearchByMessageId = false;
         CorrelationQuery = "";
         SearchStatus = "";
+        SearchQueryError = "";
+        parsedSearch = null;
         IsSearching = false;
         SearchComplete = false;
         ScannedMessages = 0;
@@ -361,6 +379,30 @@ public sealed class Workspace : INotifyPropertyChanged
             Status = "Disconnected · No network request was made";
             Changed();
         }
+    }
+
+    public void ResetConnectionSimulation()
+    {
+        if (IsConnected) throw new InvalidOperationException("Disconnect before selecting another sample connection.");
+        ClearSelection();
+        ResetCorrelationSearch();
+        foreach (var row in fixtures.Values.SelectMany(rows => rows)) row.PropertyChanged -= RowChanged;
+        Messages.Clear();
+        fixtures.Clear();
+        Roots.Clear();
+        foreach (var root in PrototypeData.CreateTree()) Roots.Add(root);
+        foreach (var pair in PrototypeData.CreateMessages(Roots)) fixtures.Add(pair.Key, pair.Value);
+        foreach (var row in fixtures.Values.SelectMany(rows => rows)) row.PropertyChanged += RowChanged;
+        replayNumbers.Clear();
+        recentCorrelations.Clear();
+        incomingSequence = 10000;
+        pendingIncoming = 0;
+        visibleLimit = 50;
+        IsDeadLetter = false;
+        SelectedEntity = null;
+        Footer = "Disconnected · Connect to browse the demo";
+        Status = "Sample connection changed · Connect to browse fresh sample data";
+        Changed();
     }
 
     public void SetSearch(string text)

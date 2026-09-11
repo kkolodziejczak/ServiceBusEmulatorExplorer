@@ -8,6 +8,7 @@ namespace ServiceBusEmulatorExplorer.InvestigationPrototype;
 public partial class PrototypeWindow
 {
     private bool scanQueued;
+    private string? pendingSearchFocusKey;
 
     private void ChangeScope(Action change)
     {
@@ -34,6 +35,7 @@ public partial class PrototypeWindow
 
     private void ClearSearch_Click(object sender, RoutedEventArgs e)
     {
+        pendingSearchFocusKey = null;
         SearchBox.Text = "";
         Workspace.SetSearch("");
         SuggestionsPopup.IsOpen = false;
@@ -61,13 +63,26 @@ public partial class PrototypeWindow
     private void FindRelated_Click(object sender, RoutedEventArgs e)
     {
         if (Workspace.FocusedMessage is not { CorrelationId.Length: > 0 } row) return;
-        SearchBox.Text = row.CorrelationId;
+        SearchBox.Text = SearchLiteral(row.CorrelationId);
         BeginGlobalSearch(false);
     }
 
     private void UpdateSearchSurface()
     {
         if (SearchSummary is null) return;
+        if (pendingSearchFocusKey is { } key)
+        {
+            var match = Workspace.Messages.FirstOrDefault(row => row.Key == key);
+            if (match is not null)
+            {
+                pendingSearchFocusKey = null;
+                Workspace.FocusedMessage = match;
+                SynchronizeSelection();
+                RenderInspector();
+                MessageGrid.ScrollIntoView(match);
+            }
+            else if (!Workspace.IsSearching) pendingSearchFocusKey = null;
+        }
         var searching = Workspace.IsCorrelationSearch;
         ListBreadcrumb.Text = searching ? "Search / Related messages" : Workspace.EntityPath;
         MessagesHeading.Text = searching ? "Related messages" : "Messages";
@@ -88,6 +103,11 @@ public partial class PrototypeWindow
             ? $"No messages with {(Workspace.SearchByMessageId ? "message ID" : "correlation ID")} {Workspace.CorrelationQuery} were found in this search.\nCheck the ID or clear the search to browse messages."
             : Workspace.IsSearching ? "The search is still running." : "Search incomplete. Search again or clear the search to browse messages.";
         EmptyClearButton.Visibility = searching ? Visibility.Visible : Visibility.Collapsed;
+        if (Workspace.SearchQueryError.Length > 0)
+        {
+            EmptyMessage.Text = "Invalid search";
+            EmptyDescription.Text = Workspace.SearchQueryError + "\nUse OR between IDs and * to match any characters.";
+        }
         DlqReason.Visibility = Workspace.FocusedMessage?.IsDeadLetter == true && !compact ? Visibility.Visible : Visibility.Collapsed;
     }
 }
