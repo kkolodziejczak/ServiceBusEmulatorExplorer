@@ -70,6 +70,9 @@ public partial class PrototypeWindow : Window
         FindButton.IsEnabled = Workspace.FocusedMessage is not null;
         SelectAllBox.IsChecked = Workspace.SelectedCount == 0 ? false : Workspace.SelectedCount == Workspace.Messages.Count ? true : null;
         SelectAllBox.IsEnabled = Workspace.Messages.Count > 0;
+        ReplayButton.Content = $"Replay ({Workspace.ReplayTargets.Count})";
+        ReplayButton.IsEnabled = Workspace.CanReplay;
+        EditReplayButton.IsEnabled = Workspace.CanEditAndReplay;
     }
 
     private void Search_Changed(object sender, TextChangedEventArgs e)
@@ -193,6 +196,28 @@ public partial class PrototypeWindow : Window
         AddLog("Loaded the next page.");
     }
 
+    private void Replay_Click(object sender, RoutedEventArgs e)
+    {
+        Workspace.Replay();
+        AddLog(Workspace.Status);
+    }
+
+    private void EditReplay_Click(object sender, RoutedEventArgs e)
+    {
+        if (!Workspace.CanEditAndReplay) return;
+        var source = Workspace.ReplayTargets.Single();
+        var destination = source.Source.Contains('/') ? source.Source.Split('/')[0] : source.Source;
+        var dialog = new ReplayDialog(source, destination, Workspace.ValidateReplayId) { Owner = this };
+        refreshTimer.Stop();
+        try
+        {
+            if (dialog.ShowDialog() != true) return;
+            try { Workspace.Replay(dialog.EditedBody, dialog.NewMessageId); AddLog(Workspace.Status); }
+            catch (ArgumentException exception) { AddLog(exception.Message); }
+        }
+        finally { ConfigureTimer(); }
+    }
+
     private void Connection_Click(object sender, RoutedEventArgs e)
     {
         Workspace.ToggleConnection();
@@ -256,7 +281,7 @@ public partial class PrototypeWindow : Window
         if (highlight) AddHighlightedJson(paragraph, body);
         else paragraph.Inlines.Add(new Run(body));
         BodyViewer.Document = new FlowDocument(paragraph) { PagePadding = new Thickness(0), FontFamily = new FontFamily("Consolas"), FontSize = 14, Foreground = new SolidColorBrush(Color.FromRgb(220, 231, 243)) };
-        ApplyWrap();
+        BodyViewer.Document.PageWidth = double.NaN;
         findOffset = 0;
     }
 
@@ -320,9 +345,6 @@ public partial class PrototypeWindow : Window
         return BodyViewer.Document.ContentEnd;
     }
 
-    private void Wrap_Click(object sender, RoutedEventArgs e) => ApplyWrap();
-    private void ApplyWrap() => BodyViewer.Document.PageWidth = WrapButton.IsChecked == true ? double.NaN : 2000;
-
     private void AddLog(string message)
     {
         if (LogText is null) return;
@@ -350,7 +372,7 @@ public partial class PrototypeWindow : Window
         ContentGrid.ColumnDefinitions[0].Width = new GridLength(compact ? 1 : 1.05, GridUnitType.Star);
         ContentGrid.ColumnDefinitions[1].Width = new GridLength(compact ? 0 : 5);
         ContentGrid.ColumnDefinitions[2].Width = compact ? new GridLength(0) : new GridLength(1.1, GridUnitType.Star);
-        ContentGrid.RowDefinitions[0].Height = new GridLength(compact ? 1.3 : 1, GridUnitType.Star);
+        ContentGrid.RowDefinitions[0].Height = new GridLength(compact ? 1.6 : 1, GridUnitType.Star);
         ContentGrid.RowDefinitions[1].Height = new GridLength(compact ? 5 : 0);
         ContentGrid.RowDefinitions[2].Height = compact ? new GridLength(0.9, GridUnitType.Star) : new GridLength(0);
         Grid.SetColumn(InspectorPane, compact ? 0 : 2);

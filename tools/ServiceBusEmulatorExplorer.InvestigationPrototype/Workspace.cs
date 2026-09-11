@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace ServiceBusEmulatorExplorer.InvestigationPrototype;
 
@@ -20,13 +22,18 @@ public sealed class Workspace : INotifyPropertyChanged
     public string EntityPath => SelectedEntity?.Path ?? "";
     public string EntityTitle => SelectedEntity?.Name ?? "Choose an entity";
     public int SelectedCount => Messages.Count(row => row.IsSelected);
+    public IReadOnlyList<MessageRow> ReplayTargets => !IsConnected || !IsDeadLetter ? []
+        : Messages.Any(row => row.IsSelected) ? Messages.Where(row => row.IsSelected).ToArray()
+        : FocusedMessage is { } focused ? [focused] : [];
+    public bool CanReplay => ReplayTargets.Count > 0;
+    public bool CanEditAndReplay => ReplayTargets.Count == 1;
     public bool CanLoadMore => IsConnected && Messages.Count < CurrentRows().Count();
     public string Footer { get; private set; } = "";
     public string Status { get; private set; } = "Synthetic data · no Azure connection";
     public MessageRow? FocusedMessage
     {
         get => focusedMessage;
-        set { focusedMessage = value; PropertyChanged?.Invoke(this, new(nameof(FocusedMessage))); }
+        set { focusedMessage = value; Changed(); }
     }
 
     public Workspace()
@@ -101,6 +108,85 @@ public sealed class Workspace : INotifyPropertyChanged
     {
         visibleLimit += 50;
         Refresh();
+    }
+
+    public int Replay(string? editedBody = null, string? newMessageId = null)
+    {
+        var targets = ReplayTargets;
+        if (targets.Count == 0) return 0;
+        if (targets.Count != 1 && (editedBody is not null || newMessageId is not null))
+            throw new ArgumentException("Select exactly one message to edit and replay.");
+
+        // Prepare every copy before changing fixtures so validation failure cannot partially replay a batch.
+        var entities = Roots.SelectMany(PrototypeData.Flatten).ToList();
+        var existingIds = fixtures.Values.SelectMany(rows => rows).Select(row => row.MessageId).ToHashSet(StringComparer.Ordinal);
+        var copies = new List<(EntityNode Destination, EntityNode? Topic, MessageRow Row)>();
+        var replayIds = new List<string>();
+        var sequence = incomingSequence;
+        foreach (var original in targets)
+        {
+            var id = newMessageId ?? Guid.NewGuid().ToString();
+            if (string.IsNullOrWhiteSpace(id) || id == original.MessageId || !existingIds.Add(id))
+                throw new ArgumentException("Use a new, non-empty message ID that is not already in the sample data.");
+            var source = entities.Single(node => node.Path == original.Source);
+            var topic = source.Kind == "Subscription"
+                ? entities.Single(node => node.Kind == "Topic" && node.Children.Contains(source)) : null;
+            var destinations = topic is null ? new[] { source } : topic.Children.ToArray();
+            foreach (var destination in destinations)
+            {
+                if (!fixtures.ContainsKey(destination.Path))
+                    throw new InvalidOperationException("The replay destination is unavailable.");
+                copies.Add((destination, topic, CreateReplayCopy(original, destination.Path, id, editedBody, sequence++)));
+            }
+            replayIds.Add(id);
+        }
+
+        foreach (var copy in copies)
+        {
+            copy.Row.PropertyChanged += RowChanged;
+            fixtures[copy.Destination.Path].Insert(0, copy.Row);
+            IncrementActiveCount(copy.Destination);
+            if (copy.Topic is not null) IncrementActiveCount(copy.Topic);
+        }
+        incomingSequence = sequence;
+        Refresh();
+        Status = $"Simulated replay of {targets.Count} DLQ message{(targets.Count == 1 ? "" : "s")} · New ID{(targets.Count == 1 ? "" : "s")}: {string.Join(", ", replayIds)} · Originals remain in DLQ";
+        Changed();
+        return targets.Count;
+    }
+
+    public string? ValidateReplayId(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return "Enter a new message ID.";
+        if (fixtures.Values.SelectMany(rows => rows).Any(row => row.MessageId == id))
+            return "This message ID already exists. Enter a different message ID.";
+        return null;
+    }
+
+    private static MessageRow CreateReplayCopy(MessageRow original, string destination, string id, string? editedBody, int sequence)
+    {
+        var enqueued = DateTime.UtcNow;
+        var properties = JsonNode.Parse(original.Properties)?.AsObject()
+            ?? throw new InvalidOperationException("The source message properties are unavailable.");
+        properties["messageId"] = id;
+        properties["source"] = destination;
+        properties["sequenceNumber"] = sequence;
+        properties["enqueuedTimeUtc"] = enqueued;
+        properties["deliveryCount"] = 0;
+        properties["deadLetterReason"] = null;
+        properties["deadLetterErrorDescription"] = null;
+        return new MessageRow
+        {
+            Key = $"{destination}/active/{id}", EventName = original.EventName, MessageId = id,
+            Source = destination, Body = editedBody ?? original.Body, Enqueued = enqueued,
+            Properties = properties.ToJsonString(new JsonSerializerOptions { WriteIndented = true })
+        };
+    }
+
+    private static void IncrementActiveCount(EntityNode node)
+    {
+        if (int.TryParse(node.MessageCount, out var count)) node.MessageCount = (count + 1).ToString();
+        node.NotifyCounts();
     }
 
     public void ToggleConnection()

@@ -67,20 +67,15 @@ internal static class PrototypeProof
             }
             finally
             {
-                if (clipboard is null) Clipboard.Clear();
-                else Clipboard.SetDataObject(clipboard, true);
+                await RestoreClipboard(clipboard);
             }
             Invoke(window, "PropertiesTab");
             await Settle();
             Check(Body(window).Contains("correlationId", StringComparison.Ordinal), "Properties tab shows metadata", report);
             Invoke(window, "JsonTab");
-            var wrap = ProofCapture.Control<ToggleButton>(window, "WrapButton");
-            wrap.IsChecked = false;
-            Invoke(window, "WrapButton");
-            Check(!double.IsNaN(ProofCapture.Control<RichTextBox>(window, "BodyViewer").Document.PageWidth),
-                "Wrap off permits horizontal body scrolling", report);
-            wrap.IsChecked = true;
-            Invoke(window, "WrapButton");
+            Check(double.IsNaN(ProofCapture.Control<RichTextBox>(window, "BodyViewer").Document.PageWidth)
+                && ProofCapture.Control<RichTextBox>(window, "BodyViewer").HorizontalScrollBarVisibility == ScrollBarVisibility.Disabled,
+                "Body always wraps to inspector width with no Wrap toggle", report);
             Invoke(window, "FindButton");
             await Settle();
             ProofCapture.Control<TextBox>(window, "FindBox").Text = "orderId";
@@ -99,7 +94,53 @@ internal static class PrototypeProof
             await Settle();
             Check(Body(window).Contains("MaxDeliveryCountExceeded", StringComparison.Ordinal), "DLQ properties show reason", report);
             ProofCapture.Save(window, output, "03-dead-letter");
+            var original = workspace.FocusedMessage!;
+            var originalBody = original.Body;
+            var originalDlq = workspace.Messages.Count;
+            var activeCount = int.Parse(workspace.SelectedEntity!.MessageCount);
+            Invoke(window, "ReplayButton");
+            await Settle();
+            Check(int.Parse(workspace.SelectedEntity.MessageCount) == activeCount + 1 && workspace.Messages.Count == originalDlq
+                && workspace.Messages.Contains(original) && original.Body == originalBody,
+                "Replay adds an active copy while retaining original DLQ message and body", report);
+            grid.SelectedItems.Add(workspace.Messages[0]);
+            grid.SelectedItems.Add(workspace.Messages[1]);
+            await Settle();
+            Check(!ProofCapture.Control<Button>(window, "EditReplayButton").IsEnabled,
+                "Editing is disabled for multiple checked DLQ messages", report);
+            Invoke(window, "ReplayButton");
+            await Settle();
+            Check(int.Parse(workspace.SelectedEntity.MessageCount) == activeCount + 3 && workspace.Messages.Count == originalDlq,
+                "Batch replay creates one new send per checked message without deleting originals", report);
+            grid.SelectedItems.Clear();
+            grid.SelectedItems.Add(original);
+            grid.CurrentCell = new DataGridCellInfo(original, grid.Columns[1]);
+            await Settle();
+            DriveReplayDialog(window, dialog => Invoke(dialog, "CancelReplay"));
+            Check(int.Parse(workspace.SelectedEntity.MessageCount) == activeCount + 3,
+                "Cancelling Edit and Replay does not create a copy", report);
+            DriveReplayDialog(window, dialog =>
+            {
+                ProofCapture.Control<TextBox>(dialog, "ReplayId").Text = original.MessageId;
+                Invoke(dialog, "ConfirmReplay");
+                Check(dialog.IsVisible, "Replay editor rejects original message ID", report);
+                ProofCapture.Control<TextBox>(dialog, "ReplayId").Text = "edited-prototype-proof";
+                ProofCapture.Control<TextBox>(dialog, "ReplayBody").Text = "{\"edited\":true}";
+                ProofCapture.Save(dialog, output, "10-edit-replay");
+                dialog.Width = 560;
+                dialog.Height = 440;
+                dialog.UpdateLayout();
+                ProofCapture.CheckBounds(dialog, new FrameworkElement[] { ProofCapture.Control<TextBox>(dialog, "ReplayId"), ProofCapture.Control<TextBox>(dialog, "ReplayBody"), ProofCapture.Control<Button>(dialog, "ConfirmReplay"), ProofCapture.Control<Button>(dialog, "CancelReplay") });
+                ProofCapture.Save(dialog, output, "12-compact-editor");
+                Invoke(dialog, "ConfirmReplay");
+            });
+            await Settle();
+            Check(workspace.Messages.Count == originalDlq && original.Body == originalBody,
+                "Edit and Replay leaves original DLQ body unchanged", report);
             Invoke(window, "ActiveTab");
+            await Settle();
+            Check(workspace.Messages.Count == 50 && workspace.Messages.Any(row => row.MessageId == "edited-prototype-proof" && row.Body == "{\"edited\":true}"),
+                "Returning to Active resets to 50 and shows edited copy with new ID", report);
 
             SelectEntity(window, "order-events");
             await Settle();
@@ -131,11 +172,12 @@ internal static class PrototypeProof
             SelectEntity(window, "order-events/billing");
             await Settle();
             var beforeIncoming = workspace.FocusedMessage!.Key;
+            var countBeforeAutomatic = workspace.SelectedEntity!.MessageCount;
             var interval = ProofCapture.Control<ComboBox>(window, "AutoInterval");
             interval.SelectedIndex = 1;
             await Task.Delay(TimeSpan.FromSeconds(5.6));
             await Settle();
-            Check(workspace.SelectedEntity!.MessageCount != "120" && workspace.FocusedMessage?.Key == beforeIncoming,
+            Check(workspace.SelectedEntity!.MessageCount != countBeforeAutomatic && workspace.FocusedMessage?.Key == beforeIncoming,
                 "Real 5-second automatic refresh adds sample arrivals and preserves focus", report);
             Invoke(window, "PauseButton");
             var pausedCount = workspace.SelectedEntity.MessageCount;
@@ -158,6 +200,13 @@ internal static class PrototypeProof
             VerifyGeometry(window);
             ProofCapture.Save(window, output, "08-compact");
             Check(true, "980 × 640 window: primary controls remain in bounds", report);
+            Invoke(window, "DeadLetterTab");
+            await Settle();
+            VerifyGeometry(window);
+            ProofCapture.CheckBounds(window, new[] { ProofCapture.Control<Button>(window, "ReplayButton"), ProofCapture.Control<Button>(window, "EditReplayButton") });
+            ProofCapture.Save(window, output, "11-compact-dlq");
+            Check(true, "DLQ replay actions fit the compact window", report);
+            Invoke(window, "ActiveTab");
             search.Focus();
             Check(search.IsKeyboardFocusWithin, "Search accepts keyboard focus", report);
             search.MoveFocus(new System.Windows.Input.TraversalRequest(System.Windows.Input.FocusNavigationDirection.Next));
@@ -183,6 +232,37 @@ internal static class PrototypeProof
     }
 
     private static Task Settle() => Application.Current.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle).Task;
+
+    private static async Task RestoreClipboard(IDataObject? previous)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                if (previous is null) Clipboard.Clear();
+                else Clipboard.SetDataObject(previous, true);
+                return;
+            }
+            catch (System.Runtime.InteropServices.COMException exception)
+                when (exception.HResult == unchecked((int)0x800401D0) && attempt < 2)
+            {
+                await Task.Delay(150);
+            }
+        }
+    }
+
+    private static void DriveReplayDialog(Window owner, Action<Window> action)
+    {
+        Exception? failure = null;
+        Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+        {
+            var dialog = Application.Current.Windows.OfType<ReplayDialog>().Single();
+            try { action(dialog); }
+            catch (Exception exception) { failure = exception; dialog.Close(); }
+        }), DispatcherPriority.ApplicationIdle);
+        Invoke(owner, "EditReplayButton");
+        if (failure is not null) throw new InvalidOperationException("Replay dialog walkthrough failed", failure);
+    }
 
     private static void Check(bool condition, string description, List<string> report)
     {
