@@ -1,0 +1,56 @@
+# Investigation UI language and final audit
+
+Status: proposed normalization rules for promotion, 2026-09-11. No layout redesign or production code change was made in this audit.
+
+Authority: the latest decisions in the “Audit and simplify Service Bus UI” conversation, then the current [prototype preview](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/preview.png). Earlier generated images are historical references. Preserve the approved compact connection toolbar, three panes, full-width console, and bottom time selector.
+
+## Audit findings to resolve during promotion
+
+| Priority | Finding and evidence | Required correction |
+| --- | --- | --- |
+| P1 | White 14 DIPs labels on primary blue `#0078F8` have about 4.16:1 contrast; Settings `#087CF0` about 4.08:1. Hover opacity further reduces contrast. | Use one primary palette; proposed existing `#0069FA` provides about 4.77:1 with white. Verify hover/pressed too; do not fade the whole button. |
+| P2 | [Notification](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/WatchNotificationWindow.cs) uses native action-button templates and different default typography. | Share main-window typography, action styles and states; keep compact notification layout and rounded outer panel. |
+| P2 | [Settings](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/PrototypeSettingsWindow.xaml) has blue profile cards but gray native Connections selection; main tabs and Settings tabs have different selected fills. | Use one selection palette and explicit templates for tabs/lists across windows. |
+| P2 | Focus borders differ between controls; a color-only border trigger on a borderless icon button may be invisible. | Give every interactive control a visible, unclipped focus ring; verify keyboard navigation separately from logical focus. |
+| P3 | Settings, Pause, Find related, Replay and Discard still use font glyphs. Watch/Refresh/Copy now use paths. | Replace remaining action glyphs with named vector assets in the same family, preserving recognizable meanings. |
+| P3 | Inspector title is 24 in XAML but 25 in code; Settings 22; notification summary 15 (its application title is 12). | Apply the role-based sizes below instead of one-off overrides. |
+| Tradeoff | At minimum size with the log expanded, only one full message row may be visible. | Keep the existing responsive layout for first promotion; explicitly test this tradeoff. Do not silently claim ample space at minimum size. |
+
+Primary source: [main XAML](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/PrototypeWindow.xaml), [layout code](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/PrototypeWindow.xaml.cs), Settings and notification sources above. Rendered desktop, compact, Settings, Watch, notification and refresh-selector states were inspected from the latest `artifacts/toolbar-icons-proof` output. That output is local/ignored; the committed preview is the durable desktop reference.
+
+## Shared tokens
+
+Sizes below are WPF device-independent units (DIPs), not physical pixels. Use named WPF resources in the real app, shared by the shell, Settings, dialogs and notifications. Values below are proposed defaults; deviations must represent a named density or semantic variant.
+
+| Role | Value / rule |
+| --- | --- |
+| Font family | Segoe UI; Consolas for JSON and console |
+| Type scale | 14 DIPs controls/body; 12 DIPs metadata; 11 DIPs badges/timestamps only; 16 DIPs section title; 24 DIPs inspector title; 18 DIPs compact title; 22 DIPs Settings title; 16 DIPs notification summary |
+| Code/console | JSON 14 DIPs; console 12 DIPs; always wrap body text; preserve raw content |
+| Primary text / secondary / action text | `#17213D` / `#627692` / `#234266` |
+| Canvas / raised / toolbar | `#FAFCFF` / `#FFFFFF` / `#F5F9FE` |
+| Dark editor/log | `#1C2937`, light text; retain semantic syntax colors |
+| Primary / hover / pressed | `#0069FA` / `#005BD8` / `#004FBD`; white labels; verify contrast in all states |
+| Neutral hover / selected | `#EAF4FF` / `#DBEDFF` |
+| Control border / divider | `#CBD8E8` / `#DFE6EE` |
+| DLQ / modified | Orange and amber backgrounds with dark text; always accompany color with a label |
+| Entity colors | Blue for queues/topics; purple for subscriptions; preserve distinct geometry |
+| Spacing | Prefer 4, 8, 12, 16, 24; use existing 7 DIPs icon-label gap consistently |
+| Corners | 3 DIPs controls; 4 DIPs menu/hover surfaces; 9 DIPs notification outer panel |
+| Icons | 16 DIPs optical box, 1.5 DIPs strokes; chosen rounded Copy retains 1.4 DIPs stroke and 16×18 aspect. Chevrons 8×5. No Unicode substitute glyphs for actions. |
+| Buttons | Standard minimum 32 DIPs height; compact footer selector 24 DIPs; icon-only target at least 28×28 where space permits; content centered vertically |
+| Density | Toolbar 40 DIPs; message rows 54 DIPs desktop / 50 DIPs compact; preserve splitter resizing |
+| Viewports | Desktop 1500×1000; compact 1100×800; minimum window 980×640. Check 100%, 125%, 150%, 200% Windows scaling and multi-monitor movement. |
+
+Do not confuse glyph dimensions with hit targets. Keep Copy beside the correlation text. Preserve the crossed-out/filled Watch distinction and the selected rounded-copy shape. The app name/icon belongs in the native title bar, not a duplicate banner.
+
+## State contract and visual gate
+
+- Buttons, tabs, checkboxes, selectors and menu items: normal, hover, keyboard focus, pressed, selected/checked and disabled must be explicit and consistent. Avoid opacity-only hover treatment.
+- Disable an action while it cannot safely run, including duplicate submission during an operation; show progress and keep unrelated actions usable. Long operations need cancellation where safe.
+- Empty, loading, stopped, unavailable counts, partial failure, long IDs and malformed/non-JSON bodies must remain distinguishable.
+- Test contrast of normal text at 4.5:1 and meaningful control/focus boundaries at 3:1; include selected rows and dark surfaces.
+- Preserve the accessible names and routed behavior already covered by proofs. Verify physical keyboard traversal, Escape, Space, Enter, screen-reader labels and focus restoration; these are not proven by logical-focus assertions alone.
+- Capture the complete affected surface after each style migration. Include expanded/collapsed log, Watch on/off, notification hover, profile selection, invalid/empty search, dirty editor and compact sizing.
+
+Audit result: **visual consistency FAIL (findings above); broader accessibility/DPI evidence BLOCKED (not collected)**. The latest prototype build and 233 routed checks passed in the preceding implementation turn. They demonstrate interactions with synthetic data, not broker correctness or a complete accessibility audit. These findings are promotion work, not a claim that the current prototype is production-ready.

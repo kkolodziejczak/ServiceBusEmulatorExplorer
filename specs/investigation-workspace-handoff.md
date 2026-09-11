@@ -1,0 +1,113 @@
+# Promote the investigation prototype
+
+Prepared 2026-09-11 for the next working session. This is a simple handoff, not authorization to release. No planning skills were used.
+
+## Starting point
+
+- Current branch: `prototype/investigation-workspace`; audit baseline `c8af97c`. Use the normal checkout. Preserve unrelated changes.
+- Visual/interaction reference: [prototype](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/README.md) and its [current preview](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/preview.png). Apply [UI language and audit corrections](ui-language.md) consistently; preserve the approved layout.
+- Destination: existing WPF [App](../src/ServiceBusEmulatorExplorer.App/ServiceBusEmulatorExplorer.App.csproj) using existing [Core contracts](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/ServiceBusContracts.cs). Keep the prototype as a reference until parity is proven. Do not just rename its executable or ship its synthetic Workspace.
+- Evidence: latest prototype build succeeded; 233 routed walkthrough checks and a prior 11-check real tray run passed. No new broker integration tests were run for this audit. The proof uses synthetic messages and is not a production readiness certificate.
+
+## Requirements mapped to what exists
+
+“Prototype” means the interaction exists, not that the broker behavior exists.
+
+| Conversation requirement | Current state | Promotion work |
+| --- | --- | --- |
+| Small daily-investigation UI; remove redundant headings | Approved layout implemented | Replace old shell surface; do not bring back all old administration buttons |
+| Emulator and Azure connections selected in Settings | Two editable sample profiles; simulated connection | Reuse real profile/auth validation; add real profile CRUD and persistence as decided below |
+| Queues, topics, subscriptions and Message/DLQ totals | Sample tree, distinct icons; unknown sample counts | Bind real tree and typed known/unknown/stale count state; topic totals are delivery totals across subscriptions |
+| First 50 on scope/bucket change; Load more | Implemented against fixtures | Per-source cursors, cancellation, stale-request rejection; settle topic aggregate paging |
+| Independent checkboxes; aligned select-all | Implemented | Stable source-aware row identity; select-all means displayed results, not unseen broker messages |
+| Refresh/auto-refresh/pause without losing work | UI implemented; refresh can inject samples | Read-only, single-flight refresh preserving focus, selection, drafts and scroll; no simulated arrivals |
+| One left search with entity/ID suggestions | Implemented | Real entity index plus loaded/recent IDs; never imply suggestions enumerate unseen broker messages |
+| Global correlation/message ID search, OR and * | Implemented over complete memory snapshot | Cancellable paged peeking across sources; bounded scan and truthful incomplete status |
+| Exact case-sensitive IDs; OR keyword ignores case; quoted literals | Implemented, including explicit correlation:/message: clauses | Preserve grammar and tests; do not add ? or implicit substring ID matching without approval |
+| Search tree shows only matching branches and match counts | Implemented; totals retained separately | Project discovered matches, aggregate parents, restore authoritative totals on Clear |
+| Location/State only during global search | Implemented | Preserve source identity even when the column is hidden |
+| Clear removes applied filter and text | Implemented | Cancel old scans and restore browse scope; old callbacks must not repopulate results |
+| Preview JSON, Properties, Raw; always wrap | Implemented in that order | Preserve bytes/metadata; label malformed/non-JSON honestly; no wrap toggle |
+| Inline formatted/colorized edit, undo, discard | DLQ editor implemented | Preserve drafts by delivery identity; validate before send; define connection-switch behavior |
+| Replay by default; Edit and Replay after changing JSON | Implemented with synthetic copies | Real send, batch eligibility and per-item outcomes; original DLQ remains unless separately deleted |
+| Default IDs original-replay-N | Session-only counter and synthetic collision check | Persist or otherwise define counter/uniqueness; preserve metadata; never promise global retry count |
+| Delete events | **Missing from prototype**; old app has DLQ delete | Resolve Q1, then add explicit confirmed workflow; no hover-only destructive action |
+| Copy icon consistent and near correlation | Selected rounded icon everywhere | Share vector resource; copy exact ID/body/properties, preserve action labels and tooltips |
+| Watch Active/DLQ independently; off/on icons and overview | UI implemented; 15s timer creates fake arrivals | Detect arrivals without consuming messages; baseline, dedupe, reconnect and DLQ cursor policy |
+| Persistent desktop alert; Investigate restores app | Separate topmost WPF window, real tray | Keep until response; position on correct monitor; no transient-toast substitution |
+| Investigate adds to current cases | Implemented OR union, dedupe, mixed fields, focuses newest case | Preserve applied criteria; cancel superseded scan safely; handle expired/unavailable message |
+| Close-to-tray configurable; explicit Exit | Real prototype lifetime behavior | Integrate app shutdown and cancellation; settings persistence; no invisible orphan process |
+| Full-width activity console; clear only expanded | Implemented with 100 in-memory entries | Structured outcomes, redacted sensitive values, bounded history; decide persistence |
+| UTC/Local/Server selector | Display conversion implemented; Server is sample −05:00 | Persist preference; configured server zone; retain original UTC instants and raw payloads |
+| Consistent colors/fonts/sizes/states | Layout accepted; remaining inconsistencies found | Resolve the linked UI audit before production handoff |
+
+Keep entity creation/edit/delete, purge, advanced rule administration, scheduling and unrelated legacy features outside the primary workflow. Retaining existing backend code is different from exposing its entire old UI. Standalone Send New Message and replay of Active messages were not settled; do not silently add them.
+
+## Questions before implementation
+
+Answer by Q number. Recommendations are proposals, not already approved decisions. Existing approved interaction details above do not need to be asked again.
+
+| ID | Decision needed | Recommended starting choice |
+| --- | --- | --- |
+| Q1 | Delete DLQ only or Active too? Single/batch? | DLQ only, focused/checked items, explicit confirmation and per-item results. Active delete is separate scope. |
+| Q2 | Should Messages mean Active or total including DLQ/scheduled? | Active and DLQ separately, explicit tooltip; preserve unavailable counts. Never substitute a loaded-page length. |
+| Q3 | Search limits and completeness: how much work may one search do? | Both Active+DLQ in selected connection; configurable time/message budget with Stop/Continue and visible partial status. Agree actual limits before coding. |
+| Q4 | Watch interval, baseline, reconnect and notification backlog? | No initial-backlog alerts; configurable polling; retain distinct pending cases until response. Agree interval, cap and restart policy; 15s is only the mock default. |
+| Q5 | Accept subscription replay publishing to its parent topic, potentially reaching other subscriptions? | Make destination and routing consequence clear before sending. A subscription is not a direct send destination. |
+| Q6 | Replay numbering across sessions/users and ambiguous send failures? | Keep readable replay suffix plus guaranteed unique send identity; define persistence/ID format and retry policy. Do not auto-retry an uncertain successful send. |
+| Q7 | What persists, and how are connection secrets stored? | Profiles/preferences persist; protect secrets with Windows user-scoped storage; watches saved but restart behavior explicitly chosen. Decide log/draft persistence and Azure CLI auth visibility. |
+| Q8 | Switching connection with dirty drafts/active work? | Warn about unsaved edits, cancel old operations, isolate all connection caches. Never silently discard production drafts. |
+| Q9 | What is “Server” timezone? | Explicit per-profile Windows time-zone ID with DST rules; do not infer broker timezone or ship fixed −05:00. |
+| Q10 | Topic view pagination: 50 total or 50 per subscription? | 50 combined deliveries with source identity, matching the simple UI; per-source cursors required. |
+| Q11 | Minimum-window density and style normalization? | Accept existing compact layout initially; approve the linked tokens/contrast fixes. Decide whether to auto-collapse the console on very small windows. |
+
+## Reuse and the traps to avoid
+
+- [Message service](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/ServiceBusMessageService.cs) already peeks non-destructively with `take`, `fromSequenceNumber` and cancellation. [MessageInspectionViewModel](../src/ServiceBusEmulatorExplorer.App/ViewModels/MessageInspectionViewModel.cs) already contains 50-row paging and stale-result defenses, but its refresh/selection behavior differs from the prototype. Extract focused workflows rather than adding every feature to this large class.
+- [Administration service](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/ServiceBusAdministrationService.cs) and [tree builder](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/EntityTreeBuilder.cs) are reusable. Counts currently use non-null numeric fields, so unknown cannot yet be represented correctly.
+- Historical [emulator evidence](codebase-audit-remediation-plan.md): on 2026-07-10, 60 messages were sent and a 50-message page was peeked while runtime ActiveMessageCount remained zero for three minutes. This is a recorded limitation, not a fresh emulator retest. Do not block discovery/search on reported zero or wait indefinitely for the emulator to fix counts.
+- [Replay service](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/DeadLetterReplayService.cs) and [request factory](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/DeadLetterReplayRequestFactory.cs) support safe copy and separate DLQ deletion. Subscription replay maps to parent topic. The prototype's direct fan-out into child fixture lists is not real routing.
+- Define and test the sendable metadata to preserve: the current mapper copies body, content type, correlation/session IDs, subject and application properties, but does not preserve every property (for example ReplyTo, To, PartitionKey or TTL). Broker-generated metadata remains observational, not replay input.
+- [Profile store](../src/ServiceBusEmulatorExplorer.Core/Connection/JsonConnectionProfileStore.cs) supports saved profiles and Azure CLI formats, but connection strings are serialized and saves use direct file creation. Masked fields are not encryption; general settings need safe atomic persistence and migration.
+- Global scan results are observations over time, not a transactional namespace snapshot. Peeking must not receive/lock/complete messages. Messages can disappear while a user inspects them.
+- A simple increasing DLQ sequence watermark can miss an older message entering DLQ later. Prove a baseline/rescan strategy against the actual emulator and Azure before declaring Watch reliable. Counts alone cannot detect arrivals when counts are unknown or unchanged.
+- Use identity `(connection generation, entity address, bucket, sequence number)` for a delivery. MessageId and CorrelationId are not unique row keys. Group batch mutations by actual source and expose partial outcomes.
+
+## Execution tomorrow: small stages, many Luna High workers
+
+Use `gpt-5.6-luna` with reasoning effort `high` for workers. The main agent coordinates and reviews. No scheduled task is created by this document.
+
+1. **Resolve questions and freeze contracts.** Coordinator records answers here, confirms selected branch and clean baseline, and defines delivery identity, count availability, scan progress, watch observations and mutation outcomes. Capture existing UI reference states. No worker invents conflicting shared contracts.
+2. **Promote one usable read-only slice.** Shared style resources + shell, real Settings/connect, tree, first page, inspector, selection and Clear. Keep old services and their tests. Prove this slice before adding mutations.
+3. **Parallel feature work after contracts exist.** Suggested ownership below; coordinator owns shared shell wiring/DI and integration. Workers do not all modify ShellViewModel/MainWindow.
+4. **Integrate and prove each feature.** Browse → global search → Watch/tray → replay/delete. Test stale results, cancellation, connection changes and partial failures at every boundary. Remove all simulation from the shipping composition.
+5. **Final visual and broker gates.** Normalize remaining UI states, run real emulator proof, then authorized Azure proof if available. Commit completed milestones. Do not merge, tag or publish as a side effect of finishing this handoff.
+
+| Luna High worker | Bounded ownership | Evidence required |
+| --- | --- | --- |
+| A: UI resources | New resource dictionaries/vector assets; coordinator integrates windows | All windows share tokens; contrast/focus/compact screenshots |
+| B: Connection/settings | Profile/settings services and their tests | Safe persistence/migration, validation, configured time zones, secret redaction |
+| C: Browse/counts | Entity/count projection and paging workflow | Unknown counts, source cursors, first 50/load more, stale-session isolation |
+| D: Search | Pure matcher and cancellable scan service | OR/*/mixed IDs, partial/empty/errors, per-source bounds; no broker mutations |
+| E: Watch | Observation/dedupe scheduler; tray/notification workflow in separate files | Baseline/reconnect/old-sequence DLQ arrivals, single-flight polling, persistent alerts |
+| F: Message actions | Replay ID policy, batch outcomes, approved delete workflow | Original preserved, correct destination, partial/uncertain outcomes, confirmations |
+
+Run up to six implementation workers concurrently when dependencies allow; use remaining slots for independent review, never duplicate ownership. Workers must request the coordinator's lease before Docker, ports, tests with shared runtime, databases, or external services. The coordinator serializes those operations and integrates patches. Pure code reads and isolated unit work can overlap.
+
+## Completion checklist
+
+- [ ] All questions affecting the current stage answered and recorded; unresolved stages remain unstarted.
+- [ ] Approved interaction matrix works in the actual App, not just in the prototype executable.
+- [ ] No synthetic fixture injection, fixed server offset, fake connection success or direct subscription fan-out in shipping paths.
+- [ ] Fast existing unit/view-model tests remain green; meaningful new tests cover each changed workflow.
+- [ ] Emulator proof includes >50 messages, multiple sources, Active+DLQ, zero/unknown runtime counts, cancellation, disconnect/reconnect, replay-copy and confirmed delete if approved.
+- [ ] Azure behavior tested when credentials/environment are authorized; otherwise explicitly unverified. Never present emulator-only evidence as Azure certification.
+- [ ] Rendered desktop/compact/settings/notification states and keyboard/DPI checks satisfy [UI language](ui-language.md); no user-as-first-tester handoff.
+- [ ] Root README remains user-facing; narrow internal docs and affected links updated; `git diff --check` passes.
+- [ ] Evidence and remaining limitations recorded; completed work committed on current branch; no release performed.
+
+Start with existing commands in [tests README](../tests/README.md) and inspect scripts before running. Normal fast check: `dotnet test ServiceBusEmulatorExplorer.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"`. Integration/UI runs are opt-in and require the coordinator's runtime lease. Use bounded execution and the repository's UI smoke runner.
+
+## Prompt to use tomorrow
+
+> Read specs/investigation-workspace-handoff.md and specs/ui-language.md. Do not use planning skills. Resolve the listed questions with me before their dependent stages. Preserve the approved prototype layout and implement the real code behind in the existing application. Use multiple gpt-5.6-luna workers at high reasoning effort with bounded file ownership; coordinate shared runtime leases and review their changes. Deliver working vertical slices, run meaningful broker and rendered UI checks, and commit milestones. Do not publish a release. Treat sample code as interaction guidance, not broker behavior.

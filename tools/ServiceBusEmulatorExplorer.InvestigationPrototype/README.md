@@ -10,11 +10,11 @@ dotnet run --project tools/ServiceBusEmulatorExplorer.InvestigationPrototype
 
 ## Investigate a correlation
 
-Use the single **Search** field on the left. Suggestions are grouped as entities, correlation IDs, and messages already loaded in this session. Typing filters the entity tree. Use Up/Down and Enter or click a suggestion. Entity results open that entity; correlation results search all entities; message results open that exact message. The two explicit actions search all entities by correlation ID or message ID. Unknown pasted values are never silently classified. Global ID searches match the full ID exactly, including case.
+Use the single **Search** field on the left. Suggestions are grouped as entities, correlation IDs, and messages already loaded in this session. Typing filters the entity tree. Use Up/Down and Enter or click a suggestion. Entity results open that entity; correlation results search all entities; message results open that exact message. The two explicit actions search all entities by correlation ID or message ID. Unknown pasted values are never silently classified. A plain ID matches exactly, including case; OR, wildcard and mixed-field expressions are supported as described below.
 
 Results combine queues and subscriptions, including Active and DLQ messages. The location and state stay visible for every delivery. Use the copy icon directly beside a correlation ID to search your logs, or **Find related** in the inspector to search the namespace.
 
-Search scans the synthetic snapshot in pages of 50, yielding to the UI between pages. Its completed, in-progress and stopped states distinguish “No matching messages” from “No matches found so far.” The sample scan is usually almost instant; there is no artificial waiting animation. Namespace totals remain overall counts, separate from matches and scanned messages. The inline **×** clears both the text and applied correlation filter, returning to entity browsing. It remains available when an applied filter exists even if you edit or empty the field.
+Search scans the synthetic snapshot in pages of 50, yielding to the UI between pages. Its completed, in-progress and stopped states distinguish “No matching messages” from “No matches found so far.” The sample scan is usually almost instant; there is no artificial waiting animation. During global search, the tree displays discovered match counts; original namespace totals are retained separately and restored on Clear. The inline **×** clears both the text and applied correlation filter, returning to entity browsing. It remains available when an applied filter exists even if you edit or empty the field.
 
 A real broker implementation will need cancellable paged peeking and explicit incomplete/error reporting; this prototype is not proof of broker-wide search.
 
@@ -32,7 +32,7 @@ The replay counter is local to this prototype run, not a shared audit of all use
 
 ## Browse and refresh
 
-Entity matching ignores case. Escape dismisses suggestions. The **×** button clears both the tree filter and any applied global search. Unmatched entity text retains explicit global search actions. Message and DLQ totals remain unchanged by filtering.
+Entity matching ignores case. Escape dismisses suggestions. The **×** button clears both the tree filter and any applied global search. Unmatched entity text retains explicit global search actions. Entity-name filtering preserves Message and DLQ totals. Global ID search instead displays matching counts.
 
 Selecting an entity or switching Active/DLQ loads its first 50 messages. **Load more** adds another 50. Refresh preserves focused and checked rows; retention can temporarily show more than the nominal page limit. Automatic refresh can be paused and resumes after leaving search through the tree. Search pauses automatic sample arrivals.
 
@@ -51,6 +51,10 @@ The Watch selector has independent Active and DLQ checkboxes and **Stop watching
 Search by correlation ID or message ID supports `case-123 OR case-456` and `case-*`. ID matching is case-sensitive; the OR keyword is case-insensitive. Quote an entire ID to treat stars or OR literally. The Location / State column appears only in global ID search results. During a search, the namespace tree shows matching sources and parent topics only; Active and DLQ counts reflect matches found so far, with topic totals aggregated from matching subscriptions. Clear search restores browsing, the complete tree, and the original entity totals. Invalid expressions display a correction message without scanning.
 
 The footer time selector offers **UTC**, **Local**, and **Server**. It reformats enqueue times and existing activity-log/footer timestamps while retaining the original UTC instants and raw JSON/properties. Local uses the computer time zone with daylight-saving rules. Server uses a clearly identified fixed sample UTC-05:00 until a real connection time-zone setting is wired. The preference is session-only.
+
+## Promotion handoff
+
+See the [requirements, open questions and worker handoff](../../specs/investigation-workspace-handoff.md) and [shared UI language / audit](../../specs/ui-language.md) before connecting this prototype to real services.
 
 ## Rendered evidence
 
