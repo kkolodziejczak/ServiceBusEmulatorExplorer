@@ -370,7 +370,6 @@ public partial class PrototypeWindow : Window
         LoadMoreButton.Padding = shortWindow ? new Thickness(8, 4, 8, 4) : new Thickness(12, 7, 12, 7);
         EmptySearchIcon.Visibility = shortWindow ? Visibility.Collapsed : Visibility.Visible;
         EmptyResults.Margin = shortWindow ? new Thickness(12) : new Thickness(25);
-        MessagesHeading.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         ListHeading.Margin = compact ? new Thickness(15, 9, 15, 8) : new Thickness(19, 18, 15, 12);
         InspectorHeading.Margin = compact ? new Thickness(15, 8, 15, 5) : new Thickness(18, 14, 15, 10);
         InspectorTitle.FontSize = compact ? 18 : 25;

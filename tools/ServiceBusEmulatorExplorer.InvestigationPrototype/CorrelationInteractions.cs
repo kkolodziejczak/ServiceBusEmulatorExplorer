@@ -91,7 +91,6 @@ public partial class PrototypeWindow
             : "No matching entities. Clear the search to show all entities.";
         NamespaceTree.ToolTip = searching ? "Counts show matching messages found so far. Clear search to restore entity totals." : null;
         ListBreadcrumb.Text = searching ? "Search / Related messages" : Workspace.EntityPath;
-        MessagesHeading.Text = searching ? "Related messages" : "Messages";
         SearchSummary.Text = $"{Workspace.CorrelationQuery} · {Workspace.Messages.Count} matches{(Workspace.SearchComplete ? "" : " so far")}";
         SearchSummary.Visibility = searching && !compact ? Visibility.Visible : Visibility.Collapsed;
         BrowseTabs.Visibility = searching ? Visibility.Collapsed : Visibility.Visible;
