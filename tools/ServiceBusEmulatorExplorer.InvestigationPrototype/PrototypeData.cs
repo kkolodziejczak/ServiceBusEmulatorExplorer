@@ -28,6 +28,12 @@ public sealed class MessageRow : INotifyPropertyChanged
     public required string Key { get; init; }
     public required string EventName { get; init; }
     public required string MessageId { get; init; }
+    public string CorrelationId { get; init; } = "";
+    public bool IsDeadLetter { get; init; }
+    public string? DeadLetterReason { get; init; }
+    public string StateLabel => IsDeadLetter ? "DLQ" : "Active";
+    public string OriginalMessageId { get; init; } = "";
+    public int ReplayNumber { get; init; }
     public required string Source { get; init; }
     public string SourceName => Source.Split('/')[^1];
     public required string Body { get; init; }
@@ -90,6 +96,11 @@ internal static class PrototypeData
         var names = new[] { "OrderDispatched", "OrderCreated", "PaymentCaptured", "OrderUpdated", "ShipmentDelivered" };
         var name = names[index % names.Length];
         var id = $"evt-{index + 1042:D6}";
+        var correlationId = index % 7 == 0 ? "checkout-80341"
+            : index % 7 == 1 ? "checkout-80342"
+            : index % 7 == 2 ? "payment-90817"
+            : index % 7 == 3 ? "shipment-55109"
+            : $"order-{202600 + index}";
         var body = JsonSerializer.Serialize(new
         {
             specVersion = "1.0",
@@ -112,11 +123,13 @@ internal static class PrototypeData
         return new MessageRow
         {
             Key = $"{source}/{(deadLetter ? "dlq" : "active")}/{id}", EventName = name,
-            MessageId = id, Source = source, Body = body,
+            MessageId = id, OriginalMessageId = id, CorrelationId = correlationId,
+            IsDeadLetter = deadLetter, DeadLetterReason = deadLetter ? "MaxDeliveryCountExceeded" : null,
+            Source = source, Body = body,
             Enqueued = incoming ? DateTime.UtcNow : new DateTime(2026, 9, 11, 9, 42, 18, DateTimeKind.Utc).AddSeconds(-index * 23),
             Properties = JsonSerializer.Serialize(new
             {
-                messageId = id, correlationId = "checkout-80341", contentType = "application/json",
+                messageId = id, correlationId, contentType = "application/json",
                 source, sequenceNumber = 2048 + index, deliveryCount = deadLetter ? 10 : 0,
                 deadLetterReason = deadLetter ? "MaxDeliveryCountExceeded" : null,
                 deadLetterErrorDescription = deadLetter ? "Consumer could not process this event after 10 deliveries. Synthetic diagnostic example." : null,

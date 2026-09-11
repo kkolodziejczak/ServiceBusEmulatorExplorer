@@ -1,5 +1,7 @@
 # Checkbox selection investigation
 
+Historical evidence from the checkbox/editor milestone. The separate replay dialog described below has since been replaced by the [inline investigation workspace](README.md); the checkbox regression remains in the current walkthrough.
+
 User contract: check multiple messages with ordinary checkbox clicks, preview other rows without losing checks, select/clear loaded messages from an aligned header checkbox. Shift is optional, never required.
 
 ## Reproduction and cause

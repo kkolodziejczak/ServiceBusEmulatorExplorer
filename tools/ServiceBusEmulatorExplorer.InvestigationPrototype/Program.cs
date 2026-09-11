@@ -20,7 +20,7 @@ internal static class Program
             {
                 int result = args[0] == "--verify-selection"
                     ? await CheckboxSelectionProof.RunAsync(window, output)
-                    : await PrototypeProof.RunAsync(window, output);
+                    : await InvestigationProof.RunAsync(window, output);
                 application.Shutdown(result);
             };
         }

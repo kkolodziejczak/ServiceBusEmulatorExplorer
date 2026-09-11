@@ -13,6 +13,9 @@ public sealed class Workspace : INotifyPropertyChanged
     private int incomingSequence = 10000;
     private int pendingIncoming;
     private bool changingChecks;
+    private readonly Dictionary<string, int> replayNumbers = new(StringComparer.Ordinal);
+    private readonly List<string> recentCorrelations = [];
+    private List<MessageRow> searchSnapshot = [];
     private MessageRow? focusedMessage;
     public ObservableCollection<EntityNode> Roots { get; } = PrototypeData.CreateTree();
     public ObservableCollection<MessageRow> Messages { get; } = [];
@@ -23,12 +26,24 @@ public sealed class Workspace : INotifyPropertyChanged
     public string EntityPath => SelectedEntity?.Path ?? "";
     public string EntityTitle => SelectedEntity?.Name ?? "Choose an entity";
     public int SelectedCount => Messages.Count(row => row.IsSelected);
-    public IReadOnlyList<MessageRow> ReplayTargets => !IsConnected || !IsDeadLetter ? []
+    public IReadOnlyList<MessageRow> ReplayTargets => !IsConnected ? []
         : Messages.Any(row => row.IsSelected) ? Messages.Where(row => row.IsSelected).ToArray()
         : FocusedMessage is { } focused ? [focused] : [];
-    public bool CanReplay => ReplayTargets.Count > 0;
-    public bool CanEditAndReplay => ReplayTargets.Count == 1;
-    public bool CanLoadMore => IsConnected && Messages.Count < CurrentRows().Count();
+    public bool CanReplay => ReplayTargets.Count > 0 && ReplayTargets.All(row => row.IsDeadLetter);
+    public bool CanEditAndReplay => CanReplay && ReplayTargets.Count == 1 && ReplayTargets[0] == FocusedMessage;
+    public string NextReplayId => FocusedMessage is { IsDeadLetter: true } row
+        ? NextId(row, replayNumbers, AllMessageIds()).Id : "";
+    public bool CanLoadMore => IsConnected && !IsCorrelationSearch && Messages.Count < CurrentRows().Count();
+    public bool IsCorrelationSearch { get; private set; }
+    public string CorrelationQuery { get; private set; } = "";
+    public string SearchStatus { get; private set; } = "";
+    public bool IsSearching { get; private set; }
+    public bool SearchComplete { get; private set; }
+    public int ScannedMessages { get; private set; }
+    public int SearchTotalEntities => Roots.SelectMany(PrototypeData.Flatten).Count(node => !node.IsGroup && node.Kind != "Topic");
+    public int SearchScannedEntities => SearchComplete ? SearchTotalEntities : searchSnapshot
+        .Select((row, index) => (row.Source, Index: index)).GroupBy(item => item.Source)
+        .Count(group => group.Max(item => item.Index) < ScannedMessages);
     public string Footer { get; private set; } = "";
     public string Status { get; private set; } = "Synthetic data · no Azure connection";
     public MessageRow? FocusedMessage
@@ -47,7 +62,8 @@ public sealed class Workspace : INotifyPropertyChanged
 
     public void SelectEntity(EntityNode node)
     {
-        if (node.IsGroup || !IsConnected || SelectedEntity == node) return;
+        if (node.IsGroup || !IsConnected || (SelectedEntity == node && !IsCorrelationSearch)) return;
+        ResetCorrelationSearch();
         ClearSelection();
         SelectedEntity = node;
         visibleLimit = 50;
@@ -57,13 +73,14 @@ public sealed class Workspace : INotifyPropertyChanged
 
     private void ClearSelection()
     {
-        foreach (var row in Messages) row.IsSelected = false;
+        SetAllChecked(false);
         FocusedMessage = null;
     }
 
     public void SetDeadLetter(bool value)
     {
-        if (IsDeadLetter == value) return;
+        if (IsDeadLetter == value && !IsCorrelationSearch) return;
+        ResetCorrelationSearch();
         ClearSelection();
         IsDeadLetter = value;
         visibleLimit = 50;
@@ -74,6 +91,7 @@ public sealed class Workspace : INotifyPropertyChanged
     public void Refresh()
     {
         if (!IsConnected || SelectedEntity is null) return;
+        if (IsCorrelationSearch) { StartCorrelationSearch(CorrelationQuery); return; }
         var focusedKey = FocusedMessage?.Key;
         var rows = CurrentRows().OrderByDescending(row => row.Enqueued).ThenBy(row => row.Key).ToList();
         var visible = rows.Take(visibleLimit).ToList();
@@ -107,28 +125,115 @@ public sealed class Workspace : INotifyPropertyChanged
 
     public void LoadMore()
     {
+        if (!CanLoadMore) return;
         visibleLimit += 50;
         Refresh();
+    }
+
+    public IEnumerable<string> Suggestions(string text)
+    {
+        var query = text.Trim();
+        return recentCorrelations.Concat(fixtures.Values.SelectMany(rows => rows).Select(row => row.CorrelationId))
+            .Where(id => !string.IsNullOrEmpty(id) && id.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.Ordinal).Take(8).ToArray();
+    }
+
+    public void StartCorrelationSearch(string query)
+    {
+        if (!IsConnected) return;
+        query = query.Trim();
+        if (query.Length == 0) { ClearCorrelationSearch(); return; }
+        ClearSelection();
+        Messages.Clear();
+        IsCorrelationSearch = true;
+        CorrelationQuery = query;
+        recentCorrelations.Remove(query);
+        recentCorrelations.Insert(0, query);
+        if (recentCorrelations.Count > 12) recentCorrelations.RemoveAt(12);
+        searchSnapshot = fixtures.Values.SelectMany(rows => rows)
+            .OrderByDescending(row => row.Enqueued).ThenBy(row => row.Key, StringComparer.Ordinal).ToList();
+        ScannedMessages = 0;
+        SearchComplete = false;
+        IsSearching = true;
+        UpdateSearchStatus();
+    }
+
+    public void ScanNext()
+    {
+        if (!IsSearching) return;
+        var page = searchSnapshot.Skip(ScannedMessages).Take(50).ToArray();
+        foreach (var row in page)
+            if (string.Equals(row.CorrelationId, CorrelationQuery, StringComparison.Ordinal)) Messages.Add(row);
+        ScannedMessages += page.Length;
+        if (ScannedMessages >= searchSnapshot.Count)
+        {
+            IsSearching = false;
+            SearchComplete = true;
+        }
+        FocusedMessage ??= Messages.FirstOrDefault();
+        UpdateSearchStatus();
+    }
+
+    public void StopCorrelationSearch()
+    {
+        if (!IsSearching) return;
+        IsSearching = false;
+        UpdateSearchStatus();
+    }
+
+    private void UpdateSearchStatus()
+    {
+        SearchStatus = IsSearching ? "Searching…"
+            : SearchComplete ? "Search complete" : "Search incomplete";
+        SearchStatus += $" · {SearchScannedEntities} of {SearchTotalEntities} entities scanned";
+        Footer = $"{Messages.Count} match{(Messages.Count == 1 ? "" : "es")}{(SearchComplete ? "" : " so far")} · {ScannedMessages} scanned · {SearchStatus}";
+        Status = $"{SearchStatus} · Exact correlation ID · Sample data";
+        Changed();
+    }
+
+    public void ClearCorrelationSearch()
+    {
+        if (!IsCorrelationSearch) return;
+        ClearSelection();
+        ResetCorrelationSearch();
+        Messages.Clear();
+        Refresh();
+    }
+
+    private void ResetCorrelationSearch()
+    {
+        IsCorrelationSearch = false;
+        CorrelationQuery = "";
+        SearchStatus = "";
+        IsSearching = false;
+        SearchComplete = false;
+        ScannedMessages = 0;
+        searchSnapshot.Clear();
     }
 
     public int Replay(string? editedBody = null, string? newMessageId = null)
     {
         var targets = ReplayTargets;
-        if (targets.Count == 0) return 0;
+        if (!CanReplay) return 0;
+        if (editedBody is not null && !CanEditAndReplay)
+            throw new ArgumentException("Focus the single checked message to edit and replay it.");
         if (targets.Count != 1 && (editedBody is not null || newMessageId is not null))
             throw new ArgumentException("Select exactly one message to edit and replay.");
 
         // Prepare every copy before changing fixtures so validation failure cannot partially replay a batch.
         var entities = Roots.SelectMany(PrototypeData.Flatten).ToList();
-        var existingIds = fixtures.Values.SelectMany(rows => rows).Select(row => row.MessageId).ToHashSet(StringComparer.Ordinal);
+        var existingIds = AllMessageIds();
+        var nextNumbers = new Dictionary<string, int>(replayNumbers, StringComparer.Ordinal);
         var copies = new List<(EntityNode Destination, EntityNode? Topic, MessageRow Row)>();
         var replayIds = new List<string>();
         var sequence = incomingSequence;
         foreach (var original in targets)
         {
-            var id = newMessageId ?? Guid.NewGuid().ToString();
-            if (string.IsNullOrWhiteSpace(id) || id == original.MessageId || !existingIds.Add(id))
+            var next = NextId(original, nextNumbers, existingIds);
+            var id = newMessageId ?? next.Id;
+            if (string.IsNullOrWhiteSpace(id) || id.Length > 128 || id == original.MessageId || !existingIds.Add(id))
                 throw new ArgumentException("Use a new, non-empty message ID that is not already in the sample data.");
+            nextNumbers[OriginalId(original)] = next.Number;
             var source = entities.Single(node => node.Path == original.Source);
             var topic = source.Kind == "Subscription"
                 ? entities.Single(node => node.Kind == "Topic" && node.Children.Contains(source)) : null;
@@ -137,7 +242,7 @@ public sealed class Workspace : INotifyPropertyChanged
             {
                 if (!fixtures.ContainsKey(destination.Path))
                     throw new InvalidOperationException("The replay destination is unavailable.");
-                copies.Add((destination, topic, CreateReplayCopy(original, destination.Path, id, editedBody, sequence++)));
+                copies.Add((destination, topic, CreateReplayCopy(original, destination.Path, id, next.Number, editedBody, sequence++)));
             }
             replayIds.Add(id);
         }
@@ -150,21 +255,34 @@ public sealed class Workspace : INotifyPropertyChanged
             if (copy.Topic is not null) IncrementActiveCount(copy.Topic);
         }
         incomingSequence = sequence;
-        Refresh();
+        foreach (var pair in nextNumbers) replayNumbers[pair.Key] = pair.Value;
+        // Keep a completed search and its current selection stable; a new search discovers the copies.
+        if (!IsCorrelationSearch) Refresh();
         Status = $"Simulated replay of {targets.Count} DLQ message{(targets.Count == 1 ? "" : "s")} · New ID{(targets.Count == 1 ? "" : "s")}: {string.Join(", ", replayIds)} · Originals remain in DLQ";
         Changed();
         return targets.Count;
     }
 
-    public string? ValidateReplayId(string id)
+    private HashSet<string> AllMessageIds() => fixtures.Values.SelectMany(rows => rows)
+        .Select(row => row.MessageId).ToHashSet(StringComparer.Ordinal);
+
+    private static string OriginalId(MessageRow row) => string.IsNullOrEmpty(row.OriginalMessageId) ? row.MessageId : row.OriginalMessageId;
+
+    private static (string Id, int Number) NextId(MessageRow row, IReadOnlyDictionary<string, int> numbers, HashSet<string> existingIds)
     {
-        if (string.IsNullOrWhiteSpace(id)) return "Enter a new message ID.";
-        if (fixtures.Values.SelectMany(rows => rows).Any(row => row.MessageId == id))
-            return "This message ID already exists. Enter a different message ID.";
-        return null;
+        var original = OriginalId(row);
+        var number = Math.Max(numbers.GetValueOrDefault(original), row.ReplayNumber);
+        string id;
+        do
+        {
+            number++;
+            var suffix = $"-replay-{number}";
+            id = original[..Math.Min(original.Length, 128 - suffix.Length)] + suffix;
+        } while (existingIds.Contains(id));
+        return (id, number);
     }
 
-    private static MessageRow CreateReplayCopy(MessageRow original, string destination, string id, string? editedBody, int sequence)
+    private static MessageRow CreateReplayCopy(MessageRow original, string destination, string id, int replayNumber, string? editedBody, int sequence)
     {
         var enqueued = DateTime.UtcNow;
         var properties = JsonNode.Parse(original.Properties)?.AsObject()
@@ -179,6 +297,8 @@ public sealed class Workspace : INotifyPropertyChanged
         return new MessageRow
         {
             Key = $"{destination}/active/{id}", EventName = original.EventName, MessageId = id,
+            OriginalMessageId = OriginalId(original), ReplayNumber = replayNumber,
+            CorrelationId = original.CorrelationId, IsDeadLetter = false,
             Source = destination, Body = editedBody ?? original.Body, Enqueued = enqueued,
             Properties = properties.ToJsonString(new JsonSerializerOptions { WriteIndented = true })
         };
@@ -192,6 +312,7 @@ public sealed class Workspace : INotifyPropertyChanged
 
     public void ToggleConnection()
     {
+        ResetCorrelationSearch();
         IsConnected = !IsConnected;
         ClearSelection();
         Messages.Clear();
@@ -238,7 +359,7 @@ public sealed class Workspace : INotifyPropertyChanged
 
     public void SimulateIncoming()
     {
-        if (!IsConnected || SelectedEntity is null) return;
+        if (!IsConnected || SelectedEntity is null || IsCorrelationSearch) return;
         var source = SelectedEntity.Kind == "Topic" ? SelectedEntity.Children[0] : SelectedEntity;
         var row = PrototypeData.CreateMessage(source.Path, incomingSequence++, IsDeadLetter, incoming: true);
         row.PropertyChanged += RowChanged;

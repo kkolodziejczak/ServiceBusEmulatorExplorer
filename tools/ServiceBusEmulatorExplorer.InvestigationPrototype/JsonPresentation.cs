@@ -44,7 +44,7 @@ internal static class JsonPresentation
 }
 
 // Coloring changes the rendered lines, never the editable document or undo history.
-internal sealed class JsonEditor : TextEditor
+public sealed class JsonEditor : TextEditor
 {
     public JsonEditor()
     {
@@ -54,6 +54,8 @@ internal sealed class JsonEditor : TextEditor
         Options.EnableHyperlinks = false;
         Options.EnableEmailHyperlinks = false;
         Options.IndentationSize = 2;
+        Options.HighlightCurrentLine = true;
+        TextArea.TextView.CurrentLineBackground = new SolidColorBrush(Color.FromRgb(38, 58, 83));
     }
 
     private sealed class JsonColors : DocumentColorizingTransformer

@@ -1,6 +1,6 @@
 # Investigation workspace prototype
 
-This throwaway WPF prototype explores the layout approved on September 11, 2026. It lives on `prototype/investigation-workspace` and uses only synthetic, in-memory data. It has no Service Bus client, network access, credentials, or profile persistence.
+This throwaway WPF application implements the [approved investigation mockup](approved-investigation-layout.png) on branch `prototype/investigation-workspace`. It uses synthetic, in-memory data only: no Service Bus connection, credentials, or persistence. Restarting resets messages, drafts, search history, and replay numbering.
 
 Run from the repository root:
 
@@ -8,59 +8,60 @@ Run from the repository root:
 dotnet run --project tools/ServiceBusEmulatorExplorer.InvestigationPrototype
 ```
 
-The prototype is deliberately separate from the production application and release solution. Close its window to stop it. Restarting resets its sample state.
+## Investigate a correlation
 
-## Design authority
+Type `checkout-` in **Correlation ID**. Suggestions include known IDs and recent searches. Use Up/Down and Enter, click a suggestion, or type any complete ID and choose **Find messages**. Search matches the full ID exactly, including case.
 
-[Approved layout](approved-layout.png): searchable namespace tree with aligned Messages/DLQ totals, message list with multi-selection, and a spacious JSON inspector. The explanatory notes underneath the tree were explicitly removed. Subsequent user feedback adds distinct entity icons, always-on wrapping, and contextual DLQ Replay / Edit and Replay. Connection settings, entity administration, new-message composition, and deletion remain outside this prototype.
+Results combine queues and subscriptions, including Active and DLQ messages. The location and state stay visible for every delivery. Use **Copy** beside a correlation ID to search your logs, or **Find related** in the inspector to search the namespace.
 
-The user approved this visual direction; whether the interactions feel right remains the question for this prototype. The next implementation should use the existing SDK services behind a properly tested state model, rather than promote throwaway prototype code directly into production.
+Search scans the synthetic snapshot in pages of 50, yielding to the UI between pages. Its completed, in-progress and stopped states distinguish “No matching messages” from “No matches found so far.” The sample scan is usually almost instant; there is no artificial waiting animation. Namespace totals remain overall counts, separate from matches and scanned messages. **Clear** returns to entity browsing.
 
-![Rendered WPF prototype](preview.png)
+A real broker implementation will need cancellable paged peeking and explicit incomplete/error reporting; this prototype is not proof of broker-wide search.
 
-![DLQ replay controls](replay-preview.png)
+## Inspect and replay
 
-## Try it
+The grid shows event name, message ID, correlation ID, location and state. Checkboxes toggle independently without Shift. The aligned header checkbox selects or clears the displayed results. Clicking a row previews it without changing checked messages.
 
-1. Start with `order-events / billing`. Check multiple messages with ordinary checkbox clicks; Shift is not required. Clicking elsewhere on a row previews it without changing checks. The aligned header checkbox selects all loaded rows, or clears all when every row is checked.
-2. Switch between Active and Dead letter. Inspect JSON, original Raw text, and Properties. Try Copy and Find. Bodies always wrap to the pane width; long content scrolls vertically.
-3. Refresh and load another page. The focused message and checked rows should remain stable.
-4. Choose an automatic refresh interval and pause/resume it. Sample incoming messages demonstrate updates without contacting a broker.
-5. Select the `order-events` topic to inspect subscription copies with their source identity.
-6. Search the namespace tree. Try `audit-events` for unknown counts and non-JSON bodies, and `empty-queue` for an empty result.
-7. Disconnect and reconnect the sample profile. Resize the window: the inspector moves below the list on narrow windows.
-8. In Dead letter, Replay uses checked messages, or the focused message when none are checked. Each gets a new message ID. Edit and Replay is available for one target and opens an editor with a generated ID, formatted JSON, and the inspector's syntax colors. Coloring stays live as you type; text is not automatically reformatted while editing. Undo/redo work normally. Cancel does not replay. Original DLQ messages remain unchanged.
+JSON is formatted and colored directly in the inspector. DLQ JSON is editable; Raw and Properties retain original text and metadata. **Replay** sends an unchanged sample copy with a default ID such as `evt-001042-replay-1`. A subsequent replay advances the suffix. Correlation ID stays unchanged.
 
-## Loading behavior
+Editing the JSON changes the single action to **Edit and Replay** and reveals **Modified** and **Discard changes**. Drafts and undo history stay with their message when you switch rows. Discard restores the original formatted JSON. Successful edited replay resets the editor to the retained DLQ original. Invalid JSON blocks edited replay; untouched non-JSON messages can still replay unchanged.
 
-Switching Active/Dead letter or selecting another entity resets the visible limit to 50 and loads that view automatically. Load more raises the limit by 50. Refresh keeps the current limit and retains focused/checked messages, so retention can temporarily show more than the limit when incoming rows displace those messages. Switching tabs resets selection and does not remember the previous tab's expanded page count. All sample messages are held in memory and ordered newest first; this is not yet a broker paging implementation.
+Checked DLQ messages form a batch; otherwise Replay targets the focused message. Mixed Active/DLQ selections cannot replay. A batch containing a draft must be resolved by replaying or discarding individual drafts. Subscription replay produces copies in each sample child subscription. Original DLQ messages remain unchanged.
 
-Replay is also simulated in memory. Queue messages produce an active copy in the same queue. Subscription messages replay to their topic and the sample delivers a copy to each child subscription, without simulating filters. New message IDs change broker metadata, not identifiers inside the event body. Application-property types and correlation metadata are preserved.
+The replay counter is local to this prototype run, not a shared audit of all users. Long original IDs are shortened to keep the generated ID within 128 characters; collision checks keep generated IDs unique in the sample state.
 
-Numbers are fixture values. A loaded page is distinct from an entity's total; topic totals sum subscription deliveries. These distinctions remain part of the future API contract even though the tree no longer carries explanatory notes.
+## Browse and refresh
 
-## Verification
+Selecting an entity or switching Active/DLQ loads its first 50 messages. **Load more** adds another 50. Refresh preserves focused and checked rows; retention can temporarily show more than the nominal page limit. Automatic refresh can be paused and resumes after leaving search through the tree. Search pauses automatic sample arrivals.
 
-The executable can exercise the rendered WPF controls and capture screenshots:
+Resize to switch between side-by-side and stacked panes. The compact layout reduces heading space to retain usable rows and editor lines. Namespace totals are preserved, including unknown totals. The known emulator count limitation must not be used to skip future broker searches.
 
-```powershell
-dotnet run --project tools/ServiceBusEmulatorExplorer.InvestigationPrototype -- --verify artifacts/investigation-prototype-proof
-```
+## Rendered evidence
 
-This bounded proof mode closes after verification and writes its report and images to the supplied directory. It is a prototype acceptance aid, not a production regression suite or an emulator integration test.
-
-## Verified on September 11, 2026
-
-Build passed with zero warnings and errors. The [rendered walkthrough](verification.md) passed 59 interaction and state checks. Screenshots were visually inspected after repairs, including formatted JSON and long wrapped content in the replay editor at 760×640 and 560×440. The [selection regression](selection-regression.md) records the failing reproduction and the fix.
-
-![Formatted editable JSON](editor-preview.png)
+Build: zero warnings and errors. Final walkthrough: **89 passing checks**, followed by independent source and visual review.
 
 | UI gate | Result | Evidence |
 | --- | --- | --- |
-| Design | PASS | Approved image plus latest feedback: distinct entity shapes, contextual replay actions, always-wrapped inspector, totals retained and sidebar notes absent. |
-| Rendered states | PASS | Active/DLQ, JSON/raw/properties, exact clipboard copy, find, always-on wrapping, refresh, paging, real timer/pause, empty, malformed body, disconnect/reconnect, single/batch replay, edit/cancel and ID validation. |
-| Geometry | PASS | Desktop 1500×900 and compact 980×640 windows; aligned tree totals, readable topic source names, stacked inspector at compact size. |
-| Basic accessibility | PASS | Named controls, keyboard focus and Tab traversal checked; header and row checkbox Space activation checked at both sizes; numeric DLQ values accompany color emphasis. |
-| Final sweep | PASS | Repeated complete walkthrough and visually inspected refreshed captures after repairs. |
+| Design | PASS | Approved image, inline correlation metadata, state badges, editor actions and empty-state artwork. |
+| Rendered flows | PASS | Suggestions, search, copy, drafts, replay, selection, refresh, pause and reconnect. |
+| Geometry | PASS | Desktop 1500×900, compact 1100×800 and minimum 980×640; whole message ID and multiple editor lines checked. |
+| Basic accessibility | PASS | Named controls, keyboard suggestion navigation, checkbox Space activation and editor undo/redo. |
+| Final regression | PASS | Complete rerun and independent review after compact-layout repairs. |
 
-Limits: no broker integration, full screen-reader audit, or exhaustive DPI matrix. Sample arrivals are deliberately simulated. Window and pane sizes reset when the prototype restarts. The proof exercises WPF events and automation peers; it does not emulate every physical pointer gesture.
+![Investigation workspace](preview.png)
+
+![Inline edited replay in correlation results](editor-preview.png)
+
+![Completed search without matches](empty-preview.png)
+
+The [walkthrough report](verification.md) covers actual rendered WPF controls, suggestions, exact namespace results, copy, drafts, undo/redo, replay IDs, mixed selections, empty/stopped searches, refresh/pause, disconnect, and desktop/compact geometry. The original [checkbox regression](selection-regression.md) is retained as historical evidence.
+
+Run the bounded proof:
+
+```powershell
+dotnet run --project tools/ServiceBusEmulatorExplorer.InvestigationPrototype -- --verify artifacts/correlation-proof
+```
+
+It closes the window after verification. Popup content is captured separately because a WPF Popup has its own native surface.
+
+Limits: proof uses routed WPF actions and editor documents, not every physical pointer gesture. No broker integration, exhaustive DPI matrix, or full screen-reader audit is claimed. The mockup supplies visual authority; platform font rasterization and live sample content differ from the generated image. The earlier modal replay editor and its walkthrough have been replaced by inline editing.

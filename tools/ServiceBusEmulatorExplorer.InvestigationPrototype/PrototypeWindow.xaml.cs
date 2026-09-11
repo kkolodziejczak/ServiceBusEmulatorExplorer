@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -55,7 +54,7 @@ public partial class PrototypeWindow : Window
         if (e.PropertyName is "FocusedMessage" or "" or null) UpdateInspector();
         UpdateEmpty();
         if (e.PropertyName == nameof(Workspace.SelectedCount)) return;
-        SourceColumn.Visibility = Workspace.SelectedEntity?.Kind == "Topic" ? Visibility.Visible : Visibility.Collapsed;
+        UpdateSearchSurface();
         ActiveTab.IsChecked = !Workspace.IsDeadLetter;
         DeadLetterTab.IsChecked = Workspace.IsDeadLetter;
         ActiveTab.IsEnabled = Workspace.IsConnected;
@@ -65,16 +64,15 @@ public partial class PrototypeWindow : Window
 
     private void UpdateEmpty()
     {
-        EmptyMessage.Visibility = Workspace.Messages.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (EmptyResults is null) return;
+        EmptyResults.Visibility = Workspace.Messages.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        MessageGrid.Visibility = Workspace.Messages.Count > 0 ? Visibility.Visible : Visibility.Hidden;
         CopyButton.IsEnabled = Workspace.FocusedMessage is not null;
         FindButton.IsEnabled = Workspace.FocusedMessage is not null;
         SelectAllBox.IsChecked = Workspace.SelectedCount == 0 ? false : Workspace.SelectedCount == Workspace.Messages.Count ? true : null;
         SelectAllBox.IsEnabled = Workspace.Messages.Count > 0;
-        ReplayButton.Content = $"Replay ({Workspace.ReplayTargets.Count})";
-        ReplayButton.IsEnabled = Workspace.CanReplay;
-        EditReplayButton.IsEnabled = Workspace.CanEditAndReplay;
+        UpdateReplaySurface();
     }
-
     private void Search_Changed(object sender, TextChangedEventArgs e)
     {
         if (DataContext is global::ServiceBusEmulatorExplorer.InvestigationPrototype.Workspace) Workspace.SetSearch(SearchBox.Text);
@@ -82,13 +80,15 @@ public partial class PrototypeWindow : Window
 
     private void Tree_Selected(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
-        if (e.NewValue is not EntityNode node || node.IsGroup || ReferenceEquals(node, Workspace.SelectedEntity)) return;
+        if (e.NewValue is not EntityNode node || node.IsGroup || (ReferenceEquals(node, Workspace.SelectedEntity) && !Workspace.IsCorrelationSearch)) return;
         synchronizingSelection = true;
         try { Workspace.SelectEntity(node); }
         finally { synchronizingSelection = false; }
         SynchronizeSelection();
         UpdateInspector();
         AddLog($"Opened {node.Path}.");
+        FindScrollViewer(MessageGrid)?.ScrollToTop();
+        ConfigureTimer();
     }
 
     private void Active_Click(object sender, RoutedEventArgs e) => ChangeMessageView(false);
@@ -103,6 +103,8 @@ public partial class PrototypeWindow : Window
         finally { synchronizingSelection = false; }
         SynchronizeSelection();
         UpdateInspector();
+        ConfigureTimer();
+        FindScrollViewer(MessageGrid)?.ScrollToTop();
     }
 
     private void Messages_Selected(object sender, SelectionChangedEventArgs e)
@@ -180,6 +182,7 @@ public partial class PrototypeWindow : Window
         finally { synchronizingSelection = false; }
         SynchronizeSelection();
         AddLog(simulateArrival ? "Automatic refresh completed; sample arrival simulated." : "Messages refreshed.");
+        QueueScan();
     }
 
     private void LoadMore_Click(object sender, RoutedEventArgs e)
@@ -191,28 +194,7 @@ public partial class PrototypeWindow : Window
         AddLog("Loaded the next page.");
     }
 
-    private void Replay_Click(object sender, RoutedEventArgs e)
-    {
-        Workspace.Replay();
-        AddLog(Workspace.Status);
-    }
-
-    private void EditReplay_Click(object sender, RoutedEventArgs e)
-    {
-        if (!Workspace.CanEditAndReplay) return;
-        var source = Workspace.ReplayTargets.Single();
-        var destination = source.Source.Contains('/') ? source.Source.Split('/')[0] : source.Source;
-        var dialog = new ReplayDialog(source, destination, Workspace.ValidateReplayId) { Owner = this };
-        refreshTimer.Stop();
-        try
-        {
-            if (dialog.ShowDialog() != true) return;
-            try { Workspace.Replay(dialog.EditedBody, dialog.NewMessageId); AddLog(Workspace.Status); }
-            catch (ArgumentException exception) { AddLog(exception.Message); }
-        }
-        finally { ConfigureTimer(); }
-    }
-
+    private void Replay_Click(object sender, RoutedEventArgs e) => ReplayDraft();
     private void Connection_Click(object sender, RoutedEventArgs e)
     {
         synchronizingSelection = true;
@@ -243,7 +225,7 @@ public partial class PrototypeWindow : Window
         refreshTimer.Stop();
         var seconds = AutoInterval.SelectedIndex switch { 1 => 5, 2 => 10, 3 => 30, _ => 0 };
         PauseButton.IsEnabled = seconds > 0;
-        if (seconds == 0 || paused || !Workspace.IsConnected) return;
+        if (seconds == 0 || paused || !Workspace.IsConnected || Workspace.IsCorrelationSearch) return;
         refreshTimer.Interval = TimeSpan.FromSeconds(seconds);
         refreshTimer.Start();
     }
@@ -262,27 +244,7 @@ public partial class PrototypeWindow : Window
         UpdateInspector();
     }
 
-    private void UpdateInspector()
-    {
-        if (BodyViewer is null) return;
-        var body = Workspace.FocusedMessage is { } row ? inspectorMode == "Properties" ? row.Properties : row.Body : "Select a message to inspect its body.";
-        if (body == renderedBody && inspectorMode == renderedMode) return;
-        renderedBody = body;
-        renderedMode = inspectorMode;
-        var highlight = inspectorMode != "Raw";
-        if (highlight && Workspace.FocusedMessage is not null)
-        {
-            try { using var document = JsonDocument.Parse(body); body = JsonSerializer.Serialize(document.RootElement, new JsonSerializerOptions { WriteIndented = true }); }
-            catch (JsonException) { highlight = false; }
-        }
-        var paragraph = new Paragraph { Margin = new Thickness(0), LineHeight = 24 };
-        if (highlight) AddHighlightedJson(paragraph, body);
-        else paragraph.Inlines.Add(new Run(body));
-        BodyViewer.Document = new FlowDocument(paragraph) { PagePadding = new Thickness(0), FontFamily = new FontFamily("Consolas"), FontSize = 14, Foreground = new SolidColorBrush(Color.FromRgb(220, 231, 243)) };
-        BodyViewer.Document.PageWidth = double.NaN;
-        findOffset = 0;
-    }
-
+    private void UpdateInspector() => RenderInspector();
     private static void AddHighlightedJson(Paragraph paragraph, string text)
     {
         var position = 0;
@@ -298,7 +260,7 @@ public partial class PrototypeWindow : Window
     private void Copy_Click(object sender, RoutedEventArgs e)
     {
         if (Workspace.FocusedMessage is not { } row) return;
-        try { Clipboard.SetText(inspectorMode == "Properties" ? row.Properties : row.Body); AddLog("Copied original text to clipboard."); }
+        try { Clipboard.SetText(inspectorMode == "Properties" ? row.Properties : inspectorMode == "JSON" ? BodyEditor.Text : row.Body); AddLog("Copied displayed text to clipboard."); }
         catch (System.Runtime.InteropServices.COMException) { AddLog("Clipboard is busy. Try Copy again."); }
     }
 
@@ -311,10 +273,18 @@ public partial class PrototypeWindow : Window
     {
         var query = FindBox.Text;
         if (string.IsNullOrEmpty(query)) return;
-        var full = new TextRange(BodyViewer.Document.ContentStart, BodyViewer.Document.ContentEnd).Text;
+        var full = inspectorMode == "JSON" ? BodyEditor.Text : new TextRange(BodyViewer.Document.ContentStart, BodyViewer.Document.ContentEnd).Text;
         var index = full.IndexOf(query, Math.Min(findOffset, full.Length), StringComparison.OrdinalIgnoreCase);
         if (index < 0) index = full.IndexOf(query, StringComparison.OrdinalIgnoreCase);
         if (index < 0) { AddLog($"No matches for “{query}”."); return; }
+        if (inspectorMode == "JSON")
+        {
+            BodyEditor.Select(index, query.Length);
+            BodyEditor.ScrollToLine(BodyEditor.Document.GetLineByOffset(index).LineNumber);
+            BodyEditor.Focus();
+            findOffset = index + query.Length;
+            return;
+        }
         var start = TextPosition(index);
         var end = TextPosition(index + query.Length);
         BodyViewer.Selection.Select(start, end);
@@ -353,24 +323,34 @@ public partial class PrototypeWindow : Window
     private void UpdateLayoutMode()
     {
         var nextCompact = ActualWidth < 1200;
-        if (nextCompact == compact && ContentGrid.ColumnDefinitions[2].Width.Value == (compact ? 0 : 1.1)) return;
         compact = nextCompact;
+        var shortWindow = compact && ActualHeight < 720;
+        ActiveTab.Padding = DeadLetterTab.Padding = shortWindow ? new Thickness(12, 4, 12, 4) : new Thickness(12, 8, 12, 8);
+        RefreshButton.Padding = shortWindow ? new Thickness(8, 4, 8, 4) : new Thickness(12, 7, 12, 7);
+        ListHeading.Visibility = shortWindow ? Visibility.Collapsed : Visibility.Visible;
+        InspectorMessageId.Visibility = shortWindow ? Visibility.Collapsed : Visibility.Visible;
+        CorrelationMetadata.Padding = shortWindow ? new Thickness(6, 4, 6, 4) : new Thickness(10, 9, 10, 9);
+        BodyEditor.Padding = shortWindow ? new Thickness(12, 5, 12, 5) : new Thickness(14, 18, 14, 18);
+        ReplayActions.Padding = shortWindow ? new Thickness(8, 5, 8, 5) : new Thickness(10);
+        LoadMoreButton.Padding = shortWindow ? new Thickness(8, 4, 8, 4) : new Thickness(12, 7, 12, 7);
+        EmptySearchIcon.Visibility = shortWindow ? Visibility.Collapsed : Visibility.Visible;
+        EmptyResults.Margin = shortWindow ? new Thickness(12) : new Thickness(25);
         MessagesHeading.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         ListHeading.Margin = compact ? new Thickness(15, 9, 15, 8) : new Thickness(19, 18, 15, 12);
-        InspectorHeading.Margin = compact ? new Thickness(15, 8, 15, 5) : new Thickness(20, 19, 15, 18);
+        InspectorHeading.Margin = compact ? new Thickness(15, 8, 15, 5) : new Thickness(18, 14, 15, 10);
         InspectorTitle.FontSize = compact ? 18 : 25;
-        MessageGrid.RowHeight = compact ? 50 : 63;
+        MessageGrid.RowHeight = compact ? 50 : 54;
         MessageGrid.ColumnHeaderHeight = compact ? 30 : double.NaN;
         ListToolbar.Padding = compact ? new Thickness(12, 4, 12, 4) : new Thickness(12, 9, 12, 9);
         ListFooter.Padding = compact ? new Thickness(15, 3, 15, 3) : new Thickness(15, 10, 15, 10);
         ContentGrid.ColumnDefinitions[0].MinWidth = compact ? 0 : 370;
         ContentGrid.ColumnDefinitions[2].MinWidth = compact ? 0 : 380;
-        ContentGrid.ColumnDefinitions[0].Width = new GridLength(compact ? 1 : 1.05, GridUnitType.Star);
+        ContentGrid.ColumnDefinitions[0].Width = new GridLength(compact ? 1 : 1.1, GridUnitType.Star);
         ContentGrid.ColumnDefinitions[1].Width = new GridLength(compact ? 0 : 5);
-        ContentGrid.ColumnDefinitions[2].Width = compact ? new GridLength(0) : new GridLength(1.1, GridUnitType.Star);
-        ContentGrid.RowDefinitions[0].Height = new GridLength(compact ? 1.6 : 1, GridUnitType.Star);
+        ContentGrid.ColumnDefinitions[2].Width = compact ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+        ContentGrid.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
         ContentGrid.RowDefinitions[1].Height = new GridLength(compact ? 5 : 0);
-        ContentGrid.RowDefinitions[2].Height = compact ? new GridLength(0.9, GridUnitType.Star) : new GridLength(0);
+        ContentGrid.RowDefinitions[2].Height = compact ? new GridLength(1.25, GridUnitType.Star) : new GridLength(0);
         Grid.SetColumn(InspectorPane, compact ? 0 : 2);
         Grid.SetRow(InspectorPane, compact ? 2 : 0);
         Grid.SetColumn(InspectorSplitter, compact ? 0 : 1);
@@ -378,5 +358,6 @@ public partial class PrototypeWindow : Window
         InspectorSplitter.Width = compact ? double.NaN : 5;
         InspectorSplitter.Height = compact ? 5 : double.NaN;
         InspectorSplitter.ResizeDirection = compact ? GridResizeDirection.Rows : GridResizeDirection.Columns;
+        UpdateSearchSurface();
     }
 }
