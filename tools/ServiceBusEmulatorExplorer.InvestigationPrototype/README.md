@@ -1,6 +1,6 @@
 # Investigation workspace prototype
 
-This throwaway WPF application implements the [approved investigation mockup](approved-investigation-layout.png) on branch `prototype/investigation-workspace`. It uses synthetic, in-memory data only: no Service Bus connection, credentials, or persistence. Restarting resets messages, drafts, search history, and replay numbering.
+This WPF prototype implements the [approved unified-search and Watch mockup](watch-search-mockup-real-icon.png) on branch `prototype/investigation-workspace`. It uses synthetic, in-memory data only: no Service Bus connection, credentials, or persistence. Restarting resets messages, drafts, searches, watches, preferences and replay numbering. The actual app icon asset is reused in the window, tray and desktop notification.
 
 Run from the repository root:
 
@@ -10,7 +10,7 @@ dotnet run --project tools/ServiceBusEmulatorExplorer.InvestigationPrototype
 
 ## Investigate a correlation
 
-Type `checkout-` in **Correlation ID**. Suggestions include known IDs and recent searches, using the same dropdown treatment as Namespace search. Use Up/Down and Enter, click a suggestion, or type any complete ID and press Enter. Search matches the full ID exactly, including case.
+Use the single **Search** field on the left. Suggestions are grouped as entities, correlation IDs, and messages already loaded in this session. Typing filters the entity tree. Use Up/Down and Enter or click a suggestion. Entity results open that entity; correlation results search all entities; message results open that exact message. The two explicit actions search all entities by correlation ID or message ID. Unknown pasted values are never silently classified. Global ID searches match the full ID exactly, including case.
 
 Results combine queues and subscriptions, including Active and DLQ messages. The location and state stay visible for every delivery. Use the copy icon directly beside a correlation ID to search your logs, or **Find related** in the inspector to search the namespace.
 
@@ -20,7 +20,7 @@ A real broker implementation will need cancellable paged peeking and explicit in
 
 ## Inspect and replay
 
-The grid shows event name, message ID, correlation ID, location and state. Checkboxes toggle independently without Shift. The aligned header checkbox selects or clears the displayed results. Clicking a row previews it without changing checked messages.
+The grid shows event name, message ID, correlation ID, location, state and enqueue time (UTC). Checkboxes toggle independently without Shift. The aligned header checkbox selects or clears the displayed results. Clicking a row previews it without changing checked messages.
 
 JSON is formatted and colored directly in the inspector. DLQ JSON is editable; Raw and Properties retain original text and metadata. Plain-text and malformed-JSON sample messages are deliberately included and labelled **Body (not JSON)**; their contents are preserved. **Replay** sends an unchanged sample copy with a default ID such as `evt-001042-replay-1`. A subsequent replay advances the suffix. Correlation ID stays unchanged.
 
@@ -32,21 +32,31 @@ The replay counter is local to this prototype run, not a shared audit of all use
 
 ## Browse and refresh
 
-The **Namespace** search filters entity paths as you type, ignoring case. Suggestions show the full path and entity type; use Up/Down and Enter or click a suggestion to open it. Escape dismisses suggestions. The **×** button clears the namespace filter and restores the full tree while keeping the current message view. A search with no matches shows an explicit empty state. Message and DLQ totals remain unchanged by filtering.
+Entity matching ignores case. Escape dismisses suggestions. The **×** button clears both the tree filter and any applied global search. Unmatched entity text retains explicit global search actions. Message and DLQ totals remain unchanged by filtering.
 
 Selecting an entity or switching Active/DLQ loads its first 50 messages. **Load more** adds another 50. Refresh preserves focused and checked rows; retention can temporarily show more than the nominal page limit. Automatic refresh can be paused and resumes after leaving search through the tree. Search pauses automatic sample arrivals.
 
 Resize to switch between side-by-side and stacked panes. The compact layout reduces heading space to retain usable rows and editor lines. Namespace totals are preserved, including unknown totals. The known emulator count limitation must not be used to skip future broker searches.
 
+## Watch, tray and console
+
+Select a queue or subscription and choose **Watch** for Active messages, DLQ messages, or both. Every 15 seconds the prototype generates a sample arrival in each watched bucket, independently of the current view or auto-refresh. Existing messages do not alert when Watch is enabled. Disconnect pauses generation. The header bell lists watched scopes and pending notifications.
+
+Notifications use a separate, persistent WPF desktop window, not a timed native Windows toast. They remain while the main window is hidden, group arrivals by entity/bucket, and offer **Investigate** and **Dismiss**. Investigate restores the main window and opens the exact new message; Dismiss leaves messages untouched. Stop watching clears that target's pending notifications.
+
+Closing the main window sends it to the Windows tray by default. Double-click the real app tray icon or use **Open Service Bus Explorer** to restore it; **Exit** stops the process. The Settings gear provides in-session close-to-tray and notification toggles. Connection-profile editing and persistence are not part of this mockup implementation.
+
+The dark **Activity log** spans all three panes, with timestamped colored entries and a last-operation footer. Collapse releases space; Clear removes log history. The console height adapts at compact sizes.
+
 ## Rendered evidence
 
-Build: zero warnings and errors. Final walkthrough: **129 passing checks**, followed by independent source and visual review.
+Build: zero warnings and errors. Final walkthrough: **158 passing checks**, followed by independent visual review. A separate [real tray lifetime proof](tray-verification.md) adds **11 passing checks**, including timer-driven arrivals while hidden, Investigate, disabling close-to-tray, and Exit cleanup.
 
 | UI gate | Result | Evidence |
 | --- | --- | --- |
 | Design | PASS | Approved image, inline correlation metadata, state badges, editor actions and empty-state artwork. |
 | Rendered flows | PASS | Suggestions, search, copy, drafts, replay, selection, refresh, pause and reconnect. |
-| Geometry | PASS | Desktop 1500×900, compact 1100×800 and minimum 980×640; whole message ID and multiple editor lines checked. |
+| Geometry | PASS | Desktop 1500×1000, compact 1100×800 and minimum 980×640; whole message ID and multiple editor lines checked. |
 | Basic accessibility | PASS | Named controls, keyboard suggestion navigation, checkbox Space activation and editor undo/redo. |
 | Final regression | PASS | Complete rerun and independent review after compact-layout repairs. |
 
@@ -65,5 +75,11 @@ dotnet run --project tools/ServiceBusEmulatorExplorer.InvestigationPrototype -- 
 ```
 
 It closes the window after verification. Popup content is captured separately because a WPF Popup has its own native surface.
+
+The real tray check takes about 20 seconds and cleans up its windows and icon:
+
+```powershell
+dotnet run --project tools/ServiceBusEmulatorExplorer.InvestigationPrototype -- --verify-tray artifacts/tray-proof
+```
 
 Limits: proof uses routed WPF actions and editor documents, not every physical pointer gesture. No broker integration, exhaustive DPI matrix, or full screen-reader audit is claimed. The mockup supplies visual authority; platform font rasterization and live sample content differ from the generated image. The earlier modal replay editor and its walkthrough have been replaced by inline editing.

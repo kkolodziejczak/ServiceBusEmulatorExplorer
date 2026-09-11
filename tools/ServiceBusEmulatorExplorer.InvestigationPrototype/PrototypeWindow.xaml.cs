@@ -24,9 +24,10 @@ public partial class PrototypeWindow : Window
     {
         InitializeComponent();
         DataContext = Workspace;
+        InitializeWatch();
         Workspace.PropertyChanged += Workspace_Changed;
         refreshTimer.Tick += RefreshTimer_Tick;
-        Closed += (_, _) => { refreshTimer.Stop(); Workspace.PropertyChanged -= Workspace_Changed; };
+        Closed += (_, _) => { refreshTimer.Stop(); CloseWatch(); Workspace.PropertyChanged -= Workspace_Changed; };
         Loaded += (_, _) => { SynchronizeSelection(); UpdateInspector(); UpdateEmpty(); UpdateLayoutMode(); SelectInitialEntity(); ConfigureTimer(); };
         AddLog("Connected to local sample data.");
     }
@@ -55,12 +56,13 @@ public partial class PrototypeWindow : Window
         UpdateEmpty();
         if (e.PropertyName == nameof(Workspace.SelectedCount)) return;
         UpdateSearchSurface();
+        UpdateWatchSurface();
         ActiveTab.IsChecked = !Workspace.IsDeadLetter;
         DeadLetterTab.IsChecked = Workspace.IsDeadLetter;
         ActiveTab.IsEnabled = Workspace.IsConnected;
         DeadLetterTab.IsEnabled = Workspace.IsConnected;
         NamespaceTree.IsEnabled = Workspace.IsConnected;
-        if (!Workspace.IsConnected) EntitySuggestionsPopup.IsOpen = false;
+        if (!Workspace.IsConnected) { SuggestionsPopup.IsOpen = false; loadedSearchMessages.Clear(); }
     }
 
     private void UpdateEmpty()
@@ -78,9 +80,9 @@ public partial class PrototypeWindow : Window
     {
         if (DataContext is not global::ServiceBusEmulatorExplorer.InvestigationPrototype.Workspace) return;
         Workspace.SetSearch(SearchBox.Text);
-        ClearEntitySearchButton.Visibility = SearchBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        UpdateClearSearch();
         NamespaceEmpty.Visibility = Workspace.Roots.Any(node => node.IsVisible) ? Visibility.Collapsed : Visibility.Visible;
-        UpdateEntitySuggestions();
+        UpdateSuggestions();
     }
 
     private void Tree_Selected(object sender, RoutedPropertyChangedEventArgs<object> e)
@@ -319,8 +321,29 @@ public partial class PrototypeWindow : Window
     private void AddLog(string message)
     {
         if (LogText is null) return;
-        var lines = (DateTime.UtcNow.ToString("HH:mm:ss 'UTC'  ") + message + Environment.NewLine + LogText.Text).Split(Environment.NewLine);
-        LogText.Text = string.Join(Environment.NewLine, lines.Take(40));
+        var time = DateTime.UtcNow.ToString("HH:mm:ss 'UTC'");
+        var watch = message.Contains("watch", StringComparison.OrdinalIgnoreCase) || message.Contains("arrival", StringComparison.OrdinalIgnoreCase);
+        var paragraph = new Paragraph { Margin = new Thickness(0, 2, 0, 2) };
+        paragraph.Inlines.Add(new Run(time + "   ") { Foreground = new SolidColorBrush(Color.FromRgb(135, 167, 191)) });
+        paragraph.Inlines.Add(new Run(watch ? "WATCH   " : "INFO    ") { Foreground = watch ? Brushes.Cyan : Brushes.LightGreen });
+        paragraph.Inlines.Add(new Run(message));
+        LogText.Document.Blocks.Add(paragraph);
+        while (LogText.Document.Blocks.Count > 100) LogText.Document.Blocks.Remove(LogText.Document.Blocks.FirstBlock);
+        LogText.ScrollToEnd();
+        LastOperation.Text = "Last operation: " + message;
+        LastOperation.ToolTip = message;
+        LastOperationTime.Text = time;
+    }
+
+    private void ClearLog_Click(object sender, RoutedEventArgs e) => LogText.Document.Blocks.Clear();
+
+    private void ToggleLog_Click(object sender, RoutedEventArgs e)
+    {
+        var expanded = LogPanel.Visibility != Visibility.Visible;
+        LogPanel.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
+        LogHeading.Text = expanded ? "Activity log · Expanded" : "Activity log · Collapsed";
+        LogToggle.Content = expanded ? "⌃" : "⌄";
+        System.Windows.Automation.AutomationProperties.SetName(LogToggle, expanded ? "Collapse activity log" : "Expand activity log");
     }
 
     private void Window_SizeChanged(object sender, SizeChangedEventArgs e) { if (IsLoaded) UpdateLayoutMode(); }
@@ -330,6 +353,8 @@ public partial class PrototypeWindow : Window
         var nextCompact = ActualWidth < 1200;
         compact = nextCompact;
         var shortWindow = compact && ActualHeight < 720;
+        EnqueuedColumn.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        LogPanel.Height = shortWindow ? 35 : compact ? 95 : 150;
         ActiveTab.Padding = DeadLetterTab.Padding = shortWindow ? new Thickness(12, 4, 12, 4) : new Thickness(12, 8, 12, 8);
         RefreshButton.Padding = shortWindow ? new Thickness(8, 4, 8, 4) : new Thickness(12, 7, 12, 7);
         ListHeading.Visibility = shortWindow ? Visibility.Collapsed : Visibility.Visible;
@@ -350,7 +375,7 @@ public partial class PrototypeWindow : Window
         ListFooter.Padding = compact ? new Thickness(15, 3, 15, 3) : new Thickness(15, 10, 15, 10);
         ContentGrid.ColumnDefinitions[0].MinWidth = compact ? 0 : 370;
         ContentGrid.ColumnDefinitions[2].MinWidth = compact ? 0 : 380;
-        ContentGrid.ColumnDefinitions[0].Width = new GridLength(compact ? 1 : 1.1, GridUnitType.Star);
+        ContentGrid.ColumnDefinitions[0].Width = new GridLength(compact ? 1 : 1.4, GridUnitType.Star);
         ContentGrid.ColumnDefinitions[1].Width = new GridLength(compact ? 0 : 5);
         ContentGrid.ColumnDefinitions[2].Width = compact ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
         ContentGrid.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);

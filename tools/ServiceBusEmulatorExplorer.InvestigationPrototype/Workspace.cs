@@ -35,6 +35,7 @@ public sealed class Workspace : INotifyPropertyChanged
         ? NextId(row, replayNumbers, AllMessageIds()).Id : "";
     public bool CanLoadMore => IsConnected && !IsCorrelationSearch && Messages.Count < CurrentRows().Count();
     public bool IsCorrelationSearch { get; private set; }
+    public bool SearchByMessageId { get; private set; }
     public string CorrelationQuery { get; private set; } = "";
     public string SearchStatus { get; private set; } = "";
     public bool IsSearching { get; private set; }
@@ -91,7 +92,7 @@ public sealed class Workspace : INotifyPropertyChanged
     public void Refresh()
     {
         if (!IsConnected || SelectedEntity is null) return;
-        if (IsCorrelationSearch) { StartCorrelationSearch(CorrelationQuery); return; }
+        if (IsCorrelationSearch) { StartSearch(CorrelationQuery, SearchByMessageId); return; }
         var focusedKey = FocusedMessage?.Key;
         var rows = CurrentRows().OrderByDescending(row => row.Enqueued).ThenBy(row => row.Key).ToList();
         var visible = rows.Take(visibleLimit).ToList();
@@ -138,7 +139,13 @@ public sealed class Workspace : INotifyPropertyChanged
             .Distinct(StringComparer.Ordinal).Take(8).ToArray();
     }
 
-    public void StartCorrelationSearch(string query)
+    public IReadOnlyList<MessageRow> SnapshotMessages() => fixtures.Values.SelectMany(rows => rows).ToArray();
+
+    public void StartCorrelationSearch(string query) => StartSearch(query, false);
+
+    public void StartMessageIdSearch(string query) => StartSearch(query, true);
+
+    private void StartSearch(string query, bool messageId)
     {
         if (!IsConnected) return;
         query = query.Trim();
@@ -146,10 +153,14 @@ public sealed class Workspace : INotifyPropertyChanged
         ClearSelection();
         Messages.Clear();
         IsCorrelationSearch = true;
+        SearchByMessageId = messageId;
         CorrelationQuery = query;
-        recentCorrelations.Remove(query);
-        recentCorrelations.Insert(0, query);
-        if (recentCorrelations.Count > 12) recentCorrelations.RemoveAt(12);
+        if (!messageId)
+        {
+            recentCorrelations.Remove(query);
+            recentCorrelations.Insert(0, query);
+            if (recentCorrelations.Count > 12) recentCorrelations.RemoveAt(12);
+        }
         searchSnapshot = fixtures.Values.SelectMany(rows => rows)
             .OrderByDescending(row => row.Enqueued).ThenBy(row => row.Key, StringComparer.Ordinal).ToList();
         ScannedMessages = 0;
@@ -163,7 +174,7 @@ public sealed class Workspace : INotifyPropertyChanged
         if (!IsSearching) return;
         var page = searchSnapshot.Skip(ScannedMessages).Take(50).ToArray();
         foreach (var row in page)
-            if (string.Equals(row.CorrelationId, CorrelationQuery, StringComparison.Ordinal)) Messages.Add(row);
+            if (string.Equals(SearchByMessageId ? row.MessageId : row.CorrelationId, CorrelationQuery, StringComparison.Ordinal)) Messages.Add(row);
         ScannedMessages += page.Length;
         if (ScannedMessages >= searchSnapshot.Count)
         {
@@ -187,7 +198,7 @@ public sealed class Workspace : INotifyPropertyChanged
             : SearchComplete ? "Search complete" : "Search incomplete";
         SearchStatus += $" · {SearchScannedEntities} of {SearchTotalEntities} entities scanned";
         Footer = $"{Messages.Count} match{(Messages.Count == 1 ? "" : "es")}{(SearchComplete ? "" : " so far")} · {ScannedMessages} scanned · {SearchStatus}";
-        Status = $"{SearchStatus} · Exact correlation ID · Sample data";
+        Status = $"{SearchStatus} · Exact {(SearchByMessageId ? "message" : "correlation")} ID · Sample data";
         Changed();
     }
 
@@ -203,12 +214,34 @@ public sealed class Workspace : INotifyPropertyChanged
     private void ResetCorrelationSearch()
     {
         IsCorrelationSearch = false;
+        SearchByMessageId = false;
         CorrelationQuery = "";
         SearchStatus = "";
         IsSearching = false;
         SearchComplete = false;
         ScannedMessages = 0;
         searchSnapshot.Clear();
+    }
+
+    public bool OpenMessage(MessageRow target)
+    {
+        if (!IsConnected) return false;
+        var entity = Roots.SelectMany(PrototypeData.Flatten).FirstOrDefault(node => !node.IsGroup && node.Kind != "Topic" && node.Path == target.Source);
+        if (entity is null || !fixtures.TryGetValue(target.Source + (target.IsDeadLetter ? "/$deadletter" : ""), out var rows)) return false;
+        var stored = rows.FirstOrDefault(row => row.Key == target.Key);
+        if (stored is null) return false;
+        ClearSelection();
+        ResetCorrelationSearch();
+        SetSearch("");
+        SelectedEntity = entity;
+        IsDeadLetter = stored.IsDeadLetter;
+        var position = rows.OrderByDescending(row => row.Enqueued).ThenBy(row => row.Key).ToList().IndexOf(stored);
+        visibleLimit = ((position / 50) + 1) * 50;
+        pendingIncoming = 0;
+        foreach (var parent in Roots.SelectMany(PrototypeData.Flatten).Where(node => PrototypeData.Flatten(node).Contains(entity))) parent.IsExpanded = true;
+        Refresh();
+        FocusedMessage = stored;
+        return true;
     }
 
     public int Replay(string? editedBody = null, string? newMessageId = null)
@@ -360,22 +393,37 @@ public sealed class Workspace : INotifyPropertyChanged
     public void SimulateIncoming()
     {
         if (!IsConnected || SelectedEntity is null || IsCorrelationSearch) return;
-        var source = SelectedEntity.Kind == "Topic" ? SelectedEntity.Children[0] : SelectedEntity;
-        var row = PrototypeData.CreateMessage(source.Path, incomingSequence++, IsDeadLetter, incoming: true);
-        row.PropertyChanged += RowChanged;
-        fixtures[source.Path + (IsDeadLetter ? "/$deadletter" : "")].Insert(0, row);
-        IncrementCount(source);
-        var parent = Roots.SelectMany(PrototypeData.Flatten).FirstOrDefault(node => node.Children.Contains(source) && node.Kind == "Topic");
-        if (parent is not null) IncrementCount(parent);
+        InjectSampleArrival(SelectedEntity.Path, IsDeadLetter);
         pendingIncoming++;
         Status = $"{pendingIncoming} new message{(pendingIncoming == 1 ? "" : "s")} available · Refresh to load";
         Changed();
     }
 
-    private void IncrementCount(EntityNode node)
+    public MessageRow InjectSampleArrival(string entityPath, bool deadLetter)
     {
-        if (IsDeadLetter && int.TryParse(node.DlqCount, out var dead)) node.DlqCount = (dead + 1).ToString();
-        if (!IsDeadLetter && int.TryParse(node.MessageCount, out var active)) node.MessageCount = (active + 1).ToString();
+        if (!IsConnected) throw new InvalidOperationException("Connect before simulating an arrival.");
+        var entity = Roots.SelectMany(PrototypeData.Flatten).FirstOrDefault(node => !node.IsGroup && node.Path == entityPath)
+            ?? throw new ArgumentException("The arrival destination is unavailable.", nameof(entityPath));
+        var source = entity.Kind == "Topic" ? entity.Children.FirstOrDefault() : entity;
+        if (source is null) throw new ArgumentException("The topic has no sample subscription.", nameof(entityPath));
+        var destination = fixtures[source.Path + (deadLetter ? "/$deadletter" : "")];
+        var existingIds = AllMessageIds();
+        MessageRow row;
+        do { row = PrototypeData.CreateMessage(source.Path, incomingSequence++, deadLetter, incoming: true); }
+        while (existingIds.Contains(row.MessageId));
+        row.PropertyChanged += RowChanged;
+        destination.Insert(0, row);
+        IncrementCount(source, deadLetter);
+        var parent = Roots.SelectMany(PrototypeData.Flatten).FirstOrDefault(node => node.Children.Contains(source) && node.Kind == "Topic");
+        if (parent is not null) IncrementCount(parent, deadLetter);
+        Changed();
+        return row;
+    }
+
+    private static void IncrementCount(EntityNode node, bool deadLetter)
+    {
+        if (deadLetter && int.TryParse(node.DlqCount, out var dead)) node.DlqCount = (dead + 1).ToString();
+        if (!deadLetter && int.TryParse(node.MessageCount, out var active)) node.MessageCount = (active + 1).ToString();
         node.NotifyCounts();
     }
 

@@ -85,6 +85,7 @@ public partial class PrototypeWindow
         DiscardButton.Visibility = dirty ? Visibility.Visible : Visibility.Collapsed;
         var targets = Workspace.ReplayTargets;
         ReplayActions.Visibility = row is not null && (row.IsDeadLetter || targets.Any(target => target.IsDeadLetter)) ? Visibility.Visible : Visibility.Collapsed;
+        ReplayButton.Visibility = ReplayActions.Visibility;
         ReplayButton.Content = dirty ? "▶  Edit and Replay" : targets.Count > 1 ? $"▶  Replay ({targets.Count})" : "▶  Replay";
         NextReplayIdText.Text = targets.Count > 1 ? "A new ID for each message" : $"Next ID: {Workspace.NextReplayId}";
         NextReplayIdText.ToolTip = NextReplayIdText.Text;
@@ -103,6 +104,7 @@ public partial class PrototypeWindow
         ReplayButton.IsEnabled = Workspace.CanReplay && problem is null;
         EditError.Text = problem ?? "";
         EditError.Visibility = problem is null ? Visibility.Collapsed : Visibility.Visible;
+        ReplayActions.Visibility = dirty || problem is not null ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void Discard_Click(object sender, RoutedEventArgs e)

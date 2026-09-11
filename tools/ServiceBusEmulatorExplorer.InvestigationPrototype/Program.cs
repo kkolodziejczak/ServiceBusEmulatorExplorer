@@ -13,12 +13,14 @@ internal static class Program
         RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
         var application = new Application();
         var window = new PrototypeWindow();
-        if (args.Length == 2 && (args[0] == "--verify" || args[0] == "--verify-selection"))
+        var verifyTray = args.Length == 2 && args[0] == "--verify-tray";
+        window.ConfigureApplicationLifetime(args.Length > 0 && !verifyTray);
+        if (args.Length == 2 && (args[0] == "--verify" || args[0] == "--verify-selection" || verifyTray))
         {
             string output = Path.GetFullPath(args[1]);
             window.Loaded += async (_, _) =>
             {
-                int result = args[0] == "--verify-selection"
+                int result = verifyTray ? await TrayLifetimeProof.RunAsync(window, output) : args[0] == "--verify-selection"
                     ? await CheckboxSelectionProof.RunAsync(window, output)
                     : await InvestigationProof.RunAsync(window, output);
                 application.Shutdown(result);

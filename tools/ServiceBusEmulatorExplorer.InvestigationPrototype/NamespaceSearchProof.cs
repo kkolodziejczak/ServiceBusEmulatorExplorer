@@ -35,15 +35,15 @@ internal static class NamespaceSearchProof
         var nodes = workspace.Roots.SelectMany(PrototypeData.Flatten).ToArray();
         var totals = nodes.Select(node => (node.Path, node.MessageCount, node.DlqCount)).ToArray();
         var box = (TextBox)window.FindName("SearchBox");
-        var list = (ListBox)window.FindName("EntitySuggestionsList");
-        var popup = (Popup)window.FindName("EntitySuggestionsPopup");
-        var clear = (Button)window.FindName("ClearEntitySearchButton");
+        var list = (ListBox)window.FindName("SuggestionsList");
+        var popup = (Popup)window.FindName("SuggestionsPopup");
+        var clear = (Button)window.FindName("ClearSearchButton");
         var empty = (TextBlock)window.FindName("NamespaceEmpty");
         box.Focus();
         box.Text = "order";
         await Settle();
         Check(popup.IsOpen && list.IsVisible && list.Items.Count >= 2, $"{viewport}: namespace typing renders entity suggestions", report);
-        Check(list.Items.Cast<EntityNode>().All(node => !node.IsGroup && node.Path.Contains("order", StringComparison.OrdinalIgnoreCase)), $"{viewport}: namespace suggestions match complete entity paths", report);
+        Check(list.Items.Cast<SearchSuggestion>().Where(item => item.Kind == "entity").All(item => item.Entity is { IsGroup: false } node && node.Path.Contains("order", StringComparison.OrdinalIgnoreCase)), $"{viewport}: namespace suggestions match complete entity paths", report);
         Check(nodes.Any(node => !node.IsVisible) && nodes.Any(node => node.IsVisible), $"{viewport}: namespace typing filters the tree live", report);
         Check(clear.IsVisible && clear.IsEnabled && !string.IsNullOrEmpty(AutomationProperties.GetName(clear)), $"{viewport}: namespace clear action is visible and accessible", report);
         ProofCapture.CheckBounds(window, [box, clear]);
@@ -65,7 +65,7 @@ internal static class NamespaceSearchProof
         Check(workspace.EntityPath == "order-events/billing" && box.Text == workspace.EntityPath && !popup.IsOpen, $"{viewport}: Enter fills the full subscription path and opens its messages", report);
         box.Text = "webhook";
         await Settle();
-        list.SelectedIndex = 0;
+        list.SelectedItem = list.Items.Cast<SearchSuggestion>().First(item => item.Kind == "entity");
         list.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
             { RoutedEvent = UIElement.PreviewMouseLeftButtonUpEvent });
         await Settle();
@@ -73,7 +73,7 @@ internal static class NamespaceSearchProof
         var selected = workspace.SelectedEntity;
         box.Text = "no-such-namespace-entity";
         await Settle();
-        Check(empty.IsVisible && !popup.IsOpen && nodes.All(node => !node.IsVisible), $"{viewport}: unmatched namespace search shows its empty state", report);
+        Check(empty.IsVisible && popup.IsOpen && nodes.All(node => !node.IsVisible) && list.Items.Cast<SearchSuggestion>().Any(item => item.Kind == "search-correlation"), $"{viewport}: unmatched entity search shows its empty state and offers global ID searches", report);
         ProofCapture.CheckBounds(window, [box, clear, empty]);
         ProofCapture.Save(window, output, $"namespace-{viewport}-empty");
         clear.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));

@@ -18,7 +18,7 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Raw tab retains the unformatted original body
 - PASS: Properties tab retains correlation metadata
 - PASS: Find selects a match in the inline JSON editor
-- PASS: Primary controls fit the 1500 × 900 viewport
+- PASS: Primary controls fit the 1500 × 1000 viewport
 - PASS: desktop: namespace typing renders entity suggestions
 - PASS: desktop: namespace suggestions match complete entity paths
 - PASS: desktop: namespace typing filters the tree live
@@ -28,7 +28,7 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: desktop: Escape dismisses suggestions without clearing the namespace filter
 - PASS: desktop: Enter fills the full subscription path and opens its messages
 - PASS: desktop: clicking a queue suggestion opens that queue
-- PASS: desktop: unmatched namespace search shows its empty state
+- PASS: desktop: unmatched entity search shows its empty state and offers global ID searches
 - PASS: desktop: clear restores the entire namespace tree
 - PASS: desktop: clearing namespace search preserves the open entity
 - PASS: desktop: namespace search preserves MessageCount and DLQ totals
@@ -41,16 +41,27 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: compact: Escape dismisses suggestions without clearing the namespace filter
 - PASS: compact: Enter fills the full subscription path and opens its messages
 - PASS: compact: clicking a queue suggestion opens that queue
-- PASS: compact: unmatched namespace search shows its empty state
+- PASS: compact: unmatched entity search shows its empty state and offers global ID searches
 - PASS: compact: clear restores the entire namespace tree
 - PASS: compact: clearing namespace search preserves the open entity
 - PASS: compact: namespace search preserves MessageCount and DLQ totals
+- PASS: Unified search suggests a loaded message with its typed identity
+- PASS: Unified search offers explicit namespace-wide correlation and message ID actions
+- PASS: Unified suggestions identify their category and target
+- PASS: Explicit message ID search returns only exact message ID matches
+- PASS: Choosing a global message search dismisses suggestions
+- PASS: Unified clear restores browsing and the complete namespace tree
+- PASS: Clicking a loaded message suggestion opens its entity and focuses that message
+- PASS: Expanded activity log spans the application width
+- PASS: Collapsing the full-width activity log releases workspace height
+- PASS: Reopening the activity log retains operation history
+- PASS: Last operation remains visible in the bottom footer
 - PASS: Empty correlation input has no suggestions or clear action
 - PASS: Typing a correlation prefix suggests known IDs
 - PASS: Suggestion popup is rendered while typing
 - PASS: Repeated Down advances to the second suggestion
 - PASS: Up returns to the first suggestion
-- PASS: Keyboard Down and Enter choose a complete correlation ID
+- PASS: Explicit correlation action searches the typed query globally
 - PASS: Applied correlation search exposes an accessible inline clear action and closes suggestions
 - PASS: Clearing changed pending text also removes the applied filter and restores the entity page
 - PASS: Emptying input retains inline clear for the applied filter without reopening suggestions
@@ -131,3 +142,21 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Disconnected state still permits clearing pending correlation text
 - PASS: Disconnected clear removes correlation criteria without reconnecting or displaying stale rows
 - PASS: Reconnect restores a focused first page of sample messages
+- PASS: Enabling Watch starts silently without notifying for existing messages
+- PASS: Watch label reflects the selected entity rather than other watched entities
+- PASS: Independent Watch generates Active and DLQ arrivals for an unselected entity
+- PASS: Background arrivals preserve the investigation scope and focused message
+- PASS: Watch notification is a separate visible desktop window, independent of the main window
+- PASS: Repeated arrivals group by entity and Active/DLQ bucket in one persistent notification
+- PASS: Desktop notification remains visible while the application is hidden
+- PASS: Investigate restores the app and opens the exact new DLQ message
+- PASS: Investigating a watched message clears the unified search
+- PASS: Opening a watched entity visibly changes the action to Watching
+- PASS: Responding advances to the next pending watched bucket
+- PASS: Dismiss closes the final notification without removing any messages
+- PASS: Watch pauses arrivals and notifications while disconnected
+- PASS: Disabling all watched buckets stops new arrivals
+- PASS: Stopping one watched bucket clears its pending notification and advances to the remaining bucket
+- PASS: Stopping the final bucket closes pending notifications and restores the Watch label
+- PASS: Proof lifetime can exercise a real desktop notification without starting tray services
+- PASS: Closing in proof mode closes the app window and all owned watch resources without lingering windows
