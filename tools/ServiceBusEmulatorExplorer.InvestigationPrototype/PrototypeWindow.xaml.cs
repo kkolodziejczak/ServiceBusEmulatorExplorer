@@ -346,7 +346,8 @@ public partial class PrototypeWindow : Window
         var expanded = LogPanel.Visibility != Visibility.Visible;
         LogPanel.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
         LogHeading.Text = expanded ? "Activity log · Expanded" : "Activity log · Collapsed";
-        LogToggle.Content = expanded ? "⌃" : "⌄";
+        LogChevron.Data = Geometry.Parse(expanded ? "M1,8 L7,2 L13,8" : "M1,2 L7,8 L13,2");
+        LogToggle.ToolTip = expanded ? "Collapse activity log" : "Expand activity log";
         System.Windows.Automation.AutomationProperties.SetName(LogToggle, expanded ? "Collapse activity log" : "Expand activity log");
     }
 
