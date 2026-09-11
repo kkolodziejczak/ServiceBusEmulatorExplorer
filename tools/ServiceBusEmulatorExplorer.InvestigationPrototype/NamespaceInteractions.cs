@@ -14,6 +14,7 @@ public partial class PrototypeWindow
         EntitySuggestionsList.ItemsSource = Workspace.Roots.SelectMany(PrototypeData.Flatten)
             .Where(node => !node.IsGroup && query.Length > 0 && node.Path.Contains(query, StringComparison.OrdinalIgnoreCase))
             .OrderBy(node => node.Path, StringComparer.OrdinalIgnoreCase).ToArray();
+        EntitySuggestionsList.SelectedIndex = -1;
         EntitySuggestionsPopup.IsOpen = Workspace.IsConnected && SearchBox.IsKeyboardFocusWithin && EntitySuggestionsList.Items.Count > 0;
     }
 

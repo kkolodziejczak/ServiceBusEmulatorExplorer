@@ -10,11 +10,11 @@ dotnet run --project tools/ServiceBusEmulatorExplorer.InvestigationPrototype
 
 ## Investigate a correlation
 
-Type `checkout-` in **Correlation ID**. Suggestions include known IDs and recent searches. Use Up/Down and Enter, click a suggestion, or type any complete ID and choose **Find messages**. Search matches the full ID exactly, including case.
+Type `checkout-` in **Correlation ID**. Suggestions include known IDs and recent searches, using the same dropdown treatment as Namespace search. Use Up/Down and Enter, click a suggestion, or type any complete ID and press Enter. Search matches the full ID exactly, including case.
 
 Results combine queues and subscriptions, including Active and DLQ messages. The location and state stay visible for every delivery. Use the copy icon directly beside a correlation ID to search your logs, or **Find related** in the inspector to search the namespace.
 
-Search scans the synthetic snapshot in pages of 50, yielding to the UI between pages. Its completed, in-progress and stopped states distinguish “No matching messages” from “No matches found so far.” The sample scan is usually almost instant; there is no artificial waiting animation. Namespace totals remain overall counts, separate from matches and scanned messages. After a search, the primary button becomes **Clear search criteria** and returns to entity browsing. Typing a different ID restores **Find messages**; emptying the field still allows clearing the applied filter.
+Search scans the synthetic snapshot in pages of 50, yielding to the UI between pages. Its completed, in-progress and stopped states distinguish “No matching messages” from “No matches found so far.” The sample scan is usually almost instant; there is no artificial waiting animation. Namespace totals remain overall counts, separate from matches and scanned messages. The inline **×** clears both the text and applied correlation filter, returning to entity browsing. It remains available when an applied filter exists even if you edit or empty the field.
 
 A real broker implementation will need cancellable paged peeking and explicit incomplete/error reporting; this prototype is not proof of broker-wide search.
 
@@ -40,7 +40,7 @@ Resize to switch between side-by-side and stacked panes. The compact layout redu
 
 ## Rendered evidence
 
-Build: zero warnings and errors. Final walkthrough: **99 passing checks**, followed by independent source and visual review.
+Build: zero warnings and errors. Final walkthrough: **129 passing checks**, followed by independent source and visual review.
 
 | UI gate | Result | Evidence |
 | --- | --- | --- |

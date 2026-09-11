@@ -2,7 +2,6 @@
 
 Actual rendered WPF with synthetic messages; routed actions, no physical pointer automation.
 
-- PASS: Search button visible label is vertically centered (offset 1,0px)
 - PASS: Opening scope loads its first 50 sample messages
 PASS: Preview changes preserve checked messages; header and row checkbox centers align within 1 pixel.
 PASS: Two ordinary checkbox clicks keep both messages checked without modifiers.
@@ -46,17 +45,18 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: compact: clear restores the entire namespace tree
 - PASS: compact: clearing namespace search preserves the open entity
 - PASS: compact: namespace search preserves MessageCount and DLQ totals
+- PASS: Empty correlation input has no suggestions or clear action
 - PASS: Typing a correlation prefix suggests known IDs
 - PASS: Suggestion popup is rendered while typing
 - PASS: Repeated Down advances to the second suggestion
 - PASS: Up returns to the first suggestion
 - PASS: Keyboard Down and Enter choose a complete correlation ID
-- PASS: Applied search changes the primary action to Clear search criteria
-- PASS: Changing the ID offers a new search
-- PASS: Emptying the input still allows clearing the applied filter
-- PASS: Primary Clear search criteria removes filter and restores browsing
+- PASS: Applied correlation search exposes an accessible inline clear action and closes suggestions
+- PASS: Clearing changed pending text also removes the applied filter and restores the entity page
+- PASS: Emptying input retains inline clear for the applied filter without reopening suggestions
+- PASS: Inline clear removes an applied filter even with empty input
+- PASS: Clicking a correlation suggestion fills the ID and searches globally
 - PASS: Global correlation search completes visibly
-- PASS: Search button visible label is vertically centered (offset 0,5px)
 - PASS: Global results match the complete correlation ID exactly
 - PASS: Search returns every matching fixture across the namespace, including later pages
 - PASS: Correlation results include multiple entity locations
@@ -119,6 +119,8 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Minimum viewport displays at least one complete message row
 - PASS: Message ID text fits fully inside the compact row
 - PASS: Minimum viewport exposes replay and discard for a draft
+- PASS: Minimum viewport keeps the inline correlation clear beside the text and vertically centered
+- PASS: Clearing a pending compact correlation query closes suggestions and retains browsing
 - PASS: Plain text and malformed JSON are labelled and preserved exactly
 - PASS: Plain text and malformed JSON are labelled and preserved exactly
 - PASS: Valid JSON returns to the formatted JSON label
@@ -126,4 +128,6 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Pausing automatic refresh prevents incoming sample messages
 - PASS: Disconnect clears rows and focused inspector
 - PASS: Disconnected state hides stale replay controls
+- PASS: Disconnected state still permits clearing pending correlation text
+- PASS: Disconnected clear removes correlation criteria without reconnecting or displaying stale rows
 - PASS: Reconnect restores a focused first page of sample messages

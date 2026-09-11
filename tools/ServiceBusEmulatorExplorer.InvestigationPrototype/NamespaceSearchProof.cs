@@ -24,7 +24,8 @@ internal static class NamespaceSearchProof
         await Viewport(window, report, output, "compact");
         window.Width = width;
         window.Height = height;
-        window.Workspace.SelectEntity(original);
+        ProofCapture.Descendants(window).OfType<TreeViewItem>()
+            .First(item => ReferenceEquals(item.DataContext, original)).IsSelected = true;
         await Settle();
     }
 

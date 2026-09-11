@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
@@ -43,7 +44,6 @@ internal static class InvestigationProof
 
     private static async Task Browse(PrototypeWindow window, List<string> report, string output)
     {
-        CheckSearchTextCenter(window, report);
         var workspace = window.Workspace;
         Check(workspace.Messages.Count == 50 && workspace.EntityPath == "order-events/billing", "Opening scope loads its first 50 sample messages", report);
         ProofCapture.Save(window, output, "01-desktop");
@@ -80,7 +80,10 @@ internal static class InvestigationProof
         var workspace = window.Workspace;
         var query = workspace.Messages[0].CorrelationId;
         var box = Control<TextBox>(window, "CorrelationBox");
+        var popup = (Popup)window.FindName("SuggestionsPopup");
+        var clear = (Button)window.FindName("ClearCorrelationSearchButton");
         box.Focus();
+        Check(!popup.IsOpen && !clear.IsVisible, "Empty correlation input has no suggestions or clear action", report);
         box.Text = query[..Math.Min(query.Length, 5)];
         await Settle();
         Check(workspace.Suggestions(box.Text).Any(), "Typing a correlation prefix suggests known IDs", report);
@@ -96,21 +99,33 @@ internal static class InvestigationProof
         Key(box, System.Windows.Input.Key.Up);
         Check(Equals(firstSuggestion, suggestions.SelectedItem), "Up returns to the first suggestion", report);
         Key(box, System.Windows.Input.Key.Enter);
-        await Settle();
+        await CompleteSearch(window);
         Check(box.Text.Length > 5, "Keyboard Down and Enter choose a complete correlation ID", report);
-        Check(Control<Button>(window, "FindMessagesButton").Content.ToString()!.Contains("Clear search criteria"), "Applied search changes the primary action to Clear search criteria", report);
+        Check(!popup.IsOpen && clear.IsVisible && clear.IsEnabled && !string.IsNullOrEmpty(AutomationProperties.GetName(clear)), "Applied correlation search exposes an accessible inline clear action and closes suggestions", report);
         box.Text = "another-correlation";
-        Check(Control<Button>(window, "FindMessagesButton").Content.ToString()!.Contains("Find messages"), "Changing the ID offers a new search", report);
-        box.Text = "";
-        Check(Control<Button>(window, "FindMessagesButton").IsEnabled && Control<Button>(window, "FindMessagesButton").Content.ToString()!.Contains("Clear search criteria"), "Emptying the input still allows clearing the applied filter", report);
-        Invoke(window, "FindMessagesButton");
+        Invoke(window, "ClearCorrelationSearchButton");
         await Settle();
-        Check(!workspace.IsCorrelationSearch && box.Text == "" && workspace.Messages.Count > 0, "Primary Clear search criteria removes filter and restores browsing", report);
+        Check(!workspace.IsCorrelationSearch && box.Text == "" && workspace.Messages.Count == 50 && !popup.IsOpen, "Clearing changed pending text also removes the applied filter and restores the entity page", report);
         box.Text = query;
-        Invoke(window, "FindMessagesButton");
+        Key(box, System.Windows.Input.Key.Enter);
+        await CompleteSearch(window);
+        box.Text = "";
+        Check(clear.IsVisible && clear.IsEnabled && !popup.IsOpen, "Emptying input retains inline clear for the applied filter without reopening suggestions", report);
+        Invoke(window, "ClearCorrelationSearchButton");
+        await Settle();
+        Check(!workspace.IsCorrelationSearch && box.Text == "" && workspace.Messages.Count > 0, "Inline clear removes an applied filter even with empty input", report);
+        box.Text = query[..5];
+        await Settle();
+        suggestions.SelectedIndex = 0;
+        var clicked = (string)suggestions.SelectedItem;
+        suggestions.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
+            { RoutedEvent = UIElement.PreviewMouseLeftButtonUpEvent });
+        await CompleteSearch(window);
+        Check(workspace.CorrelationQuery == clicked && box.Text == clicked && !popup.IsOpen, "Clicking a correlation suggestion fills the ID and searches globally", report);
+        box.Text = query;
+        Key(box, System.Windows.Input.Key.Enter);
         await CompleteSearch(window);
         Check(workspace.IsCorrelationSearch && workspace.SearchComplete && !workspace.IsSearching, "Global correlation search completes visibly", report);
-        CheckSearchTextCenter(window, report);
         Check(workspace.Messages.Count > 0 && workspace.Messages.All(row => row.CorrelationId == query), "Global results match the complete correlation ID exactly", report);
         var expectedKeys = PrototypeData.CreateMessages(workspace.Roots).Values.SelectMany(rows => rows)
             .Where(row => row.CorrelationId == query).Select(row => row.Key).ToHashSet(StringComparer.Ordinal);
@@ -141,10 +156,10 @@ internal static class InvestigationProof
         Check(workspace.CorrelationQuery == dlq.CorrelationId, "Find related searches the focused message correlation globally", report);
         ProofCapture.Save(window, output, "03-related-results");
         box.Text = query.ToUpperInvariant();
-        Invoke(window, "FindMessagesButton");
+        Key(box, System.Windows.Input.Key.Enter);
         await CompleteSearch(window);
         Check(workspace.Messages.Count == 0, "Correlation matching is case sensitive", report);
-        Invoke(window, "FindMessagesButton");
+        Invoke(window, "ClearCorrelationSearchButton");
         await Settle();
         Check(!workspace.IsCorrelationSearch && workspace.Messages.Count > 0, "Clear search returns to the entity workspace", report);
     }
@@ -208,7 +223,7 @@ internal static class InvestigationProof
         Check(original.Body == body, "Edited replay leaves original DLQ body unchanged", report);
 
         Control<TextBox>(window, "CorrelationBox").Text = original.CorrelationId;
-        Invoke(window, "FindMessagesButton");
+        Key(Control<TextBox>(window, "CorrelationBox"), System.Windows.Input.Key.Enter);
         await CompleteSearch(window);
         Check(workspace.Messages.Where(row => row.MessageId == firstId).All(row => row.Body == body)
             && workspace.Messages.Any(row => row.MessageId == firstId), "Untouched replay copies exact original body bytes and preserves correlation", report);
@@ -247,7 +262,7 @@ internal static class InvestigationProof
         Invoke(window, "ReplayButton");
         await Settle();
         Check(dead.All(row => row.Body.Length > 0 && row.IsDeadLetter), "Batch replay retains both DLQ originals", report);
-        Invoke(window, "FindMessagesButton");
+        Invoke(window, "ClearCorrelationSearchButton");
         await Settle();
     }
 
@@ -256,7 +271,7 @@ internal static class InvestigationProof
         var workspace = window.Workspace;
         const string absent = "missing-correlation-proof-48391";
         Control<TextBox>(window, "CorrelationBox").Text = absent;
-        Invoke(window, "FindMessagesButton");
+        Key(Control<TextBox>(window, "CorrelationBox"), System.Windows.Input.Key.Enter);
         await CompleteSearch(window);
         Check(workspace.SearchComplete && workspace.Messages.Count == 0 && workspace.FocusedMessage is null, "Completed zero-result search clears stale rows and focused message", report);
         Check(Control<FrameworkElement>(window, "EmptyResults").IsVisible && Control<FrameworkElement>(window, "EmptyInspector").IsVisible, "No-results state is rendered in list and inspector", report);
@@ -267,7 +282,7 @@ internal static class InvestigationProof
         await Settle();
         Check(!workspace.SearchComplete && !workspace.IsSearching && workspace.SearchStatus.Contains("incomplete", StringComparison.OrdinalIgnoreCase), "Canceled zero-result scan explicitly says search incomplete", report);
         ProofCapture.Save(window, output, "06-incomplete-search");
-        Invoke(window, "FindMessagesButton");
+        Invoke(window, "ClearCorrelationSearchButton");
         await Settle();
         Check(!workspace.IsCorrelationSearch && workspace.Messages.Count > 0, "Empty search clear action restores entity browsing", report);
     }
@@ -302,6 +317,20 @@ internal static class InvestigationProof
             Check(text.TransformToAncestor(firstRow).TransformBounds(new Rect(0, 0, text.ActualWidth, text.ActualHeight)).Bottom <= firstRow.ActualHeight,
                 "Message ID text fits fully inside the compact row", report);
         Check(Control<Button>(window, "ReplayButton").IsVisible && Control<Button>(window, "DiscardButton").IsVisible, "Minimum viewport exposes replay and discard for a draft", report);
+        var correlationBox = Control<TextBox>(window, "CorrelationBox");
+        correlationBox.Focus();
+        correlationBox.Text = "checkout";
+        await Settle();
+        var clear = (Button)window.FindName("ClearCorrelationSearchButton");
+        ProofCapture.CheckBounds(window, [correlationBox, clear]);
+        var textBounds = correlationBox.TransformToAncestor(window).TransformBounds(new Rect(correlationBox.RenderSize));
+        var clearBounds = clear.TransformToAncestor(window).TransformBounds(new Rect(clear.RenderSize));
+        Check(clear.IsVisible && clearBounds.Left >= textBounds.Right - correlationBox.Padding.Right && clearBounds.Right <= textBounds.Right && Math.Abs((clearBounds.Top + clearBounds.Bottom - textBounds.Top - textBounds.Bottom) / 2) <= 1,
+            "Minimum viewport keeps the inline correlation clear beside the text and vertically centered", report);
+        Invoke(window, "ClearCorrelationSearchButton");
+        await Settle();
+        Check(correlationBox.Text == "" && !((Popup)window.FindName("SuggestionsPopup")).IsOpen && !window.Workspace.IsCorrelationSearch,
+            "Clearing a pending compact correlation query closes suggestions and retains browsing", report);
         ProofCapture.Save(window, output, "08-minimum-draft");
         Invoke(window, "DiscardButton");
         window.Width = 1580;
@@ -319,7 +348,7 @@ internal static class InvestigationProof
         var interval = Control<ComboBox>(window, "AutoInterval");
         interval.SelectedIndex = 1;
         Control<TextBox>(window, "CorrelationBox").Text = "checkout-80341";
-        Invoke(window, "FindMessagesButton");
+        Key(Control<TextBox>(window, "CorrelationBox"), System.Windows.Input.Key.Enter);
         await CompleteSearch(window);
         var otherEntity = ProofCapture.Descendants(window).OfType<TreeViewItem>()
             .First(item => item.DataContext is EntityNode node && node.Path == "order-events/analytics");
@@ -337,10 +366,18 @@ internal static class InvestigationProof
         Check(workspace.SelectedEntity.MessageCount == pausedCount, "Pausing automatic refresh prevents incoming sample messages", report);
         Invoke(window, "PauseButton");
         interval.SelectedIndex = 0;
+        var correlationBox = Control<TextBox>(window, "CorrelationBox");
+        correlationBox.Text = "checkout-80341";
         Invoke(window, "ConnectionButton");
         await Settle();
         Check(!workspace.IsConnected && workspace.Messages.Count == 0 && workspace.FocusedMessage is null, "Disconnect clears rows and focused inspector", report);
         Check(Control<FrameworkElement>(window, "EmptyInspector").IsVisible && !Control<Button>(window, "ReplayButton").IsVisible, "Disconnected state hides stale replay controls", report);
+        var clear = (Button)window.FindName("ClearCorrelationSearchButton");
+        Check(clear.IsVisible && clear.IsEnabled, "Disconnected state still permits clearing pending correlation text", report);
+        Invoke(window, "ClearCorrelationSearchButton");
+        await Settle();
+        Check(correlationBox.Text == "" && !workspace.IsConnected && workspace.Messages.Count == 0 && !((Popup)window.FindName("SuggestionsPopup")).IsOpen,
+            "Disconnected clear removes correlation criteria without reconnecting or displaying stale rows", report);
         Invoke(window, "ConnectionButton");
         await Settle();
         Check(workspace.IsConnected && workspace.Messages.Count == 50 && workspace.FocusedMessage is not null, "Reconnect restores a focused first page of sample messages", report);
@@ -377,26 +414,6 @@ internal static class InvestigationProof
         Check(start - end is >= 0 and <= 10, "Correlation copy icon sits within 10 pixels of its ID", report);
     }
 
-    private static void CheckSearchTextCenter(PrototypeWindow window, List<string> report)
-    {
-        var button = Control<Button>(window, "FindMessagesButton");
-        button.UpdateLayout();
-        var bitmap = new RenderTargetBitmap((int)button.ActualWidth, (int)button.ActualHeight, 96, 96, PixelFormats.Pbgra32);
-        var visual = new DrawingVisual();
-        using (var drawing = visual.RenderOpen()) drawing.DrawRectangle(new VisualBrush(button), null, new Rect(0, 0, button.ActualWidth, button.ActualHeight));
-        bitmap.Render(visual);
-        var pixels = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 4];
-        bitmap.CopyPixels(pixels, bitmap.PixelWidth * 4, 0);
-        var rows = Enumerable.Range(0, bitmap.PixelHeight).Where(y => Enumerable.Range(0, bitmap.PixelWidth).Any(x =>
-        {
-            var i = (y * bitmap.PixelWidth + x) * 4;
-            return pixels[i + 3] > 32 && pixels[i] >= pixels[i + 3] * 0.85 && pixels[i + 1] >= pixels[i + 3] * 0.85 && pixels[i + 2] >= pixels[i + 3] * 0.85;
-        })).ToArray();
-        var center = (rows.First() + rows.Last() + 1) / 2.0;
-        var offset = Math.Abs(center - button.ActualHeight / 2);
-        Check(offset <= 1, $"Search button visible label is vertically centered (offset {offset:F1}px)", report);
-    }
-
     private static async Task CompleteSearch(PrototypeWindow window)
     {
         for (var page = 0; window.Workspace.IsSearching && page < 1000; page++) window.Workspace.ScanNext();
@@ -406,7 +423,7 @@ internal static class InvestigationProof
 
     private static void Bounds(PrototypeWindow window, List<string> report)
     {
-        ProofCapture.CheckBounds(window, new FrameworkElement[] { Control<TextBox>(window, "CorrelationBox"), Control<Button>(window, "FindMessagesButton"), Control<DataGrid>(window, "MessageGrid"), Control<FrameworkElement>(window, "InspectorPane"), Control<JsonEditor>(window, "BodyEditor"), Control<Button>(window, "ReplayButton"), Control<Button>(window, "DiscardButton"), Control<Button>(window, "FindRelatedButton"), Control<Button>(window, "CopyCorrelationButton") });
+        ProofCapture.CheckBounds(window, new FrameworkElement[] { Control<TextBox>(window, "CorrelationBox"), (Button)window.FindName("ClearCorrelationSearchButton"), Control<DataGrid>(window, "MessageGrid"), Control<FrameworkElement>(window, "InspectorPane"), Control<JsonEditor>(window, "BodyEditor"), Control<Button>(window, "ReplayButton"), Control<Button>(window, "DiscardButton"), Control<Button>(window, "FindRelatedButton"), Control<Button>(window, "CopyCorrelationButton") });
         Check(true, $"Primary controls fit the {window.ActualWidth:F0} × {window.ActualHeight:F0} viewport", report);
     }
 

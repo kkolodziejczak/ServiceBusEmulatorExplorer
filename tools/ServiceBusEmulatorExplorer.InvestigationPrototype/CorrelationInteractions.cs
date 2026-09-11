@@ -22,7 +22,8 @@ public partial class PrototypeWindow
     {
         if (SuggestionsList is null) return;
         SuggestionsList.ItemsSource = Workspace.Suggestions(CorrelationBox.Text);
-        SuggestionsPopup.IsOpen = Workspace.IsConnected && CorrelationBox.IsKeyboardFocusWithin && SuggestionsList.Items.Count > 0;
+        SuggestionsList.SelectedIndex = -1;
+        SuggestionsPopup.IsOpen = Workspace.IsConnected && !string.IsNullOrWhiteSpace(CorrelationBox.Text) && CorrelationBox.IsKeyboardFocusWithin && SuggestionsList.Items.Count > 0;
     }
 
     private void CorrelationKeyDown(object sender, KeyEventArgs e)
@@ -51,7 +52,7 @@ public partial class PrototypeWindow
     private void SuggestionKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter) { ChooseSuggestion(); e.Handled = true; }
-        else if (e.Key == Key.Escape) { SuggestionsPopup.IsOpen = false; CorrelationBox.Focus(); e.Handled = true; }
+        else if (e.Key == Key.Escape) { CorrelationBox.Focus(); SuggestionsPopup.IsOpen = false; e.Handled = true; }
     }
 
     private void SuggestionPicked(object sender, MouseButtonEventArgs e) => ChooseSuggestion();
@@ -63,24 +64,14 @@ public partial class PrototypeWindow
         BeginSearch();
     }
 
-    private bool ShowsAppliedQuery => Workspace.IsCorrelationSearch
-        && (string.IsNullOrWhiteSpace(CorrelationBox.Text) || CorrelationBox.Text.Trim() == Workspace.CorrelationQuery);
-
-    private void FindMessages_Click(object sender, RoutedEventArgs e)
-    {
-        if (ShowsAppliedQuery) ClearSearch_Click(sender, e);
-        else BeginSearch();
-    }
-
     private void UpdateSearchAction()
     {
-        FindMessagesButton.Content = ShowsAppliedQuery ? "×  Clear search criteria" : "⌕  Find messages";
-        FindMessagesButton.ToolTip = ShowsAppliedQuery ? "Remove the correlation filter and return to entity browsing" : "Search for this correlation ID";
-        FindMessagesButton.IsEnabled = Workspace.IsConnected && (ShowsAppliedQuery || !string.IsNullOrWhiteSpace(CorrelationBox.Text));
+        ClearCorrelationSearchButton.Visibility = Workspace.IsCorrelationSearch || CorrelationBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void BeginSearch()
     {
+        if (!Workspace.IsConnected || string.IsNullOrWhiteSpace(CorrelationBox.Text)) return;
         SuggestionsPopup.IsOpen = false;
         refreshTimer.Stop();
         ChangeScope(() => Workspace.StartCorrelationSearch(CorrelationBox.Text));
@@ -117,6 +108,8 @@ public partial class PrototypeWindow
         SuggestionsPopup.IsOpen = false;
         ChangeScope(Workspace.ClearCorrelationSearch);
         ConfigureTimer();
+        CorrelationBox.Focus();
+        SuggestionsPopup.IsOpen = false;
     }
 
     private void StopSearch_Click(object sender, RoutedEventArgs e) => Workspace.StopCorrelationSearch();
