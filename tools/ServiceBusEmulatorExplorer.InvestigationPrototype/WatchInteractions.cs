@@ -209,9 +209,22 @@ public partial class PrototypeWindow
 
     private void InvestigateWatchedCases(IReadOnlyList<MessageRow> messages)
     {
-        var byMessageId = messages.Any(message => string.IsNullOrWhiteSpace(message.CorrelationId));
-        SearchBox.Text = string.Join(" OR ", messages.Select(message => byMessageId ? message.MessageId : message.CorrelationId)
-            .Distinct(StringComparer.Ordinal).Select(MessageSearchQuery.QuoteLiteral));
+        if (messages.Count == 0) return;
+        var keepSearch = Workspace.IsCorrelationSearch && Workspace.SearchQueryError.Length == 0;
+        var byMessageId = keepSearch ? Workspace.SearchByMessageId : messages.All(message => string.IsNullOrWhiteSpace(message.CorrelationId));
+        var queryText = keepSearch ? Workspace.CorrelationQuery : "";
+        MessageSearchQuery.TryParse(queryText, out var existing, out _);
+        foreach (var message in messages)
+        {
+            var useMessageId = string.IsNullOrWhiteSpace(message.CorrelationId);
+            var id = useMessageId ? message.MessageId : message.CorrelationId;
+            if (existing?.CoversLiteral(id, useMessageId, byMessageId) == true) continue;
+            var prefix = useMessageId == byMessageId ? "" : useMessageId ? "message:" : "correlation:";
+            var term = prefix + MessageSearchQuery.QuoteLiteral(id);
+            queryText = queryText.Length == 0 ? term : queryText + " OR " + term;
+            MessageSearchQuery.TryParse(queryText, out existing, out _);
+        }
+        SearchBox.Text = queryText;
         BeginGlobalSearch(byMessageId);
         pendingSearchFocusKey = messages[^1].Key;
         SuggestionsPopup.IsOpen = false;

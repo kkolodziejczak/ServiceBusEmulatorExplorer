@@ -219,3 +219,19 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: No-results search hides every unmatched tree branch
 - PASS: Clearing search restores the whole namespace tree and removes redundant result location column
 - PASS: Clearing search restores displayed namespace totals for every node
+- PASS: Time proof starts with existing activity history
+- PASS: UTC selection changes the rendered Enqueued header and numerical timestamp
+- PASS: UTC selection reformats existing console timestamps from their original UTC instants
+- PASS: UTC selection reformats the footer's existing last-operation timestamp
+- PASS: Local selection changes the rendered Enqueued header and numerical timestamp
+- PASS: Local selection reformats existing console timestamps from their original UTC instants
+- PASS: Local selection reformats the footer's existing last-operation timestamp
+- PASS: Server selection changes the rendered Enqueued header and numerical timestamp
+- PASS: Server selection reformats existing console timestamps from their original UTC instants
+- PASS: Server selection reformats the footer's existing last-operation timestamp
+- PASS: Time display preferences preserve original message JSON, metadata and UTC instant
+- PASS: Investigate unions the applied message-ID search with the notified correlation across the connection
+- PASS: Investigate preserves applied search meaning, replaces unrelated draft text and focuses the arrival
+- PASS: Investigating the same notification again does not duplicate criteria
+- PASS: An empty notification batch preserves the applied query and result snapshot
+- PASS: A notified message without correlation appends its message-ID criterion without dropping prior cases

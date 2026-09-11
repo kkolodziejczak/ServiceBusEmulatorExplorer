@@ -126,6 +126,7 @@ public partial class PrototypeWindow
 
     private void UpdateClearSearch() => ClearSearchButton.Visibility = Workspace.IsCorrelationSearch || SearchBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 
-    private static string SearchLiteral(string value) => value.Equals("OR", StringComparison.OrdinalIgnoreCase) || value.Any(character => char.IsWhiteSpace(character) || character is '*' or '"')
+    private static string SearchLiteral(string value) => value.StartsWith("correlation:", StringComparison.OrdinalIgnoreCase) || value.StartsWith("message:", StringComparison.OrdinalIgnoreCase)
+        || value.Equals("OR", StringComparison.OrdinalIgnoreCase) || value.Any(character => char.IsWhiteSpace(character) || character is '*' or '"')
         ? MessageSearchQuery.QuoteLiteral(value) : value;
 }

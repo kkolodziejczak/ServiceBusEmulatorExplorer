@@ -190,7 +190,7 @@ public sealed class Workspace : INotifyPropertyChanged
         if (!IsSearching) return;
         var page = searchSnapshot.Skip(ScannedMessages).Take(50).ToArray();
         foreach (var row in page)
-            if (parsedSearch!.Matches(SearchByMessageId ? row.MessageId : row.CorrelationId)) Messages.Add(row);
+            if (parsedSearch!.Matches(row, SearchByMessageId)) Messages.Add(row);
         ScannedMessages += page.Length;
         if (ScannedMessages >= searchSnapshot.Count)
         {

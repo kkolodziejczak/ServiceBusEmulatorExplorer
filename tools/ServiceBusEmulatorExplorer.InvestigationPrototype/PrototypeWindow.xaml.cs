@@ -23,6 +23,7 @@ public partial class PrototypeWindow : Window
     public PrototypeWindow()
     {
         InitializeComponent();
+        UpdateTimeDisplay();
         DataContext = Workspace;
         InitializeWatch();
         Workspace.PropertyChanged += Workspace_Changed;
@@ -321,10 +322,11 @@ public partial class PrototypeWindow : Window
     private void AddLog(string message)
     {
         if (LogText is null) return;
-        var time = DateTime.UtcNow.ToString("HH:mm:ss 'UTC'");
+        var utc = DateTime.UtcNow;
+        var time = TimeDisplay.LogTime(utc, timeDisplayMode);
         var watch = message.Contains("watch", StringComparison.OrdinalIgnoreCase) || message.Contains("arrival", StringComparison.OrdinalIgnoreCase);
-        var paragraph = new Paragraph { Margin = new Thickness(0, 2, 0, 2) };
-        paragraph.Inlines.Add(new Run(time + "   ") { Foreground = new SolidColorBrush(Color.FromRgb(135, 167, 191)) });
+        var paragraph = new Paragraph { Margin = new Thickness(0, 2, 0, 2), Tag = utc };
+        paragraph.Inlines.Add(new Run(time + "   ") { Foreground = new SolidColorBrush(Color.FromRgb(135, 167, 191)), ToolTip = TimeDisplay.Description(timeDisplayMode, utc) });
         paragraph.Inlines.Add(new Run(watch ? "WATCH   " : "INFO    ") { Foreground = watch ? Brushes.Cyan : Brushes.LightGreen });
         paragraph.Inlines.Add(new Run(message));
         LogText.Document.Blocks.Add(paragraph);
@@ -333,6 +335,8 @@ public partial class PrototypeWindow : Window
         LastOperation.Text = "Last operation: " + message;
         LastOperation.ToolTip = message;
         LastOperationTime.Text = time;
+        LastOperationTime.ToolTip = TimeDisplay.Description(timeDisplayMode, utc);
+        lastOperationUtc = utc;
     }
 
     private void ClearLog_Click(object sender, RoutedEventArgs e) => LogText.Document.Blocks.Clear();

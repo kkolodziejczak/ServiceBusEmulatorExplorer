@@ -35,6 +35,7 @@ internal static class InvestigationProof
             await SettingsSelectorProof.Exercise(window, report, output);
             await SearchOperatorsProof.Exercise(window, report, output);
             await SearchTreeProof.Exercise(window, report, output);
+            await TimeAndAdditiveWatchProof.Exercise(window, report, output);
             File.WriteAllLines(Path.Combine(output, "report.md"), report);
             return 0;
         }

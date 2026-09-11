@@ -20,7 +20,7 @@ A real broker implementation will need cancellable paged peeking and explicit in
 
 ## Inspect and replay
 
-The grid shows event name, message ID, correlation ID, location, state and enqueue time (UTC). Checkboxes toggle independently without Shift. The aligned header checkbox selects or clears the displayed results. Clicking a row previews it without changing checked messages.
+The grid shows event name, message ID, correlation ID, location, state and enqueue time (UTC by default). Checkboxes toggle independently without Shift. The aligned header checkbox selects or clears the displayed results. Clicking a row previews it without changing checked messages.
 
 JSON is formatted and colored directly in the inspector. DLQ JSON is editable; Raw and Properties retain original text and metadata. Plain-text and malformed-JSON sample messages are deliberately included and labelled **Body (not JSON)**; their contents are preserved. **Replay** sends an unchanged sample copy with a default ID such as `evt-001042-replay-1`. A subsequent replay advances the suffix. Correlation ID stays unchanged.
 
@@ -42,7 +42,7 @@ Resize to switch between side-by-side and stacked panes. The compact layout redu
 
 Select a queue or subscription and choose **Watch** for Active messages, DLQ messages, or both. Every 15 seconds the prototype generates a sample arrival in each watched bucket, independently of the current view or auto-refresh. Existing messages do not alert when Watch is enabled. Disconnect pauses generation. The header bell lists watched scopes and pending notifications.
 
-Notifications use a separate, persistent WPF desktop window, not a timed native Windows toast. They remain while the main window is hidden, group arrivals by entity/bucket, and offer **Investigate** and **Dismiss**. Investigate restores the main window, fills Search with the notified correlation IDs joined by OR, searches across the connection, and focuses the latest notified message. If any notified message lacks a correlation ID, the batch uses exact message IDs instead; Dismiss leaves messages untouched. Stop watching clears that target's pending notifications.
+Notifications use a separate, persistent WPF desktop window, not a timed native Windows toast. They remain while the main window is hidden, group arrivals by entity/bucket, and offer **Investigate** and **Dismiss**. Investigate restores the main window and adds notified correlation IDs to the applied search using OR, retaining prior cases and focusing the latest notified message. Already-covered criteria are not duplicated. A message without a correlation ID adds its exact message ID instead; mixed searches use explicit correlation: or message: prefixes so existing criteria retain their meaning. Unapplied input text is replaced by the combined applied search; Dismiss leaves messages untouched. Stop watching clears that target's pending notifications.
 
 Closing the main window sends it to the Windows tray by default. Double-click the real app tray icon or use **Open Service Bus Explorer** to restore it; **Exit** stops the process. The Settings gear opens **General** and **Connections** pages. General controls close-to-tray and desktop notifications, and lets you choose a profile with Use connection. Switching profiles disconnects and clears watches, pending notifications, searches, drafts, and synthetic arrivals; Connect starts the selected sample session. Manage connections edits profiles separately. Connections demonstrates two editable sample profiles with masked runtime and administration fields; saved edits survive reopening Settings within this session only. There is no real connection or disk persistence.
 
@@ -50,9 +50,11 @@ The Watch selector has independent Active and DLQ checkboxes and **Stop watching
 
 Search by correlation ID or message ID supports `case-123 OR case-456` and `case-*`. ID matching is case-sensitive; the OR keyword is case-insensitive. Quote an entire ID to treat stars or OR literally. The Location / State column appears only in global ID search results. During a search, the namespace tree shows matching sources and parent topics only; Active and DLQ counts reflect matches found so far, with topic totals aggregated from matching subscriptions. Clear search restores browsing, the complete tree, and the original entity totals. Invalid expressions display a correction message without scanning.
 
+The footer time selector offers **UTC**, **Local**, and **Server**. It reformats enqueue times and existing activity-log/footer timestamps while retaining the original UTC instants and raw JSON/properties. Local uses the computer time zone with daylight-saving rules. Server uses a clearly identified fixed sample UTC-05:00 until a real connection time-zone setting is wired. The preference is session-only.
+
 ## Rendered evidence
 
-Build: zero warnings and errors. Final walkthrough: **217 passing checks**, with rendered visual inspection. A separate [real tray lifetime proof](tray-verification.md) adds **11 passing checks**, including timer-driven arrivals while hidden, Investigate, disabling close-to-tray, and Exit cleanup.
+Build: zero warnings and errors. Final walkthrough: **233 passing checks**, with rendered visual inspection. A separate [real tray lifetime proof](tray-verification.md) adds **11 passing checks**, including timer-driven arrivals while hidden, Investigate, disabling close-to-tray, and Exit cleanup.
 
 | UI gate | Result | Evidence |
 | --- | --- | --- |

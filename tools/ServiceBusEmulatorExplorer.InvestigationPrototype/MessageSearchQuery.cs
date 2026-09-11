@@ -45,11 +45,22 @@ public sealed class MessageSearchQuery
     {
         alternative = null;
         error = "";
+        bool? messageId = null;
+        if (text.StartsWith("correlation:", StringComparison.OrdinalIgnoreCase))
+        {
+            messageId = false;
+            text = text["correlation:".Length..].Trim();
+        }
+        else if (text.StartsWith("message:", StringComparison.OrdinalIgnoreCase))
+        {
+            messageId = true;
+            text = text["message:".Length..].Trim();
+        }
         if (text.Length == 0) { error = "Enter an ID on each side of OR."; return false; }
         if (text[0] != '"')
         {
             if (text.Contains('"')) { error = "Quote the whole ID, or remove the quote."; return false; }
-            alternative = new(text, true);
+            alternative = new(text, true, messageId);
             return true;
         }
         var literal = new StringBuilder();
@@ -60,7 +71,7 @@ public sealed class MessageSearchQuery
             {
                 if (index != text.Length - 1) { error = "Separate quoted IDs with OR."; return false; }
                 if (literal.Length == 0) { error = "Enter an ID inside the quotes."; return false; }
-                alternative = new(literal.ToString(), false);
+                alternative = new(literal.ToString(), false, messageId);
                 return true;
             }
             if (character == '\\' && index + 1 < text.Length && text[index + 1] is '"' or '\\')
@@ -73,8 +84,16 @@ public sealed class MessageSearchQuery
 
     public static string QuoteLiteral(string id) => "\"" + id.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
 
-    public bool Matches(string id) => alternatives.Any(alternative => alternative.Wildcards
-        ? MatchesWildcard(alternative.Text, id) : string.Equals(alternative.Text, id, StringComparison.Ordinal));
+    public bool Matches(string id) => alternatives.Any(alternative => MatchesAlternative(alternative, id));
+
+    public bool Matches(MessageRow row, bool defaultMessageId) => alternatives.Any(alternative =>
+        MatchesAlternative(alternative, (alternative.MessageId ?? defaultMessageId) ? row.MessageId : row.CorrelationId));
+
+    public bool CoversLiteral(string id, bool messageId, bool defaultMessageId) => alternatives.Any(alternative =>
+        (alternative.MessageId ?? defaultMessageId) == messageId && MatchesAlternative(alternative, id));
+
+    private static bool MatchesAlternative(Alternative alternative, string id) => alternative.Wildcards
+        ? MatchesWildcard(alternative.Text, id) : string.Equals(alternative.Text, id, StringComparison.Ordinal);
 
     private static bool MatchesWildcard(string pattern, string id)
     {
@@ -105,5 +124,5 @@ public sealed class MessageSearchQuery
         return patternIndex == pattern.Length;
     }
 
-    private sealed record Alternative(string Text, bool Wildcards);
+    private sealed record Alternative(string Text, bool Wildcards, bool? MessageId);
 }
