@@ -2,6 +2,27 @@
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:ServiceBusEmulatorExplorer.InvestigationPrototype"
  Title="Service Bus Emulator Explorer · Investigation prototype" Width="1500" Height="1000" Icon="Assets/AppIcon.png" MinWidth="980" MinHeight="640" Background="#FAFCFF" FontFamily="Segoe UI" FontSize="14" Foreground="#17213D" WindowStartupLocation="CenterScreen" SizeChanged="Window_SizeChanged">
  <Window.Resources>
+  <Style x:Key="WatchOverviewItemStyle" TargetType="MenuItem">
+   <Setter Property="Foreground" Value="#234266"/><Setter Property="Padding" Value="10,8"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="MenuItem">
+    <Border x:Name="Row" Background="Transparent" CornerRadius="3" Padding="{TemplateBinding Padding}"><Grid>
+     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+     <Border x:Name="Check" Visibility="Collapsed" Width="15" Height="15" Margin="0,0,8,0" VerticalAlignment="Center" CornerRadius="2" BorderThickness="1" BorderBrush="#A0B2C9"><Path x:Name="Tick" Visibility="Collapsed" Data="M1,5 L4,8 L10,1" Stroke="White" StrokeThickness="1.6" Margin="1"/></Border>
+     <TextBlock Grid.Column="1" Text="{TemplateBinding Header}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+    </Grid></Border>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsCheckable" Value="True"><Setter TargetName="Check" Property="Visibility" Value="Visible"/></Trigger>
+     <Trigger Property="IsChecked" Value="True"><Setter TargetName="Check" Property="Background" Value="#0078F8"/><Setter TargetName="Check" Property="BorderBrush" Value="#0078F8"/><Setter TargetName="Tick" Property="Visibility" Value="Visible"/></Trigger>
+     <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Row" Property="Background" Value="#EAF4FF"/></Trigger>
+     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Row" Property="Background" Value="#DBEDFF"/></Trigger>
+     <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="#738196"/></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="WatchOverviewMenuStyle" TargetType="ContextMenu">
+   <Setter Property="FontFamily" Value="Segoe UI"/><Setter Property="FontSize" Value="13"/><Setter Property="MinWidth" Value="260"/><Setter Property="MaxWidth" Value="360"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ContextMenu"><Border Background="White" BorderBrush="#CBD8E8" BorderThickness="1" CornerRadius="3" Padding="6"><ScrollViewer MaxHeight="400" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" CanContentScroll="True"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle"/></ScrollViewer></Border></ControlTemplate></Setter.Value></Setter>
+  </Style>
   <BooleanToVisibilityConverter x:Key="BoolVisibility"/><Style x:Key="CopyIcon" TargetType="Path"><Setter Property="Data" Value="M4,1 H1 V13 H4 M6,4 H15 V17 H6 Z"/><Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/><Setter Property="StrokeThickness" Value="1.8"/><Setter Property="Width" Value="16"/><Setter Property="Height" Value="18"/><Setter Property="Stretch" Value="Uniform"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
   <Style x:Key="EntityIcon" TargetType="Path">
    <Setter Property="Width" Value="17"/><Setter Property="Height" Value="17"/><Setter Property="Margin" Value="0,0,7,0"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Stretch" Value="Uniform"/><Setter Property="Stroke" Value="#52708D"/><Setter Property="StrokeThickness" Value="1.5"/>

@@ -108,7 +108,11 @@ public partial class PrototypeWindow
         WatchPopup.IsOpen = false;
     }
 
-    private static ContextMenu NewWatchMenu(object sender) => new() { PlacementTarget = sender as UIElement, Placement = PlacementMode.Bottom };
+    private ContextMenu NewWatchMenu(object sender) => new()
+    {
+        PlacementTarget = sender as UIElement, Placement = PlacementMode.Bottom,
+        Style = (Style)FindResource("WatchOverviewMenuStyle")
+    };
 
     private void AddWatchChoice(ContextMenu menu, string path, string label, bool deadLetter)
     {
@@ -227,11 +231,15 @@ public partial class PrototypeWindow
 
     private void WatchSummary_Click(object sender, RoutedEventArgs e)
     {
+        WatchPopup.IsOpen = false;
         var menu = NewWatchMenu(sender);
+        WatchSummaryButton.ContextMenu = menu;
         menu.Items.Add(new MenuItem { Header = $"{watchedLocations.Count} watched location{(watchedLocations.Count == 1 ? "" : "s")}", IsEnabled = false });
         foreach (var location in watchedLocations.ToArray()) AddWatchChoice(menu, location.Path, $"{location.Path} · {(location.DeadLetter ? "DLQ" : "Active")}", location.DeadLetter);
+        menu.Items.Add(new Separator { Margin = new Thickness(10, 5, 10, 5), Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(213, 223, 234)), Height = 1 });
         var pending = new MenuItem { Header = $"Show notifications ({pendingWatchMessages.Values.Sum(messages => messages.Count)})", IsEnabled = pendingWatchMessages.Count > 0 && notificationsEnabled };
         pending.Click += (_, _) => ShowWatchNotification(); menu.Items.Add(pending);
+        foreach (var item in menu.Items.OfType<MenuItem>()) item.Style = (Style)FindResource("WatchOverviewItemStyle");
         menu.IsOpen = true;
     }
 

@@ -169,6 +169,11 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Active can be enabled independently without closing the Watch selector
 - PASS: Both Watch buckets can be enabled in one selector visit
 - PASS: Enabled Watch fills toolbar bell and reveals header bell
+- PASS: Header Watch overview opens with the application menu styling
+- PASS: Watch overview styles both checked Active and DLQ locations consistently
+- PASS: Styled Watch overview accepts logical focus on a watched location
+- PASS: Invoking checked Watch overview location unchecks it
+- PASS: Unchecking overview Active stops only that bucket and retains DLQ watch
 - PASS: Reopened Watch selector retains both selected buckets
 - PASS: Stop watching clears the entity Watch state and closes its selector
 - PASS: Stop watching resets both choices on reopening

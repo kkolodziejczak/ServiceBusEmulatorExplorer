@@ -46,13 +46,13 @@ Notifications use a separate, persistent WPF desktop window, not a timed native 
 
 Closing the main window sends it to the Windows tray by default. Double-click the real app tray icon or use **Open Service Bus Explorer** to restore it; **Exit** stops the process. The Settings gear opens **General** and **Connections** pages. General controls close-to-tray and desktop notifications, and lets you choose a profile with Use connection. Switching profiles disconnects and clears watches, pending notifications, searches, drafts, and synthetic arrivals; Connect starts the selected sample session. Manage connections edits profiles separately. Connections demonstrates two editable sample profiles with masked runtime and administration fields; saved edits survive reopening Settings within this session only. There is no real connection or disk persistence.
 
-The Watch selector has independent Active and DLQ checkboxes and **Stop watching**. The toolbar bell is crossed out when off and filled when watching. The header bell appears only while entities are watched, shows their count, and opens the overview. The refresh interval dropdown uses the same flat blue-and-white treatment. The dark **Activity log** spans all three panes, with timestamped colored entries and a last-operation footer. Collapse releases space; the clear-history icon is visible only while expanded. The console height adapts at compact sizes.
+The Watch selector has independent Active and DLQ checkboxes and **Stop watching**. The toolbar bell is crossed out when off and filled when watching. The header bell appears only while entities are watched, shows their count, and opens the overview. The overview uses the same white panel and blue checked rows as the other selectors; each row can stop its Active or DLQ watch independently. The refresh interval dropdown uses the same flat blue-and-white treatment. The dark **Activity log** spans all three panes, with timestamped colored entries and a last-operation footer. Collapse releases space; the clear-history icon is visible only while expanded. The console height adapts at compact sizes.
 
 Search by correlation ID or message ID supports `case-123 OR case-456` and `case-*`. ID matching is case-sensitive; the OR keyword is case-insensitive. Quote an entire ID to treat stars or OR literally. Clear search restores browsing. Invalid expressions display a correction message without scanning.
 
 ## Rendered evidence
 
-Build: zero warnings and errors. Final walkthrough: **200 passing checks**, with rendered visual inspection. A separate [real tray lifetime proof](tray-verification.md) adds **11 passing checks**, including timer-driven arrivals while hidden, Investigate, disabling close-to-tray, and Exit cleanup.
+Build: zero warnings and errors. Final walkthrough: **205 passing checks**, with rendered visual inspection. A separate [real tray lifetime proof](tray-verification.md) adds **11 passing checks**, including timer-driven arrivals while hidden, Investigate, disabling close-to-tray, and Exit cleanup.
 
 | UI gate | Result | Evidence |
 | --- | --- | --- |

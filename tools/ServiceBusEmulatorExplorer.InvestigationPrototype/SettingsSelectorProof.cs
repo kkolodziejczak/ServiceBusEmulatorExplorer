@@ -32,6 +32,7 @@ internal static class SettingsSelectorProof
         Check(((Button)window.FindName("WatchSummaryButton")).IsVisible && !((FrameworkElement)window.FindName("WatchOffSlash")).IsVisible && ((System.Windows.Shapes.Path)window.FindName("WatchBell")).Fill is SolidColorBrush brush && brush.Color.A > 0, "Enabled Watch fills toolbar bell and reveals header bell", report);
         SavePopup(popup, output, "watch-selector");
         popup.IsOpen = false;
+        await ExerciseWatchOverview(window, report, output);
         Click(window, "WatchButton");
         await Settle();
         Check(active.IsChecked == true && dlq.IsChecked == true, "Reopened Watch selector retains both selected buckets", report);
@@ -47,6 +48,36 @@ internal static class SettingsSelectorProof
         await ExerciseConnectionPicker(window, report, output);
     }
 
+    private static async Task ExerciseWatchOverview(PrototypeWindow window, List<string> report, string output)
+    {
+        var button = (Button)window.FindName("WatchSummaryButton");
+        Click(window, "WatchSummaryButton");
+        await Settle();
+        var menu = button.ContextMenu ?? throw new InvalidOperationException("Watch overview menu was not attached to its button.");
+        var choices = menu.Items.OfType<MenuItem>().Where(item => item.IsCheckable).ToArray();
+        Check(menu.IsOpen && ReferenceEquals(menu.Style, window.FindResource("WatchOverviewMenuStyle")),
+            "Header Watch overview opens with the application menu styling", report);
+        Check(choices.Length == 2 && choices.All(item => item.IsChecked && ReferenceEquals(item.Style, window.FindResource("WatchOverviewItemStyle"))),
+            "Watch overview styles both checked Active and DLQ locations consistently", report);
+        var active = choices.Single(item => item.Header?.ToString()?.EndsWith(" · Active", StringComparison.Ordinal) == true);
+        SaveVisual(menu, output, "watch-overview");
+        active.Focus();
+        await Settle();
+        Check(active.Focusable && active.IsFocused, "Styled Watch overview accepts logical focus on a watched location", report);
+        SaveVisual(menu, output, "watch-overview");
+        var peer = new MenuItemAutomationPeer(active);
+        ((IInvokeProvider)peer.GetPattern(PatternInterface.Invoke)).Invoke();
+        await Settle();
+        Check(!active.IsChecked, "Invoking checked Watch overview location unchecks it", report);
+        menu.IsOpen = false;
+        Click(window, "WatchButton");
+        await Settle();
+        Check(((CheckBox)window.FindName("WatchActiveChoice")).IsChecked == false && ((CheckBox)window.FindName("WatchDlqChoice")).IsChecked == true,
+            "Unchecking overview Active stops only that bucket and retains DLQ watch", report);
+        ((Popup)window.FindName("WatchPopup")).IsOpen = false;
+        window.SetWatched(window.Workspace.EntityPath, false, true);
+        await Settle();
+    }
     private static async Task ExerciseRefresh(PrototypeWindow window, List<string> report, string output)
     {
         var interval = (ComboBox)window.FindName("AutoInterval");
@@ -169,7 +200,11 @@ internal static class SettingsSelectorProof
 
     private static void SavePopup(Popup popup, string output, string name)
     {
-        var root = (FrameworkElement)popup.Child;
+        SaveVisual((FrameworkElement)popup.Child, output, name);
+    }
+
+    private static void SaveVisual(FrameworkElement root, string output, string name)
+    {
         root.UpdateLayout();
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(root.ActualWidth), (int)Math.Ceiling(root.ActualHeight), 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(root);
