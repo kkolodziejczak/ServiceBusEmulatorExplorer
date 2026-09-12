@@ -378,12 +378,11 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
                 continue;
 
             var restored = new List<WatchPreference>(rules.Count);
-            var scopeKeys = new HashSet<string>(StringComparer.Ordinal);
             foreach (StoredWatch? rule in rules)
             {
-                if (rule is null || string.IsNullOrWhiteSpace(rule.ScopeKey) || !scopeKeys.Add(rule.ScopeKey))
+                if (rule is null || string.IsNullOrWhiteSpace(rule.ScopeKey))
                     continue;
-                restored.Add(new WatchPreference(rule.ScopeKey, rule.Active, rule.DeadLetter));
+                restored.Add(new WatchPreference(rule.ScopeKey, rule.Active, rule.DeadLetter, rule.Included));
             }
             if (restored.Count > 0)
                 result[profileId] = restored;
@@ -404,12 +403,11 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
                 continue;
 
             var stored = new List<StoredWatch>(rules.Count);
-            var scopeKeys = new HashSet<string>(StringComparer.Ordinal);
             foreach (WatchPreference? rule in rules)
             {
-                if (rule is null || string.IsNullOrWhiteSpace(rule.ScopeKey) || !scopeKeys.Add(rule.ScopeKey))
+                if (rule is null || string.IsNullOrWhiteSpace(rule.ScopeKey))
                     continue;
-                stored.Add(new StoredWatch(rule.ScopeKey, rule.Active, rule.DeadLetter));
+                stored.Add(new StoredWatch(rule.ScopeKey, rule.Active, rule.DeadLetter, rule.Included));
             }
             if (stored.Count > 0)
                 result[profileId] = stored;
@@ -473,7 +471,7 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
         double WindowHeight,
         Dictionary<string, List<StoredWatch>> Watches);
 
-    private sealed record StoredWatch(string ScopeKey, bool? Active, bool? DeadLetter);
+    private sealed record StoredWatch(string ScopeKey, bool? Active, bool? DeadLetter, bool? Included = null);
 
     private sealed record LegacyProfile(
         string? Name,

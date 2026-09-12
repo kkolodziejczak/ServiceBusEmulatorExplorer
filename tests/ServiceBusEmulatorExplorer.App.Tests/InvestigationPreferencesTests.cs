@@ -46,7 +46,11 @@ public sealed class InvestigationPreferencesTests
             WindowHeight = 800,
             Watches = new Dictionary<string, IReadOnlyList<WatchPreference>>
             {
-                ["local-emulator"] = [new WatchPreference("orders", true, false)]
+                ["local-emulator"] =
+                [
+                    new WatchPreference(WatchScopeResolver.QueueScopeKey("orders"), true, false, Included: false),
+                    new WatchPreference(WatchScopeResolver.QueueScopeKey("orders"), null, true, Included: true)
+                ]
             }
         };
 
@@ -206,7 +210,9 @@ public sealed class InvestigationPreferencesTests
                 "fullyQualifiedNamespace": "orders.servicebus.windows.net",
                 "warningMessage": ""
               }],
-              "settings": {"selectedProfileId": "profile-one", "watches": {}}
+              "settings": {"selectedProfileId": "profile-one", "watches": {
+                "profile-one": [{"scopeKey":"connection:*", "active":true, "deadLetter":false}]
+              }}
             }
             """);
 
@@ -215,6 +221,10 @@ public sealed class InvestigationPreferencesTests
         Assert.Null(loaded.Warning);
         Assert.Equal(30, loaded.Preferences.SearchTimeBudgetSeconds);
         Assert.Equal(10_000, loaded.Preferences.SearchDeliveryBudget);
+        var watch = Assert.Single(loaded.Preferences.Watches["profile-one"]);
+        Assert.True(watch.Active);
+        Assert.False(watch.DeadLetter);
+        Assert.Null(watch.Included);
     }
 
     private static string CreatePath() => Path.Combine(

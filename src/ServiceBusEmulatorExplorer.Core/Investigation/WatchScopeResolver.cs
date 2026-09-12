@@ -58,12 +58,33 @@ public sealed class WatchScopeResolver
                 ? QueueScopeKey(address.Name)
                 : SubscriptionScopeKey(address.TopicName!, address.Name);
             string? topicKey = address.TopicName is null ? null : TopicScopeKey(address.TopicName);
+            if (!IsIncluded(rules, categoryKey, topicKey, leafKey)) continue;
 
             AddTargetIfWatched(address, MessageBucket.Active, rules, categoryKey, topicKey, leafKey, targets, seen);
             AddTargetIfWatched(address, MessageBucket.DeadLetter, rules, categoryKey, topicKey, leafKey, targets, seen);
         }
 
         return targets;
+    }
+
+    private static bool IsIncluded(IReadOnlyList<WatchPreference> rules,
+        string categoryKey, string? topicKey, string leafKey)
+    {
+        bool included = true;
+        foreach (string? key in new[] { ConnectionScopeKey, categoryKey, topicKey, leafKey })
+        {
+            if (key is null) continue;
+            for (int index = rules.Count - 1; index >= 0; index--)
+            {
+                if (string.Equals(rules[index].ScopeKey, key, StringComparison.Ordinal)
+                    && rules[index].Included is bool value)
+                {
+                    included = value;
+                    break;
+                }
+            }
+        }
+        return included;
     }
 
     private static void AddTargetIfWatched(

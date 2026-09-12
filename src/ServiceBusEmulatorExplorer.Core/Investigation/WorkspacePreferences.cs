@@ -10,7 +10,7 @@ public sealed record InvestigationProfile(
 
 public enum TimestampDisplay { Utc, Local }
 
-public sealed record WatchPreference(string ScopeKey, bool? Active, bool? DeadLetter);
+public sealed record WatchPreference(string ScopeKey, bool? Active, bool? DeadLetter, bool? Included = null);
 
 public sealed record WorkspacePreferences
 {
