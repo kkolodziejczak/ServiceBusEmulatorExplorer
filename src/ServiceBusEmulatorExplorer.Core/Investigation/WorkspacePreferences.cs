@@ -35,6 +35,8 @@ public sealed record WorkspacePreferences
     public double WindowHeight { get; init; } = 1000;
     public IReadOnlyDictionary<string, IReadOnlyList<WatchPreference>> Watches { get; init; } =
         new Dictionary<string, IReadOnlyList<WatchPreference>>();
+    public IReadOnlyDictionary<string, IReadOnlyList<ReplayFamilyState>> ReplayFamilies { get; init; } =
+        new Dictionary<string, IReadOnlyList<ReplayFamilyState>>();
 }
 
 public sealed record PreferencesLoadResult(WorkspacePreferences Preferences, string? Warning = null);

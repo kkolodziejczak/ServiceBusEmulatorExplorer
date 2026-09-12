@@ -288,7 +288,8 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
             DeadLetter = settings.DeadLetter,
             WindowWidth = ValidWindowSize(settings.WindowWidth, 980) ? settings.WindowWidth : DefaultWindowWidth,
             WindowHeight = ValidWindowSize(settings.WindowHeight, 640) ? settings.WindowHeight : DefaultWindowHeight,
-            Watches = ReadWatches(settings.Watches, profileIds)
+            Watches = ReadWatches(settings.Watches, profileIds),
+            ReplayFamilies = ReadReplayFamilies(settings.ReplayFamilies, profileIds)
         };
     }
 
@@ -356,7 +357,40 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
                 preferences.DeadLetter,
                 ValidWindowSize(preferences.WindowWidth, 980) ? preferences.WindowWidth : DefaultWindowWidth,
                 ValidWindowSize(preferences.WindowHeight, 640) ? preferences.WindowHeight : DefaultWindowHeight,
-                WriteWatches(preferences.Watches, profileIds)));
+                WriteWatches(preferences.Watches, profileIds),
+                WriteReplayFamilies(preferences.ReplayFamilies, profileIds)));
+    }
+
+    private static Dictionary<string, IReadOnlyList<ReplayFamilyState>> ReadReplayFamilies(string? protectedValue, HashSet<string> profileIds)
+    {
+        if (string.IsNullOrEmpty(protectedValue)) return [];
+        var stored = JsonSerializer.Deserialize<Dictionary<string, List<ReplayFamilyState>>>(UserProtectedText.Unprotect(protectedValue), JsonOptions)
+            ?? throw new InvalidDataException();
+        var result = new Dictionary<string, IReadOnlyList<ReplayFamilyState>>();
+        foreach (var entry in stored.Where(entry => profileIds.Contains(entry.Key)))
+        {
+            ValidateReplayFamilies(entry.Value);
+            result[entry.Key] = entry.Value;
+        }
+        return result;
+    }
+
+    private static void ValidateReplayFamilies(IReadOnlyList<ReplayFamilyState> families)
+    {
+        if (families is null) throw new InvalidDataException();
+        try { foreach (var family in families) ReplayLineage.ValidateFamily(family); }
+        catch (ArgumentException exception) { throw new InvalidDataException("Invalid replay family state.", exception); }
+        if (families.Select(family => family.FamilyId).Distinct().Count() != families.Count
+            || families.Select(family => family.RootFingerprint).Distinct(StringComparer.OrdinalIgnoreCase).Count() != families.Count)
+            throw new InvalidDataException("Duplicate replay family state.");
+    }
+
+    private static string? WriteReplayFamilies(IReadOnlyDictionary<string, IReadOnlyList<ReplayFamilyState>> families, HashSet<string> profileIds)
+    {
+        var saved = families.Where(entry => profileIds.Contains(entry.Key) && entry.Value.Count > 0)
+            .ToDictionary(entry => entry.Key, entry => entry.Value);
+        foreach (var list in saved.Values) ValidateReplayFamilies(list);
+        return saved.Count == 0 ? null : UserProtectedText.Protect(JsonSerializer.Serialize(saved, JsonOptions));
     }
 
     private static WorkspacePreferences DefaultPreferences() => new()
@@ -469,7 +503,8 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
         bool DeadLetter,
         double WindowWidth,
         double WindowHeight,
-        Dictionary<string, List<StoredWatch>> Watches);
+        Dictionary<string, List<StoredWatch>> Watches,
+        string? ReplayFamilies = null);
 
     private sealed record StoredWatch(string ScopeKey, bool? Active, bool? DeadLetter, bool? Included = null);
 

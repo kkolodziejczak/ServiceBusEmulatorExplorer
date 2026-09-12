@@ -4,13 +4,16 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using ServiceBusEmulatorExplorer.App.Investigation.Inspection;
 using ServiceBusEmulatorExplorer.App.Services;
 using ServiceBusEmulatorExplorer.Core.Investigation;
+using ServiceBusEmulatorExplorer.Core.Connection;
+using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
-public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
+public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDisposable
 {
     private readonly IWorkspacePreferencesStore store;
     private readonly BrokerConnectionWorkflow connections;
+    private readonly Func<ConnectionProfile, IReplayCopySender> createReplaySender;
     private readonly SemaphoreSlim saveGate = new(1, 1);
     private readonly SemaphoreSlim lifecycleGate = new(1, 1);
     private readonly object disposeSync = new();
@@ -40,10 +43,12 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
     public string HealthDetail => readinessWarning ?? (IsConnected ? "Administration and runtime peek access verified." : "Connect to inspect messages.");
     public string Status => Activity.LastOrDefault()?.Message ?? "Choose a connection to begin.";
 
-    public InvestigationWorkspace(IWorkspacePreferencesStore store, BrokerConnectionWorkflow connections)
+    public InvestigationWorkspace(IWorkspacePreferencesStore store, BrokerConnectionWorkflow connections,
+        Func<ConnectionProfile, IReplayCopySender>? createReplaySender = null)
     {
         this.store = store;
         this.connections = connections;
+        this.createReplaySender = createReplaySender ?? (profile => new ReplayCopySender(profile));
         Surface = new(Browse, Search);
         Surface.PropertyChanged += SurfaceChanged;
         Watch.Warning += WatchWarning;
@@ -198,6 +203,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
     private async Task DisconnectCoreAsync(bool clearWatchArrivals = false)
     {
         ++generation;
+        replayCancellation?.Cancel();
         connectCancellation?.Cancel();
         connectCancellation = null;
         connecting = false;
@@ -223,9 +229,9 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
         await saveGate.WaitAsync();
         try
         {
-            // Settings owns profile/display fields; Watch may have committed since Settings opened.
+            // Settings owns profile/display fields; workflow state may have committed since it opened.
             var replacement = updated with { SelectedProfileId = preferences.SelectedProfileId,
-                WasConnected = IsConnected, Watches = preferences.Watches };
+                WasConnected = IsConnected, Watches = preferences.Watches, ReplayFamilies = preferences.ReplayFamilies };
             await store.SaveAsync(replacement, CancellationToken.None);
             preferences = replacement;
             if (credentialsChanged) await Watch.StopAsync(clearPending: true);
@@ -343,9 +349,12 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
     private async Task DisposeCoreAsync()
     {
         Volatile.Write(ref disposeStarted, 1);
+        replayCancellation?.Cancel();
         connectCancellation?.Cancel();
         Browse.Cancel();
         Search.Stop();
+        await replayGate.WaitAsync();
+        replayGate.Release();
         await lifecycleGate.WaitAsync();
         try
         {
