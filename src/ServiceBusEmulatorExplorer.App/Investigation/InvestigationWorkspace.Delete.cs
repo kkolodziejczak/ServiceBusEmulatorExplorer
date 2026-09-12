@@ -20,10 +20,19 @@ public sealed partial class InvestigationWorkspace
             if (session is null || Volatile.Read(ref disposeStarted) != 0 || targets.Any(target => target.Identity.ConnectionGeneration != generation))
                 throw new InvalidOperationException("Reconnect and select current DLQ deliveries before deleting.");
             var profile = SelectedProfile;
+            long deleteGeneration = generation;
             string broker = ReplayNamespace.Fingerprint(profile.Connection);
             var deleter = new DlqDeliveryDeleter(source => createDeleteReceiver(profile.Connection, source));
             var result = await deleter.DeleteAsync(targets, operation.Token);
             var confirmed = result.Outcomes.Where(outcome => outcome.Status == DlqDeleteStatus.Confirmed).Select(outcome => outcome.Identity).ToHashSet();
+            if (generation == deleteGeneration && SelectedProfile.Id == profile.Id)
+            {
+                Browse.ForgetDeleted(confirmed);
+                Search.ForgetDeleted(confirmed);
+                Watch.ForgetDeleted(targets.Where(target => confirmed.Contains(target.Identity)).ToArray());
+                Inspector.ForgetDeleted(confirmed);
+                Inspector.Select(Surface.FocusedMessage?.Delivery);
+            }
             bool saveFailed = await MarkReplayCleanupAsync(profile.Id, broker, targets.Where(target => confirmed.Contains(target.Identity)).ToArray());
             return new(result, saveFailed);
         }

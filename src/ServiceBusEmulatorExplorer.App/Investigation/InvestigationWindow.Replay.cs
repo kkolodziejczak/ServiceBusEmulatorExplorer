@@ -19,6 +19,7 @@ public partial class InvestigationWindow
     private void UpdateReplaySurface()
     {
         if (!ready) return;
+        UpdateDeleteSurface();
         var selection = CurrentReplaySelection();
         bool visible = workspace.Surface.FocusedMessage?.IsDeadLetter == true
             || selection.Targets.Any(delivery => delivery.Identity.Bucket == MessageBucket.DeadLetter);
@@ -35,7 +36,7 @@ public partial class InvestigationWindow
         content.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center });
         ReplayButton.Content = content;
         AutomationProperties.SetName(ReplayButton, label);
-        ReplayButton.IsEnabled = !replayPending && selection.CanReplay;
+        ReplayButton.IsEnabled = !replayPending && deleteCancellation is null && selection.CanReplay;
         ReplayButton.ToolTip = "Send a new active copy. The original DLQ message remains until separately deleted.";
         EditError.Text = selection.Problem ?? "";
         EditError.Visibility = visible && selection.Problem is not null ? Visibility.Visible : Visibility.Collapsed;
@@ -48,7 +49,7 @@ public partial class InvestigationWindow
 
     private async void Replay_Click(object sender, RoutedEventArgs e)
     {
-        if (replayPending) return;
+        if (replayPending || deleteCancellation is not null) return;
         var selection = CurrentReplaySelection();
         if (!selection.CanReplay) return;
         string profileId = workspace.SelectedProfile.Id;

@@ -116,6 +116,14 @@ public sealed class DeliveryInspector : ObservableObject
         SetCurrent(null, null);
     }
 
+    public void ForgetDeleted(IReadOnlySet<DeliveryIdentity> identities)
+    {
+        foreach (var identity in identities)
+            if (_documents.Remove(identity, out var cached)) cached.Document.TextChanged -= Document_TextChanged;
+        if (Current is not null && identities.Contains(Current.Identity)) SetCurrent(null, null);
+        NotifyDocumentStateChanged();
+    }
+
     private CachedDocument CreateDocument(MessageDelivery delivery)
     {
         (string rawText, string rawDescription) = DecodeBody(delivery.Message);

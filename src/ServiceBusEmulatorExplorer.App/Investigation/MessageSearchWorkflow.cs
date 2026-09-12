@@ -31,6 +31,7 @@ public sealed class MessageSearchWorkflow : ObservableObject
     private long version;
     private int scannedDeliveries;
     private readonly List<MessageDelivery> accumulated = [];
+    private readonly HashSet<DeliveryIdentity> deleted = [];
     private readonly Dictionary<EntityAddress, EntityObservation> discovered = [];
     private readonly List<string> discoveryIssues = [];
     private readonly List<DeliverySearchSourceFailure> sourceFailures = [];
@@ -58,6 +59,7 @@ public sealed class MessageSearchWorkflow : ObservableObject
 
     public void SetSession(BrokerSession? value, long connectionGeneration)
     {
+        deleted.Clear();
         Stop();
         version++;
         operationCancellation = null;
@@ -323,7 +325,7 @@ public sealed class MessageSearchWorkflow : ObservableObject
         var known = accumulated.Select(item => item.Identity).ToHashSet();
         foreach (MessageDelivery delivery in result.Matches)
         {
-            if (known.Add(delivery.Identity)) accumulated.Add(delivery);
+            if (!deleted.Contains(delivery.Identity) && known.Add(delivery.Identity)) accumulated.Add(delivery);
         }
 
         complete = result.IsComplete && discoveryComplete && discoveryIssues.Count == 0;
@@ -353,6 +355,18 @@ public sealed class MessageSearchWorkflow : ObservableObject
     {
         RebuildMessages();
         RebuildRoots();
+    }
+
+    public void ForgetDeleted(IReadOnlySet<DeliveryIdentity> identities)
+    {
+        deleted.UnionWith(identities);
+        accumulated.RemoveAll(delivery => deleted.Contains(delivery.Identity));
+        foreach (var identity in rows.Keys.Where(deleted.Contains).ToArray())
+        {
+            rows[identity].PropertyChanged -= MessageRow_PropertyChanged;
+            rows.Remove(identity);
+        }
+        RebuildPresentation();
     }
 
     private void RebuildMessages()

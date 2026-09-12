@@ -12,6 +12,7 @@ public sealed class MessageBrowseWorkflow : ObservableObject
     private DeliveryPager? pager;
     private CancellationTokenSource? readCancellation;
     private long generation;
+    private readonly HashSet<DeliveryIdentity> deleted = [];
     private int version;
     private bool busy;
     private EntityNode? selectedEntity;
@@ -49,6 +50,7 @@ public sealed class MessageBrowseWorkflow : ObservableObject
         session = value;
         OnPropertyChanged(nameof(IsConnected));
         generation = connectionGeneration;
+        deleted.Clear();
         selectedEntity = null;
         pager = null;
         FocusedMessage = null;
@@ -170,7 +172,7 @@ public sealed class MessageBrowseWorkflow : ObservableObject
 
     public async Task OpenKnownAsync(MessageRow known)
     {
-        if (session is null || known.Key.ConnectionGeneration != generation) return;
+        if (session is null || known.Key.ConnectionGeneration != generation || deleted.Contains(known.Key)) return;
         EntityNode? entity = AllEntities().FirstOrDefault(node => node.Address == known.Key.Source);
         if (entity is null) return;
         MessageRow? current = Messages.FirstOrDefault(row => row.Key == known.Key);
@@ -182,7 +184,7 @@ public sealed class MessageBrowseWorkflow : ObservableObject
         Task selection = SelectAsync(entity, known.IsDeadLetter);
         int selectionVersion = version;
         await selection;
-        if (known.Key.ConnectionGeneration != generation || selectedEntity != entity || version != selectionVersion) return;
+        if (known.Key.ConnectionGeneration != generation || selectedEntity != entity || version != selectionVersion || deleted.Contains(known.Key)) return;
         MessageRow? observed = Messages.FirstOrDefault(row => row.Key == known.Key);
         if (observed is null)
         {
@@ -279,6 +281,7 @@ public sealed class MessageBrowseWorkflow : ObservableObject
             var observedKeys = new HashSet<DeliveryIdentity>();
             foreach (MessageDelivery delivery in deliveries)
             {
+                if (deleted.Contains(delivery.Identity)) continue;
                 observedKeys.Add(delivery.Identity);
                 if (oldRows.TryGetValue(delivery.Identity, out MessageRow? existing))
                 {
@@ -319,6 +322,18 @@ public sealed class MessageBrowseWorkflow : ObservableObject
     public void SetAllChecked(bool value)
     {
         foreach (var row in Messages) row.IsSelected = value;
+    }
+
+    public void ForgetDeleted(IReadOnlySet<DeliveryIdentity> identities)
+    {
+        deleted.UnionWith(identities.Where(identity => identity.ConnectionGeneration == generation));
+        foreach (var row in Messages.Where(row => deleted.Contains(row.Key)).ToArray())
+        {
+            row.PropertyChanged -= RowChanged;
+            Messages.Remove(row);
+        }
+        if (FocusedMessage is not null && deleted.Contains(FocusedMessage.Key)) FocusedMessage = Messages.FirstOrDefault();
+        NotifyScope();
     }
 
     public void Cancel()
@@ -374,6 +389,7 @@ public sealed class MessageBrowseWorkflow : ObservableObject
 
     private void AddRow(MessageRow row)
     {
+        if (deleted.Contains(row.Key)) return;
         row.PropertyChanged += RowChanged;
         Messages.Add(row);
     }

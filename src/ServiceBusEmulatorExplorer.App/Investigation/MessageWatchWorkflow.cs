@@ -10,6 +10,7 @@ public sealed class MessageWatchWorkflow(TimeProvider? timeProvider = null)
     private readonly WatchScopeResolver resolver = new();
     private Run? current;
     private EntityDiscoverySnapshot? lastSnapshot;
+    private readonly HashSet<DeliveryIdentity> deleted = [];
     public ObservableCollection<MessageDelivery> PendingArrivals { get; } = [];
     public event Action<WatchPollResult>? Polled;
     public event Action<string>? Warning;
@@ -22,6 +23,7 @@ public sealed class MessageWatchWorkflow(TimeProvider? timeProvider = null)
         ArgumentNullException.ThrowIfNull(rules);
         if (current is not null) throw new InvalidOperationException("Stop the previous Watch session before starting another.");
         var run = new Run(session, generation, rules.ToArray());
+        deleted.Clear();
         lastSnapshot = session.Snapshot;
         current = run;
         run.Completion = RunAsync(run);
@@ -75,7 +77,7 @@ public sealed class MessageWatchWorkflow(TimeProvider? timeProvider = null)
                 if (!ReferenceEquals(current, run)) return;
                 var targets = resolver.Resolve(run.Rules, run.Snapshot).ToHashSet();
                 foreach (var arrival in result.Arrivals)
-                    if (targets.Contains(new(arrival.Identity.Source, arrival.Identity.Bucket))
+                    if (!deleted.Contains(arrival.Identity) && targets.Contains(new(arrival.Identity.Source, arrival.Identity.Bucket))
                         && !PendingArrivals.Any(existing => existing.Identity == arrival.Identity)) PendingArrivals.Add(arrival);
                 Polled?.Invoke(result);
                 remaining -= result.ScannedDeliveries;
@@ -138,6 +140,22 @@ public sealed class MessageWatchWorkflow(TimeProvider? timeProvider = null)
         if (run is null) return;
         run.Lifetime.Cancel();
         await run.Completion;
+    }
+
+    public void ForgetDeleted(IReadOnlySet<DeliveryIdentity> identities)
+    {
+        deleted.UnionWith(identities);
+        foreach (var delivery in PendingArrivals.Where(delivery => deleted.Contains(delivery.Identity)).ToArray())
+            PendingArrivals.Remove(delivery);
+    }
+
+    public void ForgetDeleted(IReadOnlyList<MessageDelivery> deliveries)
+    {
+        ForgetDeleted(deliveries.Select(delivery => delivery.Identity).ToHashSet());
+        var fingerprints = deliveries.Select(ReplayLineage.Fingerprint).ToHashSet(StringComparer.Ordinal);
+        foreach (var pending in PendingArrivals.Where(delivery => delivery.Identity.Bucket == Core.ServiceBus.MessageBucket.DeadLetter
+            && fingerprints.Contains(ReplayLineage.Fingerprint(delivery))).ToArray())
+            PendingArrivals.Remove(pending);
     }
 
     private sealed class Run(BrokerSession session, long generation, IReadOnlyList<WatchPreference> rules)

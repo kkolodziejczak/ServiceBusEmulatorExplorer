@@ -39,12 +39,6 @@ public partial class InvestigationWindow : Window
         refreshTimer.Tick += RefreshTimerTick;
         Loaded += WindowLoaded;
         Closing += WindowClosing;
-        // Mutation controls are connected in their dedicated milestone.
-        foreach (var button in new[] { DeleteButton })
-        {
-            button.IsEnabled = false;
-            button.ToolTip = "This workflow is not available in this integration build yet.";
-        }
     }
 
     private async void WindowLoaded(object sender, RoutedEventArgs e)
@@ -225,7 +219,6 @@ public partial class InvestigationWindow : Window
         if (!workspace.Search.IsActive && !workspace.Browse.IsBusy) await workspace.RunReadAsync(workspace.Search.IsActive ? workspace.Search.ContinueAsync : workspace.Browse.RefreshAsync);
     }
 
-    private void Delete_Click(object sender, RoutedEventArgs e) { }
 
 
     private async void ToggleLog_Click(object sender, RoutedEventArgs e) =>

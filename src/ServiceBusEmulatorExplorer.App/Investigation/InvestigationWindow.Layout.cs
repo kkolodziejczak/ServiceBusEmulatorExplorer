@@ -18,7 +18,7 @@ public partial class InvestigationWindow
         ListHeading.Visibility = shortWindow ? Visibility.Collapsed : Visibility.Visible;
         InspectorMessageId.Visibility = shortWindow ? Visibility.Collapsed : Visibility.Visible;
         CorrelationMetadata.Padding = shortWindow ? new Thickness(6, 4, 6, 4) : new Thickness(10, 9, 10, 9);
-        BodyEditor.Padding = shortWindow ? new Thickness(12, 5, 12, 5) : new Thickness(14, 18, 14, 18);
+        BodyEditor.Padding = compact ? new Thickness(12, 5, 12, 5) : new Thickness(14, 18, 14, 18);
         ReplayActions.Padding = shortWindow ? new Thickness(8, 5, 8, 5) : new Thickness(10);
         LoadMoreButton.Padding = shortWindow ? new Thickness(8, 4, 8, 4) : new Thickness(12, 7, 12, 7);
         EmptySearchIcon.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
