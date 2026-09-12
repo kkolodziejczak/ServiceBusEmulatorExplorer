@@ -58,7 +58,11 @@ public sealed record ExplorerMessage(
     string? SessionId,
     string? Subject,
     IReadOnlyDictionary<string, object?> ApplicationProperties,
-    IReadOnlyDictionary<string, object?> SystemProperties);
+    IReadOnlyDictionary<string, object?> SystemProperties)
+{
+    /// <summary>Original broker bytes, independent of the decoded body used for text display.</summary>
+    public BinaryData? RawBody { get; init; }
+}
 
 public sealed record ReplayRequest(
     EntityAddress Source,

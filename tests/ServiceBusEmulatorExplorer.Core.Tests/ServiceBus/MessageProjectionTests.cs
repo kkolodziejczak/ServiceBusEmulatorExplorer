@@ -6,6 +6,19 @@ namespace ServiceBusEmulatorExplorer.Core.Tests.ServiceBus;
 public sealed class MessageProjectionTests
 {
     [Fact]
+    public void Create_retains_original_bytes_when_body_is_not_valid_utf8()
+    {
+        byte[] bytes = [0xFF, 0x00, 0xC3, 0x28];
+        var source = ServiceBusModelFactory.ServiceBusReceivedMessage(body: BinaryData.FromBytes(bytes));
+
+        ExplorerMessage message = MessageProjection.Create(source);
+
+        Assert.NotNull(message.RawBody);
+        Assert.Equal(bytes, message.RawBody.ToArray());
+        Assert.Equal(bytes.Length, message.BodySizeBytes);
+    }
+
+    [Fact]
     public void Create_preserves_body_properties_and_normalizes_dates_to_utc()
     {
         ServiceBusReceivedMessage source = ServiceBusModelFactory.ServiceBusReceivedMessage(

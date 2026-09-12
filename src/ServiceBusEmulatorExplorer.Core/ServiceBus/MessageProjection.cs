@@ -21,7 +21,10 @@ public static class MessageProjection
             message.SessionId,
             message.Subject,
             CopyProperties(message.ApplicationProperties),
-            CreateSystemProperties(message));
+            CreateSystemProperties(message))
+        {
+            RawBody = BinaryData.FromBytes(message.Body.ToArray())
+        };
     }
 
     private static IReadOnlyDictionary<string, object?> CreateSystemProperties(ServiceBusReceivedMessage message)
