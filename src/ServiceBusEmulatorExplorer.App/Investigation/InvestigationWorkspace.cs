@@ -25,6 +25,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
     private WorkspacePreferences preferences = new();
     public MessageBrowseWorkflow Browse { get; } = new();
     public MessageSearchWorkflow Search { get; } = new();
+    public MessageWatchWorkflow Watch { get; } = new();
     public InvestigationSurface Surface { get; }
     public DeliveryInspector Inspector { get; } = new();
     public ObservableCollection<ActivityEntry> Activity { get; } = [];
@@ -44,6 +45,16 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
         this.connections = connections;
         Surface = new(Browse, Search);
         Surface.PropertyChanged += SurfaceChanged;
+        Watch.Warning += WatchWarning;
+        Watch.Polled += WatchPolled;
+    }
+
+    private void WatchWarning(string message) => Log(message, true);
+
+    private void WatchPolled(WatchPollResult result)
+    {
+        foreach (var failure in result.Failures)
+            Log($"Watch {failure.Target.Address.TopicName}/{failure.Target.Address.Name} · {failure.Target.Bucket}: {failure.Message}", true);
     }
 
     private void SurfaceChanged(object? sender, PropertyChangedEventArgs e)
@@ -93,6 +104,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
             readinessWarning = connected.ReadinessWarning;
             Browse.SetSession(session, generation);
             Search.SetSession(session, generation);
+            Watch.Start(session, generation, CurrentWatchRules());
             Log(readinessWarning ?? $"Connected to {profile.Connection.Name}.", readinessWarning is not null);
             foreach (var issue in connected.Snapshot.Issues) Log(issue, true);
             var initial = Browse.AllEntities().FirstOrDefault(node => node.Path == preferences.SelectedEntityPath)
@@ -176,6 +188,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
         connecting = false;
         Browse.SetSession(null, generation);
         Search.SetSession(null, generation);
+        await Watch.StopAsync();
         Inspector.Clear();
         var previous = session;
         session = null;
@@ -199,8 +212,12 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
         preferences = replacement;
         Browse.SetPreferences(preferences);
         Search.SetPreferences(preferences);
+        Watch.UpdateRules(CurrentWatchRules());
         NotifyConnection();
     }
+
+    private IReadOnlyList<WatchPreference> CurrentWatchRules() =>
+        preferences.Watches.TryGetValue(preferences.SelectedProfileId, out var rules) ? rules : [];
 
     public async Task UpdateDisplayPreferencesAsync(bool? logExpanded = null, TimestampDisplay? timestampDisplay = null,
         int? autoRefreshSeconds = null)
@@ -298,6 +315,8 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
         }
         finally { lifecycleGate.Release(); }
         Surface.PropertyChanged -= SurfaceChanged;
+        Watch.Warning -= WatchWarning;
+        Watch.Polled -= WatchPolled;
         Surface.Dispose();
     }
 }
