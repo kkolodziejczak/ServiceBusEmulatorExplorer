@@ -61,6 +61,20 @@ Keep entity creation/edit/delete, purge, advanced rule administration, schedulin
 
 ## Questions before implementation
 
+### Accepted first-slice decisions (user answers, 2026-09-12)
+
+- **Q2:** Messages means Active; add a third **Scheduled** count column where broker information is available, alongside DLQ. Queue and topic SDK runtime properties expose scheduled counts; subscriptions do not, so show an explicit unavailable/not-applicable marker rather than invented zero. The new column is an approved addition to prototype parity.
+- **Q7a:** Logs and message drafts remain in memory for the session only; profiles, user preferences and Watch rules still persist as already approved.
+- **Q7b:** Retain both connection-string and explicit Azure CLI authentication choices.
+- **Q8:** Switching with dirty drafts offers Cancel or explicit Discard; an approved switch cancels old reads and isolates connection caches. Do not silently discard drafts.
+- **Q9:** Remove Server timezone entirely. Only UTC and computer Local display remain; original timestamp instants and raw metadata stay unchanged.
+- **Q10:** Topic page size is a combined delivery count. User clarified **three defaults in Settings: Queues, Topics, Subscriptions**, each defaulting to 50 with selector choices 25/50/100/200. Larger page sizes may use multiple SDK requests. These are type-wide defaults, not overrides for every named entity.
+- **Q3:** User approved a default search budget of 30 seconds or 10,000 scanned deliveries, whichever occurs first. Limits are configurable in Settings; partial status and Continue must preserve scan cursors.
+- **State badges:** User approved the generated badge proposal during integration: Active uses pale blue `#EFF6FF`, a one-pixel `#6C9BD2` border, and dark blue `#174A7E` text, retaining compact rounded geometry. Apply to selected/unselected list rows and the inspector badge.
+- These answers supersede the earlier unanswered-question records and corresponding prototype behavior. Q4–Q6 remain unresolved for their later stages; do not reopen accepted choices.
+
+Current ownership: coordinator owns shared Core investigation contracts, shell/view models, DI and this handoff. `preferences` owns protected storage supporting files under App `Investigation/Settings/` excluding `SettingsWindow*`, plus `InvestigationPreferencesTests.cs`; `settings_ui` owns only `SettingsWindow.xaml/.cs`; `discovery` owns new Core `InvestigationEntityBrowser.cs`/`Discovery*` and `InvestigationDiscoveryTests.cs`; `paging` owns `DeliveryPager.cs`/`Paging*` and `InvestigationPagingTests.cs`; `drafts` owns `DeliveryInspector.cs` and `InvestigationDraftTests.cs`. Workers use Luna High, have no runtime leases, and do not modify shared contracts. Coordinator serializes builds, UI and emulator runs. Previous leaf proof milestone: `f1639d0`.
+
 Answer by Q number. Recommendations are proposals, not already approved decisions. Existing approved interaction details above do not need to be asked again.
 
 | ID | Decision needed | Recommended starting choice |
@@ -200,3 +214,15 @@ Keep the handoff current with decisions, worker ownership, progress, evidence an
 
 Continue through the approved production checklist, asking only when a consequential unresolved decision or external blocker requires me. Commit completed milestones on the current branch. Do not merge, tag or publish a release. At handoff report completed slices, checks, remaining gaps and the exact next step.
 ```
+
+## Production integration checkpoint — 2026-09-12
+
+- Real App startup now creates `InvestigationWindow` and `InvestigationWorkspace`, using protected preferences, the real client factory, tolerant discovery and non-consuming message peeking. The production shell includes three paging defaults, UTC/Local, Scheduled count availability, source-aware browsing, drafts/undo, warning dialogs and the approved outlined Active badges.
+- Read-only review found and integration repaired stale select-all state, grid headers behind empty states and Unicode pause/resume icons. Rendered execution found and repaired reentrant WPF shutdown. Refresh preserves entity/row references, expansion, filters, checks and focus; retained missing deliveries have an explicit tooltip.
+- Current verification: Core project **91/91 passed**; App project **113/113 passed** with the legacy-migration case run separately **1/1 passed** outside the sandbox. Sandboxed Windows `File.Replace` returned `UnauthorizedAccessException`; the identical isolated synthetic-profile migration passes with escalation. Do not weaken atomic replacement to accommodate that sandbox limitation.
+- Actual production Window rendering with fake broker services passes selected/unselected Active badge checks at 1500×1000, 1100×800 and 980×640. Captures live under ignored `artifacts/investigation-ui/`. This is UI evidence, not real-broker evidence. At minimum size the approved expanded-log layout may show only one full message row; the proof handles virtualization explicitly.
+- Settings rendered interaction proof now passes independent page/search selectors, pending-save Done disablement, Azure CLI editing, profile switching and failed-save preservation at default/minimum sizes. The final captures were inspected; clipped delivery-budget suffix was removed because the field label already supplies the unit. Full UI gate remains **incomplete**: connection-warning dialog transitions, full end-to-end broker/UI flows, keyboard/accessibility/DPI and final parity remain outstanding.
+- New emulator proof **1/1 passed** in 6 seconds: unique queue/topic/two subscriptions, 55 Active plus 5 DLQ deliveries per receiving source; real discovery/Scheduled availability; repeated combined paging without consuming; bounded search/Continue with 180 unique source-aware delivery identities. Both `sbe-investigation-proof` containers and its network were removed afterward. Ordinary local Docker projects were untouched.
+- Independent Core review prompted count-free discovered descriptors, canonical Watch scope keys, pager source normalization and terminal-sequence handling, explicit empty superseded-search results, and safe HTTP auth categories. Regression tests cover these repairs. Incomplete discovery retains missing cached entities with explicitly stale count state; a complete snapshot can confirm removal.
+- Global search Core supports saved cursors, Active/DLQ, Stop/Continue and approved budgets; search is not yet connected to the shell. Watch scope resolution is a foundation pending review. Watch/tray/notifications, replay and typed deletion remain unimplemented in the production shell; their buttons are temporarily disabled in this integration build. Do not call this build production complete.
+- Q4 fresh-baseline versus catch-up behavior is pending a contextual user question; Q5 topic replay routing and Q6 identifiers/retries remain unanswered. Final independent source review found no remaining blocker in the repaired Core scope; independent shell repair review also passed its bounded scope. This checkpoint is a read-only integration milestone, not completion of the production checklist. No runtime lease remains active.

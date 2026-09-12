@@ -82,6 +82,18 @@ Packaging proof:
 ..\scripts\Publish-Windows.ps1
 ```
 
+## Investigation workspace checks
+
+From the repository root, run the focused production-workspace tests:
+
+```powershell
+dotnet test tests/ServiceBusEmulatorExplorer.App.Tests/ServiceBusEmulatorExplorer.App.Tests.csproj --filter "FullyQualifiedName~Investigation" -m:1 -nr:false -p:UseSharedCompilation=false
+```
+
+The WPF render cases use synthetic broker services and exercise the real windows at supported sizes. Set `SBE_CAPTURE_INVESTIGATION_UI=true` to save ignored PNG evidence under `artifacts/investigation-ui`. They do not replace broker or FlaUI end-to-end proof. The protected legacy-profile migration uses Windows atomic file replacement; a restricted sandbox can deny that operation even when ordinary temporary-file writes succeed.
+
+With the integration environment configured as above, `--filter "FullyQualifiedName~InvestigationLeafReadIntegrationTests"` on the integration project runs discovery, combined paging, repeated non-consuming reads and bounded-search continuation against isolated, uniquely named broker entities. The case deletes those entities afterward and never purges existing entities.
+
 ## First UI Smoke Test
 
 The first FlaUI/UIA3 smoke test should:

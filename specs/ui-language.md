@@ -4,6 +4,8 @@ Status: prototype approved as complete by the user on 2026-09-12, baseline `8575
 
 Authority: the latest decisions in the “Audit and simplify Service Bus UI” conversation, then the current [prototype preview](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/preview.png). Earlier generated images are historical references. Preserve the approved compact connection toolbar, three panes, full-width console, and bottom time selector.
 
+Production integration decisions approved on 2026-09-12 supersede the corresponding prototype details: use UTC/Local only; add Scheduled alongside Active-message and DLQ counts, showing an em dash when unsupported; expose separate Queue, Topic and Subscription page defaults in Settings. The user also approved compact Active badges with `#EFF6FF` fill, a one-DIP `#6C9BD2` border and `#174A7E` text so selection does not erase their outline. Apply this treatment consistently in message rows and the inspector; preserve the distinct amber DLQ treatment.
+
 ## Audit findings and current implementation
 
 The findings below describe the original audit baseline. The prototype now has a [shared style dictionary](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/SharedStyles.xaml), shared action templates, explicit button focus rings and normalized Settings profile/tab selection. Verify the complete affected surfaces before closing findings; code changes alone do not constitute a visual pass.
