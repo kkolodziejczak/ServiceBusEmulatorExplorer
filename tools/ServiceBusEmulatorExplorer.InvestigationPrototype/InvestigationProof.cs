@@ -41,6 +41,7 @@ internal static class InvestigationProof
             await ProfileThemeProof.Exercise(window, report, output);
             await AddConnectionProof.Exercise(window, report, output);
             await AutoConnectProof.Exercise(window, report, output);
+            await ChromePolishProof.Exercise(window, report, output);
             File.WriteAllLines(Path.Combine(output, "report.md"), report);
             return 0;
         }

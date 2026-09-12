@@ -66,7 +66,7 @@ See the [requirements, open questions and worker handoff](../../specs/investigat
 
 ## Rendered evidence
 
-Current verification: build with zero warnings/errors and **333 passing checks**, including typed deletion, Watch inclusion, profile health/colors and protected preference save/reopen. The [real tray lifetime proof](tray-verification.md) passes **11 checks**. Full-profile themes, saved warnings, new profiles and simplified Watch search pass the current rendered walkthrough. Verification uses isolated preference files; broker operations remain synthetic.
+Current verification: build with zero warnings/errors and **347 passing checks**, including typed deletion, Watch inclusion, profile health/colors and protected preference save/reopen. The [real tray lifetime proof](tray-verification.md) passes **11 checks**. Full-profile themes, saved warnings, new profiles and simplified Watch search pass the current rendered walkthrough. Verification uses isolated preference files; broker operations remain synthetic.
 
 | UI gate | Result | Evidence |
 | --- | --- | --- |
@@ -111,3 +111,5 @@ dotnet run --project tools/ServiceBusEmulatorExplorer.InvestigationPrototype -- 
 ```
 
 Limits: proof uses routed WPF actions and editor documents, not every physical pointer gesture. No broker integration, exhaustive DPI matrix, or full screen-reader audit is claimed. The mockup supplies visual authority; platform font rasterization and live sample content differ from the generated image. The earlier modal replay editor and its walkthrough have been replaced by inline editing.
+
+Connection strings remain masked in Settings. Use the adjacent Copy button to share the current runtime or administration string; blank fields cannot be copied. The toolbar accent now sits below the controls, and scrollbars share the profile theme throughout the prototype.

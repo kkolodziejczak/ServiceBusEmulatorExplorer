@@ -351,3 +351,17 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Saving the current profile does not trigger auto-connect
 - PASS: Auto-connect preference persists to an isolated preferences file
 - PASS: A fresh Settings window restores the saved auto-connect switch
+- PASS: Profile accent is confined to the header bottom edge
+- PASS: Settings content does not repeat the native window title
+- PASS: Blank connection fields disable their copy actions
+- PASS: Copy actions use the exact unsaved runtime and administration field values
+- PASS: Compact Settings scrolls long content with a rendered vertical scrollbar
+- PASS: Main investigation workspace scrolls long content with a rendered vertical scrollbar
+- PASS: Watch tree with many entities scrolls long content with a rendered vertical scrollbar
+- PASS: Shared scrollbar style harness supports both horizontal and vertical scrolling
+- PASS: Horizontal scrollbar renders the shared ThumbSurface
+- PASS: Horizontal scrollbar page button advances its ScrollViewer
+- PASS: Horizontal scrollbar Thumb drag advances its ScrollViewer
+- PASS: Vertical scrollbar renders the shared ThumbSurface
+- PASS: Vertical scrollbar page button advances its ScrollViewer
+- PASS: Vertical scrollbar Thumb drag advances its ScrollViewer

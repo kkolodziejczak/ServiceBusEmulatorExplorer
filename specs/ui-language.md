@@ -27,7 +27,7 @@ Sizes below are WPF device-independent units (DIPs), not physical pixels. Use na
 | Role | Value / rule |
 | --- | --- |
 | Font family | Segoe UI; Consolas for JSON and console |
-| Type scale | 14 DIPs controls/body; 12 DIPs metadata; 11 DIPs badges/timestamps only; 16 DIPs section title; 24 DIPs inspector title; 18 DIPs compact title; 22 DIPs Settings title; 16 DIPs notification summary |
+| Type scale | 14 DIPs controls/body; 12 DIPs metadata; 11 DIPs badges/timestamps only; 16 DIPs section title; 24 DIPs inspector title; 18 DIPs compact title; native Settings window title only; 16 DIPs notification summary |
 | Code/console | JSON 14 DIPs; console 12 DIPs; always wrap body text; preserve raw content |
 | Primary text / secondary / action text | `#17213D` / `#627692` / `#234266` |
 | Canvas / raised / toolbar | `#FAFCFF` / `#FFFFFF` / `#F5F9FE` |
@@ -63,4 +63,12 @@ Do not confuse glyph dimensions with hit targets. Keep Copy beside the correlati
 - Add connection opens a uniquely named empty editor without changing the active connection; Save persists its color and optional warning. Saved warnings gate switching, Connect and restored startup attempts. Cancel preserves the previous connection or leaves the pending attempt disconnected.
 - Watch search uses an inline magnifier and concise placeholder; keep its accessible name without a verbose duplicate instruction.
 
-Current gate: **visual consistency and routed flows PASS** at the three supported window sizes, with 333 walkthrough checks and 11 real tray checks. Typed confirmation, inclusion-tree Watch, profile colors/health and protected preference save/reopen are covered by the [walkthrough](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/verification.md). Full-profile themes, saved warning flows, Add connection and simplified Watch search pass the current rerun, including saving while a warning is pending and restored DLQ browsing. **Broader physical keyboard, screen-reader and Windows DPI/multi-monitor evidence remains BLOCKED (not collected).** Synthetic interactions do not establish broker correctness or a complete accessibility audit.
+Current gate: **visual consistency and routed flows PASS** at the three supported window sizes, with 347 walkthrough checks and 11 real tray checks. Typed confirmation, inclusion-tree Watch, profile colors/health and protected preference save/reopen are covered by the [walkthrough](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/verification.md). Full-profile themes, saved warning flows, Add connection and simplified Watch search pass the current rerun, including saving while a warning is pending and restored DLQ browsing. **Broader physical keyboard, screen-reader and Windows DPI/multi-monitor evidence remains BLOCKED (not collected).** Synthetic interactions do not establish broker correctness or a complete accessibility audit.
+
+## Final chrome polish (2026-09-12)
+
+The profile accent forms a continuous 3-DIP divider below the connection toolbar, meeting the pane splitters. Settings uses a conventional toothed cog and the native window title without a duplicate content heading. Each masked connection field has the shared rounded Copy icon, an accessible name and a tooltip; copying uses the current field value without logging it. Empty fields disable Copy.
+
+All shared scrollbars use an 18-DIP hit lane, a rounded 8-DIP visible thumb and profile-themed hover/drag feedback. Preserve wheel, keyboard, page and thumb behavior in both orientations. Dark editor/log backgrounds remain dark beneath the transparent track.
+
+Chrome-polish verification: zero-warning build and 347 routed checks pass. Actual desktop/compact/minimum screenshots, masked-field copying, Watch scrolling, and page/drag commands in both orientations were checked. Current rendered evidence is reflected in the linked previews and walkthrough; prior physical-input/DPI limitations remain. One initial run encountered external clipboard contention while restoring clipboard contents; the complete final rerun passed.

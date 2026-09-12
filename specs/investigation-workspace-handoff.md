@@ -7,7 +7,7 @@ Prepared 2026-09-11; prototype approved by the user on 2026-09-12. **Prototype c
 - Implementation baseline: `126c824` on `prototype/investigation-workspace` (approved prototype). Earlier milestones: `a908ffd` for persisted Watch/preferences and typed deletion; `8cc1232` for profile themes, warnings and new profiles. Use the normal checkout and inspect newer commits before starting; preserve unrelated changes.
 - Visual/interaction reference: [prototype](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/README.md) and its [current preview](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/preview.png). Apply [UI language and audit corrections](ui-language.md) consistently; preserve the approved layout.
 - Destination: existing WPF [App](../src/ServiceBusEmulatorExplorer.App/ServiceBusEmulatorExplorer.App.csproj) using existing [Core contracts](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/ServiceBusContracts.cs). Keep the prototype as a reference until parity is proven. Do not just rename its executable or ship its synthetic Workspace.
-- Current evidence: 333 routed walkthrough checks and an 11-check real tray run pass, including profile/Watch preferences, typed deletion and shared styling. Full-profile themes, saved warnings, new profiles and simplified Watch search pass the current rendered walkthrough. No new broker integration tests were run for this audit. The proof uses synthetic messages and is not a production readiness certificate.
+- Current evidence: 347 routed walkthrough checks and an 11-check real tray run pass, including profile/Watch preferences, typed deletion and shared styling. Full-profile themes, saved warnings, new profiles and simplified Watch search pass the current rendered walkthrough. No new broker integration tests were run for this audit. The proof uses synthetic messages and is not a production readiness certificate.
 
 ## Approved prototype milestone
 
@@ -29,6 +29,7 @@ Do not reopen visual design, add redundant controls, or run another prototype-de
 | --- | --- | --- |
 | Small daily-investigation UI; remove redundant headings | Approved layout implemented | Replace old shell surface; do not bring back all old administration buttons |
 | Emulator and Azure connection selection | Toolbar dropdown with opt-in auto-connect; Settings manages profiles; Add connection opens a blank uniquely named profile without switching; Save persists | Reuse real profile/auth validation; persist selected profile and color separately from connection health |
+| Share connection strings | Copy beside each masked runtime/administration field copies its current value; empty fields disable Copy; status never includes credentials | Preserve explicit clipboard sharing and masking; never log credentials |
 | Profile identity and connection health | Active profile theme covers buttons, selected states and surface tints across windows; separate fixed health, DLQ and red Delete colors | Bind health to structured connection/operation outcomes; color alone must not communicate status |
 | Queues, topics, subscriptions and Message/DLQ totals | Sample tree, distinct icons; unknown sample counts | Bind real tree and typed known/unknown/stale count state; topic totals are delivery totals across subscriptions |
 | First 50 on scope/bucket change; Load more | Implemented against fixtures | Per-source cursors, cancellation, stale-request rejection; settle topic aggregate paging |
@@ -53,7 +54,7 @@ Do not reopen visual design, add redundant controls, or run another prototype-de
 | Full-width activity console; clear only expanded | Implemented with 100 in-memory entries | Structured outcomes, redacted sensitive values, bounded history; decide persistence |
 | UTC/Local/Server selector | Display preference persisted; Server is sample −05:00 | Configure real server zone; retain original UTC instants and raw payloads |
 | Restore selections/preferences across launches | Separate prototype JSON store; user-scoped DPAPI for connection strings; per-profile Watch snapshots | Integrate production settings safely; migration, failure recovery and restart behavior must be proven |
-| Consistent colors/fonts/sizes/states | Shared resources and Settings normalization implemented; rendered desktop/compact/minimum checks pass | Preserve approved tokens and complete the linked UI audit before production handoff |
+| Consistent colors/fonts/sizes/states | Shared resources, themed scrollbars, conventional cog, continuous accent divider below the toolbar and Settings without a duplicate content title implemented; rendered desktop/compact/minimum checks pass | Preserve approved tokens and complete the linked UI audit before production handoff |
 
 Keep entity creation/edit/delete, purge, advanced rule administration, scheduling and unrelated legacy features outside the primary workflow. Retaining existing backend code is different from exposing its entire old UI. Standalone Send New Message and replay of Active messages were not settled; do not silently add them.
 

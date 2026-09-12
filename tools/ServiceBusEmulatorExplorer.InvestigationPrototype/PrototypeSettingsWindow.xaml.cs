@@ -139,6 +139,35 @@ public partial class PrototypeSettingsWindow : Window
         ProfileStatus.Text = string.Empty;
     }
 
+    private void ConnectionString_Changed(object sender, RoutedEventArgs e)
+    {
+        if (CopyRuntimeConnectionButton is not null) CopyRuntimeConnectionButton.IsEnabled = HasConnectionString(RuntimeConnection);
+        if (CopyAdministrationConnectionButton is not null) CopyAdministrationConnectionButton.IsEnabled = HasConnectionString(AdministrationConnection);
+    }
+
+    private static bool HasConnectionString(PasswordBox field)
+    {
+        using var password = field.SecurePassword;
+        return password.Length > 0;
+    }
+
+    private void CopyRuntimeConnection_Click(object sender, RoutedEventArgs e) => CopyConnectionString(RuntimeConnection, "Runtime");
+    private void CopyAdministrationConnection_Click(object sender, RoutedEventArgs e) => CopyConnectionString(AdministrationConnection, "Administration");
+
+    private void CopyConnectionString(PasswordBox field, string label)
+    {
+        if (!HasConnectionString(field)) return;
+        try
+        {
+            Clipboard.SetText(field.Password);
+            ProfileStatus.Text = $"{label} connection string copied.";
+        }
+        catch (System.Runtime.InteropServices.ExternalException)
+        {
+            ProfileStatus.Text = "Clipboard is unavailable. Try copying again.";
+        }
+    }
+
     private void SaveProfile_Click(object sender, RoutedEventArgs e)
     {
         if (ProfilesList.SelectedItem is not PrototypeConnectionProfile profile) return;
