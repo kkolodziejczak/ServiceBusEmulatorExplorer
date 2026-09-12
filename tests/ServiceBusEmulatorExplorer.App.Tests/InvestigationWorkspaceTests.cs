@@ -7,6 +7,37 @@ namespace ServiceBusEmulatorExplorer.App.Tests;
 
 public sealed class InvestigationWorkspaceTests
 {
+    [Fact]
+    public async Task DisposeWhilePreferencesLoadIsPending_DoesNotOverwriteStoreOrPublishLatePreferences()
+    {
+        var store = new DelayedStore();
+        var factory = new FakeFactory();
+        var workspace = new InvestigationWorkspace(store, new BrokerConnectionWorkflow(
+            () => factory, _ => new FakeBrowser(Snapshot()), _ => new FakeMessages()));
+        var before = workspace.Preferences;
+        Task initialize = workspace.InitializeAsync();
+        await store.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await workspace.UpdateWindowBoundsAsync(1100, 800);
+        await workspace.DisposeAsync();
+        var atShutdown = workspace.Preferences;
+        int notifications = 0;
+        workspace.PropertyChanged += (_, _) => notifications++;
+        store.Release.SetResult(new PreferencesLoadResult(new WorkspacePreferences
+        {
+            Profiles = [Profile("saved-profile", "Saved")],
+            SelectedProfileId = "saved-profile",
+            WasConnected = true
+        }));
+        await initialize.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Same(atShutdown, workspace.Preferences);
+        Assert.Empty(store.Saves);
+        Assert.Equal(before.SelectedProfileId, workspace.Preferences.SelectedProfileId);
+        Assert.Equal(0, notifications);
+        Assert.Equal(0, factory.ConnectCount);
+        Assert.False(workspace.IsConnected);
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
@@ -271,6 +302,23 @@ public sealed class InvestigationWorkspaceTests
             TopicName: null,
             new EntityRuntimeCounts(0, 0, 0, 0),
             new EntityMetadata(name, "Active", null, null, null, null, null, null, null));
+
+    private sealed class DelayedStore : IWorkspacePreferencesStore
+    {
+        public TaskCompletionSource<bool> Started { get; } = NewSignal();
+        public TaskCompletionSource<PreferencesLoadResult> Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public List<WorkspacePreferences> Saves { get; } = [];
+        public Task<PreferencesLoadResult> LoadAsync(CancellationToken cancellationToken)
+        {
+            Started.SetResult(true);
+            return Release.Task;
+        }
+        public Task SaveAsync(WorkspacePreferences preferences, CancellationToken cancellationToken)
+        {
+            Saves.Add(preferences);
+            return Task.CompletedTask;
+        }
+    }
 
     private sealed class FakeStore(WorkspacePreferences initial) : IWorkspacePreferencesStore
     {

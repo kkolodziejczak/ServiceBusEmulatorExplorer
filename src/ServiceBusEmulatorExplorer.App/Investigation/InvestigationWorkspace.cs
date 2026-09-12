@@ -20,6 +20,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
     private int disposeStarted;
     private Task? disposeTask;
     private bool connecting;
+    private bool initialized;
     private string? readinessWarning;
     private WorkspacePreferences preferences = new();
     public MessageBrowseWorkflow Browse { get; } = new();
@@ -52,12 +53,20 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
 
     public async Task InitializeAsync()
     {
+        if (Volatile.Read(ref disposeStarted) != 0) return;
         var result = await store.LoadAsync(CancellationToken.None);
-        preferences = result.Preferences;
-        Browse.SetPreferences(preferences);
-        Search.SetPreferences(preferences);
-        NotifyConnection();
-        if (result.Warning is not null) Log(result.Warning, true);
+        await lifecycleGate.WaitAsync();
+        try
+        {
+            if (Volatile.Read(ref disposeStarted) != 0) return;
+            preferences = result.Preferences;
+            Browse.SetPreferences(preferences);
+            Search.SetPreferences(preferences);
+            initialized = true;
+            NotifyConnection();
+            if (result.Warning is not null) Log(result.Warning, true);
+        }
+        finally { lifecycleGate.Release(); }
         if (preferences.WasConnected) await ConnectAsync();
     }
 
@@ -248,6 +257,8 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
 
     private async Task SaveCurrentAsync()
     {
+        // Shutdown can precede the initial load; never replace saved profiles with startup defaults.
+        if (!initialized) return;
         await saveGate.WaitAsync();
         try { await store.SaveAsync(preferences, CancellationToken.None); }
         catch (Exception) { Log("Preferences could not be saved. Session changes remain available.", true); }
