@@ -98,6 +98,14 @@ WPF presentation tests share a non-parallel xUnit collection because resource in
 
 With the integration environment configured as above, `--filter "FullyQualifiedName~InvestigationLeafReadIntegrationTests"` on the integration project runs discovery, combined paging, repeated non-consuming reads and bounded-search continuation against isolated, uniquely named broker entities. The case deletes those entities afterward and never purges existing entities.
 
+With `SBE_RUN_UI_TESTS=true` and the same broker environment, the current investigation workflow can also be exercised through the actual app executable. From the repository root, after building the UI smoke project:
+
+```powershell
+.\scripts\Invoke-UiSmoke.ps1 -NoBuild -Filter "FullyQualifiedName~InvestigationReadOnlyEndToEndTests" -TimeoutSeconds 180
+```
+
+This creates unique queue/topic fixtures and an isolated protected profile, verifies 25/50/52-row paging, DLQ inspection, related-message search across two subscriptions, Clear and normal shutdown, then compares complete broker peek observations before and after. The generated entities and profile are cleaned up. The older navigation/administration/mutation cases in `MainWindowSmokeTests` still target the previous shell and need migration; this focused pass does not establish a full-suite pass.
+
 ## First UI Smoke Test
 
 The first FlaUI/UIA3 smoke test should:
@@ -105,8 +113,8 @@ The first FlaUI/UIA3 smoke test should:
 1. Launch the WPF app executable.
 2. Find the main window.
 3. Verify the window title is `Service Bus Emulator Explorer`.
-4. Verify `Connect`, `Disconnect`, and `Refresh` are discoverable controls.
-5. Verify no startup exception dialog is shown.
-6. Close the app cleanly.
+4. Verify the connection selector, connection action, search, Refresh and Settings controls are discoverable.
+5. Open Settings and verify queue/topic/subscription page sizes and Azure CLI fields through UI Automation.
+6. Verify no startup exception dialog is shown and clean up the isolated app/profile. The broker-backed investigation case separately verifies normal shutdown.
 
 Keep UI smoke tests small and focused. Broader behavior should stay in unit and integration tests where it is faster and less fragile.

@@ -19,6 +19,7 @@ public partial class InvestigationWindow : Window
     private bool updating;
     private bool paused;
     private bool closing;
+    private bool synchronizingBucketTabs;
 
     public InvestigationWindow(InvestigationWorkspace workspace)
     {
@@ -97,8 +98,7 @@ public partial class InvestigationWindow : Window
     private void SurfaceChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (!ready) return;
-        ActiveTab.IsChecked = !workspace.Surface.IsDeadLetter;
-        DeadLetterTab.IsChecked = workspace.Surface.IsDeadLetter;
+        SynchronizeBucketTabs();
         SourceColumn.Visibility = workspace.Surface.ShowsSource ? Visibility.Visible : Visibility.Collapsed;
         if (MessageGrid.SelectedItem != workspace.Surface.FocusedMessage)
             MessageGrid.SelectedItem = workspace.Surface.FocusedMessage;
@@ -150,11 +150,39 @@ public partial class InvestigationWindow : Window
         }
     }
 
-    private async void Active_Click(object sender, RoutedEventArgs e) => await SelectBucket(false);
-    private async void DeadLetter_Click(object sender, RoutedEventArgs e) => await SelectBucket(true);
+    private void SynchronizeBucketTabs()
+    {
+        synchronizingBucketTabs = true;
+        try
+        {
+            ActiveTab.IsChecked = !workspace.Surface.IsDeadLetter;
+            DeadLetterTab.IsChecked = workspace.Surface.IsDeadLetter;
+        }
+        finally { synchronizingBucketTabs = false; }
+    }
+
+    private async void Active_Checked(object sender, RoutedEventArgs e)
+    {
+        if (ready && !synchronizingBucketTabs) await SelectBucket(false);
+    }
+
+    private async void DeadLetter_Checked(object sender, RoutedEventArgs e)
+    {
+        if (ready && !synchronizingBucketTabs) await SelectBucket(true);
+    }
+
+    private void Bucket_Unchecked(object sender, RoutedEventArgs e)
+    {
+        if (ready && !synchronizingBucketTabs) SynchronizeBucketTabs();
+    }
+
     private async Task SelectBucket(bool deadLetter)
     {
-        if (workspace.Browse.SelectedEntity is not { } node) return;
+        if (workspace.Search.IsActive || workspace.Browse.SelectedEntity is not { } node)
+        {
+            SynchronizeBucketTabs();
+            return;
+        }
         await workspace.RunReadAsync(() => workspace.Browse.SelectAsync(node, deadLetter));
         FindMessageScrollViewer(MessageGrid)?.ScrollToTop();
     }

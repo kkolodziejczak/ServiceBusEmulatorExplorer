@@ -95,11 +95,25 @@ public partial class InvestigationWindow
         FindBox.Focus();
     }
 
-    private void Json_Click(object sender, RoutedEventArgs e) => SetInspectorMode("JSON");
+    private void Json_Checked(object sender, RoutedEventArgs e)
+    {
+        if (ready && !inspectorRendering) SetInspectorMode("JSON");
+    }
 
-    private void Properties_Click(object sender, RoutedEventArgs e) => SetInspectorMode("Properties");
+    private void Properties_Checked(object sender, RoutedEventArgs e)
+    {
+        if (ready && !inspectorRendering) SetInspectorMode("Properties");
+    }
 
-    private void Raw_Click(object sender, RoutedEventArgs e) => SetInspectorMode("Raw");
+    private void Raw_Checked(object sender, RoutedEventArgs e)
+    {
+        if (ready && !inspectorRendering) SetInspectorMode("Raw");
+    }
+
+    private void InspectorTab_Unchecked(object sender, RoutedEventArgs e)
+    {
+        if (ready && !inspectorRendering) UpdateInspector();
+    }
 
     private void CloseFind_Click(object sender, RoutedEventArgs e)
     {

@@ -2,7 +2,10 @@ using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.IO;
 using System.Windows;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -62,6 +65,40 @@ public sealed class InvestigationWindowRenderTests
             Task select = workspace.Browse.SelectAsync(topic, deadLetter: false);
             PumpUntil(dispatcher, () => select.IsCompleted, TimeSpan.FromSeconds(5));
             select.GetAwaiter().GetResult();
+
+            ToggleButton deadLetterTab = (ToggleButton)window.FindName("DeadLetterTab")!;
+            ToggleThroughAutomation(deadLetterTab);
+            PumpUntil(dispatcher, () => workspace.Browse.IsDeadLetter && !workspace.Browse.IsBusy,
+                TimeSpan.FromSeconds(5));
+            Assert.True(workspace.Browse.IsDeadLetter);
+
+            ToggleButton activeTab = (ToggleButton)window.FindName("ActiveTab")!;
+            ToggleThroughAutomation(activeTab);
+            PumpUntil(dispatcher, () => !workspace.Browse.IsDeadLetter && !workspace.Browse.IsBusy,
+                TimeSpan.FromSeconds(5));
+            Assert.False(workspace.Browse.IsDeadLetter);
+            ToggleThroughAutomation(activeTab);
+            Assert.True(activeTab.IsChecked);
+            Assert.False(workspace.Browse.IsDeadLetter);
+
+            ToggleButton rawTab = (ToggleButton)window.FindName("RawTab")!;
+            ToggleButton propertiesTab = (ToggleButton)window.FindName("PropertiesTab")!;
+            ToggleButton jsonTab = (ToggleButton)window.FindName("JsonTab")!;
+            RichTextBox bodyViewer = (RichTextBox)window.FindName("BodyViewer")!;
+            ToggleThroughAutomation(rawTab);
+            Assert.Equal(Visibility.Visible, bodyViewer.Visibility);
+            Assert.Equal(workspace.Inspector.RawText.TrimEnd(),
+                new System.Windows.Documents.TextRange(bodyViewer.Document.ContentStart, bodyViewer.Document.ContentEnd).Text.TrimEnd());
+            ToggleThroughAutomation(propertiesTab);
+            Assert.False(rawTab.IsChecked);
+            Assert.Equal(workspace.Inspector.PropertiesText.ReplaceLineEndings("\n").TrimEnd(),
+                new System.Windows.Documents.TextRange(bodyViewer.Document.ContentStart, bodyViewer.Document.ContentEnd).Text.ReplaceLineEndings("\n").TrimEnd());
+            ToggleThroughAutomation(jsonTab);
+            Assert.False(propertiesTab.IsChecked);
+            Assert.Equal(Visibility.Collapsed, bodyViewer.Visibility);
+            ToggleThroughAutomation(jsonTab);
+            Assert.True(jsonTab.IsChecked);
+
             CheckBox selectAll = (CheckBox)window.FindName("SelectAllBox")!;
             Assert.False(selectAll.IsChecked);
             workspace.Browse.Messages[0].IsSelected = true;
@@ -309,6 +346,15 @@ public sealed class InvestigationWindowRenderTests
             Dispatcher.PushFrame(frame);
             timer.Stop();
         }
+    }
+
+    private static void ToggleThroughAutomation(ToggleButton toggleButton)
+    {
+        AutomationPeer peer = UIElementAutomationPeer.CreatePeerForElement(toggleButton)
+            ?? throw new Xunit.Sdk.XunitException($"No automation peer was created for {toggleButton.Name}.");
+        IToggleProvider provider = peer.GetPattern(PatternInterface.Toggle) as IToggleProvider
+            ?? throw new Xunit.Sdk.XunitException($"The {toggleButton.Name} automation peer has no Toggle pattern.");
+        provider.Toggle();
     }
 
     private sealed class FakeStore(WorkspacePreferences initial) : IWorkspacePreferencesStore
