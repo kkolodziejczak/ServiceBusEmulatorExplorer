@@ -208,10 +208,14 @@ public partial class InvestigationWindow : Window
 
     private void ConfigureRefresh()
     {
-        refreshTimer.Stop();
-        if (paused || workspace.Search.IsActive || !workspace.IsConnected || workspace.Preferences.AutoRefreshSeconds == 0) return;
-        refreshTimer.Interval = TimeSpan.FromSeconds(workspace.Preferences.AutoRefreshSeconds);
-        refreshTimer.Start();
+        if (paused || workspace.Search.IsActive || !workspace.IsConnected || workspace.Preferences.AutoRefreshSeconds == 0)
+        {
+            refreshTimer.Stop();
+            return;
+        }
+        var interval = TimeSpan.FromSeconds(workspace.Preferences.AutoRefreshSeconds);
+        if (refreshTimer.Interval != interval) refreshTimer.Interval = interval;
+        if (!refreshTimer.IsEnabled) refreshTimer.Start();
     }
 
     private async void RefreshTimerTick(object? sender, EventArgs e)
