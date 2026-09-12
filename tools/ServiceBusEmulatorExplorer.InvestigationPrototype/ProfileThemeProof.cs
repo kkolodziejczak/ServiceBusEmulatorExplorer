@@ -51,7 +51,7 @@ internal static class ProfileThemeProof
             var cells = ProofCapture.Descendants(grid).OfType<DataGridCell>().Where(cell => cell.IsSelected).ToArray();
             Check(cells.Length > 0 && cells.All(cell => Brush(cell.Background) == selection),
                 "Selected message cells use the profile selection tint for " + color, report);
-            Check(Brush(((Border)window.FindName("ProfileAccentBorder")).Background) == Brush(window.FindResource("ChromeBrush")),
+            Check(Brush(((Border)window.FindName("ToolbarSeparator")).Background) == Brush(window.FindResource("ChromeBrush")),
                 "Header chrome uses profile theme for " + color, report);
             if (color is "#7540BF" or "#C83B3B")
             {

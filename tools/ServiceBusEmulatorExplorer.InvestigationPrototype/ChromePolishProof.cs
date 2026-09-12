@@ -13,9 +13,9 @@ internal static class ChromePolishProof
 {
     public static async Task Exercise(PrototypeWindow window, List<string> report, string output)
     {
-        var accent = (Border)window.FindName("ProfileAccentBorder");
-        Check(accent.BorderThickness.Left == 0 && accent.BorderThickness.Top == 1 && accent.BorderThickness.Right == 0 && accent.BorderThickness.Bottom == 0 && ((Border)window.FindName("ToolbarSeparator")).BorderThickness.Bottom == 1,
-            "Toolbar has a thin top accent and a separate bottom divider", report);
+        var accent = (Border)window.FindName("ToolbarSeparator");
+        Check(accent.BorderThickness.Left == 0 && accent.BorderThickness.Top == 0 && accent.BorderThickness.Right == 0 && accent.BorderThickness.Bottom == 1,
+            "Toolbar has only a subtle bottom divider", report);
         ProofCapture.Save(window, output, "header-bottom-accent");
         ProofCapture.Descendants(window).OfType<Button>().Single(button => AutomationProperties.GetName(button) == "Settings")
             .RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));

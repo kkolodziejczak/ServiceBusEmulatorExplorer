@@ -18,7 +18,7 @@ public partial class PrototypeWindow
 
     private void RefreshConnectionPresentation()
     {
-        if (ConnectionSelector is null || ProfileAccentBorder is null || ConnectionHealthText is null || ConnectionHealthDot is null) return;
+        if (ConnectionSelector is null || ConnectionHealthText is null || ConnectionHealthDot is null) return;
         var profile = connectionSettings.SelectedProfile;
         synchronizingConnection = true;
         try
@@ -30,7 +30,6 @@ public partial class PrototypeWindow
         ConnectionSelector.ToolTip = profile.Name;
         ConnectionName.Text = profile.Name;
         ConnectionName.ToolTip = profile.Name;
-        ProfileAccentBorder.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(profile.ColorHex));
         ProfileTheme.Apply(this, profile.ColorHex);
         if (settingsWindow is not null) ProfileTheme.Apply(settingsWindow, profile.ColorHex);
         if (globalWatchWindow is not null) ProfileTheme.Apply(globalWatchWindow, profile.ColorHex);

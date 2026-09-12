@@ -37,7 +37,7 @@ Sizes below are WPF device-independent units (DIPs), not physical pixels. Use na
 | Control border / divider | `#CBD8E8` / `#DFE6EE` |
 | DLQ / modified | Orange and amber backgrounds with dark text; always accompany color with a label |
 | Entity colors | Blue for queues/topics; purple for subscriptions; preserve distinct geometry |
-| Profile identity | User-selected blue, purple, teal, orange or red theme across buttons, selection and surface tints, dropdown swatch and top accent border; profile name remains visible. Apply the active profile consistently to Settings and related windows; editing an inactive profile does not preview its theme. Semantic health, DLQ and red Delete colors remain fixed. |
+| Profile identity | User-selected blue, purple, teal, orange or red theme across buttons, selection and surface tints, dropdown swatch; profile name remains visible. Apply the active profile consistently to Settings and related windows; editing an inactive profile does not preview its theme. Semantic health, DLQ and red Delete colors remain fixed. |
 | Connection health | Labeled green Connected, red Disconnected or amber Warning indicator, separate from profile accent; warning tooltip describes the reason |
 | Spacing | Prefer 4, 8, 12, 16, 24; use existing 7 DIPs icon-label gap consistently |
 | Corners | 3 DIPs controls; 4 DIPs menu/hover surfaces; 9 DIPs notification outer panel |
@@ -67,7 +67,7 @@ Current gate: **visual consistency and routed flows PASS** at the three supporte
 
 ## Final chrome polish (2026-09-12)
 
-The toolbar uses a 1-DIP profile accent above and a 1-DIP neutral gray (#DFE6EE) divider below, meeting the pane splitters. The bottom divider stays neutral across profiles. Settings uses a conventional toothed cog and the native window title without a duplicate content heading. Each masked connection field has the shared rounded Copy icon, an accessible name and a tooltip; copying uses the current field value without logging it. Empty fields disable Copy.
+The toolbar uses only a 1-DIP neutral gray (#DFE6EE) divider below, meeting the pane splitters. The bottom divider stays neutral across profiles. Settings uses a conventional toothed cog and the native window title without a duplicate content heading. Each masked connection field has the shared rounded Copy icon, an accessible name and a tooltip; copying uses the current field value without logging it. Empty fields disable Copy.
 
 All shared scrollbars use an 18-DIP hit lane, a rounded 8-DIP visible thumb and profile-themed hover/drag feedback. Preserve wheel, keyboard, page and thumb behavior in both orientations. Dark editor/log backgrounds remain dark beneath the transparent track.
 
