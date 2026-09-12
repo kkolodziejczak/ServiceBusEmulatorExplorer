@@ -4,7 +4,7 @@ Prepared 2026-09-11; prototype approved by the user on 2026-09-12. **Prototype c
 
 ## Starting point
 
-- Implementation baseline: `126c824` on `prototype/investigation-workspace` (approved prototype). Earlier milestones: `a908ffd` for persisted Watch/preferences and typed deletion; `8cc1232` for profile themes, warnings and new profiles. Use the normal checkout and inspect newer commits before starting; preserve unrelated changes.
+- Implementation baseline: `8575a2c` on `prototype/investigation-workspace` (approved prototype). Earlier milestones: `a908ffd` for persisted Watch/preferences and typed deletion; `8cc1232` for profile themes, warnings and new profiles. Use the normal checkout and inspect newer commits before starting; preserve unrelated changes.
 - Visual/interaction reference: [prototype](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/README.md) and its [current preview](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/preview.png). Apply [UI language and audit corrections](ui-language.md) consistently; preserve the approved layout.
 - Destination: existing WPF [App](../src/ServiceBusEmulatorExplorer.App/ServiceBusEmulatorExplorer.App.csproj) using existing [Core contracts](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/ServiceBusContracts.cs). Keep the prototype as a reference until parity is proven. Do not just rename its executable or ship its synthetic Workspace.
 - Current evidence: 347 routed walkthrough checks and an 11-check real tray run pass, including profile/Watch preferences, typed deletion and shared styling. Full-profile themes, saved warnings, new profiles and simplified Watch search pass the current rendered walkthrough. No new broker integration tests were run for this audit. The proof uses synthetic messages and is not a production readiness certificate.
@@ -12,6 +12,7 @@ Prepared 2026-09-11; prototype approved by the user on 2026-09-12. **Prototype c
 ## Approved prototype milestone
 
 - [x] User approved the prototype as ready; the layout and implemented interactions are the design reference.
+- [x] Final toolbar approved: no accent line; retain only the neutral bottom divider. Conventional Settings cog, no duplicate Settings heading, shared rounded copy icons beside masked connection fields, and themed scrollbars are part of the final design.
 - [x] Shared styling, complete profile themes, clear-red Delete, compact layouts and simplified Watch search implemented.
 - [x] Toolbar connection selector, profile creation/editing, optional warnings and off-by-default auto-connect-on-switch implemented. The duplicate General-settings connection picker is removed.
 - [x] Preferences persist, including per-profile Watch inclusions and connection warnings; credentials use Windows user-scoped protection.
@@ -76,14 +77,28 @@ Answer by Q number. Recommendations are proposals, not already approved decision
 
 Q1 (delete scope) and Q11 (layout/density) are settled: retain typed confirmation for Active and DLQ, and preserve the approved compact layout. Do not add automatic console collapsing during promotion. Auto-connect, profile warnings, persistence and Watch inclusion semantics are also settled; only their broker implementation needs design work.
 
+Resolve questions in small groups before the dependent work. The recommendations in this document are not consent:
+
+| Work to start | Questions needed first |
+| --- | --- |
+| Profile/settings and read-only browsing | Q2 count meaning; Q7 authentication and persisted data; Q8 switching with work in progress; Q9 configured time zone; Q10 topic pagination |
+| Global search | Q3 scan budgets and completeness |
+| Watch and desktop notifications | Q4 polling, baseline, backlog and restart policy |
+| Replay | Q5 topic routing and Q6 IDs/retries |
+
+Independent resource migration and read-only repository investigation may continue while answers are pending. Do not invent product answers or block every worker on a question affecting only one feature. Ask only genuinely unresolved choices; implementation details such as focused class names, cancellation plumbing and atomic file writes belong to the coordinator.
+
 Settled scope: delete supports Active and DLQ, focused or checked messages, with explicit typed `DELETE` confirmation. Connection selection uses the toolbar dropdown; Settings retains profile management and an off-by-default, saved auto-connect-on-switch option. Warning approval remains required before automatic connection; a saved profile color themes buttons, selection and surfaces across windows while semantic health, DLQ and red Delete colors retain their meanings. Add connection creates an empty editable profile without switching. An optional saved warning requires confirmation before switching, Connect or restored startup connection attempts; Cancel preserves the old connection or blocks the pending attempt. Watch search uses an inline magnifier and concise placeholder. Watch supports global and topic rules, including subsequently discovered entities, with a searchable inclusion tree and mixed parent states. A branch choice applies to descendants, and more specific child choices override inherited inclusion. Profiles and user selections/preferences persist across launches; Watch rules belong to a profile. These interaction decisions do not settle real polling or broker mutation algorithms above.
 
 ## Reuse and the traps to avoid
 
 - [Message service](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/ServiceBusMessageService.cs) already peeks non-destructively with `take`, `fromSequenceNumber` and cancellation. [MessageInspectionViewModel](../src/ServiceBusEmulatorExplorer.App/ViewModels/MessageInspectionViewModel.cs) already contains 50-row paging and stale-result defenses, but its refresh/selection behavior differs from the prototype. Extract focused workflows rather than adding every feature to this large class.
 - [Administration service](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/ServiceBusAdministrationService.cs) and [tree builder](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/EntityTreeBuilder.cs) are reusable. Counts currently use non-null numeric fields, so unknown cannot yet be represented correctly.
+- Topic Active/DLQ counts are currently constructed as zero in the administration adapter. Replace that placeholder with the agreed subscription-delivery aggregation and explicit unavailable/partial states; do not promote it as an authoritative empty topic.
+- [Client factory](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/DirectServiceBusClientFactory.cs) validates the administration connection during Connect but does not prove runtime connectivity. A green Connected label must not imply both paths are healthy solely because administration discovery succeeded. Define truthful readiness and non-destructive validation with the connection worker.
 - Historical [emulator evidence](codebase-audit-remediation-plan.md): on 2026-07-10, 60 messages were sent and a 50-message page was peeked while runtime ActiveMessageCount remained zero for three minutes. This is a recorded limitation, not a fresh emulator retest. Do not block discovery/search on reported zero or wait indefinitely for the emulator to fix counts.
 - [Replay service](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/DeadLetterReplayService.cs) and [request factory](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/DeadLetterReplayRequestFactory.cs) support safe copy and separate DLQ deletion. Subscription replay maps to parent topic. The prototype's direct fan-out into child fixture lists is not real routing.
+- Existing replay uses the NewGuid ID policy and existing deletion supports DLQ only. They are useful foundations, not parity with readable replay suffixes or approved Active deletion. Implement those gaps deliberately after the relevant contracts and questions are settled.
 - Define and test the sendable metadata to preserve: the current mapper copies body, content type, correlation/session IDs, subject and application properties, but does not preserve every property (for example ReplyTo, To, PartitionKey or TTL). Broker-generated metadata remains observational, not replay input.
 - [Profile store](../src/ServiceBusEmulatorExplorer.Core/Connection/JsonConnectionProfileStore.cs) supports saved profiles and Azure CLI formats, but connection strings are serialized and saves use direct file creation. Masked fields are not encryption; general settings need safe atomic persistence and migration.
 - Global scan results are observations over time, not a transactional namespace snapshot. Peeking must not receive/lock/complete messages. Messages can disappear while a user inspects them.
@@ -111,7 +126,15 @@ Use `gpt-5.6-luna` with reasoning effort `high` for workers. The main agent coor
 
 Run up to six implementation workers concurrently when dependencies allow; use remaining slots for independent review, never duplicate ownership. Workers must request the coordinator's lease before Docker, ports, tests with shared runtime, databases, or external services. The coordinator serializes those operations and integrates patches. Pure code reads and isolated unit work can overlap.
 
+The coordinator maintains a short execution record in this document: accepted question answers, current slice, exact worker-owned paths, shared contract revisions, active runtime lease, checks/results, milestone commits and next unfinished step. Keep completed prototype status separate from production progress. Freeze shared contracts before dispatching dependent workers. Give each worker the concrete input/output contract, allowed paths, acceptance checks and exclusions. Workers return changes, evidence and remaining issues; they do not independently change shared shell wiring or operate user environments. Coordinate build outputs as shared state too; tests in the same checkout are not automatically isolated.
+
+Review each integrated slice with an independent worker against this requirement matrix and the changed code. The coordinator resolves findings and reruns affected checks before marking the slice complete. Preserve existing useful broker services/tests while replacing the old UI composition; keep ShellViewModel focused on orchestration. Do not copy the prototype's large code-behind or synthetic data model wholesale into production.
+
+Before enabling Active or DLQ Delete, prove that the adapter can target the selected source/sequence safely, including sessions, locks, vanished messages and cancellation. Do not complete unrelated deliveries while scanning for targets. Unsupported broker/entity capabilities must produce an explicit unavailable result, not a fake success or purge fallback. Typed confirmation authorizes only the displayed targets; it does not authorize unattended testing against user messages. Mutation proofs use isolated fixtures on an authorized test environment.
+
 ## Production completion checklist (not prototype status)
+
+Execution record at handoff: production implementation has not started. No production worker owns files or holds a runtime lease. Q2–Q10 remain unanswered. Latest prototype code is `8575a2c`; its build and 347 routed checks passed, with the prior 11-check tray evidence retained. This documentation update changes no runtime code and runs no new broker tests. Next step: inspect the production composition and resolve the first slice's questions before dependent implementation.
 
 - [ ] All questions affecting the current stage answered and recorded; unresolved stages remain unstarted.
 - [ ] Approved interaction matrix works in the actual App, not just in the prototype executable.
@@ -125,6 +148,20 @@ Run up to six implementation workers concurrently when dependencies allow; use r
 
 Start with existing commands in [tests README](../tests/README.md) and inspect scripts before running. Normal fast check: `dotnet test ServiceBusEmulatorExplorer.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"`. Integration/UI runs are opt-in and require the coordinator's runtime lease. Use bounded execution and the repository's UI smoke runner.
 
-## Prompt to use tomorrow
+## Ready-to-use coordinator prompt
 
-> Read specs/investigation-workspace-handoff.md and specs/ui-language.md. The prototype is approved and complete; do not restart visual design or ask again about settled behavior. Do not use planning skills. Resolve only the listed broker questions needed before each dependent stage. Starting from the current branch and approved baseline, implement the real code behind in the existing application while preserving the prototype's layout and interactions. Use multiple gpt-5.6-luna workers at high reasoning effort with bounded file ownership; coordinate shared runtime leases and review their changes. Deliver working vertical slices, run meaningful broker and rendered UI checks, and commit milestones. Do not publish a release. Treat sample code as interaction guidance, not broker behavior.
+```text
+Implement the approved investigation workspace in the real ServiceBusEmulatorExplorer WPF application. Act as the coordinator and use multiple gpt-5.6-luna subagents at high reasoning effort as workers.
+
+Read AGENTS.md, specs/investigation-workspace-handoff.md, specs/ui-language.md and the prototype README, code and reference screenshots. The approved prototype baseline is 8575a2c. Inspect the current checkout and any later commits; do not reset it to that baseline. Work on the current branch in the normal checkout. Do not use planning skills or restart visual design.
+
+First resolve only the open questions required for the next slice, record my answers in the handoff, and continue independent work while waiting. Recommendations are not approved answers. Do not ask again about settled interactions. Freeze shared contracts before dependent workers begin.
+
+Promote the approved UI into src/ServiceBusEmulatorExplorer.App using focused workflows and reusable Core services. Start with one working read-only slice: settings/connections, protected preferences, entity discovery/counts, paging, selection and inspector. Then integrate global search, Watch/tray/notifications, replay and typed-confirmation deletion. Preserve the prototype's exact behavior and styling, including no top accent line and only a neutral bottom toolbar divider. Do not ship synthetic broker behavior or copy the prototype's code-behind wholesale.
+
+Run up to six workers concurrently when dependencies allow, with exact non-overlapping file ownership. You own shared contracts, shell/DI integration and runtime leases. Serialize Docker, shared build outputs, UI tests and external services. Use isolated test profiles and messages; never run destructive proofs against my ordinary data. Have an independent worker review each integrated slice, resolve findings and rerun affected checks.
+
+Keep the handoff current with decisions, worker ownership, progress, evidence and milestone commits. Run meaningful unit, emulator and rendered UI checks; use the UI verification skill. Test Azure only with an authorized environment and report missing evidence honestly. Preserve the known emulator count limitation without inventing totals or skipping sources reported as zero.
+
+Continue through the approved production checklist, asking only when a consequential unresolved decision or external blocker requires me. Commit completed milestones on the current branch. Do not merge, tag or publish a release. At handoff report completed slices, checks, remaining gaps and the exact next step.
+```

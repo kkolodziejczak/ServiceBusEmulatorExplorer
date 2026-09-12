@@ -1,6 +1,6 @@
 # Investigation workspace prototype
 
-**Approved and ready for promotion** as of 2026-09-12, baseline `126c824`. Continue with the [production handoff](../../specs/investigation-workspace-handoff.md); the remaining work connects these approved interactions to real services.
+**Approved and ready for promotion** as of 2026-09-12, baseline `8575a2c`. Continue with the [production handoff](../../specs/investigation-workspace-handoff.md); the remaining work connects these approved interactions to real services.
 
 This WPF prototype implements the [approved unified-search and Watch mockup](watch-search-mockup-real-icon.png) on branch `prototype/investigation-workspace`. Broker operations use synthetic messages only; no Service Bus connection is made. Profiles, preferences and Watch selections are saved locally for subsequent launches. Restarting resets messages, editor drafts, pending notifications and replay numbering. The actual app icon asset is reused in the window, tray and desktop notification.
 

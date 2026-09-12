@@ -1,6 +1,6 @@
 # Investigation UI language and final audit
 
-Status: prototype approved as complete by the user on 2026-09-12, baseline `126c824`; rendered flows and supported window sizes verified. Preserve this UI during production implementation. The production application has not been promoted.
+Status: prototype approved as complete by the user on 2026-09-12, baseline `8575a2c`; rendered flows and supported window sizes verified. Preserve this UI during production implementation. The production application has not been promoted.
 
 Authority: the latest decisions in the “Audit and simplify Service Bus UI” conversation, then the current [prototype preview](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/preview.png). Earlier generated images are historical references. Preserve the approved compact connection toolbar, three panes, full-width console, and bottom time selector.
 
