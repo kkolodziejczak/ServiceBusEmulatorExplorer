@@ -1,5 +1,8 @@
 using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
+using ServiceBusEmulatorExplorer.Core.Connection;
+using ServiceBusEmulatorExplorer.Core.Investigation;
+using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using ServiceBusEmulatorExplorer.Integration.Tests.Infrastructure;
 using Xunit.Abstractions;
 
@@ -26,7 +29,10 @@ public sealed class InvestigationDlqArrivalIntegrationTests(ITestOutputHelper ou
             {
                 LockDuration = TimeSpan.FromMinutes(2)
             }, timeout.Token);
-            await using var client = new ServiceBusClient(ServiceBusEmulatorEnvironment.RuntimeConnectionString);
+            await using var factory = new DirectServiceBusClientFactory();
+            await factory.ConnectAsync(new ConnectionProfile("Watch proof", ServiceBusEmulatorEnvironment.RuntimeConnectionString,
+                ServiceBusEmulatorEnvironment.AdminConnectionString), timeout.Token);
+            var client = factory.RuntimeClient;
             await using ServiceBusSender sender = client.CreateSender(queueName);
             await sender.SendMessageAsync(new ServiceBusMessage("older") { MessageId = olderId }, timeout.Token);
             await sender.SendMessageAsync(new ServiceBusMessage("newer") { MessageId = newerId }, timeout.Token);
@@ -56,6 +62,12 @@ public sealed class InvestigationDlqArrivalIntegrationTests(ITestOutputHelper ou
             Assert.Equal(newer.SequenceNumber, firstArrival.SequenceNumber);
             long previousMaximum = firstArrival.SequenceNumber;
             WriteObservation("first DLQ arrival", firstArrival);
+            var watch = new DeliveryWatch(new ServiceBusMessageService(factory));
+            watch.SetTargets(1, [new WatchTarget(new EntityAddress(EntityKind.Queue, queueName), MessageBucket.DeadLetter)]);
+            var baseline = await watch.PollAsync(10, timeout.Token);
+            Assert.Empty(baseline.Arrivals);
+            Assert.Empty(baseline.Failures);
+            Assert.Equal(0, baseline.BaselinesPending);
 
             await active.DeadLetterMessageAsync(older, cancellationToken: timeout.Token);
             IReadOnlyList<ServiceBusReceivedMessage> allArrivals = await PeekAllAsync(dlq, timeout.Token);
@@ -70,6 +82,14 @@ public sealed class InvestigationDlqArrivalIntegrationTests(ITestOutputHelper ou
                 10, fromSequenceNumber: checked(previousMaximum + 1), cancellationToken: timeout.Token);
             Assert.Empty(forwardOnly);
             output.WriteLine($"Forward peek from sequence {previousMaximum + 1}: no deliveries.");
+            var watched = await watch.PollAsync(10, timeout.Token);
+            Assert.Empty(watched.Failures);
+            var detected = Assert.Single(watched.Arrivals);
+            Assert.Equal(olderId, detected.Message.MessageId);
+            Assert.Equal(older.SequenceNumber, detected.Identity.SequenceNumber);
+            Assert.Empty((await watch.PollAsync(10, timeout.Token)).Arrivals);
+            watch.SetTargets(2, [new WatchTarget(new EntityAddress(EntityKind.Queue, queueName), MessageBucket.DeadLetter)]);
+            Assert.Empty((await watch.PollAsync(10, timeout.Token)).Arrivals);
 
             IReadOnlyList<ServiceBusReceivedMessage> repeated = await PeekAllAsync(dlq, timeout.Token);
             Assert.Equal(Observations(allArrivals), Observations(repeated));
