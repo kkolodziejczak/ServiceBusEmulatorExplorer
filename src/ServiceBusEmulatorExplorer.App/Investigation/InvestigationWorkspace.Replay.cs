@@ -8,16 +8,19 @@ public sealed record ReplayCopyOutcome(ReplayReservation Reservation, ReplaySend
 
 public sealed partial class InvestigationWorkspace
 {
-    private readonly SemaphoreSlim replayGate = new(1, 1);
-    private CancellationTokenSource? replayCancellation;
+    private readonly SemaphoreSlim mutationGate = new(1, 1);
+    private CancellationTokenSource? mutationCancellation;
 
     public async Task<ReplayCopyOutcome> ReplayAsync(MessageDelivery delivery, string? editedBody = null,
         CancellationToken cancellationToken = default)
     {
-        await replayGate.WaitAsync(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        await StopReplayCleanupAsync();
+        try { await mutationGate.WaitAsync(cancellationToken); }
+        catch { StartReplayCleanup(); throw; }
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         operation.CancelAfter(TimeSpan.FromSeconds(30));
-        replayCancellation = operation;
+        mutationCancellation = operation;
         try
         {
             if (session is null || generation != delivery.Identity.ConnectionGeneration || Volatile.Read(ref disposeStarted) != 0)
@@ -64,6 +67,6 @@ public sealed partial class InvestigationWorkspace
                 }
             }
         }
-        finally { replayCancellation = null; replayGate.Release(); }
+        finally { mutationCancellation = null; mutationGate.Release(); StartReplayCleanup(); }
     }
 }

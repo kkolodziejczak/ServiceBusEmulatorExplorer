@@ -3,21 +3,23 @@ using ServiceBusEmulatorExplorer.Core.ServiceBus;
 namespace ServiceBusEmulatorExplorer.Core.Investigation;
 
 public enum ReplayFamilyPresence { Absent, Present, Incomplete }
-public sealed record ReplayFamilyScanResult(ReplayFamilyPresence Presence, int ScannedDeliveries);
+public sealed record ReplayFamilyScanResult(ReplayFamilyPresence Presence, int ScannedDeliveries, bool LimitReached = false);
 
 /// <summary>Non-consuming family absence evidence; only complete source discovery and scans can prove absence.</summary>
 public sealed class ReplayFamilyScanner(IServiceBusMessageService messages)
 {
     public async Task<ReplayFamilyScanResult> ScanAsync(ReplayFamilyState family, EntityDiscoverySnapshot discovery,
-        long generation, int maxScannedDeliveries, CancellationToken cancellationToken)
+        long generation, int maxScannedDeliveries, CancellationToken cancellationToken, TimeSpan? timeBudget = null)
     {
         ReplayLineage.ValidateFamily(family);
         ArgumentNullException.ThrowIfNull(discovery);
         if (maxScannedDeliveries < 1) throw new ArgumentOutOfRangeException(nameof(maxScannedDeliveries));
         var sources = RelevantSources(family, discovery);
         if (sources is null) return new(ReplayFamilyPresence.Incomplete, 0);
+        TimeSpan duration = timeBudget ?? TimeSpan.FromSeconds(30);
+        if (duration <= TimeSpan.Zero || duration > TimeSpan.FromMinutes(10)) throw new ArgumentOutOfRangeException(nameof(timeBudget));
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        operation.CancelAfter(TimeSpan.FromSeconds(30));
+        operation.CancelAfter(duration);
         int scanned = 0;
         try
         {
@@ -27,7 +29,7 @@ public sealed class ReplayFamilyScanner(IServiceBusMessageService messages)
                 while (true)
                 {
                     operation.Token.ThrowIfCancellationRequested();
-                    if (scanned >= maxScannedDeliveries) return new(ReplayFamilyPresence.Incomplete, scanned);
+                    if (scanned >= maxScannedDeliveries) return new(ReplayFamilyPresence.Incomplete, scanned, true);
                     int take = Math.Min(100, maxScannedDeliveries - scanned);
                     var page = await messages.PeekMessagesAsync(source, MessageBucket.DeadLetter, take, nextSequence, operation.Token).ConfigureAwait(false);
                     operation.Token.ThrowIfCancellationRequested();
@@ -46,7 +48,7 @@ public sealed class ReplayFamilyScanner(IServiceBusMessageService messages)
             operation.Token.ThrowIfCancellationRequested();
             return new(ReplayFamilyPresence.Absent, scanned);
         }
-        catch (Exception) { return new(ReplayFamilyPresence.Incomplete, scanned); }
+        catch (Exception) { return new(ReplayFamilyPresence.Incomplete, scanned, operation.IsCancellationRequested && !cancellationToken.IsCancellationRequested); }
     }
 
     private static IReadOnlyList<EntityAddress>? RelevantSources(ReplayFamilyState family, EntityDiscoverySnapshot discovery)
@@ -58,6 +60,7 @@ public sealed class ReplayFamilyScanner(IServiceBusMessageService messages)
         if (family.OriginalSource.Kind == EntityKind.Queue) return [family.OriginalSource];
         string topic = family.OriginalSource.TopicName!;
         if (!addresses.Contains(new(EntityKind.Topic, topic))) return null;
-        return addresses.Where(address => address.Kind == EntityKind.Subscription && address.TopicName == topic).ToArray();
+        return addresses.Where(address => address.Kind == EntityKind.Subscription && address.TopicName == topic)
+            .OrderBy(address => address.Name, StringComparer.Ordinal).ToArray();
     }
 }

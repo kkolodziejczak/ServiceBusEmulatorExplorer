@@ -220,6 +220,89 @@ public sealed class InvestigationReplayFamilyScanTests
         Assert.InRange(messages.Calls.Count, 1, 2);
     }
 
+    [Fact]
+    public async Task Replay_arriving_with_older_sequence_between_attempts_is_found_by_fresh_retry()
+    {
+        var original = Delivery();
+        var messages = new Messages();
+        messages.Set(Queue, Enumerable.Range(100, 3).Select(index => Delivery(sequence: index).Message).ToArray());
+        var scanner = new ReplayFamilyScanner(messages);
+        var family = ReplayLineage.Reserve(original, []).Family;
+        Assert.Equal(ReplayFamilyPresence.Incomplete,
+            (await scanner.ScanAsync(family, Snapshot(Queue), 1, 3, default)).Presence);
+
+        messages.Set(Queue, [Copy(original, Queue, 50).Message,
+            .. Enumerable.Range(100, 3).Select(index => Delivery(sequence: index).Message)]);
+
+        Assert.Equal(ReplayFamilyPresence.Present,
+            (await scanner.ScanAsync(family, Snapshot(Queue), 1, 10, default)).Presence);
+        Assert.Equal(new long?[] { 0, 0 }, messages.Calls.Select(call => call.From));
+    }
+
+    [Fact]
+    public async Task Larger_retry_budget_scans_whole_source_before_proving_absence()
+    {
+        var messages = new Messages();
+        messages.Set(Queue, Enumerable.Range(2, 205).Select(index => Delivery(sequence: index).Message).ToArray());
+        var scanner = new ReplayFamilyScanner(messages);
+        var family = ReplayLineage.Reserve(Delivery(), []).Family;
+        Assert.Equal(ReplayFamilyPresence.Incomplete,
+            (await scanner.ScanAsync(family, Snapshot(Queue), 1, 100, default)).Presence);
+        messages.Calls.Clear();
+        var retry = await scanner.ScanAsync(family, Snapshot(Queue), 1, 300, default);
+        Assert.Equal(ReplayFamilyPresence.Absent, retry.Presence);
+        Assert.Equal(205, retry.ScannedDeliveries);
+        Assert.Equal(new long?[] { 0, 102, 202, 207 }, messages.Calls.Select(call => call.From));
+    }
+
+    [Fact]
+    public async Task Larger_retry_budget_finds_replay_beyond_first_attempt_limit()
+    {
+        var original = Delivery();
+        var messages = new Messages();
+        messages.Set(Queue, [.. Enumerable.Range(2, 100).Select(index => Delivery(sequence: index).Message),
+            Copy(original, Queue, 200).Message]);
+        var scanner = new ReplayFamilyScanner(messages);
+        var family = ReplayLineage.Reserve(original, []).Family;
+        Assert.Equal(ReplayFamilyPresence.Incomplete,
+            (await scanner.ScanAsync(family, Snapshot(Queue), 1, 100, default)).Presence);
+        Assert.Equal(ReplayFamilyPresence.Present,
+            (await scanner.ScanAsync(family, Snapshot(Queue), 1, 200, default)).Presence);
+        Assert.Equal(new long?[] { 0, 0, 102 }, messages.Calls.Select(call => call.From));
+    }
+
+    [Fact]
+    public async Task Retry_after_cancellation_scans_completed_pages_again()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var messages = new Messages { PageSize = 1 };
+        messages.Set(Queue, Delivery(sequence: 2).Message, Delivery(sequence: 3).Message);
+        messages.BeforeRead = () => { if (messages.Calls.Count == 2) cancellation.Cancel(); };
+        var scanner = new ReplayFamilyScanner(messages);
+        var family = ReplayLineage.Reserve(Delivery(), []).Family;
+        var canceled = await scanner.ScanAsync(family, Snapshot(Queue), 1, 100, cancellation.Token);
+        Assert.Equal(ReplayFamilyPresence.Incomplete, canceled.Presence);
+        Assert.Equal(1, canceled.ScannedDeliveries);
+        messages.BeforeRead = null;
+        var retry = await scanner.ScanAsync(family, Snapshot(Queue), 1, 100, default);
+        Assert.Equal(ReplayFamilyPresence.Absent, retry.Presence);
+        Assert.Equal(2, retry.ScannedDeliveries);
+        Assert.Equal(new long?[] { 0, 3, 0, 3, 4 }, messages.Calls.Select(call => call.From));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(601)]
+    public async Task Invalid_time_budget_is_rejected_before_broker_access(int seconds)
+    {
+        var messages = new Messages();
+        var scanner = new ReplayFamilyScanner(messages);
+        var family = ReplayLineage.Reserve(Delivery(), []).Family;
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => scanner.ScanAsync(family,
+            Snapshot(Queue), 1, 100, default, TimeSpan.FromSeconds(seconds)));
+        Assert.Empty(messages.Calls);
+    }
     private static Task<ReplayFamilyScanResult> Scan(Messages messages, MessageDelivery original,
         EntityDiscoverySnapshot discovery, int budget = 1000, CancellationToken token = default)
         => new ReplayFamilyScanner(messages).ScanAsync(ReplayLineage.Reserve(original, []).Family,

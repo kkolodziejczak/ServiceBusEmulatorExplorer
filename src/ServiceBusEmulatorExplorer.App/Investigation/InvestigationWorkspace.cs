@@ -14,6 +14,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
     private readonly IWorkspacePreferencesStore store;
     private readonly BrokerConnectionWorkflow connections;
     private readonly Func<ConnectionProfile, IReplayCopySender> createReplaySender;
+    private readonly Func<ConnectionProfile, EntityAddress, IDlqDeleteReceiver> createDeleteReceiver;
     private readonly SemaphoreSlim saveGate = new(1, 1);
     private readonly SemaphoreSlim lifecycleGate = new(1, 1);
     private readonly object disposeSync = new();
@@ -45,11 +46,13 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
     public string Status => Activity.LastOrDefault()?.Message ?? "Choose a connection to begin.";
 
     public InvestigationWorkspace(IWorkspacePreferencesStore store, BrokerConnectionWorkflow connections,
-        Func<ConnectionProfile, IReplayCopySender>? createReplaySender = null)
+        Func<ConnectionProfile, IReplayCopySender>? createReplaySender = null,
+        Func<ConnectionProfile, EntityAddress, IDlqDeleteReceiver>? createDeleteReceiver = null)
     {
         this.store = store;
         this.connections = connections;
         this.createReplaySender = createReplaySender ?? (profile => new ReplayCopySender(profile));
+        this.createDeleteReceiver = createDeleteReceiver ?? ((profile, source) => new DlqDeleteReceiver(profile, source));
         Surface = new(Browse, Search);
         Surface.PropertyChanged += SurfaceChanged;
         Watch.Warning += WatchWarning;
@@ -139,6 +142,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
                 await SaveCurrentAsync();
             }
             finally { lifecycleGate.Release(); }
+            StartReplayCleanup();
         }
         catch (OperationCanceledException)
         {
@@ -204,7 +208,10 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
     private async Task DisconnectCoreAsync(bool clearWatchArrivals = false)
     {
         ++generation;
-        replayCancellation?.Cancel();
+        var previous = session;
+        session = null;
+        mutationCancellation?.Cancel();
+        await StopReplayCleanupAsync();
         connectCancellation?.Cancel();
         connectCancellation = null;
         connecting = false;
@@ -212,8 +219,6 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
         Search.SetSession(null, generation);
         await Watch.StopAsync(clearWatchArrivals);
         Inspector.Clear();
-        var previous = session;
-        session = null;
         if (previous is not null) await previous.DisposeAsync();
     }
 
@@ -350,12 +355,13 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
     private async Task DisposeCoreAsync()
     {
         Volatile.Write(ref disposeStarted, 1);
-        replayCancellation?.Cancel();
+        mutationCancellation?.Cancel();
+        await StopReplayCleanupAsync();
         connectCancellation?.Cancel();
         Browse.Cancel();
         Search.Stop();
-        await replayGate.WaitAsync();
-        replayGate.Release();
+        await mutationGate.WaitAsync();
+        mutationGate.Release();
         await lifecycleGate.WaitAsync();
         try
         {

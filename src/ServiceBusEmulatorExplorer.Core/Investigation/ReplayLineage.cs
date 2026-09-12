@@ -6,7 +6,7 @@ using ServiceBusEmulatorExplorer.Core.ServiceBus;
 namespace ServiceBusEmulatorExplorer.Core.Investigation;
 
 public sealed record ReplayFamilyState(Guid FamilyId, string RootFingerprint, string OriginalMessageId,
-    EntityAddress OriginalSource, long LastAttempt);
+    EntityAddress OriginalSource, long LastAttempt, string? CleanupNamespace = null);
 public sealed record ReplayReservation(ReplayFamilyState Family, string MessageId);
 
 /// <summary>Explicit replay lineage and locally persisted attempt numbering; message IDs are not family keys.</summary>
@@ -80,7 +80,8 @@ public static class ReplayLineage
         ArgumentNullException.ThrowIfNull(family);
         if (family.FamilyId == Guid.Empty || family.RootFingerprint is not { Length: 64 }
             || family.RootFingerprint.Any(character => !Uri.IsHexDigit(character))
-            || family.OriginalMessageId is null || family.LastAttempt < 1)
+            || family.OriginalMessageId is null || family.LastAttempt < 1
+            || (family.CleanupNamespace is not null && (family.CleanupNamespace.Length != 64 || family.CleanupNamespace.Any(character => !Uri.IsHexDigit(character)))))
             throw new ArgumentException("Invalid saved replay family.");
         _ = Destination(family.OriginalSource);
     }
