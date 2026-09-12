@@ -190,8 +190,7 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: General tab returns from Connections to preferences
 - PASS: Refresh selector opens all four supported intervals
 - PASS: Styled refresh selector retains selectable 30-second interval
-- PASS: General connection picker starts on the current local emulator profile
-- PASS: Highlighting another profile does not switch the current connection
+- PASS: Header connection picker starts on the current local emulator profile
 - PASS: Connection-switch proof starts with a pending watched arrival
 - PASS: Using a selected connection updates header and disconnects before investigation
 - PASS: Connection switch clears watches, pending notifications, and search
@@ -322,10 +321,7 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Saving during a pending warning retains the approved profile, connected state and search
 - PASS: profile-warning-pending-header-save displays the confirmation
 - PASS: Header warning cancellation retains the approved profile after an in-modal save
-- PASS: A warning is displayed only when a new acknowledgment is required
-- PASS: Saving during a pending warning retains the approved profile, connected state and search
-- PASS: profile-warning-pending-settings-save displays the confirmation
-- PASS: Settings warning cancellation preserves the approved profile and applied search
+- PASS: Managing an inactive profile preserves the approved connection and applied search
 - PASS: Profile warning text round-trips through an isolated preferences file
 - PASS: A warning is displayed only when a new acknowledgment is required
 - PASS: Startup warning appears before the saved connection loads messages
@@ -347,3 +343,11 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Watch dialog omits redundant introductory and instructional paragraphs
 - PASS: Typing filters Watch entities and hides its search placeholder
 - PASS: Clearing Watch search restores its placeholder
+- PASS: Automatically connect on profile switch defaults to off
+- PASS: Switching profiles with auto-connect off leaves the connection disconnected
+- PASS: Enabling auto-connect connects the newly selected profile
+- PASS: Auto-connect warning cancellation keeps the previously connected profile
+- PASS: Approving auto-connect warning connects once without a second prompt
+- PASS: Saving the current profile does not trigger auto-connect
+- PASS: Auto-connect preference persists to an isolated preferences file
+- PASS: A fresh Settings window restores the saved auto-connect switch

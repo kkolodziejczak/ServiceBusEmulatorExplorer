@@ -357,6 +357,7 @@ public partial class PrototypeWindow
         });
         UpdateWatchSurface();
         AddLog($"Selected {profile.Name}. Connect to load its sample messages.");
+        if (connectionSettings.AutoConnectOnSwitch) Connection_Click(this, new RoutedEventArgs());
         SavePreferences();
     }
 }

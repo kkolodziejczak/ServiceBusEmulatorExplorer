@@ -37,6 +37,7 @@ public partial class PrototypeWindow
     {
         closeToTray = preferences.CloseToTray && (tray is not null || proofLifetime);
         notificationsEnabled = preferences.NotificationsEnabled;
+        connectionSettings.AutoConnectOnSwitch = preferences.AutoConnectOnSwitch;
         Width = Math.Clamp(preferences.Width, MinWidth, Math.Max(MinWidth, SystemParameters.WorkArea.Width));
         Height = Math.Clamp(preferences.Height, MinHeight, Math.Max(MinHeight, SystemParameters.WorkArea.Height));
         AutoInterval.SelectedIndex = Math.Clamp(preferences.RefreshIndex, 0, 3);
@@ -86,6 +87,7 @@ public partial class PrototypeWindow
         preferences.SelectedProfileId = connectionSettings.SelectedProfile.Id;
         preferences.CloseToTray = closeToTray;
         preferences.NotificationsEnabled = notificationsEnabled;
+        preferences.AutoConnectOnSwitch = connectionSettings.AutoConnectOnSwitch;
         preferences.RefreshIndex = AutoInterval.SelectedIndex;
         preferences.RefreshPaused = paused;
         preferences.SearchByMessageId = Workspace.SearchByMessageId;

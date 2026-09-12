@@ -40,6 +40,7 @@ internal static class InvestigationProof
             await PreferencesProof.Exercise(window, report, output);
             await ProfileThemeProof.Exercise(window, report, output);
             await AddConnectionProof.Exercise(window, report, output);
+            await AutoConnectProof.Exercise(window, report, output);
             File.WriteAllLines(Path.Combine(output, "report.md"), report);
             return 0;
         }

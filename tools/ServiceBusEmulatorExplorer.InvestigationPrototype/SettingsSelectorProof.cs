@@ -45,7 +45,7 @@ internal static class SettingsSelectorProof
         popup.IsOpen = false;
         await ExerciseSettings(window, report, output);
         await ExerciseRefresh(window, report, output);
-        await ExerciseConnectionPicker(window, report, output);
+        await ExerciseToolbarConnection(window, report, output);
     }
 
     private static async Task ExerciseWatchOverview(PrototypeWindow window, List<string> report, string output)
@@ -157,22 +157,19 @@ internal static class SettingsSelectorProof
         await Settle();
     }
 
-    private static async Task ExerciseConnectionPicker(PrototypeWindow window, List<string> report, string output)
+    private static async Task ExerciseToolbarConnection(PrototypeWindow window, List<string> report, string output)
     {
-        var settings = await OpenSettings(window);
-        var picker = (ListBox)settings.FindName("ConnectionPicker");
+        var picker = (ComboBox)window.FindName("ConnectionSelector");
         var local = picker.Items.Cast<PrototypeConnectionProfile>().First(profile => profile.Name == "Local emulator");
         var azure = picker.Items.Cast<PrototypeConnectionProfile>().First(profile => profile != local);
-        Check(ReferenceEquals(picker.SelectedItem, local), "General connection picker starts on the current local emulator profile", report);
-        picker.SelectedItem = azure;
-        await Settle();
-        Check(((TextBlock)window.FindName("ConnectionName")).Text == local.Name, "Highlighting another profile does not switch the current connection", report);
+        Check(ReferenceEquals(picker.SelectedItem, local), "Header connection picker starts on the current local emulator profile", report);
+
         window.SetWatched(window.Workspace.EntityPath, true, true);
         var before = window.Workspace.SnapshotMessages().Count;
         window.SimulateWatchedArrivals();
         await Settle();
         Check(Application.Current.Windows.OfType<WatchNotificationWindow>().Any(), "Connection-switch proof starts with a pending watched arrival", report);
-        Click(settings, "UseConnectionButton");
+        picker.SelectedItem = azure;
         await Settle();
         Check(((TextBlock)window.FindName("ConnectionName")).Text == azure.Name && !window.Workspace.IsConnected,
             "Using a selected connection updates header and disconnects before investigation", report);
@@ -180,10 +177,8 @@ internal static class SettingsSelectorProof
             && ((TextBox)window.FindName("SearchBox")).Text.Length == 0,
             "Connection switch clears watches, pending notifications, and search", report);
         Check(window.Workspace.SnapshotMessages().Count < before + 1, "Connection switch resets the previous session's synthetic arrivals", report);
-        ProofCapture.Save(settings, output, "settings-connection-picker");
+        ProofCapture.Save(window, output, "header-connection-picker");
         picker.SelectedItem = local;
-        Click(settings, "UseConnectionButton");
-        Click(settings, "DoneButton");
         await Settle();
         if (!window.Workspace.IsConnected) Click(window, "ConnectionButton");
         await Settle();

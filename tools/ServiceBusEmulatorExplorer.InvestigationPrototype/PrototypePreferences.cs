@@ -22,6 +22,7 @@ public sealed class PrototypePreferences
     public bool CloseToTray { get; set; } = true;
     public bool NotificationsEnabled { get; set; } = true;
     public bool Connected { get; set; } = true;
+    public bool AutoConnectOnSwitch { get; set; }
     public int RefreshIndex { get; set; }
     public bool RefreshPaused { get; set; }
     public bool SearchByMessageId { get; set; }

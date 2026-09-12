@@ -9,6 +9,7 @@ public sealed class PrototypeConnectionSettings
     public PrototypeConnectionSettings() => SelectedProfile = Profiles[0];
 
     public PrototypeConnectionProfile SelectedProfile { get; set; }
+    public bool AutoConnectOnSwitch { get; set; }
 
     public List<PrototypeConnectionProfile> Profiles { get; } =
     [
@@ -84,16 +85,14 @@ public partial class PrototypeSettingsWindow : Window
         CloseToTrayToggle.IsEnabled = canCloseToTray;
         TrayUnavailableText.Visibility = canCloseToTray ? Visibility.Collapsed : Visibility.Visible;
         NotificationsToggle.IsChecked = notificationsEnabled;
+        AutoConnectToggle.IsChecked = connections.AutoConnectOnSwitch;
         ColorPicker.ItemsSource = new ProfileAccent[]
         {
             new("Blue", "#0069FA"), new("Purple", "#7540BF"), new("Teal", "#007F80"),
             new("Orange", "#B85B00"), new("Red", "#C83B3B")
         };
         ProfilesList.ItemsSource = connections.Profiles;
-        ConnectionPicker.ItemsSource = connections.Profiles;
-        ConnectionPicker.SelectedItem = connections.SelectedProfile;
         ProfilesList.SelectedItem = connections.SelectedProfile;
-        UpdateConnectionStatus();
         _ready = true;
     }
 
@@ -109,34 +108,11 @@ public partial class PrototypeSettingsWindow : Window
         _setNotifications(NotificationsToggle.IsChecked == true);
         _preferencesChanged?.Invoke();
     }
-    private void ManageConnections_Click(object sender, RoutedEventArgs e)
-    {
-        ProfilesList.SelectedItem = ConnectionPicker.SelectedItem;
-        SettingsTabs.SelectedItem = ConnectionsTab;
-    }
-
-    private void ConnectionPicker_Selected(object sender, SelectionChangedEventArgs e)
+    private void AutoConnect_Changed(object sender, RoutedEventArgs e)
     {
         if (!_ready) return;
-        UseConnectionButton.IsEnabled = ConnectionPicker.SelectedItem is PrototypeConnectionProfile;
-        UpdateConnectionStatus();
-    }
-
-    private void UpdateConnectionStatus()
-    {
-        ConnectionStatus.Text = $"Current connection: {_connections.SelectedProfile.Name}.";
-        if (ConnectionPicker.SelectedItem is PrototypeConnectionProfile selected &&
-            !ReferenceEquals(selected, _connections.SelectedProfile))
-            ConnectionStatus.Text += " Select Use connection to switch.";
-    }
-
-    private void UseConnection_Click(object sender, RoutedEventArgs e)
-    {
-        if (ConnectionPicker.SelectedItem is not PrototypeConnectionProfile profile) return;
-        if (_useConnection is null) _connections.SelectedProfile = profile;
-        else _useConnection(profile);
+        _connections.AutoConnectOnSwitch = AutoConnectToggle.IsChecked == true;
         _preferencesChanged?.Invoke();
-        UpdateConnectionStatus();
     }
 
     private void AddConnection_Click(object sender, RoutedEventArgs e)
@@ -146,7 +122,6 @@ public partial class PrototypeSettingsWindow : Window
         var profile = new PrototypeConnectionProfile($"Connection {number}", string.Empty, string.Empty);
         _connections.Profiles.Add(profile);
         ProfilesList.Items.Refresh();
-        ConnectionPicker.Items.Refresh();
         ProfilesList.SelectedItem = profile;
         ProfilesList.ScrollIntoView(profile);
         ProfileName.Focus();
@@ -180,9 +155,7 @@ public partial class PrototypeSettingsWindow : Window
         if (ColorPicker.SelectedItem is ProfileAccent accent) profile.ColorHex = accent.ColorHex;
         profile.WarningMessage = ConnectionWarning.Text.Trim();
         ProfilesList.Items.Refresh();
-        ConnectionPicker.Items.Refresh();
         if (ReferenceEquals(profile, _connections.SelectedProfile)) _useConnection?.Invoke(profile);
-        UpdateConnectionStatus();
         ProfileStatus.Text = "Profile updated. No connection was attempted.";
         _preferencesChanged?.Invoke();
     }

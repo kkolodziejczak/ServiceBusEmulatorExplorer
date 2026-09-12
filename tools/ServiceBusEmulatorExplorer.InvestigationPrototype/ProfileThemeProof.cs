@@ -137,10 +137,11 @@ internal static class ProfileThemeProof
                 .RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
             await Settle();
             var settings = Application.Current.Windows.OfType<PrototypeSettingsWindow>().Single();
-            ((ListBox)settings.FindName("ConnectionPicker")).SelectedItem = target;
-            await Respond(() => Click(settings, "UseConnectionButton"), true, false, output, "profile-warning-pending-settings-save", report, SaveWhilePending);
+            ((TabItem)settings.FindName("ConnectionsTab")).IsSelected = true;
+            ((ListBox)settings.FindName("ProfilesList")).SelectedItem = target;
+            Click(settings, "SaveProfileButton");
             Check(ReferenceEquals(selector.SelectedItem, approved) && window.Workspace.CorrelationQuery == query,
-                "Settings warning cancellation preserves the approved profile and applied search", report);
+                "Managing an inactive profile preserves the approved connection and applied search", report);
             settings.Close();
         }
         finally { window.Close(); }
