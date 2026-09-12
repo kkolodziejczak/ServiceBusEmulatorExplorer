@@ -61,6 +61,20 @@ public static class ReplayLineage
         return family;
     }
 
+    public static bool BelongsTo(MessageDelivery delivery, ReplayFamilyState family)
+    {
+        ValidateFamily(family);
+        if (string.Equals(Fingerprint(delivery), family.RootFingerprint, StringComparison.OrdinalIgnoreCase)) return true;
+        var lineage = ReadLineage(delivery.Message.ApplicationProperties);
+        if (lineage is null) return false;
+        bool sameRoot = string.Equals(lineage.RootFingerprint, family.RootFingerprint, StringComparison.OrdinalIgnoreCase);
+        if (!sameRoot && lineage.FamilyId != family.FamilyId) return false;
+        if (!sameRoot || lineage.FamilyId != family.FamilyId || lineage.OriginalSource != family.OriginalSource
+            || lineage.OriginalMessageId != family.OriginalMessageId)
+            throw new ArgumentException("Replay lineage conflicts with the saved message family.");
+        return true;
+    }
+
     public static void ValidateFamily(ReplayFamilyState family)
     {
         ArgumentNullException.ThrowIfNull(family);
