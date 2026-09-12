@@ -74,6 +74,7 @@ public partial class InvestigationWindow
         WatchSummaryButton.IsEnabled = workspace.IsConnected && !savingWatch;
         WatchCount.Text = count.ToString();
         WatchSummaryButton.ToolTip = $"Overview of {count} watched entities and pending notifications";
+        ShowWatchNotification();
         AutomationProperties.SetName(WatchSummaryButton, $"Overview of {count} watched entities");
         if (!workspace.IsConnected) WatchPopup.IsOpen = false;
         if (!WatchPopup.IsOpen) return;
@@ -132,6 +133,11 @@ public partial class InvestigationWindow
             };
             menu.Items.Add(item);
         }
+        menu.Items.Add(new Separator { Margin = new Thickness(10, 5, 10, 5), Background = new SolidColorBrush(Color.FromRgb(213, 223, 234)), Height = 1 });
+        var notifications = new MenuItem { Header = $"Show notifications ({workspace.Watch.PendingArrivals.Count})",
+            IsEnabled = workspace.Watch.PendingArrivals.Count > 0 && workspace.Preferences.NotificationsEnabled };
+        notifications.Click += (_, _) => ShowWatchNotification();
+        menu.Items.Add(notifications);
         foreach (var item in menu.Items.OfType<MenuItem>()) item.Style = (Style)FindResource("WatchOverviewItemStyle");
         WatchSummaryButton.ContextMenu = menu;
         menu.IsOpen = true;

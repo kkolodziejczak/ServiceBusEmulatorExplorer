@@ -48,6 +48,8 @@ public sealed class MessageSearchWorkflow : ObservableObject
         && !complete
         && !(discoveredScanComplete && (!discoveryComplete || discoveryIssues.Count > 0));
     public string QueryText { get => queryText; private set => SetProperty(ref queryText, value); }
+    public bool DefaultMessageId => defaultMessageId;
+    public long Revision => version;
     public string QueryError { get => queryError; private set => SetProperty(ref queryError, value); }
     public string Status { get => status; private set => SetProperty(ref status, value); }
     public string CountSummary { get => countSummary; private set => SetProperty(ref countSummary, value); }

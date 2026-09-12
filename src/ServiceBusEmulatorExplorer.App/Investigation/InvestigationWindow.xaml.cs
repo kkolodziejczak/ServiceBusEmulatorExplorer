@@ -35,6 +35,7 @@ public partial class InvestigationWindow : Window
         workspace.Surface.PropertyChanged += SurfaceChanged;
         workspace.Inspector.PropertyChanged += InspectorChanged;
         workspace.Activity.CollectionChanged += ActivityChanged;
+        workspace.Watch.PendingArrivals.CollectionChanged += WatchArrivalsChanged;
         refreshTimer.Tick += RefreshTimerTick;
         Loaded += WindowLoaded;
         Closing += WindowClosing;

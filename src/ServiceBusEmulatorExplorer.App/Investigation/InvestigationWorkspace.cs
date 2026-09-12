@@ -21,6 +21,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
     private Task? disposeTask;
     private bool connecting;
     private bool initialized;
+    private bool watchBaselineReady;
     private string? readinessWarning;
     private WorkspacePreferences preferences = new();
     public MessageBrowseWorkflow Browse { get; } = new();
@@ -47,12 +48,25 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
         Surface.PropertyChanged += SurfaceChanged;
         Watch.Warning += WatchWarning;
         Watch.Polled += WatchPolled;
+        Watch.DiscoveryUpdated += WatchDiscoveryUpdated;
+    }
+
+    private void WatchDiscoveryUpdated(EntityDiscoverySnapshot snapshot)
+    {
+        Browse.ApplySnapshot(snapshot);
+        OnPropertyChanged(nameof(Watch));
     }
 
     private void WatchWarning(string message) => Log(message, true);
 
     private void WatchPolled(WatchPollResult result)
     {
+        if (result.BaselinesPending > 0) watchBaselineReady = false;
+        else if (!watchBaselineReady)
+        {
+            watchBaselineReady = true;
+            Log("Watch baseline ready. New arrivals will be reported.");
+        }
         foreach (var failure in result.Failures)
             Log($"Watch {failure.Target.Address.TopicName}/{failure.Target.Address.Name} · {failure.Target.Bucket}: {failure.Message}", true);
     }
@@ -104,6 +118,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
             readinessWarning = connected.ReadinessWarning;
             Browse.SetSession(session, generation);
             Search.SetSession(session, generation);
+            watchBaselineReady = false;
             Watch.Start(session, generation, CurrentWatchRules());
             Log(readinessWarning ?? $"Connected to {profile.Connection.Name}.", readinessWarning is not null);
             foreach (var issue in connected.Snapshot.Issues) Log(issue, true);
@@ -150,7 +165,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
         if (profile.Id == SelectedProfile.Id) return true;
         if (Inspector.HasDrafts && !await ConfirmDiscard()) return false;
         if (!await ApproveWarningAsync(profile)) return false;
-        await DisconnectCoreAsync();
+        await DisconnectCoreAsync(clearWatchArrivals: true);
         preferences = preferences with { SelectedProfileId = profile.Id, WasConnected = false, SelectedEntityPath = "", DeadLetter = false };
         readinessWarning = null;
         Browse.SetPreferences(preferences);
@@ -180,7 +195,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
         await SaveCurrentAsync();
     }
 
-    private async Task DisconnectCoreAsync()
+    private async Task DisconnectCoreAsync(bool clearWatchArrivals = false)
     {
         ++generation;
         connectCancellation?.Cancel();
@@ -188,7 +203,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
         connecting = false;
         Browse.SetSession(null, generation);
         Search.SetSession(null, generation);
-        await Watch.StopAsync();
+        await Watch.StopAsync(clearWatchArrivals);
         Inspector.Clear();
         var previous = session;
         session = null;
@@ -202,7 +217,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
         if (credentialsChanged && (IsConnected || connecting))
         {
             if (Inspector.HasDrafts && !await ConfirmDiscard()) throw new OperationCanceledException("Save canceled.");
-            await DisconnectCoreAsync();
+            await DisconnectCoreAsync(clearWatchArrivals: true);
             Log("Connection details changed. Reconnect to use the saved profile.");
         }
         await saveGate.WaitAsync();
@@ -213,6 +228,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
                 WasConnected = IsConnected, Watches = preferences.Watches };
             await store.SaveAsync(replacement, CancellationToken.None);
             preferences = replacement;
+            if (credentialsChanged) await Watch.StopAsync(clearPending: true);
         }
         finally { saveGate.Release(); }
         Browse.SetPreferences(preferences);
@@ -235,6 +251,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
             watches[profileId] = rules.ToArray();
             await store.SaveAsync(preferences with { Watches = watches }, CancellationToken.None);
             preferences = preferences with { Watches = watches };
+            watchBaselineReady = false;
             Watch.UpdateRules(CurrentWatchRules());
             OnPropertyChanged(nameof(Preferences));
         }
@@ -333,12 +350,13 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
         try
         {
             await SaveCurrentAsync();
-            await DisconnectCoreAsync();
+            await DisconnectCoreAsync(clearWatchArrivals: true);
         }
         finally { lifecycleGate.Release(); }
         Surface.PropertyChanged -= SurfaceChanged;
         Watch.Warning -= WatchWarning;
         Watch.Polled -= WatchPolled;
+        Watch.DiscoveryUpdated -= WatchDiscoveryUpdated;
         Surface.Dispose();
     }
 }

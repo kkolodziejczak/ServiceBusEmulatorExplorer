@@ -147,6 +147,7 @@ public sealed class InvestigationWindowRenderTests
                 CaptureIfEnabled(window, name + "-unselected");
                 messageGrid.ScrollIntoView(messageGrid.Items[0]);
             }
+            ExerciseNotificationRecovery(window, workspace, dispatcher);
         }
         finally
         {
@@ -162,6 +163,71 @@ public sealed class InvestigationWindowRenderTests
             }
 
             workspace.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        }
+    }
+
+    private static void ExerciseNotificationRecovery(InvestigationWindow window, InvestigationWorkspace workspace, Dispatcher dispatcher)
+    {
+        void Await(Task operation)
+        {
+            PumpUntil(dispatcher, () => operation.IsCompleted, TimeSpan.FromSeconds(5));
+            operation.GetAwaiter().GetResult();
+        }
+        WatchNotificationWindow? Notification() => PresentationSource.CurrentSources.Cast<PresentationSource>()
+            .Select(source => source.RootVisual).OfType<WatchNotificationWindow>().SingleOrDefault(notification => notification.IsVisible);
+        void Invoke(WatchNotificationWindow notification, string id)
+        {
+            Button button = FindNotificationButtons(notification).Single(candidate => System.Windows.Automation.AutomationProperties.GetAutomationId(candidate) == id);
+            ((IInvokeProvider)new ButtonAutomationPeer(button).GetPattern(PatternInterface.Invoke)!).Invoke();
+        }
+
+        Await(workspace.UpdateWatchRulesAsync(workspace.SelectedProfile.Id, [new(WatchScopeResolver.ConnectionScopeKey, true, false)]));
+        var available = workspace.Browse.Messages[0].Delivery;
+        var missing = new MessageDelivery(available.Identity with { SequenceNumber = 999 },
+            available.Message with { SequenceNumber = 999, MessageId = "expired-watch-message", CorrelationId = "unavailable-watch-case" });
+        workspace.Watch.PendingArrivals.Add(available);
+        workspace.Watch.PendingArrivals.Add(missing);
+        PumpUntil(dispatcher, () => Notification() is not null, TimeSpan.FromSeconds(5));
+        window.Hide();
+        Invoke(Notification()!, "InvestigateWatchNotification");
+        PumpUntil(dispatcher, () => window.IsVisible && workspace.Search.IsActive && !workspace.Search.IsBusy
+            && workspace.Watch.PendingArrivals.Count == 1 && Notification()?.IsEnabled == true, TimeSpan.FromSeconds(5));
+        Assert.Equal(missing, Assert.Single(workspace.Watch.PendingArrivals));
+        Assert.Contains(workspace.Activity, entry => entry.Message.Contains("not found in the scanned results", StringComparison.Ordinal));
+
+        Await(workspace.DisconnectAsync());
+        Assert.NotNull(Notification());
+        Invoke(Notification()!, "InvestigateWatchNotification");
+        PumpUntil(dispatcher, () => workspace.Activity.Any(entry => entry.Message.StartsWith("Reconnect to investigate", StringComparison.Ordinal)), TimeSpan.FromSeconds(5));
+        Assert.Contains(workspace.Activity, entry => entry.Message.StartsWith("Reconnect to investigate", StringComparison.Ordinal));
+        Assert.Single(workspace.Watch.PendingArrivals);
+        Await(workspace.ConnectAsync());
+        Assert.Single(workspace.Watch.PendingArrivals);
+
+        var changedProfiles = workspace.Preferences.Profiles.Select(profile => profile with { ColorHex = "#7540BF" }).ToArray();
+        Await(workspace.ApplyPreferencesAsync(workspace.Preferences with { Profiles = changedProfiles }));
+        Assert.Equal(((SolidColorBrush)window.FindResource("PrimaryBrush")).Color,
+            ((SolidColorBrush)Notification()!.FindResource("PrimaryBrush")).Color);
+        Await(workspace.ApplyPreferencesAsync(workspace.Preferences with { NotificationsEnabled = false }));
+        Assert.Null(Notification());
+        Assert.Single(workspace.Watch.PendingArrivals);
+        Await(workspace.ApplyPreferencesAsync(workspace.Preferences with { NotificationsEnabled = true }));
+        PumpUntil(dispatcher, () => Notification() is not null, TimeSpan.FromSeconds(5));
+        Invoke(Notification()!, "DismissWatchNotification");
+        PumpUntil(dispatcher, () => workspace.Watch.PendingArrivals.Count == 0, TimeSpan.FromSeconds(5));
+        Assert.Empty(workspace.Watch.PendingArrivals);
+        Assert.Null(Notification());
+        Await(workspace.UpdateWatchRulesAsync(workspace.SelectedProfile.Id, []));
+        workspace.Search.Clear();
+    }
+
+    private static IEnumerable<Button> FindNotificationButtons(DependencyObject parent)
+    {
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, index);
+            if (child is Button button) yield return button;
+            foreach (var descendant in FindNotificationButtons(child)) yield return descendant;
         }
     }
 

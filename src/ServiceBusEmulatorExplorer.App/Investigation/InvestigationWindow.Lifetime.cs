@@ -62,6 +62,8 @@ public partial class InvestigationWindow
             workspace.Surface.PropertyChanged -= SurfaceChanged;
             workspace.Inspector.PropertyChanged -= InspectorChanged;
             workspace.Activity.CollectionChanged -= ActivityChanged;
+            workspace.Watch.PendingArrivals.CollectionChanged -= WatchArrivalsChanged;
+            CloseWatchNotification();
             closing = true;
             // Leave the current Closing event before asking WPF to close again.
             _ = Dispatcher.BeginInvoke(new Action(Close));
