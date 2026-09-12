@@ -128,6 +128,7 @@ public sealed class InvestigationWindowRenderTests
                 window.UpdateLayout();
                 Task settled = dispatcher.InvokeAsync(() => window.UpdateLayout(), DispatcherPriority.ContextIdle).Task;
                 PumpUntil(dispatcher, () => settled.IsCompleted, TimeSpan.FromSeconds(5));
+                ExerciseWatchControls(window, workspace, dispatcher, topic, name);
                 CaptureIfEnabled(window, name);
                 AssertActiveBadge(inspectorState, expectedBorder: "#6C9BD2");
                 AssertVisibleBounds(window, inspectorHeading, inspectorTabs, messageGrid);
@@ -162,6 +163,69 @@ public sealed class InvestigationWindowRenderTests
 
             workspace.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
+    }
+
+    private static void ExerciseWatchControls(InvestigationWindow window, InvestigationWorkspace workspace,
+        Dispatcher dispatcher, EntityNode topic, string size)
+    {
+        void Invoke(string name) => ((IInvokeProvider)new ButtonAutomationPeer((Button)window.FindName(name))
+            .GetPattern(PatternInterface.Invoke)!).Invoke();
+        void Settle()
+        {
+            Task idle = dispatcher.InvokeAsync(() => window.UpdateLayout(), DispatcherPriority.ContextIdle).Task;
+            PumpUntil(dispatcher, () => idle.IsCompleted, TimeSpan.FromSeconds(5));
+        }
+        Invoke("GlobalWatchButton");
+        Settle();
+        var dialog = window.OwnedWindows.OfType<GlobalWatchWindow>().Single();
+        ToggleThroughAutomation((CheckBox)dialog.FindName("GlobalActiveChoice"));
+        Settle();
+        Assert.Contains(workspace.Preferences.Watches[workspace.SelectedProfile.Id], rule =>
+            rule.ScopeKey == WatchScopeResolver.ConnectionScopeKey && rule.Active == true);
+        Assert.Equal("Watching", ((TextBlock)window.FindName("WatchButtonLabel")).Text);
+        Assert.True(((Button)window.FindName("WatchSummaryButton")).IsVisible);
+
+        Invoke("WatchButton");
+        Settle();
+        var popup = (Popup)window.FindName("WatchPopup");
+        Assert.True(popup.IsOpen);
+        var active = (CheckBox)window.FindName("WatchActiveChoice");
+        var dlq = (CheckBox)window.FindName("WatchDlqChoice");
+        Assert.True(active.IsChecked);
+        Assert.False(dlq.IsChecked);
+        ToggleThroughAutomation(dlq);
+        Settle();
+        Assert.True(new WatchRuleEditor(workspace.Browse.Roots,
+            workspace.Preferences.Watches[workspace.SelectedProfile.Id]).IsWatched(topic, true));
+        Invoke("WatchButton");
+        Settle();
+        CaptureIfEnabled((FrameworkElement)popup.Child, size + "-watch-popup");
+        CaptureIfEnabled(window, size + "-watch-enabled");
+
+        // A modeless dialog must retain the topic choice made through the main window.
+        ToggleThroughAutomation((CheckBox)dialog.FindName("GlobalActiveChoice"));
+        Settle();
+        var editor = new WatchRuleEditor(workspace.Browse.Roots, workspace.Preferences.Watches[workspace.SelectedProfile.Id]);
+        Assert.False(editor.GlobalActive);
+        Assert.True(editor.IsWatched(topic, true));
+        Invoke("WatchSummaryButton");
+        Settle();
+        ContextMenu overview = ((Button)window.FindName("WatchSummaryButton")).ContextMenu;
+        Assert.True(overview.IsOpen);
+        Assert.Equal(2, overview.Items.OfType<MenuItem>().Count(item => item.IsCheckable));
+        CaptureIfEnabled(overview, size + "-watch-overview");
+        overview.IsOpen = false;
+        Invoke("WatchButton");
+        Settle();
+        Invoke("StopWatchingButton");
+        Settle();
+        Assert.False(popup.IsOpen);
+        Assert.Equal("Watch", ((TextBlock)window.FindName("WatchButtonLabel")).Text);
+        dialog.Close();
+        var clear = workspace.UpdateWatchRulesAsync(workspace.SelectedProfile.Id, []);
+        PumpUntil(dispatcher, () => clear.IsCompleted, TimeSpan.FromSeconds(5));
+        clear.GetAwaiter().GetResult();
+        Assert.False(((Button)window.FindName("WatchSummaryButton")).IsVisible);
     }
 
     private static InvestigationWorkspace CreateWorkspace()
@@ -295,7 +359,7 @@ public sealed class InvestigationWindowRenderTests
         }
     }
 
-    private static void CaptureIfEnabled(Window window, string name)
+    private static void CaptureIfEnabled(FrameworkElement window, string name)
     {
         if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase))
         {

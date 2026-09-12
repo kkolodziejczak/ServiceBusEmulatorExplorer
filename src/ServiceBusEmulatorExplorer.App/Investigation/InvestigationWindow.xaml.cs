@@ -38,8 +38,8 @@ public partial class InvestigationWindow : Window
         refreshTimer.Tick += RefreshTimerTick;
         Loaded += WindowLoaded;
         Closing += WindowClosing;
-        // These controls are connected in the Watch and mutation milestones.
-        foreach (var button in new[] { GlobalWatchButton, WatchSummaryButton, WatchButton, ReplayButton, DeleteButton })
+        // Mutation controls are connected in their dedicated milestone.
+        foreach (var button in new[] { ReplayButton, DeleteButton })
         {
             button.IsEnabled = false;
             button.ToolTip = "This workflow is not available in this integration build yet.";
@@ -92,6 +92,7 @@ public partial class InvestigationWindow : Window
             ConfigureRefresh();
             RenderActivity();
             UpdateSearchSurface();
+            UpdateWatchSurface();
         }
         finally { updating = false; }
     }
@@ -99,6 +100,7 @@ public partial class InvestigationWindow : Window
     private void SurfaceChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (!ready) return;
+        UpdateWatchSurface();
         SynchronizeBucketTabs();
         SourceColumn.Visibility = workspace.Surface.ShowsSource ? Visibility.Visible : Visibility.Collapsed;
         if (MessageGrid.SelectedItem != workspace.Surface.FocusedMessage)
@@ -221,11 +223,6 @@ public partial class InvestigationWindow : Window
         if (!workspace.Search.IsActive && !workspace.Browse.IsBusy) await workspace.RunReadAsync(workspace.Search.IsActive ? workspace.Search.ContinueAsync : workspace.Browse.RefreshAsync);
     }
 
-    private void GlobalWatch_Click(object sender, RoutedEventArgs e) { }
-    private void WatchSummary_Click(object sender, RoutedEventArgs e) { }
-    private void Watch_Click(object sender, RoutedEventArgs e) { }
-    private void WatchChoice_Click(object sender, RoutedEventArgs e) { }
-    private void StopWatching_Click(object sender, RoutedEventArgs e) { }
     private void Delete_Click(object sender, RoutedEventArgs e) { }
     private void Replay_Click(object sender, RoutedEventArgs e) { }
 

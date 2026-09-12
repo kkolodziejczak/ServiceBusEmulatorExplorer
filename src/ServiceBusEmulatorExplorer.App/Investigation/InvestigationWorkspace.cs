@@ -205,11 +205,16 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
             await DisconnectCoreAsync();
             Log("Connection details changed. Reconnect to use the saved profile.");
         }
-        var replacement = updated with { SelectedProfileId = preferences.SelectedProfileId, WasConnected = IsConnected };
         await saveGate.WaitAsync();
-        try { await store.SaveAsync(replacement, CancellationToken.None); }
+        try
+        {
+            // Settings owns profile/display fields; Watch may have committed since Settings opened.
+            var replacement = updated with { SelectedProfileId = preferences.SelectedProfileId,
+                WasConnected = IsConnected, Watches = preferences.Watches };
+            await store.SaveAsync(replacement, CancellationToken.None);
+            preferences = replacement;
+        }
         finally { saveGate.Release(); }
-        preferences = replacement;
         Browse.SetPreferences(preferences);
         Search.SetPreferences(preferences);
         Watch.UpdateRules(CurrentWatchRules());
@@ -218,6 +223,23 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
 
     private IReadOnlyList<WatchPreference> CurrentWatchRules() =>
         preferences.Watches.TryGetValue(preferences.SelectedProfileId, out var rules) ? rules : [];
+
+    public async Task UpdateWatchRulesAsync(string profileId, IReadOnlyList<WatchPreference> rules)
+    {
+        await saveGate.WaitAsync();
+        try
+        {
+            if (profileId != preferences.SelectedProfileId || Volatile.Read(ref disposeStarted) != 0)
+                throw new OperationCanceledException("The Watch profile changed.");
+            var watches = preferences.Watches.ToDictionary(pair => pair.Key, pair => pair.Value);
+            watches[profileId] = rules.ToArray();
+            await store.SaveAsync(preferences with { Watches = watches }, CancellationToken.None);
+            preferences = preferences with { Watches = watches };
+            Watch.UpdateRules(CurrentWatchRules());
+            OnPropertyChanged(nameof(Preferences));
+        }
+        finally { saveGate.Release(); }
+    }
 
     public async Task UpdateDisplayPreferencesAsync(bool? logExpanded = null, TimestampDisplay? timestampDisplay = null,
         int? autoRefreshSeconds = null)
