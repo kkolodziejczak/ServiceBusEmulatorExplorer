@@ -8,7 +8,7 @@
   <StackPanel Orientation="Horizontal"><Path Data="M10,1 L19,18 H1 Z M10,6 V11 M10,14 V15" Stroke="#946000" StrokeThickness="1.7" Width="24" Height="24" Stretch="Uniform" Margin="0,0,12,0"/><TextBlock x:Name="WarningHeading" Text="Connection warning" FontSize="22" FontWeight="SemiBold" VerticalAlignment="Center"/></StackPanel>
   <TextBlock x:Name="ProfileNameText" Grid.Row="1" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,14,0,14" AutomationProperties.Name="Connection profile"/>
   <Border Grid.Row="2" Background="{DynamicResource ChromeBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="14">
-   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="True" AutomationProperties.Name="Connection warning message">
+   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="True" AutomationProperties.Name="{Binding Text, ElementName=WarningHeading, StringFormat={}{0} message}">
     <TextBlock x:Name="WarningMessageText" TextWrapping="Wrap" AutomationProperties.AutomationId="WarningMessageText"/>
    </ScrollViewer>
   </Border>

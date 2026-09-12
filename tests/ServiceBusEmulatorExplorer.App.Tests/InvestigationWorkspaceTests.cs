@@ -7,6 +7,103 @@ namespace ServiceBusEmulatorExplorer.App.Tests;
 
 public sealed class InvestigationWorkspaceTests
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task SwitchProfile_WithDraft_RequiresBothApprovalsBeforeDiscardingSession(
+        bool discardApproved, bool warningApproved)
+    {
+        var profileA = Profile("profile-a", "A");
+        var profileB = Profile("profile-b", "B") with { WarningMessage = "Check the destination namespace." };
+        var factory = new FakeFactory();
+        var browser = new FakeBrowser(Snapshot(Queue("orders")));
+        await using var workspace = CreateWorkspace(profileA, factory, browser, new FakeMessages(), profileB);
+        await workspace.InitializeAsync();
+        await workspace.ConnectAsync();
+        var entity = workspace.Browse.AllEntities().Single();
+        ExplorerMessage message = new("draft-id", 12, "{}", "{}", 2, null, null, 0,
+            "application/json", null, null, null,
+            new Dictionary<string, object?>(), new Dictionary<string, object?>());
+        var delivery = new MessageDelivery(new DeliveryIdentity(1,
+            new EntityAddress(EntityKind.Queue, "orders"), MessageBucket.DeadLetter, 12), message);
+        workspace.Inspector.Select(delivery);
+        var document = workspace.Inspector.Document;
+        document.Text = "{\"edited\":true}";
+        var prompts = new List<string>();
+        workspace.ConfirmDiscard = () =>
+        {
+            prompts.Add("discard");
+            Assert.True(workspace.IsConnected);
+            Assert.Same(document, workspace.Inspector.Document);
+            return Task.FromResult(discardApproved);
+        };
+        workspace.ConfirmWarning = profile =>
+        {
+            prompts.Add("warning");
+            Assert.Equal(profileB, profile);
+            Assert.True(workspace.IsConnected);
+            Assert.True(workspace.Inspector.HasDrafts);
+            return Task.FromResult(warningApproved);
+        };
+
+        bool switched = await workspace.SwitchProfileAsync(profileB);
+
+        Assert.Equal(discardApproved && warningApproved, switched);
+        Assert.Equal(discardApproved ? new[] { "discard", "warning" } : new[] { "discard" }, prompts);
+        if (!switched)
+        {
+            Assert.Equal(profileA, workspace.SelectedProfile);
+            Assert.True(workspace.IsConnected);
+            Assert.True(workspace.Preferences.WasConnected);
+            Assert.Same(entity, workspace.Browse.AllEntities().Single());
+            Assert.Same(document, workspace.Inspector.Document);
+            Assert.Equal("{\"edited\":true}", document.Text);
+            Assert.True(workspace.Inspector.HasDrafts);
+            Assert.Equal(0, factory.DisposeCount);
+        }
+        else
+        {
+            Assert.Equal(profileB, workspace.SelectedProfile);
+            Assert.False(workspace.IsConnected);
+            Assert.False(workspace.Preferences.WasConnected);
+            Assert.Empty(workspace.Browse.AllEntities());
+            Assert.Empty(workspace.Search.Messages);
+            Assert.Null(workspace.Inspector.Current);
+            Assert.False(workspace.Inspector.HasDrafts);
+            Assert.Equal(1, factory.DisposeCount);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SwitchProfile_WithAutoConnect_PromptsOnceAndConnectsOnlyAfterApproval(bool approved)
+    {
+        var profileA = Profile("profile-a", "A");
+        var profileB = Profile("profile-b", "B") with { WarningMessage = "Check the destination namespace." };
+        var factory = new FakeFactory();
+        await using var workspace = CreateWorkspace(profileA, factory,
+            new FakeBrowser(Snapshot(Queue("orders"))), new FakeMessages(), profileB);
+        await workspace.InitializeAsync();
+        await workspace.ApplyPreferencesAsync(workspace.Preferences with { AutoConnectOnSwitch = true });
+        int prompts = 0;
+        workspace.ConfirmWarning = profile =>
+        {
+            Assert.Equal(profileB, profile);
+            Assert.Equal(0, factory.ConnectCount);
+            prompts++;
+            return Task.FromResult(approved);
+        };
+
+        Assert.Equal(approved, await workspace.SwitchProfileAsync(profileB));
+
+        Assert.Equal(1, prompts);
+        Assert.Equal(approved ? 1 : 0, factory.ConnectCount);
+        Assert.Equal(approved, workspace.IsConnected);
+        Assert.Equal(approved ? profileB : profileA, workspace.SelectedProfile);
+    }
+
     [Fact]
     public async Task DisconnectDuringInitialRead_DoesNotMarkWorkspaceConnectedAfterReadCompletes()
     {
