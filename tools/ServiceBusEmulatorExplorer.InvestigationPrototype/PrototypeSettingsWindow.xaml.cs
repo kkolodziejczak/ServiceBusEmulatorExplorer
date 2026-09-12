@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.ComponentModel;
 
 namespace ServiceBusEmulatorExplorer.InvestigationPrototype;
 
@@ -16,13 +17,46 @@ public sealed class PrototypeConnectionSettings
     ];
 }
 
-public sealed class PrototypeConnectionProfile(string name, string runtime, string administration)
+public sealed class PrototypeConnectionProfile(string name, string runtime, string administration) : INotifyPropertyChanged
 {
+    private string profileName = name;
+    private string colorHex = "#0069FA";
+    private string warningMessage = string.Empty;
+    public event PropertyChangedEventHandler? PropertyChanged;
+
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
-    public string Name { get; set; } = name;
+    public string Name
+    {
+        get => profileName;
+        set
+        {
+            if (profileName == value) return;
+            profileName = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Name)));
+        }
+    }
     public string RuntimeConnection { get; set; } = runtime;
     public string AdministrationConnection { get; set; } = administration;
-    public string ColorHex { get; set; } = "#0069FA";
+    public string ColorHex
+    {
+        get => colorHex;
+        set
+        {
+            if (colorHex == value) return;
+            colorHex = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ColorHex)));
+        }
+    }
+    public string WarningMessage
+    {
+        get => warningMessage;
+        set
+        {
+            if (warningMessage == value) return;
+            warningMessage = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(WarningMessage)));
+        }
+    }
 }
 
 public sealed record ProfileAccent(string Name, string ColorHex);
@@ -99,10 +133,24 @@ public partial class PrototypeSettingsWindow : Window
     private void UseConnection_Click(object sender, RoutedEventArgs e)
     {
         if (ConnectionPicker.SelectedItem is not PrototypeConnectionProfile profile) return;
-        _connections.SelectedProfile = profile;
-        _useConnection?.Invoke(profile);
+        if (_useConnection is null) _connections.SelectedProfile = profile;
+        else _useConnection(profile);
         _preferencesChanged?.Invoke();
         UpdateConnectionStatus();
+    }
+
+    private void AddConnection_Click(object sender, RoutedEventArgs e)
+    {
+        var number = 1;
+        while (_connections.Profiles.Any(profile => string.Equals(profile.Name, $"Connection {number}", StringComparison.OrdinalIgnoreCase))) number++;
+        var profile = new PrototypeConnectionProfile($"Connection {number}", string.Empty, string.Empty);
+        _connections.Profiles.Add(profile);
+        ProfilesList.Items.Refresh();
+        ConnectionPicker.Items.Refresh();
+        ProfilesList.SelectedItem = profile;
+        ProfilesList.ScrollIntoView(profile);
+        ProfileName.Focus();
+        ProfileName.SelectAll();
     }
 
     private void Profile_Selected(object sender, SelectionChangedEventArgs e)
@@ -112,6 +160,7 @@ public partial class PrototypeSettingsWindow : Window
         RuntimeConnection.Password = profile.RuntimeConnection;
         AdministrationConnection.Password = profile.AdministrationConnection;
         ColorPicker.SelectedValue = profile.ColorHex;
+        ConnectionWarning.Text = profile.WarningMessage;
         ProfileStatus.Text = string.Empty;
     }
 
@@ -129,6 +178,7 @@ public partial class PrototypeSettingsWindow : Window
         profile.RuntimeConnection = RuntimeConnection.Password;
         profile.AdministrationConnection = AdministrationConnection.Password;
         if (ColorPicker.SelectedItem is ProfileAccent accent) profile.ColorHex = accent.ColorHex;
+        profile.WarningMessage = ConnectionWarning.Text.Trim();
         ProfilesList.Items.Refresh();
         ConnectionPicker.Items.Refresh();
         if (ReferenceEquals(profile, _connections.SelectedProfile)) _useConnection?.Invoke(profile);

@@ -95,7 +95,7 @@ public partial class PrototypeWindow
         SearchSummary.Visibility = searching && !compact ? Visibility.Visible : Visibility.Collapsed;
         BrowseTabs.Visibility = searching ? Visibility.Collapsed : Visibility.Visible;
         SearchStatusPanel.Visibility = searching ? Visibility.Visible : Visibility.Collapsed;
-        SearchStatusPanel.Background = Workspace.SearchComplete ? System.Windows.Media.Brushes.Transparent : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(234, 244, 255));
+        SearchStatusPanel.Background = Workspace.SearchComplete ? System.Windows.Media.Brushes.Transparent : (System.Windows.Media.Brush)FindResource("NeutralHoverBrush");
         SearchStatusPanel.BorderThickness = new Thickness(Workspace.SearchComplete ? 0 : 1);
         SearchStatusPanel.Padding = Workspace.SearchComplete ? new Thickness(0, 3, 0, 8) : new Thickness(10, 8, 10, 8);
         ListToolbar.Visibility = searching ? Visibility.Collapsed : Visibility.Visible;

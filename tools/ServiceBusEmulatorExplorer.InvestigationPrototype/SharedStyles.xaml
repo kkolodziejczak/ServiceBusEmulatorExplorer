@@ -11,41 +11,50 @@
  <SolidColorBrush x:Key="DividerBrush" Color="#DFE6EE"/>
  <SolidColorBrush x:Key="NeutralHoverBrush" Color="#EAF4FF"/>
  <SolidColorBrush x:Key="SelectionBrush" Color="#DBEDFF"/>
+ <SolidColorBrush x:Key="RaisedBrush" Color="#FFFFFF"/>
+ <SolidColorBrush x:Key="SubtleSurfaceBrush" Color="#F3F7FC"/>
+ <SolidColorBrush x:Key="ColumnHeaderBrush" Color="#EEF4FA"/>
+ <SolidColorBrush x:Key="IconBrush" Color="#52708D"/>
+ <SolidColorBrush x:Key="EntityPrimaryBrush" Color="#087BC1"/>
+ <SolidColorBrush x:Key="NeutralPressedBrush" Color="#C7E2FF"/>
+ <SolidColorBrush x:Key="DisabledBackgroundBrush" Color="#F1F4F8"/>
+ <SolidColorBrush x:Key="DisabledBorderBrush" Color="#DCE3EC"/>
+ <SolidColorBrush x:Key="DisabledTextBrush" Color="#738196"/>
  <Style TargetType="Button">
   <Setter Property="FontFamily" Value="Segoe UI"/><Setter Property="FontSize" Value="14"/>
   <Setter Property="MinHeight" Value="32"/><Setter Property="Padding" Value="12,7"/><Setter Property="Margin" Value="3,0"/>
-  <Setter Property="Background" Value="White"/><Setter Property="Foreground" Value="{StaticResource ActionTextBrush}"/>
-  <Setter Property="BorderBrush" Value="{StaticResource ControlBorderBrush}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Cursor" Value="Hand"/>
+  <Setter Property="Background" Value="{DynamicResource RaisedBrush}"/><Setter Property="Foreground" Value="{DynamicResource ActionTextBrush}"/>
+  <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Cursor" Value="Hand"/>
   <Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/>
   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
    <Grid>
     <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3" Padding="{TemplateBinding Padding}">
      <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True"/>
     </Border>
-    <Border x:Name="FocusRing" Visibility="Collapsed" BorderBrush="{StaticResource InkBrush}" BorderThickness="1" CornerRadius="3" Margin="1" IsHitTestVisible="False"><Border BorderBrush="White" BorderThickness="1" CornerRadius="2"/></Border>
+    <Border x:Name="FocusRing" Visibility="Collapsed" BorderBrush="{DynamicResource InkBrush}" BorderThickness="1" CornerRadius="3" Margin="1" IsHitTestVisible="False"><Border BorderBrush="White" BorderThickness="1" CornerRadius="2"/></Border>
    </Grid>
    <ControlTemplate.Triggers><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="FocusRing" Property="Visibility" Value="Visible"/></Trigger></ControlTemplate.Triggers>
   </ControlTemplate></Setter.Value></Setter>
   <Style.Triggers>
-   <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{StaticResource NeutralHoverBrush}"/></Trigger>
-   <Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="{StaticResource SelectionBrush}"/></Trigger>
-   <Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="#F1F4F8"/><Setter Property="BorderBrush" Value="#DCE3EC"/><Setter Property="Foreground" Value="#738196"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
+   <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource NeutralHoverBrush}"/></Trigger>
+   <Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="{DynamicResource SelectionBrush}"/></Trigger>
+   <Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="{DynamicResource DisabledBackgroundBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource DisabledBorderBrush}"/><Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
   </Style.Triggers>
  </Style>
  <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
   <Setter Property="MinWidth" Value="28"/><Setter Property="MinHeight" Value="28"/><Setter Property="Padding" Value="6"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
  </Style>
  <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-  <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/><Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/><Setter Property="Foreground" Value="White"/>
+  <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/><Setter Property="Foreground" Value="White"/>
   <Style.Triggers>
-   <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{StaticResource PrimaryHoverBrush}"/><Setter Property="BorderBrush" Value="{StaticResource PrimaryHoverBrush}"/></Trigger>
-   <Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="{StaticResource PrimaryPressedBrush}"/><Setter Property="BorderBrush" Value="{StaticResource PrimaryPressedBrush}"/></Trigger>
-   <Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="#E1E8F1"/><Setter Property="BorderBrush" Value="#D2DCE9"/><Setter Property="Foreground" Value="#627692"/></Trigger>
+   <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource PrimaryHoverBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource PrimaryHoverBrush}"/></Trigger>
+   <Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="{DynamicResource PrimaryPressedBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource PrimaryPressedBrush}"/></Trigger>
+   <Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="{DynamicResource DisabledBackgroundBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource DisabledBorderBrush}"/><Setter Property="Foreground" Value="{DynamicResource SecondaryBrush}"/></Trigger>
   </Style.Triggers>
  </Style>
  <Style x:Key="DestructiveButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-  <Setter Property="Foreground" Value="#A94415"/>
-  <Style.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="#738196"/></Trigger></Style.Triggers>
+  <Setter Property="Foreground" Value="#D11A2A"/>
+  <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#FFF0F1"/><Setter Property="BorderBrush" Value="#D11A2A"/></Trigger><Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="#FFDADD"/><Setter Property="BorderBrush" Value="#B81020"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="{DynamicResource DisabledBackgroundBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource DisabledBorderBrush}"/><Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/></Trigger></Style.Triggers>
  </Style>
  <Style x:Key="DarkButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
   <Setter Property="Background" Value="#253546"/><Setter Property="Foreground" Value="White"/><Setter Property="BorderBrush" Value="#526578"/>
@@ -57,24 +66,24 @@
  </Style>
  <Style x:Key="TabToggle" TargetType="ToggleButton">
   <Setter Property="FontFamily" Value="Segoe UI"/><Setter Property="FontSize" Value="14"/><Setter Property="Padding" Value="12,8"/>
-  <Setter Property="Foreground" Value="{StaticResource ActionTextBrush}"/><Setter Property="Background" Value="Transparent"/><Setter Property="Cursor" Value="Hand"/>
+  <Setter Property="Foreground" Value="{DynamicResource ActionTextBrush}"/><Setter Property="Background" Value="Transparent"/><Setter Property="Cursor" Value="Hand"/>
   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToggleButton"><Grid>
    <Border x:Name="TabSurface" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" BorderBrush="Transparent" BorderThickness="0,0,0,3"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/></Border>
-   <Border x:Name="FocusRing" BorderBrush="{StaticResource InkBrush}" BorderThickness="1" Margin="1" Visibility="Collapsed" IsHitTestVisible="False"/>
+   <Border x:Name="FocusRing" BorderBrush="{DynamicResource InkBrush}" BorderThickness="1" Margin="1" Visibility="Collapsed" IsHitTestVisible="False"/>
    </Grid><ControlTemplate.Triggers>
-    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="{StaticResource NeutralHoverBrush}"/></Trigger>
-    <Trigger Property="IsChecked" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="{StaticResource SelectionBrush}"/><Setter TargetName="TabSurface" Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/><Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/><Setter Property="FontWeight" Value="SemiBold"/></Trigger>
-    <Trigger Property="IsPressed" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="#C7E2FF"/></Trigger>
+    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="{DynamicResource NeutralHoverBrush}"/></Trigger>
+    <Trigger Property="IsChecked" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="{DynamicResource SelectionBrush}"/><Setter TargetName="TabSurface" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/><Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/><Setter Property="FontWeight" Value="SemiBold"/></Trigger>
+    <Trigger Property="IsPressed" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="{DynamicResource NeutralPressedBrush}"/></Trigger>
     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="FocusRing" Property="Visibility" Value="Visible"/></Trigger>
-    <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="#738196"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
+    <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
    </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
  </Style>
 <Style x:Key="EntityIcon" TargetType="Path">
-   <Setter Property="Width" Value="17"/><Setter Property="Height" Value="17"/><Setter Property="Margin" Value="0,0,7,0"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Stretch" Value="Uniform"/><Setter Property="Stroke" Value="#52708D"/><Setter Property="StrokeThickness" Value="1.5"/>
+   <Setter Property="Width" Value="17"/><Setter Property="Height" Value="17"/><Setter Property="Margin" Value="0,0,7,0"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Stretch" Value="Uniform"/><Setter Property="Stroke" Value="{DynamicResource IconBrush}"/><Setter Property="StrokeThickness" Value="1.5"/>
    <Setter Property="Data" Value="M1,4 L7,4 9,6 19,6 19,17 1,17 Z"/>
    <Style.Triggers>
-    <DataTrigger Binding="{Binding Kind}" Value="Queue"><Setter Property="Stroke" Value="#087BC1"/><Setter Property="Data" Value="M2,2 H18 V6 H2 Z M2,9 H18 V13 H2 Z M2,16 H18 V20 H2 Z"/></DataTrigger>
-    <DataTrigger Binding="{Binding Kind}" Value="Topic"><Setter Property="Stroke" Value="#087BC1"/><Setter Property="Data" Value="M7,1 H13 V6 H7 Z M10,6 V10 M3,10 H17 M3,10 V14 M17,10 V14 M0,14 H6 V19 H0 Z M14,14 H20 V19 H14 Z"/></DataTrigger>
+    <DataTrigger Binding="{Binding Kind}" Value="Queue"><Setter Property="Stroke" Value="{DynamicResource EntityPrimaryBrush}"/><Setter Property="Data" Value="M2,2 H18 V6 H2 Z M2,9 H18 V13 H2 Z M2,16 H18 V20 H2 Z"/></DataTrigger>
+    <DataTrigger Binding="{Binding Kind}" Value="Topic"><Setter Property="Stroke" Value="{DynamicResource EntityPrimaryBrush}"/><Setter Property="Data" Value="M7,1 H13 V6 H7 Z M10,6 V10 M3,10 H17 M3,10 V14 M17,10 V14 M0,14 H6 V19 H0 Z M14,14 H20 V19 H14 Z"/></DataTrigger>
     <DataTrigger Binding="{Binding Kind}" Value="Subscription"><Setter Property="Stroke" Value="#7351B5"/><Setter Property="Data" Value="M10,0 V12 M6,8 L10,12 14,8 M3,10 L0,19 H20 L17,10 M0,15 H6 L8,18 H12 L14,15 H20"/></DataTrigger>
    </Style.Triggers>
   </Style>

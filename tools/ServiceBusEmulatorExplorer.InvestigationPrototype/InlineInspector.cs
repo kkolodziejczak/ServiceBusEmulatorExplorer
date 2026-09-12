@@ -25,9 +25,9 @@ public partial class PrototypeWindow
         BodyViewer.Visibility = hasMessage && inspectorMode != "JSON" ? Visibility.Visible : Visibility.Collapsed;
         if (!hasMessage) FindPanel.Visibility = Visibility.Collapsed;
         CopyCorrelationButton.IsEnabled = FindRelatedButton.IsEnabled = !string.IsNullOrEmpty(row?.CorrelationId);
-        InspectorState.Background = (Brush)new BrushConverter().ConvertFromString(row?.IsDeadLetter == true ? "#FFE6C8" : "#DBEDFF")!;
+        InspectorState.Background = row?.IsDeadLetter == true ? (Brush)new BrushConverter().ConvertFromString("#FFE6C8")! : (Brush)FindResource("SelectionBrush");
         if (InspectorState.Child is System.Windows.Controls.TextBlock state)
-            state.Foreground = (Brush)new BrushConverter().ConvertFromString(row?.IsDeadLetter == true ? "#A65B00" : "#0072DD")!;
+            state.Foreground = row?.IsDeadLetter == true ? (Brush)new BrushConverter().ConvertFromString("#A65B00")! : (Brush)FindResource("PrimaryBrush");
         if (row != editorRow)
         {
             renderingEditor = true;

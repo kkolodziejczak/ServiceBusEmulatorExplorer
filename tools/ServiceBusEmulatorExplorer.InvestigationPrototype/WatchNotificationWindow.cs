@@ -16,8 +16,8 @@ public sealed class WatchNotificationWindow : Window
         Title = "Service Bus Explorer notification";
         Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("SharedStyles.xaml", UriKind.Relative) });
         FontFamily = new FontFamily("Segoe UI"); FontSize = 14;
-        Foreground = (Brush)FindResource("InkBrush");
-        source.Foreground = (Brush)FindResource("SecondaryBrush");
+        SetResourceReference(ForegroundProperty, "InkBrush");
+        source.SetResourceReference(TextBlock.ForegroundProperty, "SecondaryBrush");
         Width = 360; SizeToContent = SizeToContent.Height;
         WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
         ShowInTaskbar = false; ShowActivated = false; Topmost = true;
@@ -40,8 +40,12 @@ public sealed class WatchNotificationWindow : Window
         System.Windows.Automation.AutomationProperties.SetName(dismissButton, "Dismiss notification");
         dismissButton.Click += (_, _) => dismiss(); Grid.SetColumn(dismissButton, 1);
         buttons.Children.Add(open); buttons.Children.Add(dismissButton); panel.Children.Add(buttons);
-        panel.Children.Add(new TextBlock { Text = "Remains until you respond", FontSize = 12, Margin = new(0, 12, 0, 0), Foreground = (Brush)FindResource("SecondaryBrush") });
+        var persistenceHint = new TextBlock { Text = "Remains until you respond", FontSize = 12, Margin = new(0, 12, 0, 0) };
+        persistenceHint.SetResourceReference(TextBlock.ForegroundProperty, "SecondaryBrush");
+        panel.Children.Add(persistenceHint);
         Content = new Border { Background = (Brush)FindResource("CanvasBrush"), BorderBrush = (Brush)FindResource("ControlBorderBrush"), BorderThickness = new(1), CornerRadius = new(9), Child = panel };
+        ((Border)Content).SetResourceReference(Border.BackgroundProperty, "CanvasBrush");
+        ((Border)Content).SetResourceReference(Border.BorderBrushProperty, "ControlBorderBrush");
         Loaded += (_, _) => Position(); SizeChanged += (_, _) => Position();
     }
 
@@ -67,13 +71,13 @@ public sealed class WatchNotificationWindow : Window
             <ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" TargetType="Button">
               <Border x:Name="Surface" Background="Transparent" CornerRadius="4" BorderThickness="1" BorderBrush="Transparent">
-                <Path Data="M0,0 L16,16 M16,0 L0,16" Width="16" Height="16" Stroke="#627692" StrokeThickness="1.5"
+                <Path Data="M0,0 L16,16 M16,0 L0,16" Width="16" Height="16" Stroke="{DynamicResource SecondaryBrush}" StrokeThickness="1.5"
                       StrokeStartLineCap="Round" StrokeEndLineCap="Round" HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Border>
               <ControlTemplate.Triggers>
-                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#EAF4FF"/></Trigger>
-                <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#0069FA"/></Trigger>
-                <Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="Background" Value="#DBEDFF"/></Trigger>
+                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="{DynamicResource NeutralHoverBrush}"/></Trigger>
+                <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/></Trigger>
+                <Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="Background" Value="{DynamicResource SelectionBrush}"/></Trigger>
               </ControlTemplate.Triggers>
             </ControlTemplate>
             """);

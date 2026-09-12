@@ -161,6 +161,7 @@ public partial class PrototypeWindow
             WatchRulesChanged();
             AddLog("Updated global Watch rules and included entities.");
         }) { Owner = this };
+        ProfileTheme.Apply(globalWatchWindow, connectionSettings.SelectedProfile.ColorHex);
         globalWatchWindow.Closed += (_, _) => globalWatchWindow = null;
         globalWatchWindow.Show();
     }
@@ -215,6 +216,7 @@ public partial class PrototypeWindow
         if (watchNotification is null)
         {
             watchNotification = new WatchNotificationWindow(InvestigateWatchNotification, DismissWatchNotification);
+            ProfileTheme.Apply(watchNotification, connectionSettings.SelectedProfile.ColorHex);
             watchNotification.Closed += (_, _) => watchNotification = null;
         }
         watchNotification.Update(pending[^1], pending.Count, pendingWatchMessages.Count - 1, activeConnection?.Name ?? "Local emulator");
@@ -309,13 +311,24 @@ public partial class PrototypeWindow
                 notificationsEnabled = value;
                 if (value) ShowWatchNotification();
                 else { watchNotification?.Close(); watchNotification = null; }
-            }, connectionSettings, UseConnection, SavePreferences) { Owner = this };
+            }, connectionSettings, UseConnection, SaveProfilePreferences) { Owner = this };
+        ProfileTheme.Apply(settingsWindow, connectionSettings.SelectedProfile.ColorHex);
         settingsWindow.Closed += (_, _) => settingsWindow = null;
         settingsWindow.Show();
     }
 
     private void UseConnection(PrototypeConnectionProfile profile)
     {
+        if (!ReferenceEquals(activeConnection, profile))
+        {
+            if (!ConfirmProfileWarning(profile))
+            {
+                connectionSettings.SelectedProfile = activeConnection!;
+                RefreshConnectionPresentation();
+                return;
+            }
+            acknowledgedProfileWarning = WarningIdentity(profile);
+        }
         SavePreferences();
         connectionSettings.SelectedProfile = profile;
         RefreshConnectionPresentation();

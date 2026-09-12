@@ -9,6 +9,7 @@ public partial class PrototypeWindow
         var targets = Workspace.ReplayTargets.ToArray();
         if (!Workspace.IsConnected || targets.Length == 0) return;
         var confirmation = new DeleteMessagesWindow(targets) { Owner = this };
+        ProfileTheme.Apply(confirmation, connectionSettings.SelectedProfile.ColorHex);
         if (confirmation.ShowDialog() != true) return;
         DeleteConfirmedMessages(targets);
     }

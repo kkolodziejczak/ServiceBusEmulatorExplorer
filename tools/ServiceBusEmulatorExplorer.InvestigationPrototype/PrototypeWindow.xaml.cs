@@ -210,6 +210,8 @@ public partial class PrototypeWindow : Window
     private void Replay_Click(object sender, RoutedEventArgs e) => ReplayDraft();
     private void Connection_Click(object sender, RoutedEventArgs e)
     {
+        if (!Workspace.IsConnected && !ConfirmConnection()) return;
+        if (Workspace.IsConnected) acknowledgedProfileWarning = null;
         ClearConnectionWarning();
         synchronizingSelection = true;
         try { Workspace.ToggleConnection(); }

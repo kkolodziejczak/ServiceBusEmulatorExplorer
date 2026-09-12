@@ -8,7 +8,6 @@ namespace ServiceBusEmulatorExplorer.InvestigationPrototype;
 public sealed record SearchSuggestion(string Group, string Title, string Detail, string Kind, EntityNode? Entity = null, MessageRow? Message = null)
 {
     public string Badge => Entity?.Kind ?? (Message is null ? "" : Message.IsDeadLetter ? "DLQ" : "Active");
-    public string IconBrush => Entity?.Kind == "Subscription" ? "#7351B5" : Message?.IsDeadLetter == true ? "#A65B00" : "#0078F8";
     public string Icon => Entity?.Kind switch
     {
         "Topic" => "M7,1 H13 V6 H7 Z M10,6 V10 M3,10 H17 M3,10 V14 M17,10 V14 M0,14 H6 V19 H0 Z M14,14 H20 V19 H14 Z",

@@ -56,7 +56,8 @@ public sealed class PrototypePreferencesStore(string? path = null)
                 UserProtectedText.Unprotect(profile.Runtime), UserProtectedText.Unprotect(profile.Administration))
             {
                 Id = profile.Id,
-                ColorHex = profile.ColorHex
+                ColorHex = profile.ColorHex,
+                WarningMessage = profile.WarningMessage ?? string.Empty
             }).ToList();
             if (profiles.Any(profile => string.IsNullOrWhiteSpace(profile.Id) || string.IsNullOrWhiteSpace(profile.Name) || !ValidColor(profile.ColorHex)) ||
                 profiles.Select(profile => profile.Id).Distinct(StringComparer.Ordinal).Count() != profiles.Count)
@@ -95,7 +96,7 @@ public sealed class PrototypePreferencesStore(string? path = null)
         {
             var document = new StoredPreferences(1, preferences, preferences.Profiles.Select(profile => new StoredProfile(
                 profile.Id, profile.Name, profile.ColorHex, UserProtectedText.Protect(profile.RuntimeConnection),
-                UserProtectedText.Protect(profile.AdministrationConnection))).ToList());
+                UserProtectedText.Protect(profile.AdministrationConnection), profile.WarningMessage)).ToList());
             var fullPath = Path.GetFullPath(filePath);
             var directory = Path.GetDirectoryName(fullPath)!;
             Directory.CreateDirectory(directory);
@@ -126,7 +127,7 @@ public sealed class PrototypePreferencesStore(string? path = null)
         JsonException or CryptographicException or Win32Exception or FormatException or ArgumentException or NotSupportedException or System.Security.SecurityException;
 
     private sealed record StoredPreferences(int Version, PrototypePreferences Settings, List<StoredProfile> Profiles);
-    private sealed record StoredProfile(string Id, string Name, string ColorHex, string Runtime, string Administration);
+    private sealed record StoredProfile(string Id, string Name, string ColorHex, string Runtime, string Administration, string WarningMessage = "");
 }
 
 internal static class UserProtectedText

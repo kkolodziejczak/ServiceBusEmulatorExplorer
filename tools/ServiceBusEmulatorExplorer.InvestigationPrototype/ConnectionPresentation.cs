@@ -31,6 +31,12 @@ public partial class PrototypeWindow
         ConnectionName.Text = profile.Name;
         ConnectionName.ToolTip = profile.Name;
         ProfileAccentBorder.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(profile.ColorHex));
+        ProfileTheme.Apply(this, profile.ColorHex);
+        if (settingsWindow is not null) ProfileTheme.Apply(settingsWindow, profile.ColorHex);
+        if (globalWatchWindow is not null) ProfileTheme.Apply(globalWatchWindow, profile.ColorHex);
+        if (watchNotification is not null) ProfileTheme.Apply(watchNotification, profile.ColorHex);
+        UpdateInspector();
+        UpdateSearchSurface();
         UpdateConnectionHealth();
     }
 
@@ -48,11 +54,15 @@ public partial class PrototypeWindow
         System.Windows.Automation.AutomationProperties.SetName(ConnectionHealthDot, ConnectionHealthText.Text);
     }
 
+    private void SaveProfilePreferences()
+    {
+        RefreshConnectionPresentation();
+        SavePreferences();
+    }
+
     private void ConnectionSelector_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (synchronizingConnection || !IsInitialized || ConnectionSelector.SelectedItem is not PrototypeConnectionProfile profile) return;
-        connectionSettings.SelectedProfile = profile;
-        if (!ReferenceEquals(profile, activeConnection)) connectionWarning = null;
         UseConnection(profile);
         RefreshConnectionPresentation();
     }

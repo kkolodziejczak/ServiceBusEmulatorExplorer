@@ -44,10 +44,15 @@ public partial class PrototypeWindow
         TimeDisplaySelector.SelectedIndex = Math.Clamp(preferences.TimeIndex, 0, 2);
         if ((LogPanel.Visibility == Visibility.Visible) != preferences.LogExpanded) ToggleLog_Click(this, new RoutedEventArgs());
         var entity = Workspace.Roots.SelectMany(PrototypeData.Flatten).FirstOrDefault(node => !node.IsGroup && node.Path == preferences.SelectedEntityPath);
+        RestoreProfileWatch();
+        if (preferences.Connected && !string.IsNullOrWhiteSpace(connectionSettings.SelectedProfile.WarningMessage))
+        {
+            if (Workspace.IsConnected) Workspace.ToggleConnection();
+            Connection_Click(this, new RoutedEventArgs());
+        }
+        else if (Workspace.IsConnected != preferences.Connected) Connection_Click(this, new RoutedEventArgs());
         if (entity is not null) ChangeScope(() => Workspace.SelectEntity(entity));
         ChangeMessageView(preferences.DeadLetter);
-        RestoreProfileWatch();
-        if (Workspace.IsConnected != preferences.Connected) Connection_Click(this, new RoutedEventArgs());
         SelectInitialEntity();
         if (preferences.AppliedSearch.Length > 0 && Workspace.IsConnected)
         {

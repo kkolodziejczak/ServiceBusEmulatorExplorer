@@ -32,12 +32,12 @@ Sizes below are WPF device-independent units (DIPs), not physical pixels. Use na
 | Primary text / secondary / action text | `#17213D` / `#627692` / `#234266` |
 | Canvas / raised / toolbar | `#FAFCFF` / `#FFFFFF` / `#F5F9FE` |
 | Dark editor/log | `#1C2937`, light text; retain semantic syntax colors |
-| Primary / hover / pressed | `#0069FA` / `#005BD8` / `#004FBD`; white labels; verify contrast in all states |
+| Primary / hover / pressed | Blue baseline `#0069FA` / `#005BD8` / `#004FBD`; active profile supplies accessible variants with white labels; verify every palette/state |
 | Neutral hover / selected | `#EAF4FF` / `#DBEDFF` |
 | Control border / divider | `#CBD8E8` / `#DFE6EE` |
 | DLQ / modified | Orange and amber backgrounds with dark text; always accompany color with a label |
 | Entity colors | Blue for queues/topics; purple for subscriptions; preserve distinct geometry |
-| Profile identity | User-selected blue, purple, teal, orange or red swatch and top accent border; the profile name remains visible in the connection dropdown. This color identifies a profile, not connection health. |
+| Profile identity | User-selected blue, purple, teal, orange or red theme across buttons, selection and surface tints, dropdown swatch and top accent border; profile name remains visible. Apply the active profile consistently to Settings and related windows; editing an inactive profile does not preview its theme. Semantic health, DLQ and red Delete colors remain fixed. |
 | Connection health | Labeled green Connected, red Disconnected or amber Warning indicator, separate from profile accent; warning tooltip describes the reason |
 | Spacing | Prefer 4, 8, 12, 16, 24; use existing 7 DIPs icon-label gap consistently |
 | Corners | 3 DIPs controls; 4 DIPs menu/hover surfaces; 9 DIPs notification outer panel |
@@ -59,4 +59,7 @@ Do not confuse glyph dimensions with hit targets. Keep Copy beside the correlati
 - Verify global and topic Watch scope, Active/DLQ independence, future-entity inheritance and child overrides. The searchable inclusion tree uses checked/unchecked/mixed states; a branch choice applies to its descendants and a later specific child choice overrides inherited inclusion. A scope summary must not imply a topic itself is a receiving endpoint.
 - Delete remains a visible action with exact typed `DELETE` confirmation showing targeted Active/DLQ counts. Checked messages form the batch; otherwise the focused message is targeted. Cancellation changes nothing; unseen messages are never implied by select-all.
 
-Current gate: **visual consistency and routed flows PASS** at the three supported window sizes, with 257 walkthrough checks and 11 real tray checks. Typed confirmation, inclusion-tree Watch, profile colors/health and protected preference save/reopen are covered by the [walkthrough](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/verification.md). **Broader physical keyboard, screen-reader and Windows DPI/multi-monitor evidence remains BLOCKED (not collected).** Synthetic interactions do not establish broker correctness or a complete accessibility audit.
+- Add connection opens a uniquely named empty editor without changing the active connection; Save persists its color and optional warning. Saved warnings gate switching, Connect and restored startup attempts. Cancel preserves the previous connection or leaves the pending attempt disconnected.
+- Watch search uses an inline magnifier and concise placeholder; keep its accessible name without a verbose duplicate instruction.
+
+Current gate: **visual consistency and routed flows PASS** at the three supported window sizes, with 329 walkthrough checks and 11 real tray checks. Typed confirmation, inclusion-tree Watch, profile colors/health and protected preference save/reopen are covered by the [walkthrough](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/verification.md). Full-profile themes, saved warning flows, Add connection and simplified Watch search pass the current rerun, including saving while a warning is pending and restored DLQ browsing. **Broader physical keyboard, screen-reader and Windows DPI/multi-monitor evidence remains BLOCKED (not collected).** Synthetic interactions do not establish broker correctness or a complete accessibility audit.

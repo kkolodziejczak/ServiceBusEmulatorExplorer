@@ -275,3 +275,75 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Closing and reopening persists changed refresh, time and console settings
 - PASS: Closing and reopening restores nondefault entity, paused refresh and message-ID search with its original meaning
 - PASS: Corrupt preferences return safe defaults and a warning instead of throwing
+- PASS: Profile primary resource follows #0069FA
+- PASS: Rendered primary Watch button follows #0069FA
+- PASS: Selected Active tab follows #0069FA
+- PASS: Selected message cells use the profile selection tint for #0069FA
+- PASS: Header chrome uses profile theme for #0069FA
+- PASS: Profile primary resource follows #7540BF
+- PASS: Rendered primary Watch button follows #7540BF
+- PASS: Selected Active tab follows #7540BF
+- PASS: Selected message cells use the profile selection tint for #7540BF
+- PASS: Header chrome uses profile theme for #7540BF
+- PASS: Settings inherits the purple profile theme
+- PASS: Global Watch inherits the purple profile theme
+- PASS: Profile primary resource follows #007F80
+- PASS: Rendered primary Watch button follows #007F80
+- PASS: Selected Active tab follows #007F80
+- PASS: Selected message cells use the profile selection tint for #007F80
+- PASS: Header chrome uses profile theme for #007F80
+- PASS: Profile primary resource follows #B85B00
+- PASS: Rendered primary Watch button follows #B85B00
+- PASS: Selected Active tab follows #B85B00
+- PASS: Selected message cells use the profile selection tint for #B85B00
+- PASS: Header chrome uses profile theme for #B85B00
+- PASS: Profile primary resource follows #C83B3B
+- PASS: Rendered primary Watch button follows #C83B3B
+- PASS: Selected Active tab follows #C83B3B
+- PASS: Selected message cells use the profile selection tint for #C83B3B
+- PASS: Header chrome uses profile theme for #C83B3B
+- PASS: Settings inherits the red profile theme
+- PASS: Global Watch inherits the red profile theme
+- PASS: A warning is displayed only when a new acknowledgment is required
+- PASS: profile-warning-cancel displays the confirmation
+- PASS: Cancelling a profile warning preserves the current connection, search and results
+- PASS: A warning is displayed only when a new acknowledgment is required
+- PASS: profile-warning-continue displays the confirmation
+- PASS: Accepting a profile warning selects that profile and leaves it disconnected
+- PASS: profile-warning-acknowledged avoids duplicate confirmation
+- PASS: First Connect consumes the profile-switch acknowledgment without a duplicate prompt
+- PASS: A warning is displayed only when a new acknowledgment is required
+- PASS: profile-warning-reconnect-cancel displays the confirmation
+- PASS: Cancelling a later reconnect warning keeps the profile disconnected
+- PASS: A warning is displayed only when a new acknowledgment is required
+- PASS: profile-warning-reconnect displays the confirmation
+- PASS: Accepting a later reconnect warning reconnects sample data
+- PASS: A warning is displayed only when a new acknowledgment is required
+- PASS: Saving during a pending warning retains the approved profile, connected state and search
+- PASS: profile-warning-pending-header-save displays the confirmation
+- PASS: Header warning cancellation retains the approved profile after an in-modal save
+- PASS: A warning is displayed only when a new acknowledgment is required
+- PASS: Saving during a pending warning retains the approved profile, connected state and search
+- PASS: profile-warning-pending-settings-save displays the confirmation
+- PASS: Settings warning cancellation preserves the approved profile and applied search
+- PASS: Profile warning text round-trips through an isolated preferences file
+- PASS: A warning is displayed only when a new acknowledgment is required
+- PASS: Startup warning appears before the saved connection loads messages
+- PASS: profile-warning-startup-False displays the confirmation
+- PASS: Saved connected profile requires startup warning approval: cancelled
+- PASS: Profile warning text round-trips through an isolated preferences file
+- PASS: A warning is displayed only when a new acknowledgment is required
+- PASS: Startup warning appears before the saved connection loads messages
+- PASS: profile-warning-startup-True displays the confirmation
+- PASS: Saved connected profile requires startup warning approval: accepted
+- PASS: Accepting the startup warning restores the saved nondefault entity and DLQ tab
+- PASS: Add connection creates a third profile with a unique identity and blank connection strings
+- PASS: Adding a connection preserves the active profile
+- PASS: Saving a new connection retains identity and edited name, warning, color and credentials
+- PASS: Saved new profile appears in the main selector without switching the active connection
+- PASS: Added profile survives a protected preferences round trip through an isolated proof file
+- PASS: New profile credentials are absent as plaintext from persisted preferences
+- PASS: Watch search displays its placeholder when empty
+- PASS: Watch dialog omits redundant introductory and instructional paragraphs
+- PASS: Typing filters Watch entities and hides its search placeholder
+- PASS: Clearing Watch search restores its placeholder
