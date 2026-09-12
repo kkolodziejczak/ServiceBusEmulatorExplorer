@@ -112,4 +112,4 @@ dotnet run --project tools/ServiceBusEmulatorExplorer.InvestigationPrototype -- 
 
 Limits: proof uses routed WPF actions and editor documents, not every physical pointer gesture. No broker integration, exhaustive DPI matrix, or full screen-reader audit is claimed. The mockup supplies visual authority; platform font rasterization and live sample content differ from the generated image. The earlier modal replay editor and its walkthrough have been replaced by inline editing.
 
-Connection strings remain masked in Settings. Use the adjacent Copy button to share the current runtime or administration string; blank fields cannot be copied. The toolbar accent now sits below the controls, and scrollbars share the profile theme throughout the prototype.
+Connection strings remain masked in Settings. Use the adjacent Copy button to share the current runtime or administration string; blank fields cannot be copied. The toolbar accent frames the controls above and below, and scrollbars share the profile theme throughout the prototype.

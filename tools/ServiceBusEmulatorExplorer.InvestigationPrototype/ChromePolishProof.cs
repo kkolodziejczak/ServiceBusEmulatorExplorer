@@ -14,8 +14,8 @@ internal static class ChromePolishProof
     public static async Task Exercise(PrototypeWindow window, List<string> report, string output)
     {
         var accent = (Border)window.FindName("ProfileAccentBorder");
-        Check(accent.BorderThickness.Left == 0 && accent.BorderThickness.Top == 0 && accent.BorderThickness.Right == 0 && accent.BorderThickness.Bottom > 0,
-            "Profile accent is confined to the header bottom edge", report);
+        Check(accent.BorderThickness.Left == 0 && accent.BorderThickness.Top == 3 && accent.BorderThickness.Right == 0 && accent.BorderThickness.Bottom == 3,
+            "Profile accent frames both header edges without side borders", report);
         ProofCapture.Save(window, output, "header-bottom-accent");
         ProofCapture.Descendants(window).OfType<Button>().Single(button => AutomationProperties.GetName(button) == "Settings")
             .RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));

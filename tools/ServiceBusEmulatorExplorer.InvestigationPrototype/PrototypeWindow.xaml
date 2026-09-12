@@ -53,8 +53,8 @@
   </HierarchicalDataTemplate>
  </ResourceDictionary></Window.Resources>
  <Grid Background="{DynamicResource CanvasBrush}">
-  <Grid.RowDefinitions><RowDefinition Height="40"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-  <Border x:Name="ProfileAccentBorder" Background="{DynamicResource ChromeBrush}" BorderBrush="{DynamicResource PrimaryBrush}" BorderThickness="0,0,0,3">
+  <Grid.RowDefinitions><RowDefinition Height="43"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <Border x:Name="ProfileAccentBorder" Background="{DynamicResource ChromeBrush}" BorderBrush="{DynamicResource PrimaryBrush}" BorderThickness="0,3,0,3">
    <DockPanel Margin="15,0" LastChildFill="False">
     <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
      <ComboBox x:Name="ConnectionSelector" Width="220" Margin="0,0,8,0" Style="{StaticResource RefreshIntervalStyle}" SelectionChanged="ConnectionSelector_Changed" AutomationProperties.Name="Connection profile" AutomationProperties.AutomationId="ConnectionSelector">
