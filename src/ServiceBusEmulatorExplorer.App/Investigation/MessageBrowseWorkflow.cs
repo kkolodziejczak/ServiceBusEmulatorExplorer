@@ -168,6 +168,32 @@ public sealed class MessageBrowseWorkflow : ObservableObject
         await LoadMoreAsync();
     }
 
+    public async Task OpenKnownAsync(MessageRow known)
+    {
+        if (session is null || known.Key.ConnectionGeneration != generation) return;
+        EntityNode? entity = AllEntities().FirstOrDefault(node => node.Address == known.Key.Source);
+        if (entity is null) return;
+        MessageRow? current = Messages.FirstOrDefault(row => row.Key == known.Key);
+        if (current is not null && selectedEntity == entity && IsDeadLetter == known.IsDeadLetter)
+        {
+            FocusedMessage = current;
+            return;
+        }
+        Task selection = SelectAsync(entity, known.IsDeadLetter);
+        int selectionVersion = version;
+        await selection;
+        if (known.Key.ConnectionGeneration != generation || selectedEntity != entity || version != selectionVersion) return;
+        MessageRow? observed = Messages.FirstOrDefault(row => row.Key == known.Key);
+        if (observed is null)
+        {
+            observed = new MessageRow(known.Delivery, preferences.TimestampDisplay);
+            observed.MarkRetainedAsUnobserved();
+            AddRow(observed);
+            NotifyScope();
+        }
+        FocusedMessage = observed;
+    }
+
     private DeliveryPager CreatePager()
     {
         var result = new DeliveryPager(session!.Messages);

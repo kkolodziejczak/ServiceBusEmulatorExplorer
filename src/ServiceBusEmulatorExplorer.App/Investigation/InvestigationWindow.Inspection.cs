@@ -27,7 +27,7 @@ public partial class InvestigationWindow
 
         MessageRow? focused = e.AddedItems.OfType<MessageRow>().LastOrDefault()
             ?? MessageGrid.CurrentItem as MessageRow;
-        workspace.Browse.FocusedMessage = focused;
+        workspace.Surface.FocusedMessage = focused;
         UpdateInspector();
     }
 
@@ -35,7 +35,7 @@ public partial class InvestigationWindow
     {
         if (!inspectorSynchronizingSelection && MessageGrid.CurrentItem is MessageRow row)
         {
-            workspace.Browse.FocusedMessage = row;
+            workspace.Surface.FocusedMessage = row;
             UpdateInspector();
         }
     }
@@ -50,15 +50,15 @@ public partial class InvestigationWindow
         }
 
         row.IsSelected = !row.IsSelected;
-        workspace.Browse.FocusedMessage = row;
+        workspace.Surface.FocusedMessage = row;
         SynchronizeInspectorSelection();
         e.Handled = true;
     }
 
     private void SelectAll_Click(object sender, RoutedEventArgs e)
     {
-        bool select = workspace.Browse.SelectedCount < workspace.Browse.Messages.Count;
-        workspace.Browse.SetAllChecked(select);
+        bool select = workspace.Surface.SelectedCount < workspace.Surface.Messages.Count;
+        workspace.Surface.SetAllChecked(select);
         e.Handled = true;
     }
 
@@ -66,7 +66,7 @@ public partial class InvestigationWindow
     {
         if (sender is CheckBox { DataContext: MessageRow row })
         {
-            workspace.Browse.FocusedMessage = row;
+            workspace.Surface.FocusedMessage = row;
             SynchronizeInspectorSelection();
             e.Handled = true;
         }
@@ -82,7 +82,7 @@ public partial class InvestigationWindow
 
     private void CopyCorrelation_Click(object sender, RoutedEventArgs e)
     {
-        if (workspace.Browse.FocusedMessage is { CorrelationId.Length: > 0 } row)
+        if (workspace.Surface.FocusedMessage is { CorrelationId.Length: > 0 } row)
         {
             CopyToClipboard(row.CorrelationId);
         }
@@ -157,7 +157,7 @@ public partial class InvestigationWindow
         }
 
         DeliveryInspector inspector = workspace.Inspector;
-        MessageRow? focused = workspace.Browse.FocusedMessage;
+        MessageRow? focused = workspace.Surface.FocusedMessage;
         bool hasMessage = focused is not null && inspector.Current is not null;
         DeliveryIdentity? identity = inspector.Current?.Identity;
 
@@ -384,7 +384,7 @@ public partial class InvestigationWindow
         inspectorSynchronizingSelection = true;
         try
         {
-            MessageGrid.SelectedItem = workspace.Browse.FocusedMessage;
+            MessageGrid.SelectedItem = workspace.Surface.FocusedMessage;
         }
         finally
         {

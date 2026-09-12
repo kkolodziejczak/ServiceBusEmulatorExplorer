@@ -13,6 +13,7 @@ using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
+[Collection("WPF presentation")]
 public sealed class InvestigationWindowRenderTests
 {
     [Fact]

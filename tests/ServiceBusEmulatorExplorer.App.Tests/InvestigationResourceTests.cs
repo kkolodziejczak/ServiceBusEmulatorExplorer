@@ -5,6 +5,7 @@ using System.Windows.Media;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
+[Collection("WPF presentation")]
 public sealed class InvestigationResourceTests
 {
     [Fact]

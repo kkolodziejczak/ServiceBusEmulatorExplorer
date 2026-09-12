@@ -21,8 +21,12 @@ public partial class InvestigationWindow
         BodyEditor.Padding = shortWindow ? new Thickness(12, 5, 12, 5) : new Thickness(14, 18, 14, 18);
         ReplayActions.Padding = shortWindow ? new Thickness(8, 5, 8, 5) : new Thickness(10);
         LoadMoreButton.Padding = shortWindow ? new Thickness(8, 4, 8, 4) : new Thickness(12, 7, 12, 7);
-        EmptySearchIcon.Visibility = shortWindow ? Visibility.Collapsed : Visibility.Visible;
-        EmptyResults.Margin = shortWindow ? new Thickness(12) : new Thickness(25);
+        EmptySearchIcon.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        EmptyResults.Margin = compact ? new Thickness(4) : new Thickness(25);
+        EmptyMessage.FontSize = compact ? 16 : 20;
+        EmptyMessage.Margin = compact ? new Thickness(0, 0, 0, 4) : new Thickness(0, 8, 0, 8);
+        EmptyClearButton.Margin = compact ? new Thickness(0, 5, 0, 0) : new Thickness(0, 16, 0, 0);
+        EmptyClearButton.Padding = compact ? new Thickness(8, 3, 8, 3) : new Thickness(12, 7, 12, 7);
         ListHeading.Margin = compact ? new Thickness(15, 9, 15, 8) : new Thickness(19, 18, 15, 12);
         InspectorHeading.Margin = compact ? new Thickness(15, 8, 15, 5) : new Thickness(18, 14, 15, 10);
         InspectorTitle.FontSize = compact ? 18 : 24;
@@ -45,6 +49,6 @@ public partial class InvestigationWindow
         InspectorSplitter.Width = compact ? double.NaN : 5;
         InspectorSplitter.Height = compact ? 5 : double.NaN;
         InspectorSplitter.ResizeDirection = compact ? GridResizeDirection.Rows : GridResizeDirection.Columns;
-
+        UpdateSearchSurface();
     }
 }

@@ -92,6 +92,10 @@ dotnet test tests/ServiceBusEmulatorExplorer.App.Tests/ServiceBusEmulatorExplore
 
 The WPF render cases use synthetic broker services and exercise the real windows at supported sizes. Set `SBE_CAPTURE_INVESTIGATION_UI=true` to save ignored PNG evidence under `artifacts/investigation-ui`. They do not replace broker or FlaUI end-to-end proof. The protected legacy-profile migration uses Windows atomic file replacement; a restricted sandbox can deny that operation even when ordinary temporary-file writes succeed.
 
+`InvestigationSearchRenderTests` exercises the real search controls for partial results, Continue, Stop, match-tree scope, Clear and draft restoration. `InvestigationGlobalSearchTests` covers discovery limits, stale session results and retrying failed sources. Search suggestions use only previously loaded message observations; their tests do not claim a complete namespace index.
+
+WPF presentation tests share a non-parallel xUnit collection because resource initialization and keyboard focus are process-wide state. Keep new rendered-window and compiled-resource tests in that collection.
+
 With the integration environment configured as above, `--filter "FullyQualifiedName~InvestigationLeafReadIntegrationTests"` on the integration project runs discovery, combined paging, repeated non-consuming reads and bounded-search continuation against isolated, uniquely named broker entities. The case deletes those entities afterward and never purges existing entities.
 
 ## First UI Smoke Test

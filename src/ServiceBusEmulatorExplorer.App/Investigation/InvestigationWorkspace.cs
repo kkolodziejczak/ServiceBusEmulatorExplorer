@@ -23,6 +23,8 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
     private string? readinessWarning;
     private WorkspacePreferences preferences = new();
     public MessageBrowseWorkflow Browse { get; } = new();
+    public MessageSearchWorkflow Search { get; } = new();
+    public InvestigationSurface Surface { get; }
     public DeliveryInspector Inspector { get; } = new();
     public ObservableCollection<ActivityEntry> Activity { get; } = [];
     public Func<InvestigationProfile, Task<bool>> ConfirmWarning { get; set; } = _ => Task.FromResult(false);
@@ -39,12 +41,13 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
     {
         this.store = store;
         this.connections = connections;
-        Browse.PropertyChanged += BrowseChanged;
+        Surface = new(Browse, Search);
+        Surface.PropertyChanged += SurfaceChanged;
     }
 
-    private void BrowseChanged(object? sender, PropertyChangedEventArgs e)
+    private void SurfaceChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MessageBrowseWorkflow.FocusedMessage)) Inspector.Select(Browse.FocusedMessage?.Delivery);
+        Inspector.Select(Surface.FocusedMessage?.Delivery);
     }
 
     public async Task InitializeAsync()
@@ -52,6 +55,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
         var result = await store.LoadAsync(CancellationToken.None);
         preferences = result.Preferences;
         Browse.SetPreferences(preferences);
+        Search.SetPreferences(preferences);
         NotifyConnection();
         if (result.Warning is not null) Log(result.Warning, true);
         if (preferences.WasConnected) await ConnectAsync();
@@ -79,6 +83,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
             session = connected;
             readinessWarning = connected.ReadinessWarning;
             Browse.SetSession(session, generation);
+            Search.SetSession(session, generation);
             Log(readinessWarning ?? $"Connected to {profile.Connection.Name}.", readinessWarning is not null);
             foreach (var issue in connected.Snapshot.Issues) Log(issue, true);
             var initial = Browse.AllEntities().FirstOrDefault(node => node.Path == preferences.SelectedEntityPath)
@@ -128,6 +133,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
         preferences = preferences with { SelectedProfileId = profile.Id, WasConnected = false, SelectedEntityPath = "", DeadLetter = false };
         readinessWarning = null;
         Browse.SetPreferences(preferences);
+        Search.SetPreferences(preferences);
         NotifyConnection();
         await SaveCurrentAsync();
         if (preferences.AutoConnectOnSwitch) await ConnectApprovedAsync(profile);
@@ -160,6 +166,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
         connectCancellation = null;
         connecting = false;
         Browse.SetSession(null, generation);
+        Search.SetSession(null, generation);
         Inspector.Clear();
         var previous = session;
         session = null;
@@ -182,6 +189,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
         finally { saveGate.Release(); }
         preferences = replacement;
         Browse.SetPreferences(preferences);
+        Search.SetPreferences(preferences);
         NotifyConnection();
     }
 
@@ -195,6 +203,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
             AutoRefreshSeconds = autoRefreshSeconds ?? preferences.AutoRefreshSeconds
         };
         Browse.SetPreferences(preferences);
+        Search.SetPreferences(preferences);
         OnPropertyChanged(nameof(Preferences));
         await SaveCurrentAsync();
     }
@@ -269,6 +278,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
         Volatile.Write(ref disposeStarted, 1);
         connectCancellation?.Cancel();
         Browse.Cancel();
+        Search.Stop();
         await lifecycleGate.WaitAsync();
         try
         {
@@ -276,6 +286,7 @@ public sealed class InvestigationWorkspace : ObservableObject, IAsyncDisposable
             await DisconnectCoreAsync();
         }
         finally { lifecycleGate.Release(); }
-        Browse.PropertyChanged -= BrowseChanged;
+        Surface.PropertyChanged -= SurfaceChanged;
+        Surface.Dispose();
     }
 }

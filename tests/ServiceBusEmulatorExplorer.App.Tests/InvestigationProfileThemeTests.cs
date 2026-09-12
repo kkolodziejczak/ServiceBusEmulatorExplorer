@@ -5,6 +5,7 @@ using ServiceBusEmulatorExplorer.App.Investigation.Resources;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
+[Collection("WPF presentation")]
 public sealed class InvestigationProfileThemeTests
 {
     private static readonly string[] ApprovedProfileColors = ["#0069FA", "#7540BF", "#007F80", "#B85B00", "#C83B3B"];
