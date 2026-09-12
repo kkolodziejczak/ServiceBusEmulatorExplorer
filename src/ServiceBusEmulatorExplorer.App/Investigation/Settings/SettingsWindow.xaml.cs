@@ -14,20 +14,24 @@ public sealed record ProfileAccent(string Name, string ColorHex);
 public partial class SettingsWindow : Window
 {
     private readonly Func<WorkspacePreferences, Task> _saveAsync;
+    private readonly bool _trayAvailable;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     private bool _ready;
     private bool _generalSavePending;
     private int _persistencePendingCount;
     private EditableProfile? _selectedEditor;
 
-    public SettingsWindow(WorkspacePreferences preferences, Func<WorkspacePreferences, Task> saveAsync)
+    public SettingsWindow(WorkspacePreferences preferences, Func<WorkspacePreferences, Task> saveAsync, bool trayAvailable = true)
     {
         ArgumentNullException.ThrowIfNull(preferences);
         ArgumentNullException.ThrowIfNull(saveAsync);
 
         CurrentPreferences = preferences;
         _saveAsync = saveAsync;
+        _trayAvailable = trayAvailable;
         InitializeComponent();
+        CloseToTrayToggle.IsEnabled = trayAvailable;
+        if (!trayAvailable) CloseToTrayDescription.Text = "System tray is unavailable in this session.";
 
         var activeProfile = preferences.Profiles.FirstOrDefault(profile => profile.Id == preferences.SelectedProfileId);
         ProfileTheme.Apply(this, activeProfile?.ColorHex ?? "#0069FA");
@@ -92,6 +96,9 @@ public partial class SettingsWindow : Window
     private async void PageSize_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (!_ready || sender is not ComboBox selector || selector.SelectedItem is not int size) return;
+        int currentSize = selector == QueuePageSizeSelector ? CurrentPreferences.QueuePageSize
+            : selector == TopicPageSizeSelector ? CurrentPreferences.TopicPageSize : CurrentPreferences.SubscriptionPageSize;
+        if (size == currentSize) return;
 
         await SaveGeneralAsync(current => selector == QueuePageSizeSelector
             ? current with { QueuePageSize = size }
@@ -103,6 +110,9 @@ public partial class SettingsWindow : Window
     private async void SearchBudget_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (!_ready || sender is not ComboBox selector || selector.SelectedItem is not int value) return;
+        int currentValue = selector == SearchTimeBudgetSelector ? CurrentPreferences.SearchTimeBudgetSeconds
+            : CurrentPreferences.SearchDeliveryBudget;
+        if (value == currentValue) return;
 
         await SaveGeneralAsync(current => selector == SearchTimeBudgetSelector
             ? current with { SearchTimeBudgetSeconds = value }
@@ -334,7 +344,7 @@ public partial class SettingsWindow : Window
 
     private void SetGeneralControlsEnabled(bool enabled)
     {
-        CloseToTrayToggle.IsEnabled = enabled;
+        CloseToTrayToggle.IsEnabled = enabled && _trayAvailable;
         NotificationsToggle.IsEnabled = enabled;
         AutoConnectToggle.IsEnabled = enabled;
         QueuePageSizeSelector.IsEnabled = enabled;

@@ -207,7 +207,7 @@
                         <TextBlock Text="Application" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,18" />
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                            <StackPanel Margin="0,0,16,0"><TextBlock Text="Close to system tray" FontWeight="SemiBold" /><TextBlock Text="Keep watches running when you close the window." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryBrush}" FontSize="12" Margin="0,5,0,0" /></StackPanel>
+                            <StackPanel Margin="0,0,16,0"><TextBlock Text="Close to system tray" FontWeight="SemiBold" /><TextBlock x:Name="CloseToTrayDescription" Text="Keep watches running when you close the window." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryBrush}" FontSize="12" Margin="0,5,0,0" /></StackPanel>
                             <ToggleButton x:Name="CloseToTrayToggle" Grid.Column="1" Style="{StaticResource Switch}" VerticalAlignment="Top" Checked="CloseToTray_Changed" Unchecked="CloseToTray_Changed" AutomationProperties.AutomationId="CloseToTrayToggle" AutomationProperties.Name="Close to system tray" />
                         </Grid>
                         <Grid Margin="0,24,0,0">

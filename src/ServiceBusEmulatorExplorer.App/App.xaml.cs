@@ -21,6 +21,9 @@ public partial class App : Application
 
         _serviceProvider = CreateServices(e.Args);
         var window = _serviceProvider.GetRequiredService<InvestigationWindow>();
+        MainWindow = window;
+        ShutdownMode = ShutdownMode.OnMainWindowClose;
+        window.InitializeSystemTray();
         window.Show();
     }
 

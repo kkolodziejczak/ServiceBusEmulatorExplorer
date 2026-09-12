@@ -115,6 +115,7 @@ The first FlaUI/UIA3 smoke test should:
 3. Verify the window title is `Service Bus Emulator Explorer`.
 4. Verify the connection selector, connection action, search, Refresh and Settings controls are discoverable.
 5. Open Settings and verify queue/topic/subscription page sizes and Azure CLI fields through UI Automation.
+6. Disable close-to-tray, verify clean window-driven shutdown, restart with the same isolated profile and verify that Close still exits. Protected preference saving may require running outside a restrictive filesystem sandbox; do not weaken atomic persistence for the test.
 6. Verify no startup exception dialog is shown and clean up the isolated app/profile. The broker-backed investigation case separately verifies normal shutdown.
 
 Keep UI smoke tests small and focused. Broader behavior should stay in unit and integration tests where it is faster and less fragile.

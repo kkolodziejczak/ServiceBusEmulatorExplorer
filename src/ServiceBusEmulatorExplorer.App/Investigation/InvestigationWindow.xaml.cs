@@ -50,6 +50,7 @@ public partial class InvestigationWindow : Window
     {
         ready = true;
         await workspace.InitializeAsync();
+        if (closing || closePending) return;
         Width = workspace.Preferences.WindowWidth;
         Height = workspace.Preferences.WindowHeight;
         UpdateWorkspace();
@@ -130,7 +131,7 @@ public partial class InvestigationWindow : Window
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e) =>
-        new SettingsWindow(workspace.Preferences, workspace.ApplyPreferencesAsync) { Owner = this }.ShowDialog();
+        new SettingsWindow(workspace.Preferences, workspace.ApplyPreferencesAsync, tray is not null) { Owner = this }.ShowDialog();
 
     private async void Tree_Selected(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
@@ -253,21 +254,4 @@ public partial class InvestigationWindow : Window
         LogText.ScrollToEnd();
     }
 
-    private async void WindowClosing(object? sender, CancelEventArgs e)
-    {
-        if (closing) return;
-        e.Cancel = true;
-        if (workspace.Inspector.HasDrafts && !await workspace.ConfirmDiscard()) return;
-        refreshTimer.Stop();
-        var bounds = WindowState == WindowState.Normal ? new Rect(0, 0, ActualWidth, ActualHeight) : RestoreBounds;
-        await workspace.UpdateWindowBoundsAsync(bounds.Width, bounds.Height);
-        await workspace.DisposeAsync();
-        workspace.PropertyChanged -= WorkspaceChanged;
-        workspace.Surface.PropertyChanged -= SurfaceChanged;
-        workspace.Inspector.PropertyChanged -= InspectorChanged;
-        workspace.Activity.CollectionChanged -= ActivityChanged;
-        closing = true;
-        // Even an entirely synchronous save must leave WPF's current Closing event before closing again.
-        _ = Dispatcher.BeginInvoke(new Action(Close));
-    }
 }

@@ -50,6 +50,14 @@ public sealed class MainWindowSmokeTests
             Assert.NotNull(WaitForAutomationId(settings, "QueuePageSizeSelector", TimeSpan.FromSeconds(5)));
             Assert.NotNull(WaitForAutomationId(settings, "TopicPageSizeSelector", TimeSpan.FromSeconds(5)));
             Assert.NotNull(WaitForAutomationId(settings, "SubscriptionPageSizeSelector", TimeSpan.FromSeconds(5)));
+            AutomationElement closeToTray = WaitForAutomationId(settings, "CloseToTrayToggle", TimeSpan.FromSeconds(5));
+            Assert.True(closeToTray.IsEnabled);
+            Assert.Equal(ToggleState.On, closeToTray.Patterns.Toggle.Pattern.ToggleState.Value);
+            closeToTray.Patterns.Toggle.Pattern.Toggle();
+            Assert.True(SpinWait.SpinUntil(() =>
+                closeToTray.Patterns.Toggle.Pattern.ToggleState.Value == ToggleState.Off && closeToTray.IsEnabled,
+                TimeSpan.FromSeconds(5)), "The close-to-tray preference did not finish saving. " +
+                WaitForAutomationId(settings, "GeneralStatus", TimeSpan.FromSeconds(2)).Name);
 
             SelectTab(settings, "Connections", TimeSpan.FromSeconds(5));
             Assert.NotNull(WaitForAutomationId(settings, "ProfileName", TimeSpan.FromSeconds(5)));
@@ -62,6 +70,20 @@ public sealed class MainWindowSmokeTests
             Assert.DoesNotContain(
                 application.GetAllTopLevelWindows(automation),
                 topLevelWindow => topLevelWindow.Title.Contains("Exception", StringComparison.OrdinalIgnoreCase));
+            window.Patterns.Window.Pattern.Close();
+            Assert.True(SpinWait.SpinUntil(() => application.HasExited, TimeSpan.FromSeconds(10)),
+                "With close-to-tray disabled, closing the main window must exit the application.");
+            using Application restarted = Application.Launch(executablePath,
+                $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+            try
+            {
+                Window restored = WaitForMainWindowWithAutomationId(restarted, automation,
+                    "ConnectionButton", TimeSpan.FromSeconds(15));
+                restored.Patterns.Window.Pattern.Close();
+                Assert.True(SpinWait.SpinUntil(() => restarted.HasExited, TimeSpan.FromSeconds(10)),
+                    "The saved close-to-tray setting must survive an application restart.");
+            }
+            finally { CloseApplication(restarted); }
         }
         finally
         {
