@@ -53,8 +53,9 @@
   </HierarchicalDataTemplate>
  </ResourceDictionary></Window.Resources>
  <Grid Background="{DynamicResource CanvasBrush}">
-  <Grid.RowDefinitions><RowDefinition Height="43"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-  <Border x:Name="ProfileAccentBorder" Background="{DynamicResource ChromeBrush}" BorderBrush="{DynamicResource PrimaryBrush}" BorderThickness="0,3,0,3">
+  <Grid.RowDefinitions><RowDefinition Height="40"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <Border x:Name="ProfileAccentBorder" Background="{DynamicResource ChromeBrush}" BorderBrush="{DynamicResource PrimaryBrush}" BorderThickness="0,1,0,0">
+   <Border x:Name="ToolbarSeparator" BorderBrush="{DynamicResource ToolbarDividerBrush}" BorderThickness="0,0,0,1">
    <DockPanel Margin="15,0" LastChildFill="False">
     <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
      <ComboBox x:Name="ConnectionSelector" Width="220" Margin="0,0,8,0" Style="{StaticResource RefreshIntervalStyle}" SelectionChanged="ConnectionSelector_Changed" AutomationProperties.Name="Connection profile" AutomationProperties.AutomationId="ConnectionSelector">
@@ -69,6 +70,7 @@
      <Button x:Name="SettingsButton" Click="Settings_Click" Style="{StaticResource IconButton}" Padding="6,2" ToolTip="Settings" AutomationProperties.Name="Settings"><Path Data="M6,0 H10 L10.5,2.5 12,3.4 14.4,2.6 16.4,6 14.5,7.7 V9.3 L16.4,11 14.4,14.4 12,13.6 10.5,14.5 10,17 H6 L5.5,14.5 4,13.6 1.6,14.4 -0.4,11 1.5,9.3 V7.7 L-0.4,6 1.6,2.6 4,3.4 5.5,2.5 Z M11,8.5 A3,3 0 1 1 5,8.5 A3,3 0 1 1 11,8.5" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.5" StrokeLineJoin="Round" Width="16" Height="16" Stretch="Uniform"/></Button>
     </StackPanel>
    </DockPanel>
+   </Border>
   </Border>
   <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="330" MinWidth="240" MaxWidth="420"/><ColumnDefinition Width="5"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
    <Grid Margin="15,16,8,8"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>

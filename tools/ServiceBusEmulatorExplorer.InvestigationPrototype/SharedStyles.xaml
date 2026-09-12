@@ -9,6 +9,7 @@
  <SolidColorBrush x:Key="ChromeBrush" Color="#F5F9FE"/>
  <SolidColorBrush x:Key="ControlBorderBrush" Color="#CBD8E8"/>
  <SolidColorBrush x:Key="DividerBrush" Color="#DFE6EE"/>
+ <SolidColorBrush x:Key="ToolbarDividerBrush" Color="#DFE6EE"/>
  <SolidColorBrush x:Key="NeutralHoverBrush" Color="#EAF4FF"/>
  <SolidColorBrush x:Key="SelectionBrush" Color="#DBEDFF"/>
  <SolidColorBrush x:Key="RaisedBrush" Color="#FFFFFF"/>

@@ -54,7 +54,7 @@ Do not reopen visual design, add redundant controls, or run another prototype-de
 | Full-width activity console; clear only expanded | Implemented with 100 in-memory entries | Structured outcomes, redacted sensitive values, bounded history; decide persistence |
 | UTC/Local/Server selector | Display preference persisted; Server is sample −05:00 | Configure real server zone; retain original UTC instants and raw payloads |
 | Restore selections/preferences across launches | Separate prototype JSON store; user-scoped DPAPI for connection strings; per-profile Watch snapshots | Integrate production settings safely; migration, failure recovery and restart behavior must be proven |
-| Consistent colors/fonts/sizes/states | Shared resources, themed scrollbars, conventional cog, continuous accent lines above and below the toolbar and Settings without a duplicate content title implemented; rendered desktop/compact/minimum checks pass | Preserve approved tokens and complete the linked UI audit before production handoff |
+| Consistent colors/fonts/sizes/states | Shared resources, themed scrollbars, conventional cog, a thin top accent and neutral gray bottom toolbar divider and Settings without a duplicate content title implemented; rendered desktop/compact/minimum checks pass | Preserve approved tokens and complete the linked UI audit before production handoff |
 
 Keep entity creation/edit/delete, purge, advanced rule administration, scheduling and unrelated legacy features outside the primary workflow. Retaining existing backend code is different from exposing its entire old UI. Standalone Send New Message and replay of Active messages were not settled; do not silently add them.
 

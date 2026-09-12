@@ -67,7 +67,7 @@ Current gate: **visual consistency and routed flows PASS** at the three supporte
 
 ## Final chrome polish (2026-09-12)
 
-The profile accent forms continuous 3-DIP lines above and below the connection toolbar, meeting the pane splitters. Settings uses a conventional toothed cog and the native window title without a duplicate content heading. Each masked connection field has the shared rounded Copy icon, an accessible name and a tooltip; copying uses the current field value without logging it. Empty fields disable Copy.
+The toolbar uses a 1-DIP profile accent above and a 1-DIP neutral gray (#DFE6EE) divider below, meeting the pane splitters. The bottom divider stays neutral across profiles. Settings uses a conventional toothed cog and the native window title without a duplicate content heading. Each masked connection field has the shared rounded Copy icon, an accessible name and a tooltip; copying uses the current field value without logging it. Empty fields disable Copy.
 
 All shared scrollbars use an 18-DIP hit lane, a rounded 8-DIP visible thumb and profile-themed hover/drag feedback. Preserve wheel, keyboard, page and thumb behavior in both orientations. Dark editor/log backgrounds remain dark beneath the transparent track.
 

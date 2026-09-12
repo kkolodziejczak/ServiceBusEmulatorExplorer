@@ -351,7 +351,7 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Saving the current profile does not trigger auto-connect
 - PASS: Auto-connect preference persists to an isolated preferences file
 - PASS: A fresh Settings window restores the saved auto-connect switch
-- PASS: Profile accent frames both header edges without side borders
+- PASS: Toolbar has a thin top accent and a separate bottom divider
 - PASS: Settings content does not repeat the native window title
 - PASS: Blank connection fields disable their copy actions
 - PASS: Copy actions use the exact unsaved runtime and administration field values
