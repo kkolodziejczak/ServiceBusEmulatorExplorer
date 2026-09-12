@@ -8,7 +8,9 @@ namespace ServiceBusEmulatorExplorer.InvestigationPrototype;
 
 public partial class PrototypeWindow
 {
-    private readonly HashSet<(string Path, bool DeadLetter)> watchedLocations = [];
+    private readonly WatchRules watchRules = new();
+    private IReadOnlyList<(string Path, bool DeadLetter)> watchedLocations => watchRules.EffectiveLocations(Workspace.Roots);
+    private GlobalWatchWindow? globalWatchWindow;
     private readonly Dictionary<(string Path, bool DeadLetter), List<MessageRow>> pendingWatchMessages = [];
     private readonly DispatcherTimer watchTimer = new() { Interval = TimeSpan.FromSeconds(15) };
     private WatchNotificationWindow? watchNotification;
@@ -30,7 +32,7 @@ public partial class PrototypeWindow
         Closing += OnPrototypeClosing;
     }
 
-    public void ConfigureApplicationLifetime(bool proofMode)
+    public void ConfigureApplicationLifetime(bool proofMode, bool persistPreferences = false)
     {
         proofLifetime = proofMode;
         if (proofMode) return;
@@ -38,8 +40,9 @@ public partial class PrototypeWindow
         catch (Exception error) when (error is System.IO.IOException or System.ComponentModel.Win32Exception or ArgumentException)
         {
             closeToTray = false;
-            AddLog($"System tray unavailable: {error.Message}. Closing will exit.");
+            AddLog($"System tray unavailable: {error.Message}. Closing will exit.", true);
         }
+        if (persistPreferences) InitializePreferences();
     }
 
     private void RestorePrototype()
@@ -68,15 +71,16 @@ public partial class PrototypeWindow
         watchNotification?.Close(); watchNotification = null;
         tray?.Dispose(); tray = null;
         settingsWindow?.Close(); settingsWindow = null;
+        globalWatchWindow?.Close(); globalWatchWindow = null;
     }
 
     private void Watch_Click(object sender, RoutedEventArgs e)
     {
         var entity = Workspace.SelectedEntity;
-        if (entity is null || entity.IsGroup || entity.Kind == "Topic" || Workspace.IsCorrelationSearch)
+        if (entity is null || entity.IsGroup || Workspace.IsCorrelationSearch)
         {
             watchPopupPath = null;
-            WatchPopupTitle.Text = "Select a queue or subscription to watch";
+            WatchPopupTitle.Text = "Select a queue, topic or subscription to watch";
         }
         else
         {
@@ -85,8 +89,8 @@ public partial class PrototypeWindow
         }
         WatchActiveChoice.IsEnabled = WatchDlqChoice.IsEnabled = watchPopupPath is not null && Workspace.IsConnected;
         updatingWatchChoices = true;
-        WatchActiveChoice.IsChecked = watchedLocations.Contains((watchPopupPath ?? "", false));
-        WatchDlqChoice.IsChecked = watchedLocations.Contains((watchPopupPath ?? "", true));
+        WatchActiveChoice.IsChecked = ScopeIsWatched(watchPopupPath, false);
+        WatchDlqChoice.IsChecked = ScopeIsWatched(watchPopupPath, true);
         updatingWatchChoices = false;
         StopWatchingButton.IsEnabled = WatchActiveChoice.IsChecked == true || WatchDlqChoice.IsChecked == true;
         WatchPopup.IsOpen = true;
@@ -97,7 +101,7 @@ public partial class PrototypeWindow
         if (updatingWatchChoices || watchPopupPath is null || !Workspace.IsConnected) return;
         var deadLetter = ReferenceEquals(sender, WatchDlqChoice);
         SetWatched(watchPopupPath, deadLetter, ((CheckBox)sender).IsChecked == true);
-        StopWatchingButton.IsEnabled = watchedLocations.Any(location => location.Path == watchPopupPath);
+        StopWatchingButton.IsEnabled = ScopeIsWatched(watchPopupPath, false) || ScopeIsWatched(watchPopupPath, true);
     }
 
     private void StopWatching_Click(object sender, RoutedEventArgs e)
@@ -123,24 +127,63 @@ public partial class PrototypeWindow
 
     public void SetWatched(string path, bool deadLetter, bool enabled)
     {
-        if (enabled) watchedLocations.Add((path, deadLetter));
-        else
-        {
-            watchedLocations.Remove((path, deadLetter));
-            pendingWatchMessages.Remove((path, deadLetter));
-            AdvanceWatchNotification();
-        }
-        if (watchedLocations.Count > 0 && !proofLifetime) watchTimer.Start(); else watchTimer.Stop();
+        watchRules.SetScope(path, deadLetter, enabled);
+        var entity = Workspace.Roots.SelectMany(PrototypeData.Flatten).FirstOrDefault(node => node.Path == path);
+        // An explicit topic action applies to its present subscriptions and establishes inheritance for future ones.
+        if (entity?.Kind == "Topic")
+            foreach (var child in entity.Children) watchRules.SetScope(child.Path, deadLetter, enabled);
+        WatchRulesChanged();
+        AddLog($"{(enabled ? "Watching" : "Stopped watching")} {path} · {(deadLetter ? "DLQ" : "Active")}{(!watchRules.IsIncluded(path, Workspace.Roots) ? " · Not included in Watch" : "")}.");
+    }
+
+    private void WatchRulesChanged()
+    {
         UpdateWatchSurface();
-        AddLog($"{(enabled ? "Watching" : "Stopped watching")} {path} · {(deadLetter ? "DLQ" : "Active")}.");
+        AdvanceWatchNotification();
+        QueuePreferencesSave();
+    }
+
+    private bool ScopeIsWatched(string? path, bool deadLetter)
+    {
+        if (path is null) return false;
+        var entity = Workspace.Roots.SelectMany(PrototypeData.Flatten).FirstOrDefault(node => node.Path == path);
+        return entity?.Kind == "Topic"
+            ? entity.Children.Any(child => watchRules.IsWatched(child.Path, deadLetter, Workspace.Roots))
+            : watchRules.IsWatched(path, deadLetter, Workspace.Roots);
+    }
+
+    private void GlobalWatch_Click(object sender, RoutedEventArgs e)
+    {
+        WatchPopup.IsOpen = false;
+        if (globalWatchWindow is not null) { globalWatchWindow.Activate(); return; }
+        globalWatchWindow = new GlobalWatchWindow(Workspace.Roots, watchRules, () =>
+        {
+            WatchRulesChanged();
+            AddLog("Updated global Watch rules and included entities.");
+        }) { Owner = this };
+        globalWatchWindow.Closed += (_, _) => globalWatchWindow = null;
+        globalWatchWindow.Show();
     }
 
     private void UpdateWatchSurface()
     {
+        var effective = watchedLocations;
+        var removedPending = pendingWatchMessages.Keys.Where(location => !effective.Contains(location)).ToArray();
+        foreach (var location in removedPending) pendingWatchMessages.Remove(location);
+        if (removedPending.Length > 0) AdvanceWatchNotification();
+        if (Workspace.IsConnected && effective.Count > 0 && !proofLifetime) watchTimer.Start(); else watchTimer.Stop();
         if (!Workspace.IsConnected) WatchPopup.IsOpen = false;
+        if (WatchPopup.IsOpen)
+        {
+            updatingWatchChoices = true;
+            WatchActiveChoice.IsChecked = ScopeIsWatched(watchPopupPath, false);
+            WatchDlqChoice.IsChecked = ScopeIsWatched(watchPopupPath, true);
+            updatingWatchChoices = false;
+            StopWatchingButton.IsEnabled = WatchActiveChoice.IsChecked == true || WatchDlqChoice.IsChecked == true;
+        }
         if (FindName("WatchButtonLabel") is not TextBlock label) return;
         var path = Workspace.SelectedEntity?.Path;
-        label.Text = !Workspace.IsCorrelationSearch && watchedLocations.Any(location => location.Path == path) ? "Watching" : "Watch";
+        label.Text = !Workspace.IsCorrelationSearch && (ScopeIsWatched(path, false) || ScopeIsWatched(path, true)) ? "Watching" : "Watch";
         var isWatching = label.Text == "Watching";
         WatchBell.Fill = isWatching ? System.Windows.Media.Brushes.White : System.Windows.Media.Brushes.Transparent;
         WatchOffSlash.Visibility = isWatching ? Visibility.Collapsed : Visibility.Visible;
@@ -154,6 +197,7 @@ public partial class PrototypeWindow
     public void SimulateWatchedArrivals()
     {
         if (!Workspace.IsConnected) return;
+        UpdateWatchSurface();
         foreach (var location in watchedLocations.ToArray())
         {
             var message = Workspace.InjectSampleArrival(location.Path, location.DeadLetter);
@@ -265,20 +309,26 @@ public partial class PrototypeWindow
                 notificationsEnabled = value;
                 if (value) ShowWatchNotification();
                 else { watchNotification?.Close(); watchNotification = null; }
-            }, connectionSettings, UseConnection) { Owner = this };
+            }, connectionSettings, UseConnection, SavePreferences) { Owner = this };
         settingsWindow.Closed += (_, _) => settingsWindow = null;
         settingsWindow.Show();
     }
 
     private void UseConnection(PrototypeConnectionProfile profile)
     {
+        SavePreferences();
+        connectionSettings.SelectedProfile = profile;
+        RefreshConnectionPresentation();
         ConnectionName.Text = profile.Name;
         ConnectionName.ToolTip = profile.Name;
-        if (ReferenceEquals(activeConnection, profile)) return;
+        if (ReferenceEquals(activeConnection, profile)) { SavePreferences(); return; }
         activeConnection = profile;
+        ClearConnectionWarning();
         refreshTimer.Stop();
         watchTimer.Stop();
-        watchedLocations.Clear();
+        watchRules.Clear();
+        RestoreProfileWatch();
+        globalWatchWindow?.Close(); globalWatchWindow = null;
         pendingWatchMessages.Clear();
         watchNotification?.Close();
         watchNotification = null;
@@ -294,5 +344,6 @@ public partial class PrototypeWindow
         });
         UpdateWatchSurface();
         AddLog($"Selected {profile.Name}. Connect to load its sample messages.");
+        SavePreferences();
     }
 }

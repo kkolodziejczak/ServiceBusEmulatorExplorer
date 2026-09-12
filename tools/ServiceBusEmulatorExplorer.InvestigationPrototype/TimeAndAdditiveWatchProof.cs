@@ -74,7 +74,7 @@ internal static class TimeAndAdditiveWatchProof
         var notification = Application.Current.Windows.OfType<WatchNotificationWindow>().Single();
         var arrival = workspace.SnapshotMessages().Where(row => row.Source == original.Source && row.IsDeadLetter)
             .OrderByDescending(row => row.Enqueued).First();
-        ProofCapture.Descendants(notification).OfType<Button>().Single(button => Equals(button.Content, "Investigate"))
+        ProofCapture.Descendants(notification).OfType<Button>().Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == "Investigate notification")
             .RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
         await Complete(window);
         var expected = workspace.SnapshotMessages().Where(row => row.MessageId == original.MessageId || row.CorrelationId == arrival.CorrelationId)

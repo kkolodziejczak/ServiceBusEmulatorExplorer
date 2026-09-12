@@ -28,7 +28,7 @@ internal static class WatchProof
         var notification = Notification() ?? throw new InvalidOperationException("Watch notification did not open.");
         Check(notification.Owner is null && notification.IsVisible && notification.Topmost && !notification.ShowInTaskbar,
             "Watch notification is a separate visible desktop window, independent of the main window", report);
-        Check(Text(notification).Contains("2 new dead-letter messages") && Text(notification).Contains("1 other watched location"),
+        Check(Text(notification).Contains("2 new active messages") && Text(notification).Contains("1 other watched location"),
             "Repeated arrivals group by entity and Active/DLQ bucket in one persistent notification", report);
         ProofCapture.CheckBounds(notification, ProofCapture.Descendants(notification).OfType<Button>());
         ProofCapture.Save(notification, output, "watch-desktop-notification");
@@ -47,7 +47,7 @@ internal static class WatchProof
         await Task.Delay(300);
         await Settle();
         Check(notification.IsVisible && !window.IsVisible, "Desktop notification remains visible while the application is hidden", report);
-        var expected = workspace.SnapshotMessages().Where(row => row.Source == target.Path && row.IsDeadLetter)
+        var expected = workspace.SnapshotMessages().Where(row => row.Source == target.Path && !row.IsDeadLetter)
             .OrderByDescending(row => row.Enqueued).First();
         Click(notification, "Investigate");
         await Settle();
@@ -56,15 +56,15 @@ internal static class WatchProof
         Check(window.IsVisible && window.WindowState != WindowState.Minimized && workspace.IsCorrelationSearch
             && workspace.FocusedMessage?.Key == expected.Key,
             "Investigate restores the app, searches across the connection, and focuses the latest notified message", report);
-        var notifiedCorrelations = workspace.SnapshotMessages().Where(row => row.Source == target.Path && row.IsDeadLetter)
+        var notifiedCorrelations = workspace.SnapshotMessages().Where(row => row.Source == target.Path && !row.IsDeadLetter)
             .OrderByDescending(row => row.Enqueued).Take(2).Select(row => row.CorrelationId).Distinct().ToArray();
         Check(notifiedCorrelations.All(id => ((TextBox)window.FindName("SearchBox")).Text.Contains(id))
             && workspace.Messages.All(row => notifiedCorrelations.Contains(row.CorrelationId)),
             "Grouped notification searches all distinct notified correlation IDs without unrelated results", report);
         Check(workspace.Messages.Count == workspace.SnapshotMessages().Count(row => notifiedCorrelations.Contains(row.CorrelationId)),
             "Notification investigation includes every matching active and DLQ message across the connection", report);
-        notification = Notification() ?? throw new InvalidOperationException("Remaining Active notification missing.");
-        Check(Text(notification).Contains("2 new active messages"), "Responding advances to the next pending watched bucket", report);
+        notification = Notification() ?? throw new InvalidOperationException("Remaining DLQ notification missing.");
+        Check(Text(notification).Contains("2 new dead-letter messages"), "Responding advances to the next pending watched bucket", report);
         var snapshot = workspace.SnapshotMessages().Select(row => row.Key).ToArray();
         Click(notification, "Dismiss");
         await Settle();
@@ -115,7 +115,7 @@ internal static class WatchProof
     private static WatchNotificationWindow? Notification() => Application.Current.Windows.OfType<WatchNotificationWindow>().SingleOrDefault();
     private static string Text(Window window) => string.Join("\n", ProofCapture.Descendants(window).OfType<TextBlock>().Select(block => block.Text));
     private static void Click(Window window, string label) => ProofCapture.Descendants(window).OfType<Button>()
-        .Single(button => Equals(button.Content, label)).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+        .First(button => System.Windows.Automation.AutomationProperties.GetName(button) == label + " notification").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
     private static Task Settle() => Application.Current.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle).Task;
     private static void Check(bool condition, string message, List<string> report)
     {

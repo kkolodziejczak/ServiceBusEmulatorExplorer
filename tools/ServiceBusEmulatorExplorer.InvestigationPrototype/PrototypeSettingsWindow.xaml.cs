@@ -12,16 +12,20 @@ public sealed class PrototypeConnectionSettings
     public List<PrototypeConnectionProfile> Profiles { get; } =
     [
         new("Local emulator", "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=sample-only;UseDevelopmentEmulator=true;", "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=sample-only;UseDevelopmentEmulator=true;"),
-        new("Azure development", "Endpoint=sb://example.servicebus.windows.net/;SharedAccessKeyName=sample;SharedAccessKey=sample-only;", "Endpoint=sb://example.servicebus.windows.net/;SharedAccessKeyName=sample;SharedAccessKey=sample-only;")
+        new("Azure development", "Endpoint=sb://example.servicebus.windows.net/;SharedAccessKeyName=sample;SharedAccessKey=sample-only;", "Endpoint=sb://example.servicebus.windows.net/;SharedAccessKeyName=sample;SharedAccessKey=sample-only;") { ColorHex = "#7540BF" }
     ];
 }
 
 public sealed class PrototypeConnectionProfile(string name, string runtime, string administration)
 {
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = name;
     public string RuntimeConnection { get; set; } = runtime;
     public string AdministrationConnection { get; set; } = administration;
+    public string ColorHex { get; set; } = "#0069FA";
 }
+
+public sealed record ProfileAccent(string Name, string ColorHex);
 
 public partial class PrototypeSettingsWindow : Window
 {
@@ -29,21 +33,28 @@ public partial class PrototypeSettingsWindow : Window
     private readonly Action<bool> _setNotifications;
     private readonly PrototypeConnectionSettings _connections;
     private readonly Action<PrototypeConnectionProfile>? _useConnection;
+    private readonly Action? _preferencesChanged;
     private bool _ready;
 
     public PrototypeSettingsWindow(bool closeToTray, bool notificationsEnabled, bool canCloseToTray,
         Action<bool> setClose, Action<bool> setNotifications, PrototypeConnectionSettings connections,
-        Action<PrototypeConnectionProfile>? useConnection = null)
+        Action<PrototypeConnectionProfile>? useConnection = null, Action? preferencesChanged = null)
     {
         _setClose = setClose;
         _setNotifications = setNotifications;
         _connections = connections;
         _useConnection = useConnection;
+        _preferencesChanged = preferencesChanged;
         InitializeComponent();
         CloseToTrayToggle.IsChecked = closeToTray;
         CloseToTrayToggle.IsEnabled = canCloseToTray;
         TrayUnavailableText.Visibility = canCloseToTray ? Visibility.Collapsed : Visibility.Visible;
         NotificationsToggle.IsChecked = notificationsEnabled;
+        ColorPicker.ItemsSource = new ProfileAccent[]
+        {
+            new("Blue", "#0069FA"), new("Purple", "#7540BF"), new("Teal", "#007F80"),
+            new("Orange", "#B85B00"), new("Red", "#C83B3B")
+        };
         ProfilesList.ItemsSource = connections.Profiles;
         ConnectionPicker.ItemsSource = connections.Profiles;
         ConnectionPicker.SelectedItem = connections.SelectedProfile;
@@ -54,11 +65,15 @@ public partial class PrototypeSettingsWindow : Window
 
     private void CloseToTray_Changed(object sender, RoutedEventArgs e)
     {
-        if (_ready) _setClose(CloseToTrayToggle.IsChecked == true);
+        if (!_ready) return;
+        _setClose(CloseToTrayToggle.IsChecked == true);
+        _preferencesChanged?.Invoke();
     }
     private void Notifications_Changed(object sender, RoutedEventArgs e)
     {
-        if (_ready) _setNotifications(NotificationsToggle.IsChecked == true);
+        if (!_ready) return;
+        _setNotifications(NotificationsToggle.IsChecked == true);
+        _preferencesChanged?.Invoke();
     }
     private void ManageConnections_Click(object sender, RoutedEventArgs e)
     {
@@ -86,6 +101,7 @@ public partial class PrototypeSettingsWindow : Window
         if (ConnectionPicker.SelectedItem is not PrototypeConnectionProfile profile) return;
         _connections.SelectedProfile = profile;
         _useConnection?.Invoke(profile);
+        _preferencesChanged?.Invoke();
         UpdateConnectionStatus();
     }
 
@@ -95,6 +111,7 @@ public partial class PrototypeSettingsWindow : Window
         ProfileName.Text = profile.Name;
         RuntimeConnection.Password = profile.RuntimeConnection;
         AdministrationConnection.Password = profile.AdministrationConnection;
+        ColorPicker.SelectedValue = profile.ColorHex;
         ProfileStatus.Text = string.Empty;
     }
 
@@ -111,11 +128,13 @@ public partial class PrototypeSettingsWindow : Window
         profile.Name = ProfileName.Text.Trim();
         profile.RuntimeConnection = RuntimeConnection.Password;
         profile.AdministrationConnection = AdministrationConnection.Password;
+        if (ColorPicker.SelectedItem is ProfileAccent accent) profile.ColorHex = accent.ColorHex;
         ProfilesList.Items.Refresh();
         ConnectionPicker.Items.Refresh();
         if (ReferenceEquals(profile, _connections.SelectedProfile)) _useConnection?.Invoke(profile);
         UpdateConnectionStatus();
-        ProfileStatus.Text = "Profile saved for this session. No connection was attempted.";
+        ProfileStatus.Text = "Profile updated. No connection was attempted.";
+        _preferencesChanged?.Invoke();
     }
 
     private void Done_Click(object sender, RoutedEventArgs e) => Close();

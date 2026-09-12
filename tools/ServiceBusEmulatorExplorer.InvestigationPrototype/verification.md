@@ -235,3 +235,43 @@ PASS: Space on a row checkbox toggles that checkbox once.
 - PASS: Investigating the same notification again does not duplicate criteria
 - PASS: An empty notification batch preserves the applied query and result snapshot
 - PASS: A notified message without correlation appends its message-ID criterion without dropping prior cases
+- PASS: Global Watch switches independently enable both buckets
+- PASS: Unchecking a topic removes Active and DLQ watches for every child
+- PASS: Unchecking a child updates its parent inclusion state truthfully
+- PASS: Checking Topics selects all subscriptions and clears child exceptions
+- PASS: Global inclusion filter displays its no-results state
+- PASS: Global rules include newly discovered queues without adding explicit watches
+- PASS: Topic browsing shows message source subscriptions
+- PASS: Topic Watch selector enables Active choice
+- PASS: Topic Watch applies to its subscriptions
+- PASS: Delete confirmation begins disabled with an empty confirmation field
+- PASS: Cancelling delete confirmation preserves sample messages
+- PASS: Delete confirmation begins disabled with an empty confirmation field
+- PASS: Delete stays disabled for non-exact confirmation: 'wrong'
+- PASS: Delete stays disabled for non-exact confirmation: 'delete'
+- PASS: Delete stays disabled for non-exact confirmation: 'DELETE '
+- PASS: Delete stays disabled for non-exact confirmation: ' DELETE'
+- PASS: Exact uppercase DELETE enables confirmation
+- PASS: Clearing typed DELETE disables confirmation again
+- PASS: Retyping exact DELETE restores the enabled action
+- PASS: Confirmed selection deletes one Active and one DLQ sample message
+- PASS: Delete targets exact messages and decrements corresponding Active and DLQ totals
+- PASS: Repeated deletion does not remove extra messages or decrement totals twice
+- PASS: Workspace delete proof starts with two checked Active messages
+- PASS: Main Delete action cancellation preserves checked messages and count
+- PASS: Main Delete action, typed confirmation and model removal delete exactly checked messages and update displayed count
+- PASS: Saving a connection profile retains its chosen palette color
+- PASS: Connected health renders a green indicator and explicit label
+- PASS: Connection warning renders amber with diagnostic detail
+- PASS: Header profile selector switches connection and renders disconnected health in red
+- PASS: Returning to the original profile and connecting restores green health
+- PASS: Preferences save to an isolated proof file:
+- PASS: Persisted connection strings do not appear as plaintext in the preference file
+- PASS: Protected connection strings round-trip for the current Windows user
+- PASS: Restored Watch inclusion keeps an unchecked child while covering future subscriptions
+- PASS: A fresh application restores refresh interval, time display and collapsed console
+- PASS: A fresh application restores tray, notification and profile color preferences
+- PASS: Fresh application restores saved Watch tree inclusion
+- PASS: Closing and reopening persists changed refresh, time and console settings
+- PASS: Closing and reopening restores nondefault entity, paused refresh and message-ID search with its original meaning
+- PASS: Corrupt preferences return safe defaults and a warning instead of throwing

@@ -57,7 +57,7 @@ public partial class PrototypeWindow
     {
         if (string.IsNullOrEmpty(value)) return;
         try { Clipboard.SetText(value); AddLog("Copied correlation ID for log lookup."); }
-        catch (System.Runtime.InteropServices.COMException) { AddLog("Clipboard is busy. Try Copy again."); }
+        catch (System.Runtime.InteropServices.COMException) { AddLog("Clipboard is busy. Try Copy again.", true); }
     }
 
     private void FindRelated_Click(object sender, RoutedEventArgs e)
@@ -84,7 +84,7 @@ public partial class PrototypeWindow
             else if (!Workspace.IsSearching) pendingSearchFocusKey = null;
         }
         var searching = Workspace.IsCorrelationSearch;
-        SourceColumn.Visibility = searching ? Visibility.Visible : Visibility.Collapsed;
+        SourceColumn.Visibility = searching || Workspace.SelectedEntity?.Kind == "Topic" ? Visibility.Visible : Visibility.Collapsed;
         NamespaceEmpty.Visibility = Workspace.Roots.Any(node => node.IsVisible) ? Visibility.Collapsed : Visibility.Visible;
         NamespaceEmpty.Text = searching
             ? Workspace.IsSearching ? "Searching for matching entities…" : "No matching entities found. Clear the search to show all entities."

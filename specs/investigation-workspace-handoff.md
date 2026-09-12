@@ -1,13 +1,13 @@
 # Promote the investigation prototype
 
-Prepared 2026-09-11 for the next working session. This is a simple handoff, not authorization to release. No planning skills were used.
+Prepared 2026-09-11; prototype decisions updated 2026-09-12. This is a simple handoff, not authorization to release. No planning skills were used.
 
 ## Starting point
 
 - Current branch: `prototype/investigation-workspace`; audit baseline `c8af97c`. Use the normal checkout. Preserve unrelated changes.
 - Visual/interaction reference: [prototype](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/README.md) and its [current preview](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/preview.png). Apply [UI language and audit corrections](ui-language.md) consistently; preserve the approved layout.
 - Destination: existing WPF [App](../src/ServiceBusEmulatorExplorer.App/ServiceBusEmulatorExplorer.App.csproj) using existing [Core contracts](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/ServiceBusContracts.cs). Keep the prototype as a reference until parity is proven. Do not just rename its executable or ship its synthetic Workspace.
-- Evidence: latest prototype build succeeded; 233 routed walkthrough checks and a prior 11-check real tray run passed. No new broker integration tests were run for this audit. The proof uses synthetic messages and is not a production readiness certificate.
+- Current evidence: 257 routed walkthrough checks and an 11-check real tray run pass, including profile/Watch preferences, typed deletion and shared styling. No new broker integration tests were run for this audit. The proof uses synthetic messages and is not a production readiness certificate.
 
 ## Requirements mapped to what exists
 
@@ -16,7 +16,8 @@ Prepared 2026-09-11 for the next working session. This is a simple handoff, not 
 | Conversation requirement | Current state | Promotion work |
 | --- | --- | --- |
 | Small daily-investigation UI; remove redundant headings | Approved layout implemented | Replace old shell surface; do not bring back all old administration buttons |
-| Emulator and Azure connections selected in Settings | Two editable sample profiles; simulated connection | Reuse real profile/auth validation; add real profile CRUD and persistence as decided below |
+| Emulator and Azure connection selection | Toolbar profile dropdown plus Settings selection; two editable sample profiles with named accent colors | Reuse real profile/auth validation; persist selected profile and color separately from connection health |
+| Profile identity and connection health | Profile accent border/swatch; separate labeled green connected, red disconnected, amber warning indicator | Bind health to structured connection/operation outcomes; color alone must not communicate status |
 | Queues, topics, subscriptions and Message/DLQ totals | Sample tree, distinct icons; unknown sample counts | Bind real tree and typed known/unknown/stale count state; topic totals are delivery totals across subscriptions |
 | First 50 on scope/bucket change; Load more | Implemented against fixtures | Per-source cursors, cancellation, stale-request rejection; settle topic aggregate paging |
 | Independent checkboxes; aligned select-all | Implemented | Stable source-aware row identity; select-all means displayed results, not unseen broker messages |
@@ -31,15 +32,16 @@ Prepared 2026-09-11 for the next working session. This is a simple handoff, not 
 | Inline formatted/colorized edit, undo, discard | DLQ editor implemented | Preserve drafts by delivery identity; validate before send; define connection-switch behavior |
 | Replay by default; Edit and Replay after changing JSON | Implemented with synthetic copies | Real send, batch eligibility and per-item outcomes; original DLQ remains unless separately deleted |
 | Default IDs original-replay-N | Session-only counter and synthetic collision check | Persist or otherwise define counter/uniqueness; preserve metadata; never promise global retry count |
-| Delete events | **Missing from prototype**; old app has DLQ delete | Resolve Q1, then add explicit confirmed workflow; no hover-only destructive action |
+| Delete Active and DLQ messages, focused or checked batch | Confirmation lists Active/DLQ counts; synthetic deletion only after confirmation | Implement source-aware completion with per-item results, vanished/locked-message handling and cancellation; no purge or implicit unseen-message delete |
 | Copy icon consistent and near correlation | Selected rounded icon everywhere | Share vector resource; copy exact ID/body/properties, preserve action labels and tooltips |
-| Watch Active/DLQ independently; off/on icons and overview | UI implemented; 15s timer creates fake arrivals | Detect arrivals without consuming messages; baseline, dedupe, reconnect and DLQ cursor policy |
+| Watch Active/DLQ independently at connection, topic or leaf scope | Global rules include future entities; topic rules include future subscriptions; explicit bucket overrides and a searchable inclusion tree; 15s fake-arrival timer | Refresh discovery before resolving effective sources; preserve category/topic/child inclusion precedence; detect arrivals without consuming messages; baseline, dedupe, reconnect and DLQ cursor policy |
 | Persistent desktop alert; Investigate restores app | Separate topmost WPF window, real tray | Keep until response; position on correct monitor; no transient-toast substitution |
 | Investigate adds to current cases | Implemented OR union, dedupe, mixed fields, focuses newest case | Preserve applied criteria; cancel superseded scan safely; handle expired/unavailable message |
-| Close-to-tray configurable; explicit Exit | Real prototype lifetime behavior | Integrate app shutdown and cancellation; settings persistence; no invisible orphan process |
+| Close-to-tray configurable; explicit Exit | Real prototype lifetime behavior; preferences stored locally | Integrate app shutdown and cancellation; production settings migration; no invisible orphan process |
 | Full-width activity console; clear only expanded | Implemented with 100 in-memory entries | Structured outcomes, redacted sensitive values, bounded history; decide persistence |
-| UTC/Local/Server selector | Display conversion implemented; Server is sample −05:00 | Persist preference; configured server zone; retain original UTC instants and raw payloads |
-| Consistent colors/fonts/sizes/states | Layout accepted; remaining inconsistencies found | Resolve the linked UI audit before production handoff |
+| UTC/Local/Server selector | Display preference persisted; Server is sample −05:00 | Configure real server zone; retain original UTC instants and raw payloads |
+| Restore selections/preferences across launches | Separate prototype JSON store; user-scoped DPAPI for connection strings; per-profile Watch snapshots | Integrate production settings safely; migration, failure recovery and restart behavior must be proven |
+| Consistent colors/fonts/sizes/states | Shared resources and Settings normalization implemented; rendered desktop/compact/minimum checks pass | Preserve approved tokens and complete the linked UI audit before production handoff |
 
 Keep entity creation/edit/delete, purge, advanced rule administration, scheduling and unrelated legacy features outside the primary workflow. Retaining existing backend code is different from exposing its entire old UI. Standalone Send New Message and replay of Active messages were not settled; do not silently add them.
 
@@ -49,17 +51,18 @@ Answer by Q number. Recommendations are proposals, not already approved decision
 
 | ID | Decision needed | Recommended starting choice |
 | --- | --- | --- |
-| Q1 | Delete DLQ only or Active too? Single/batch? | DLQ only, focused/checked items, explicit confirmation and per-item results. Active delete is separate scope. |
 | Q2 | Should Messages mean Active or total including DLQ/scheduled? | Active and DLQ separately, explicit tooltip; preserve unavailable counts. Never substitute a loaded-page length. |
 | Q3 | Search limits and completeness: how much work may one search do? | Both Active+DLQ in selected connection; configurable time/message budget with Stop/Continue and visible partial status. Agree actual limits before coding. |
 | Q4 | Watch interval, baseline, reconnect and notification backlog? | No initial-backlog alerts; configurable polling; retain distinct pending cases until response. Agree interval, cap and restart policy; 15s is only the mock default. |
 | Q5 | Accept subscription replay publishing to its parent topic, potentially reaching other subscriptions? | Make destination and routing consequence clear before sending. A subscription is not a direct send destination. |
 | Q6 | Replay numbering across sessions/users and ambiguous send failures? | Keep readable replay suffix plus guaranteed unique send identity; define persistence/ID format and retry policy. Do not auto-retry an uncertain successful send. |
-| Q7 | What persists, and how are connection secrets stored? | Profiles/preferences persist; protect secrets with Windows user-scoped storage; watches saved but restart behavior explicitly chosen. Decide log/draft persistence and Azure CLI auth visibility. |
+| Q7 | Production log/draft persistence and Azure CLI auth visibility? | Profiles, selected connection, preferences and Watch selections are approved to persist with Windows user-scoped secret protection. Decide whether logs/drafts persist and how Azure CLI auth appears; do not reopen the settled preference-storage decision. |
 | Q8 | Switching connection with dirty drafts/active work? | Warn about unsaved edits, cancel old operations, isolate all connection caches. Never silently discard production drafts. |
 | Q9 | What is “Server” timezone? | Explicit per-profile Windows time-zone ID with DST rules; do not infer broker timezone or ship fixed −05:00. |
 | Q10 | Topic view pagination: 50 total or 50 per subscription? | 50 combined deliveries with source identity, matching the simple UI; per-source cursors required. |
-| Q11 | Minimum-window density and style normalization? | Accept existing compact layout initially; approve the linked tokens/contrast fixes. Decide whether to auto-collapse the console on very small windows. |
+| Q11 | Minimum-window density? | Keep approved compact layout and normalized tokens. Decide whether to auto-collapse the console on very small windows. |
+
+Settled scope: delete supports Active and DLQ, focused or checked messages, with explicit typed `DELETE` confirmation. Connection selection is available in the toolbar and Settings; a saved profile color identifies the connection and never replaces semantic health colors. Watch supports global and topic rules, including subsequently discovered entities, with a searchable inclusion tree and mixed parent states. A branch choice applies to descendants, and more specific child choices override inherited inclusion. Profiles and user selections/preferences persist across launches; Watch rules belong to a profile. These interaction decisions do not settle real polling or broker mutation algorithms above.
 
 ## Reuse and the traps to avoid
 

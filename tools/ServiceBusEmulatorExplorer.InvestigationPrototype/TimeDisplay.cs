@@ -59,6 +59,7 @@ public partial class PrototypeWindow
     {
         if (TimeDisplaySelector is null || EnqueuedColumn is null || LogText is null || LastOperationTime is null) return;
         UpdateTimeDisplay();
+        QueuePreferencesSave();
     }
 
     private void UpdateTimeDisplay()

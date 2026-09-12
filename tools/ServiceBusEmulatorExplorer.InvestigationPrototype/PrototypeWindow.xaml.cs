@@ -23,9 +23,11 @@ public partial class PrototypeWindow : Window
     public PrototypeWindow()
     {
         InitializeComponent();
+        SetIconAction(PauseButton, PauseIcon, "Pause automatic refresh", false);
         UpdateTimeDisplay();
         DataContext = Workspace;
         InitializeWatch();
+        InitializeConnectionPresentation();
         Workspace.PropertyChanged += Workspace_Changed;
         refreshTimer.Tick += RefreshTimer_Tick;
         Closed += (_, _) => { refreshTimer.Stop(); CloseWatch(); Workspace.PropertyChanged -= Workspace_Changed; };
@@ -55,6 +57,8 @@ public partial class PrototypeWindow : Window
     {
         if (e.PropertyName is "FocusedMessage" or "" or null) UpdateInspector();
         UpdateEmpty();
+        UpdateConnectionHealth();
+        QueuePreferencesSave();
         if (e.PropertyName == nameof(Workspace.SelectedCount)) return;
         UpdateSearchSurface();
         UpdateWatchSurface();
@@ -76,6 +80,7 @@ public partial class PrototypeWindow : Window
         SelectAllBox.IsChecked = Workspace.SelectedCount == 0 ? false : Workspace.SelectedCount == Workspace.Messages.Count ? true : null;
         SelectAllBox.IsEnabled = Workspace.Messages.Count > 0;
         UpdateReplaySurface();
+        DeleteButton.IsEnabled = Workspace.IsConnected && Workspace.ReplayTargets.Count > 0;
     }
     private void Search_Changed(object sender, TextChangedEventArgs e)
     {
@@ -205,6 +210,7 @@ public partial class PrototypeWindow : Window
     private void Replay_Click(object sender, RoutedEventArgs e) => ReplayDraft();
     private void Connection_Click(object sender, RoutedEventArgs e)
     {
+        ClearConnectionWarning();
         synchronizingSelection = true;
         try { Workspace.ToggleConnection(); }
         finally { synchronizingSelection = false; }
@@ -217,12 +223,13 @@ public partial class PrototypeWindow : Window
     private void Interval_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (IsInitialized && PauseButton is not null) ConfigureTimer();
+        QueuePreferencesSave();
     }
 
     private void Pause_Click(object sender, RoutedEventArgs e)
     {
         paused = !paused;
-        PauseButton.Content = paused ? "▶" : "Ⅱ";
+        SetIconAction(PauseButton, paused ? PlayIcon : PauseIcon, paused ? "Resume automatic refresh" : "Pause automatic refresh", false);
         PauseButton.ToolTip = paused ? "Resume automatic refresh" : "Pause automatic refresh";
         System.Windows.Automation.AutomationProperties.SetName(PauseButton, paused ? "Resume automatic refresh" : "Pause automatic refresh");
         ConfigureTimer();
@@ -230,6 +237,7 @@ public partial class PrototypeWindow : Window
 
     private void ConfigureTimer()
     {
+        QueuePreferencesSave();
         refreshTimer.Stop();
         var seconds = AutoInterval.SelectedIndex switch { 1 => 5, 2 => 10, 3 => 30, _ => 0 };
         PauseButton.IsEnabled = seconds > 0;
@@ -269,7 +277,7 @@ public partial class PrototypeWindow : Window
     {
         if (Workspace.FocusedMessage is not { } row) return;
         try { Clipboard.SetText(inspectorMode == "Properties" ? row.Properties : inspectorMode == "JSON" ? BodyEditor.Text : row.Body); AddLog("Copied displayed text to clipboard."); }
-        catch (System.Runtime.InteropServices.COMException) { AddLog("Clipboard is busy. Try Copy again."); }
+        catch (System.Runtime.InteropServices.COMException) { AddLog("Clipboard is busy. Try Copy again.", true); }
     }
 
     private void Find_Click(object sender, RoutedEventArgs e) { FindPanel.Visibility = Visibility.Visible; FindBox.Focus(); }
@@ -319,15 +327,16 @@ public partial class PrototypeWindow : Window
         return BodyViewer.Document.ContentEnd;
     }
 
-    private void AddLog(string message)
+    private void AddLog(string message, bool warning = false)
     {
         if (LogText is null) return;
+        if (warning) MarkConnectionWarning(message);
         var utc = DateTime.UtcNow;
         var time = TimeDisplay.LogTime(utc, timeDisplayMode);
         var watch = message.Contains("watch", StringComparison.OrdinalIgnoreCase) || message.Contains("arrival", StringComparison.OrdinalIgnoreCase);
         var paragraph = new Paragraph { Margin = new Thickness(0, 2, 0, 2), Tag = utc };
         paragraph.Inlines.Add(new Run(time + "   ") { Foreground = new SolidColorBrush(Color.FromRgb(135, 167, 191)), ToolTip = TimeDisplay.Description(timeDisplayMode, utc) });
-        paragraph.Inlines.Add(new Run(watch ? "WATCH   " : "INFO    ") { Foreground = watch ? Brushes.Cyan : Brushes.LightGreen });
+        paragraph.Inlines.Add(new Run(warning ? "WARN    " : watch ? "WATCH   " : "INFO    ") { Foreground = warning ? Brushes.Orange : watch ? Brushes.Cyan : Brushes.LightGreen });
         paragraph.Inlines.Add(new Run(message));
         LogText.Document.Blocks.Add(paragraph);
         while (LogText.Document.Blocks.Count > 100) LogText.Document.Blocks.Remove(LogText.Document.Blocks.FirstBlock);
@@ -339,7 +348,11 @@ public partial class PrototypeWindow : Window
         lastOperationUtc = utc;
     }
 
-    private void ClearLog_Click(object sender, RoutedEventArgs e) => LogText.Document.Blocks.Clear();
+    private void ClearLog_Click(object sender, RoutedEventArgs e)
+    {
+        LogText.Document.Blocks.Clear();
+        ClearConnectionWarning();
+    }
 
     private void ToggleLog_Click(object sender, RoutedEventArgs e)
     {
@@ -349,9 +362,10 @@ public partial class PrototypeWindow : Window
         LogChevron.Data = Geometry.Parse(expanded ? "M1,8 L7,2 L13,8" : "M1,2 L7,8 L13,2");
         LogToggle.ToolTip = expanded ? "Collapse activity log" : "Expand activity log";
         System.Windows.Automation.AutomationProperties.SetName(LogToggle, expanded ? "Collapse activity log" : "Expand activity log");
+        QueuePreferencesSave();
     }
 
-    private void Window_SizeChanged(object sender, SizeChangedEventArgs e) { if (IsLoaded) UpdateLayoutMode(); }
+    private void Window_SizeChanged(object sender, SizeChangedEventArgs e) { if (IsLoaded) { UpdateLayoutMode(); QueuePreferencesSave(); } }
 
     private void UpdateLayoutMode()
     {
@@ -372,7 +386,7 @@ public partial class PrototypeWindow : Window
         EmptyResults.Margin = shortWindow ? new Thickness(12) : new Thickness(25);
         ListHeading.Margin = compact ? new Thickness(15, 9, 15, 8) : new Thickness(19, 18, 15, 12);
         InspectorHeading.Margin = compact ? new Thickness(15, 8, 15, 5) : new Thickness(18, 14, 15, 10);
-        InspectorTitle.FontSize = compact ? 18 : 25;
+        InspectorTitle.FontSize = compact ? 18 : 24;
         MessageGrid.RowHeight = compact ? 50 : 54;
         MessageGrid.ColumnHeaderHeight = compact ? 30 : double.NaN;
         ListToolbar.Padding = compact ? new Thickness(12, 4, 12, 4) : new Thickness(12, 9, 12, 9);

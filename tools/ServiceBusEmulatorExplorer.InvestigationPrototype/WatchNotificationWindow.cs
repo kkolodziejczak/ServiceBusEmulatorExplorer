@@ -8,12 +8,16 @@ namespace ServiceBusEmulatorExplorer.InvestigationPrototype;
 // A desktop window is intentional: it persists until an explicit response.
 public sealed class WatchNotificationWindow : Window
 {
-    private readonly TextBlock summary = new() { FontSize = 15, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap };
-    private readonly TextBlock source = new() { FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(59, 87, 146)), TextWrapping = TextWrapping.Wrap, Margin = new(0, 7, 0, 10) };
+    private readonly TextBlock summary = new() { FontSize = 16, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock source = new() { FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new(0, 8, 0, 12) };
 
     public WatchNotificationWindow(Action investigate, Action dismiss)
     {
         Title = "Service Bus Explorer notification";
+        Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("SharedStyles.xaml", UriKind.Relative) });
+        FontFamily = new FontFamily("Segoe UI"); FontSize = 14;
+        Foreground = (Brush)FindResource("InkBrush");
+        source.Foreground = (Brush)FindResource("SecondaryBrush");
         Width = 360; SizeToContent = SizeToContent.Height;
         WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
         ShowInTaskbar = false; ShowActivated = false; Topmost = true;
@@ -29,21 +33,33 @@ public sealed class WatchNotificationWindow : Window
         header.Children.Add(new TextBlock { Text = "Service Bus Emulator Explorer", FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
         panel.Children.Add(header); panel.Children.Add(summary); panel.Children.Add(source);
         var buttons = new Grid(); buttons.ColumnDefinitions.Add(new()); buttons.ColumnDefinitions.Add(new());
-        var open = new Button { Content = "Investigate", Height = 38, Foreground = Brushes.White, Background = new SolidColorBrush(Color.FromRgb(0, 103, 255)), BorderThickness = new(0), Margin = new(0, 0, 5, 0) };
+        var open = new Button { Content = ActionContent("Investigate", "M10,5 A5,5 0 1 1 0,5 A5,5 0 1 1 10,5 M9,9 L14,14"), Style = (Style)FindResource("PrimaryButton"), Height = 38, Padding = new(8, 4, 8, 4), Margin = new(0, 0, 4, 0) };
+        System.Windows.Automation.AutomationProperties.SetName(open, "Investigate notification");
         open.Click += (_, _) => investigate();
-        var dismissButton = new Button { Content = "Dismiss", Height = 38, Background = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(202, 218, 239)), Margin = new(5, 0, 0, 0) };
+        var dismissButton = new Button { Content = ActionContent("Dismiss", "M2,2 L14,14 M14,2 L2,14"), Height = 38, Padding = new(8, 4, 8, 4), Margin = new(4, 0, 0, 0) };
+        System.Windows.Automation.AutomationProperties.SetName(dismissButton, "Dismiss notification");
         dismissButton.Click += (_, _) => dismiss(); Grid.SetColumn(dismissButton, 1);
         buttons.Children.Add(open); buttons.Children.Add(dismissButton); panel.Children.Add(buttons);
-        panel.Children.Add(new TextBlock { Text = "Remains until you respond", FontSize = 11, Margin = new(0, 10, 0, 0), Foreground = new SolidColorBrush(Color.FromRgb(90, 110, 150)) });
-        Content = new Border { Background = new SolidColorBrush(Color.FromRgb(248, 251, 255)), BorderBrush = new SolidColorBrush(Color.FromRgb(204, 220, 240)), BorderThickness = new(1), CornerRadius = new(9), Child = panel };
+        panel.Children.Add(new TextBlock { Text = "Remains until you respond", FontSize = 12, Margin = new(0, 12, 0, 0), Foreground = (Brush)FindResource("SecondaryBrush") });
+        Content = new Border { Background = (Brush)FindResource("CanvasBrush"), BorderBrush = (Brush)FindResource("ControlBorderBrush"), BorderThickness = new(1), CornerRadius = new(9), Child = panel };
         Loaded += (_, _) => Position(); SizeChanged += (_, _) => Position();
+    }
+
+    private static StackPanel ActionContent(string label, string geometry)
+    {
+        var content = new StackPanel { Orientation = Orientation.Horizontal };
+        var icon = new System.Windows.Shapes.Path { Data = Geometry.Parse(geometry), Width = 16, Height = 16, Stretch = Stretch.Uniform, StrokeThickness = 1.5, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round, Margin = new(0, 0, 7, 0), VerticalAlignment = VerticalAlignment.Center };
+        icon.SetBinding(System.Windows.Shapes.Shape.StrokeProperty, new System.Windows.Data.Binding("Foreground") { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(Button), 1) });
+        content.Children.Add(icon);
+        content.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center });
+        return content;
     }
 
     private static Button CreateCloseButton()
     {
         var close = new Button
         {
-            Width = 28, Height = 28, VerticalAlignment = VerticalAlignment.Center,
+            Width = 28, Height = 28, MinHeight = 28, VerticalAlignment = VerticalAlignment.Center,
             Background = Brushes.Transparent, BorderThickness = new(0),
             ToolTip = "Dismiss notification", Cursor = System.Windows.Input.Cursors.Hand
         };
@@ -51,12 +67,12 @@ public sealed class WatchNotificationWindow : Window
             <ControlTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" TargetType="Button">
               <Border x:Name="Surface" Background="Transparent" CornerRadius="4" BorderThickness="1" BorderBrush="Transparent">
-                <Path Data="M0,0 L8,8 M8,0 L0,8" Width="8" Height="8" Stroke="#526887" StrokeThickness="1.5"
+                <Path Data="M0,0 L16,16 M16,0 L0,16" Width="16" Height="16" Stroke="#627692" StrokeThickness="1.5"
                       StrokeStartLineCap="Round" StrokeEndLineCap="Round" HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Border>
               <ControlTemplate.Triggers>
                 <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#EAF4FF"/></Trigger>
-                <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#0078F8"/></Trigger>
+                <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#0069FA"/></Trigger>
                 <Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="Background" Value="#DBEDFF"/></Trigger>
               </ControlTemplate.Triggers>
             </ControlTemplate>

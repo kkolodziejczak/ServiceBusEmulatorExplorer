@@ -320,6 +320,54 @@ public sealed class Workspace : INotifyPropertyChanged
         return targets.Count;
     }
 
+    public int DeleteMessages(IReadOnlyList<MessageRow> targets)
+    {
+        if (!IsConnected) return 0;
+        var removed = new HashSet<MessageRow>();
+        var entities = Roots.SelectMany(PrototypeData.Flatten).ToArray();
+        foreach (var target in targets)
+        {
+            if (!fixtures.TryGetValue(target.Source + (target.IsDeadLetter ? "/$deadletter" : ""), out var rows)) continue;
+            var stored = rows.FirstOrDefault(row => row.Key == target.Key);
+            if (stored is null || !removed.Add(stored)) continue;
+            rows.Remove(stored);
+            stored.PropertyChanged -= RowChanged;
+            stored.IsSelected = false;
+            var entity = entities.FirstOrDefault(node => !node.IsGroup && node.Path == stored.Source);
+            if (entity is null) continue;
+            DecrementCount(entity, stored.IsDeadLetter);
+            var topic = entities.FirstOrDefault(node => node.Kind == "Topic" && node.Children.Contains(entity));
+            if (topic is not null) DecrementCount(topic, stored.IsDeadLetter);
+        }
+        if (removed.Count == 0) return 0;
+        if (IsCorrelationSearch)
+        {
+            // Keep the scan cursor aligned if a removed row was in an already scanned page.
+            var removedBeforeCursor = searchSnapshot.Take(ScannedMessages).Count(removed.Contains);
+            searchSnapshot.RemoveAll(removed.Contains);
+            ScannedMessages -= removedBeforeCursor;
+            foreach (var row in removed) Messages.Remove(row);
+            if (FocusedMessage is null || removed.Contains(FocusedMessage)) FocusedMessage = Messages.FirstOrDefault();
+            if (IsSearching && ScannedMessages >= searchSnapshot.Count)
+            {
+                IsSearching = false;
+                SearchComplete = true;
+            }
+            if (SearchQueryError.Length == 0) UpdateSearchStatus();
+        }
+        else Refresh();
+        Status = $"Simulated deletion of {removed.Count} message{(removed.Count == 1 ? "" : "s")} · Sample data";
+        Changed();
+        return removed.Count;
+    }
+
+    private static void DecrementCount(EntityNode node, bool deadLetter)
+    {
+        if (deadLetter && int.TryParse(node.DlqCount, out var dead)) node.DlqCount = Math.Max(0, dead - 1).ToString();
+        if (!deadLetter && int.TryParse(node.MessageCount, out var active)) node.MessageCount = Math.Max(0, active - 1).ToString();
+        node.NotifyCounts();
+    }
+
     private HashSet<string> AllMessageIds() => fixtures.Values.SelectMany(rows => rows)
         .Select(row => row.MessageId).ToHashSet(StringComparer.Ordinal);
 

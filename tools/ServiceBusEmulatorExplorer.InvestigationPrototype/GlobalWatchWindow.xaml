@@ -1,0 +1,17 @@
+<Window x:Class="ServiceBusEmulatorExplorer.InvestigationPrototype.GlobalWatchWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Title="Global Watch" Width="540" Height="640" MinWidth="460" MinHeight="520" WindowStartupLocation="CenterOwner"
+ Icon="Assets/AppIcon.png" Background="#FAFCFF" Foreground="#17213D" FontFamily="Segoe UI" FontSize="14">
+ <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="SharedStyles.xaml"/></ResourceDictionary.MergedDictionaries></ResourceDictionary></Window.Resources>
+ <Border Background="#FAFCFF" Padding="22"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <StackPanel><TextBlock Text="Global Watch" FontSize="22" FontWeight="SemiBold"/><TextBlock Text="Watch queues and subscriptions across this connection, including newly discovered entities." TextWrapping="Wrap" Foreground="#627692" Margin="0,7,0,16"/>
+   <CheckBox x:Name="GlobalActiveChoice" Content="Watch active messages" Checked="GlobalChoice_Changed" Unchecked="GlobalChoice_Changed" Margin="0,0,0,12" AutomationProperties.AutomationId="GlobalActiveChoice"/>
+   <CheckBox x:Name="GlobalDlqChoice" Content="Watch dead-letter messages" Checked="GlobalChoice_Changed" Unchecked="GlobalChoice_Changed" AutomationProperties.AutomationId="GlobalDlqChoice"/>
+   <TextBlock Text="Choose message types above, then check the entities to watch below." TextWrapping="Wrap" Foreground="#627692" FontSize="12" Margin="0,12,0,18"/>
+  </StackPanel>
+  <StackPanel Grid.Row="1"><TextBlock Text="Included entities" FontSize="16" FontWeight="SemiBold"/><TextBlock Text="Check Queues or Topics to select a whole group, then uncheck anything you do not need." TextWrapping="Wrap" Foreground="#627692" FontSize="12" Margin="0,5,0,10"/></StackPanel>
+  <TextBox x:Name="InclusionSearch" Grid.Row="2" Padding="10,8" BorderBrush="#CBD8E8" Margin="0,0,0,10" TextChanged="Search_Changed" ToolTip="Find queues, topics and subscriptions" AutomationProperties.Name="Search watched entities" AutomationProperties.AutomationId="InclusionSearch"/>
+  <Grid Grid.Row="3"><TreeView x:Name="InclusionTree" Background="Transparent" BorderThickness="0" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Included Watch entities" AutomationProperties.AutomationId="InclusionTree"/><TextBlock x:Name="NoEntitiesMatch" Text="No matching entities" Foreground="#627692" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/></Grid>
+  <DockPanel Grid.Row="4" Margin="0,16,0,0"><Button x:Name="DoneButton" DockPanel.Dock="Right" Content="Done" Style="{StaticResource PrimaryButton}" Click="Done_Click" AutomationProperties.AutomationId="DoneButton"/><TextBlock Text="Changes apply immediately and are saved for your next launch." TextWrapping="Wrap" Foreground="#627692" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0"/></DockPanel>
+ </Grid></Border>
+</Window>

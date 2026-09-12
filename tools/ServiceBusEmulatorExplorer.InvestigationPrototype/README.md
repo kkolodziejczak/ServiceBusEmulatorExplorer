@@ -1,6 +1,6 @@
 # Investigation workspace prototype
 
-This WPF prototype implements the [approved unified-search and Watch mockup](watch-search-mockup-real-icon.png) on branch `prototype/investigation-workspace`. It uses synthetic, in-memory data only: no Service Bus connection, credentials, or persistence. Restarting resets messages, drafts, searches, watches, preferences and replay numbering. The actual app icon asset is reused in the window, tray and desktop notification.
+This WPF prototype implements the [approved unified-search and Watch mockup](watch-search-mockup-real-icon.png) on branch `prototype/investigation-workspace`. Broker operations use synthetic messages only; no Service Bus connection is made. Profiles, preferences and Watch selections are saved locally for subsequent launches. Restarting resets messages, editor drafts, pending notifications and replay numbering. The actual app icon asset is reused in the window, tray and desktop notification.
 
 Run from the repository root:
 
@@ -30,6 +30,8 @@ Checked DLQ messages form a batch; otherwise Replay targets the focused message.
 
 The replay counter is local to this prototype run, not a shared audit of all users. Long original IDs are shortened to keep the generated ID within 128 characters; collision checks keep generated IDs unique in the sample state.
 
+**Delete** targets checked messages, or the focused message when nothing is checked. Active and DLQ messages may be deleted together. A separate confirmation shows the counts for each bucket. Type exact uppercase `DELETE` to enable deletion; clearing or changing the text disables it again. Cancel leaves the sample messages unchanged. Confirm removes only those synthetic deliveries. This does not implement broker deletion, entity deletion or purge.
+
 ## Browse and refresh
 
 Entity matching ignores case. Escape dismisses suggestions. The **×** button clears both the tree filter and any applied global search. Unmatched entity text retains explicit global search actions. Entity-name filtering preserves Message and DLQ totals. Global ID search instead displays matching counts.
@@ -40,17 +42,19 @@ Resize to switch between side-by-side and stacked panes. The compact layout redu
 
 ## Watch, tray and console
 
-Select a queue or subscription and choose **Watch** for Active messages, DLQ messages, or both. Every 15 seconds the prototype generates a sample arrival in each watched bucket, independently of the current view or auto-refresh. Existing messages do not alert when Watch is enabled. Disconnect pauses generation. The header bell lists watched scopes and pending notifications.
+Choose **Watch** for Active messages, DLQ messages, or both. Global Watch covers the selected connection, including entities discovered later. A topic Watch covers its subscriptions, including future subscriptions. The searchable Watch tree uses checked rows for included scopes and mixed parent states for partial selection. Selecting or clearing a branch applies to its descendants and establishes inheritance for future descendants; a more specific child choice overrides inherited inclusion. Bucket choices remain independent. Every 15 seconds the prototype generates a sample arrival in each effective watched bucket, independently of the current view or auto-refresh. Existing messages do not alert when Watch is enabled. Disconnect pauses generation. Polling and real discovery remain future broker work.
 
 Notifications use a separate, persistent WPF desktop window, not a timed native Windows toast. They remain while the main window is hidden, group arrivals by entity/bucket, and offer **Investigate** and **Dismiss**. Investigate restores the main window and adds notified correlation IDs to the applied search using OR, retaining prior cases and focusing the latest notified message. Already-covered criteria are not duplicated. A message without a correlation ID adds its exact message ID instead; mixed searches use explicit correlation: or message: prefixes so existing criteria retain their meaning. Unapplied input text is replaced by the combined applied search; Dismiss leaves messages untouched. Stop watching clears that target's pending notifications.
 
-Closing the main window sends it to the Windows tray by default. Double-click the real app tray icon or use **Open Service Bus Explorer** to restore it; **Exit** stops the process. The Settings gear opens **General** and **Connections** pages. General controls close-to-tray and desktop notifications, and lets you choose a profile with Use connection. Switching profiles disconnects and clears watches, pending notifications, searches, drafts, and synthetic arrivals; Connect starts the selected sample session. Manage connections edits profiles separately. Connections demonstrates two editable sample profiles with masked runtime and administration fields; saved edits survive reopening Settings within this session only. There is no real connection or disk persistence.
+Closing the main window sends it to the Windows tray by default. Double-click the real app tray icon or use **Open Service Bus Explorer** to restore it; **Exit** stops the process. Choose a connection in the toolbar dropdown or in Settings with **Use connection**. Switching profiles disconnects and resets the synthetic investigation; Watch rules are stored per profile. Connect starts the selected sample session. The Settings gear opens **General** and **Connections** pages. General controls close-to-tray and desktop notifications. Manage connections edits profiles separately, including masked runtime/administration fields and a named color palette. Save profile keeps edits for later launches; the selected color appears in the dropdown swatch and app accent border. A separate labeled health indicator uses green for connected, red for disconnected and amber for warnings. The profile color is independent of health.
+
+Preferences use `%LOCALAPPDATA%\ServiceBusEmulatorExplorer\InvestigationPrototype\preferences.json`. Runtime and administration connection strings are encrypted with Windows DPAPI for the current user; profile names and other preferences are ordinary JSON. The store supports an explicit alternate path for isolated verification. A failed load uses defaults with a warning; a failed save leaves the current session usable and reports that it could not persist changes. This storage is separate from the production app's profile store.
 
 The Watch selector has independent Active and DLQ checkboxes and **Stop watching**. The toolbar bell is crossed out when off and filled when watching. The header bell appears only while entities are watched, shows their count, and opens the overview. The overview uses the same white panel and blue checked rows as the other selectors; each row can stop its Active or DLQ watch independently. The refresh interval dropdown uses the same flat blue-and-white treatment. The dark **Activity log** spans all three panes, with timestamped colored entries and a last-operation footer. Collapse releases space; the clear-history icon is visible only while expanded. The console height adapts at compact sizes.
 
-Search by correlation ID or message ID supports `case-123 OR case-456` and `case-*`. ID matching is case-sensitive; the OR keyword is case-insensitive. Quote an entire ID to treat stars or OR literally. The Location / State column appears only in global ID search results. During a search, the namespace tree shows matching sources and parent topics only; Active and DLQ counts reflect matches found so far, with topic totals aggregated from matching subscriptions. Clear search restores browsing, the complete tree, and the original entity totals. Invalid expressions display a correction message without scanning.
+Search by correlation ID or message ID supports `case-123 OR case-456` and `case-*`. ID matching is case-sensitive; the OR keyword is case-insensitive. Quote an entire ID to treat stars or OR literally. The Location / State column appears in global ID search results and topic views. During a search, the namespace tree shows matching sources and parent topics only; Active and DLQ counts reflect matches found so far, with topic totals aggregated from matching subscriptions. Clear search restores browsing, the complete tree, and the original entity totals. Invalid expressions display a correction message without scanning.
 
-The footer time selector offers **UTC**, **Local**, and **Server**. It reformats enqueue times and existing activity-log/footer timestamps while retaining the original UTC instants and raw JSON/properties. Local uses the computer time zone with daylight-saving rules. Server uses a clearly identified fixed sample UTC-05:00 until a real connection time-zone setting is wired. The preference is session-only.
+The footer time selector offers **UTC**, **Local**, and **Server**. It reformats enqueue times and existing activity-log/footer timestamps while retaining the original UTC instants and raw JSON/properties. Local uses the computer time zone with daylight-saving rules. Server uses a clearly identified fixed sample UTC-05:00 until a real connection time-zone setting is wired. The display preference is saved locally.
 
 ## Promotion handoff
 
@@ -58,7 +62,7 @@ See the [requirements, open questions and worker handoff](../../specs/investigat
 
 ## Rendered evidence
 
-Build: zero warnings and errors. Final walkthrough: **233 passing checks**, with rendered visual inspection. A separate [real tray lifetime proof](tray-verification.md) adds **11 passing checks**, including timer-driven arrivals while hidden, Investigate, disabling close-to-tray, and Exit cleanup.
+Current verification: build with zero warnings/errors and **257 passing checks**, including typed deletion, Watch inclusion, profile health/colors and protected preference save/reopen. The [real tray lifetime proof](tray-verification.md) passes **11 checks**. Verification uses isolated preference files; broker operations remain synthetic.
 
 | UI gate | Result | Evidence |
 | --- | --- | --- |
@@ -76,7 +80,11 @@ Build: zero warnings and errors. Final walkthrough: **233 passing checks**, with
 
 ![General settings](settings-preview.png)
 
-![Connection profile mockup](connections-preview.png)
+![Connection profiles](connections-preview.png)
+
+![Included Watch entities](global-watch-preview.png)
+
+![Typed delete confirmation](delete-preview.png)
 
 The [walkthrough report](verification.md) covers actual rendered WPF controls, suggestions, exact namespace results, copy, drafts, undo/redo, replay IDs, mixed selections, empty/stopped searches, refresh/pause, disconnect, and desktop/compact geometry. The original [checkbox regression](selection-regression.md) is retained as historical evidence.
 

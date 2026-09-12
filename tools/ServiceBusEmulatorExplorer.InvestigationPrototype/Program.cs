@@ -14,7 +14,7 @@ internal static class Program
         var application = new Application();
         var window = new PrototypeWindow();
         var verifyTray = args.Length == 2 && args[0] == "--verify-tray";
-        window.ConfigureApplicationLifetime(args.Length > 0 && !verifyTray);
+        window.ConfigureApplicationLifetime(args.Length > 0 && !verifyTray, args.Length == 0);
         if (args.Length == 2 && (args[0] == "--verify" || args[0] == "--verify-selection" || verifyTray))
         {
             string output = Path.GetFullPath(args[1]);

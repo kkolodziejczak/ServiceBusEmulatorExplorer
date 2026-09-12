@@ -36,7 +36,7 @@ internal static class TrayLifetimeProof
             ProofCapture.Save(notification!, output, "tray-background-notification");
             var latest = window.Workspace.SnapshotMessages().Where(row => row.Source == window.Workspace.EntityPath && row.IsDeadLetter)
                 .OrderByDescending(row => row.Enqueued).First();
-            ProofCapture.Descendants(notification!).OfType<Button>().Single(button => Equals(button.Content, "Investigate"))
+            ProofCapture.Descendants(notification!).OfType<Button>().Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == "Investigate notification")
                 .RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
             await Settle();
             for (var page = 0; window.Workspace.IsSearching && page < 1000; page++) window.Workspace.ScanNext();

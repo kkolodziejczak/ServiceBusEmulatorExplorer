@@ -86,7 +86,7 @@ public partial class PrototypeWindow
         var targets = Workspace.ReplayTargets;
         ReplayActions.Visibility = row is not null && (row.IsDeadLetter || targets.Any(target => target.IsDeadLetter)) ? Visibility.Visible : Visibility.Collapsed;
         ReplayButton.Visibility = ReplayActions.Visibility;
-        ReplayButton.Content = dirty ? "▶  Edit and Replay" : targets.Count > 1 ? $"▶  Replay ({targets.Count})" : "▶  Replay";
+        SetIconAction(ReplayButton, PlayIcon, dirty ? "Edit and Replay" : targets.Count > 1 ? $"Replay ({targets.Count})" : "Replay");
         NextReplayIdText.Text = targets.Count > 1 ? "A new ID for each message" : $"Next ID: {Workspace.NextReplayId}";
         NextReplayIdText.ToolTip = NextReplayIdText.Text;
         string? problem = null;
