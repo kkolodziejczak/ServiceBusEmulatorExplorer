@@ -207,7 +207,7 @@ public partial class InvestigationWindow
                 BodyEditor.Document = inspector.Document;
             }
 
-            BodyEditor.IsReadOnly = inspector.IsReadOnly;
+            BodyEditor.IsReadOnly = inspector.IsReadOnly || replayPending;
             BodyEditor.Visibility = hasMessage && inspectorMode == "JSON"
                 ? Visibility.Visible
                 : Visibility.Collapsed;
@@ -234,6 +234,7 @@ public partial class InvestigationWindow
         {
             inspectorRendering = false;
         }
+        UpdateReplaySurface();
     }
 
     private void ApplyInspectorStateBadge(MessageRow? focused)

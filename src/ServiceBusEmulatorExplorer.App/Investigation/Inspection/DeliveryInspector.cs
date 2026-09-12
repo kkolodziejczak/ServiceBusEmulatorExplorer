@@ -34,6 +34,8 @@ public sealed class DeliveryInspector : ObservableObject
 
     public bool HasDrafts => _documents.Values.Any(document => document.IsDirty);
 
+    public bool HasDraft(DeliveryIdentity identity) => _documents.TryGetValue(identity, out var document) && document.IsDirty;
+
     /// <summary>Whether the current editor text is valid JSON for a later replay operation.</summary>
     public bool IsValidJson => _currentDocument is not null
         && MessageInspectionPresenter.Present(Document.Text).State == JsonDocumentState.Json;
@@ -72,7 +74,17 @@ public sealed class DeliveryInspector : ObservableObject
     /// <summary>Restores the selected document to its initial presented form.</summary>
     public void DiscardCurrent()
     {
-        CachedDocument? cached = _currentDocument;
+        DiscardDocument(_currentDocument);
+    }
+
+    public void DiscardReplayedDraft(DeliveryIdentity identity, string sentText)
+    {
+        if (_documents.TryGetValue(identity, out var cached) && cached.Document.Text == sentText)
+            DiscardDocument(cached);
+    }
+
+    private void DiscardDocument(CachedDocument? cached)
+    {
         if (cached is null)
         {
             return;

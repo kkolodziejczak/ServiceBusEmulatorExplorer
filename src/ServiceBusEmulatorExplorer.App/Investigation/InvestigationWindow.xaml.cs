@@ -40,7 +40,7 @@ public partial class InvestigationWindow : Window
         Loaded += WindowLoaded;
         Closing += WindowClosing;
         // Mutation controls are connected in their dedicated milestone.
-        foreach (var button in new[] { ReplayButton, DeleteButton })
+        foreach (var button in new[] { DeleteButton })
         {
             button.IsEnabled = false;
             button.ToolTip = "This workflow is not available in this integration build yet.";
@@ -94,6 +94,7 @@ public partial class InvestigationWindow : Window
             RenderActivity();
             UpdateSearchSurface();
             UpdateWatchSurface();
+            UpdateReplaySurface();
         }
         finally { updating = false; }
     }
@@ -225,7 +226,6 @@ public partial class InvestigationWindow : Window
     }
 
     private void Delete_Click(object sender, RoutedEventArgs e) { }
-    private void Replay_Click(object sender, RoutedEventArgs e) { }
 
 
     private async void ToggleLog_Click(object sender, RoutedEventArgs e) =>

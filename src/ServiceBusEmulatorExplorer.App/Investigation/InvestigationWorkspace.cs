@@ -38,6 +38,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
     public WorkspacePreferences Preferences => preferences;
     public InvestigationProfile SelectedProfile => preferences.Profiles.First(profile => profile.Id == preferences.SelectedProfileId);
     public bool IsConnected => session is not null;
+    public long ConnectionGeneration => generation;
     public bool IsConnecting => connecting;
     public string HealthText => connecting ? "Connecting…" : !IsConnected ? "Disconnected" : readinessWarning is null ? "Connected" : "Warning";
     public string HealthDetail => readinessWarning ?? (IsConnected ? "Administration and runtime peek access verified." : "Connect to inspect messages.");
