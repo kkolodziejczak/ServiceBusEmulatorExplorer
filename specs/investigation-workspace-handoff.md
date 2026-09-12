@@ -1,13 +1,25 @@
 # Promote the investigation prototype
 
-Prepared 2026-09-11; prototype decisions updated 2026-09-12. This is a simple handoff, not authorization to release. No planning skills were used.
+Prepared 2026-09-11; prototype approved by the user on 2026-09-12. **Prototype complete; ready for production implementation after the relevant broker questions below are answered.** This handoff does not authorize a release. No planning skills were used.
 
 ## Starting point
 
-- Current branch: `prototype/investigation-workspace`; audit baseline `c8af97c`. Use the normal checkout. Preserve unrelated changes.
+- Implementation baseline: `126c824` on `prototype/investigation-workspace` (approved prototype). Earlier milestones: `a908ffd` for persisted Watch/preferences and typed deletion; `8cc1232` for profile themes, warnings and new profiles. Use the normal checkout and inspect newer commits before starting; preserve unrelated changes.
 - Visual/interaction reference: [prototype](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/README.md) and its [current preview](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/preview.png). Apply [UI language and audit corrections](ui-language.md) consistently; preserve the approved layout.
 - Destination: existing WPF [App](../src/ServiceBusEmulatorExplorer.App/ServiceBusEmulatorExplorer.App.csproj) using existing [Core contracts](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/ServiceBusContracts.cs). Keep the prototype as a reference until parity is proven. Do not just rename its executable or ship its synthetic Workspace.
 - Current evidence: 333 routed walkthrough checks and an 11-check real tray run pass, including profile/Watch preferences, typed deletion and shared styling. Full-profile themes, saved warnings, new profiles and simplified Watch search pass the current rendered walkthrough. No new broker integration tests were run for this audit. The proof uses synthetic messages and is not a production readiness certificate.
+
+## Approved prototype milestone
+
+- [x] User approved the prototype as ready; the layout and implemented interactions are the design reference.
+- [x] Shared styling, complete profile themes, clear-red Delete, compact layouts and simplified Watch search implemented.
+- [x] Toolbar connection selector, profile creation/editing, optional warnings and off-by-default auto-connect-on-switch implemented. The duplicate General-settings connection picker is removed.
+- [x] Preferences persist, including per-profile Watch inclusions and connection warnings; credentials use Windows user-scoped protection.
+- [x] Active/DLQ deletion requires exact `DELETE`; warning cancellation preserves the approved connection and pending saves cannot select an unapproved profile.
+- [x] Rendered walkthrough, restart/persistence and tray evidence recorded in the [prototype report](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/verification.md) and [tray report](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/tray-verification.md).
+- [ ] Production workflows implemented and proven against real brokers (separate completion checklist below).
+
+Do not reopen visual design, add redundant controls, or run another prototype-design phase by default. Transfer the approved interaction contract to the existing App. Physical keyboard, screen-reader and DPI/multi-monitor validation still belongs to production verification; approval does not turn missing evidence into a pass.
 
 ## Requirements mapped to what exists
 
@@ -26,13 +38,13 @@ Prepared 2026-09-11; prototype decisions updated 2026-09-12. This is a simple ha
 | Global correlation/message ID search, OR and * | Implemented over complete memory snapshot | Cancellable paged peeking across sources; bounded scan and truthful incomplete status |
 | Exact case-sensitive IDs; OR keyword ignores case; quoted literals | Implemented, including explicit correlation:/message: clauses | Preserve grammar and tests; do not add ? or implicit substring ID matching without approval |
 | Search tree shows only matching branches and match counts | Implemented; totals retained separately | Project discovered matches, aggregate parents, restore authoritative totals on Clear |
-| Location/State only during global search | Implemented | Preserve source identity even when the column is hidden |
+| Location/State in global search and topic views | Implemented; hidden when browsing one queue/subscription | Preserve source identity even when the column is hidden |
 | Clear removes applied filter and text | Implemented | Cancel old scans and restore browse scope; old callbacks must not repopulate results |
 | Preview JSON, Properties, Raw; always wrap | Implemented in that order | Preserve bytes/metadata; label malformed/non-JSON honestly; no wrap toggle |
 | Inline formatted/colorized edit, undo, discard | DLQ editor implemented | Preserve drafts by delivery identity; validate before send; define connection-switch behavior |
 | Replay by default; Edit and Replay after changing JSON | Implemented with synthetic copies | Real send, batch eligibility and per-item outcomes; original DLQ remains unless separately deleted |
 | Default IDs original-replay-N | Session-only counter and synthetic collision check | Persist or otherwise define counter/uniqueness; preserve metadata; never promise global retry count |
-| Delete Active and DLQ messages, focused or checked batch | Confirmation lists Active/DLQ counts; synthetic deletion only after confirmation | Implement source-aware completion with per-item results, vanished/locked-message handling and cancellation; no purge or implicit unseen-message delete |
+| Delete Active and DLQ messages, focused or checked batch | Confirmation lists Active/DLQ counts; exact uppercase `DELETE` enables the action; Cancel is the default | Preserve the typed gate; implement source-aware completion with per-item results, vanished/locked-message handling and cancellation; no purge or implicit unseen-message delete |
 | Copy icon consistent and near correlation | Selected rounded icon everywhere | Share vector resource; copy exact ID/body/properties, preserve action labels and tooltips |
 | Watch Active/DLQ independently at connection, topic or leaf scope | Global rules include future entities; topic rules include future subscriptions; explicit bucket overrides and a searchable inclusion tree; 15s fake-arrival timer | Refresh discovery before resolving effective sources; preserve category/topic/child inclusion precedence; detect arrivals without consuming messages; baseline, dedupe, reconnect and DLQ cursor policy |
 | Persistent desktop alert; Investigate restores app | Separate topmost WPF window, real tray | Keep until response; position on correct monitor; no transient-toast substitution |
@@ -60,7 +72,8 @@ Answer by Q number. Recommendations are proposals, not already approved decision
 | Q8 | Switching connection with dirty drafts/active work? | Warn about unsaved edits, cancel old operations, isolate all connection caches. Never silently discard production drafts. |
 | Q9 | What is “Server” timezone? | Explicit per-profile Windows time-zone ID with DST rules; do not infer broker timezone or ship fixed −05:00. |
 | Q10 | Topic view pagination: 50 total or 50 per subscription? | 50 combined deliveries with source identity, matching the simple UI; per-source cursors required. |
-| Q11 | Minimum-window density? | Keep approved compact layout and normalized tokens. Decide whether to auto-collapse the console on very small windows. |
+
+Q1 (delete scope) and Q11 (layout/density) are settled: retain typed confirmation for Active and DLQ, and preserve the approved compact layout. Do not add automatic console collapsing during promotion. Auto-connect, profile warnings, persistence and Watch inclusion semantics are also settled; only their broker implementation needs design work.
 
 Settled scope: delete supports Active and DLQ, focused or checked messages, with explicit typed `DELETE` confirmation. Connection selection uses the toolbar dropdown; Settings retains profile management and an off-by-default, saved auto-connect-on-switch option. Warning approval remains required before automatic connection; a saved profile color themes buttons, selection and surfaces across windows while semantic health, DLQ and red Delete colors retain their meanings. Add connection creates an empty editable profile without switching. An optional saved warning requires confirmation before switching, Connect or restored startup connection attempts; Cancel preserves the old connection or blocks the pending attempt. Watch search uses an inline magnifier and concise placeholder. Watch supports global and topic rules, including subsequently discovered entities, with a searchable inclusion tree and mixed parent states. A branch choice applies to descendants, and more specific child choices override inherited inclusion. Profiles and user selections/preferences persist across launches; Watch rules belong to a profile. These interaction decisions do not settle real polling or broker mutation algorithms above.
 
@@ -76,12 +89,12 @@ Settled scope: delete supports Active and DLQ, focused or checked messages, with
 - A simple increasing DLQ sequence watermark can miss an older message entering DLQ later. Prove a baseline/rescan strategy against the actual emulator and Azure before declaring Watch reliable. Counts alone cannot detect arrivals when counts are unknown or unchanged.
 - Use identity `(connection generation, entity address, bucket, sequence number)` for a delivery. MessageId and CorrelationId are not unique row keys. Group batch mutations by actual source and expose partial outcomes.
 
-## Execution tomorrow: small stages, many Luna High workers
+## Implementation sequence: small stages, many Luna High workers
 
 Use `gpt-5.6-luna` with reasoning effort `high` for workers. The main agent coordinates and reviews. No scheduled task is created by this document.
 
-1. **Resolve questions and freeze contracts.** Coordinator records answers here, confirms selected branch and clean baseline, and defines delivery identity, count availability, scan progress, watch observations and mutation outcomes. Capture existing UI reference states. No worker invents conflicting shared contracts.
-2. **Promote one usable read-only slice.** Shared style resources + shell, real Settings/connect, tree, first page, inspector, selection and Clear. Keep old services and their tests. Prove this slice before adding mutations.
+1. **Resolve questions and freeze contracts.** Coordinator records answers here, confirms selected branch and clean baseline, and defines delivery identity, count availability, scan progress, watch observations and mutation outcomes. Use the committed reference states. Ask only questions required by the next slice; leave unrelated stages pending. No worker invents conflicting shared contracts.
+2. **Promote one usable read-only slice.** Shared themed resources + shell, real Settings/connect with profile creation, protected persistence, optional warnings and opt-in auto-connect; tree, first page, inspector, selection and Clear. Preserve cancellation before profile commitment and restore browsing after an approved reconnect. Keep old services and their tests. Prove this slice before adding mutations.
 3. **Parallel feature work after contracts exist.** Suggested ownership below; coordinator owns shared shell wiring/DI and integration. Workers do not all modify ShellViewModel/MainWindow.
 4. **Integrate and prove each feature.** Browse → global search → Watch/tray → replay/delete. Test stale results, cancellation, connection changes and partial failures at every boundary. Remove all simulation from the shipping composition.
 5. **Final visual and broker gates.** Normalize remaining UI states, run real emulator proof, then authorized Azure proof if available. Commit completed milestones. Do not merge, tag or publish as a side effect of finishing this handoff.
@@ -89,7 +102,7 @@ Use `gpt-5.6-luna` with reasoning effort `high` for workers. The main agent coor
 | Luna High worker | Bounded ownership | Evidence required |
 | --- | --- | --- |
 | A: UI resources | New resource dictionaries/vector assets; coordinator integrates windows | All windows share tokens; contrast/focus/compact screenshots |
-| B: Connection/settings | Profile/settings services and their tests | Safe persistence/migration, validation, configured time zones, secret redaction |
+| B: Connection/settings | Profile/settings services and their tests | Safe persistence/migration, add/edit profiles, warnings before commitment, opt-in auto-connect, validation, configured time zones, secret redaction |
 | C: Browse/counts | Entity/count projection and paging workflow | Unknown counts, source cursors, first 50/load more, stale-session isolation |
 | D: Search | Pure matcher and cancellable scan service | OR/*/mixed IDs, partial/empty/errors, per-source bounds; no broker mutations |
 | E: Watch | Observation/dedupe scheduler; tray/notification workflow in separate files | Baseline/reconnect/old-sequence DLQ arrivals, single-flight polling, persistent alerts |
@@ -97,7 +110,7 @@ Use `gpt-5.6-luna` with reasoning effort `high` for workers. The main agent coor
 
 Run up to six implementation workers concurrently when dependencies allow; use remaining slots for independent review, never duplicate ownership. Workers must request the coordinator's lease before Docker, ports, tests with shared runtime, databases, or external services. The coordinator serializes those operations and integrates patches. Pure code reads and isolated unit work can overlap.
 
-## Completion checklist
+## Production completion checklist (not prototype status)
 
 - [ ] All questions affecting the current stage answered and recorded; unresolved stages remain unstarted.
 - [ ] Approved interaction matrix works in the actual App, not just in the prototype executable.
@@ -113,4 +126,4 @@ Start with existing commands in [tests README](../tests/README.md) and inspect s
 
 ## Prompt to use tomorrow
 
-> Read specs/investigation-workspace-handoff.md and specs/ui-language.md. Do not use planning skills. Resolve the listed questions with me before their dependent stages. Preserve the approved prototype layout and implement the real code behind in the existing application. Use multiple gpt-5.6-luna workers at high reasoning effort with bounded file ownership; coordinate shared runtime leases and review their changes. Deliver working vertical slices, run meaningful broker and rendered UI checks, and commit milestones. Do not publish a release. Treat sample code as interaction guidance, not broker behavior.
+> Read specs/investigation-workspace-handoff.md and specs/ui-language.md. The prototype is approved and complete; do not restart visual design or ask again about settled behavior. Do not use planning skills. Resolve only the listed broker questions needed before each dependent stage. Starting from the current branch and approved baseline, implement the real code behind in the existing application while preserving the prototype's layout and interactions. Use multiple gpt-5.6-luna workers at high reasoning effort with bounded file ownership; coordinate shared runtime leases and review their changes. Deliver working vertical slices, run meaningful broker and rendered UI checks, and commit milestones. Do not publish a release. Treat sample code as interaction guidance, not broker behavior.
