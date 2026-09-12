@@ -25,6 +25,9 @@
  <SolidColorBrush x:Key="DisabledBorderBrush" Color="#DCE3EC"/>
  <SolidColorBrush x:Key="DisabledTextBrush" Color="#738196"/>
  <SolidColorBrush x:Key="DeadLetterBrush" Color="#FFE6C8"/>
+ <SolidColorBrush x:Key="ConnectedHealthBrush" Color="#17823B"/>
+ <SolidColorBrush x:Key="WarningHealthBrush" Color="#A56700"/>
+ <SolidColorBrush x:Key="DisconnectedHealthBrush" Color="#C83B3B"/>
  <SolidColorBrush x:Key="DeadLetterTextBrush" Color="#A65B00"/>
  <SolidColorBrush x:Key="ModifiedBrush" Color="#FFE38D"/>
  <SolidColorBrush x:Key="ModifiedTextBrush" Color="#5E4600"/>

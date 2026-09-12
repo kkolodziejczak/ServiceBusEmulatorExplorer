@@ -154,6 +154,14 @@ Before enabling Active or DLQ Delete, prove that the adapter can target the sele
 - UI verification is **BLOCKED for production parity**: shipping shell integration and supported-state execution are outstanding. A live reference capture was occluded and excluded from evidence. Committed prototype screenshots remain design authority, not production proof. Emulator, Azure, physical keyboard, screen-reader and DPI/multi-monitor evidence remain uncollected.
 - No user answers have arrived for Q2/Q7/Q8/Q9/Q10. Dependent profile/settings/count/paging implementation remains pending those decisions. Q3–Q6 remain unasked for later stages. Foundation milestone committed as `fac677f` (`Add investigation workspace presentation and query foundations`); production completion checklist remains open.
 
+#### Continuation — independent resource completion
+
+- Revalidated clean normal checkout at `0e06d43`. The prior goal turn made concrete foundation progress. No Q2/Q7/Q8/Q9/Q10 answers were present on continuation; their dependent work remains unstarted.
+- `profile_theme` (Luna High) owns only App `Investigation/Resources/ProfileTheme.cs` and `InvestigationProfileThemeTests.cs`. Coordinator owns `InvestigationResourceTests.cs`, which exercises compiled component-resource loading, sibling icon resolution and button template instantiation on an STA thread. `parity_inventory` performs read-only review. Only the coordinator holds the build/test lease.
+- Compiled-resource check passed after using WPF `Application.LoadComponent` to initialize resource loading in the test host. No application window or broker was launched by this check; it does not prove rendered UI parity.
+- Profile-theme migration matches the prototype palette algorithm. Independent resource review found missing named health brushes and a test that injected them; added the approved fixed colors to the shared dictionary and changed the proof to load compiled production resources. Final App suite: **80 passed**, zero failed. Production shell wiring and rendered parity remain outstanding.
+- Coordinator started dedicated Compose project `sbe-investigation-proof` using existing pinned images and accepted local configuration, after confirming no Service Bus emulator was running. Other Docker projects are untouched. Administration readiness test: **1 passed**. Coordinator holds the exclusive emulator lease; `peek_evidence` owns only `InvestigationPeekIntegrationTests.cs`, with `broker_audit` reviewing it read-only. The new proof targets generated fixtures only; runtime proof is pending execution.
+
 - [ ] All questions affecting the current stage answered and recorded; unresolved stages remain unstarted.
 - [ ] Approved interaction matrix works in the actual App, not just in the prototype executable.
 - [ ] No synthetic fixture injection, fixed server offset, fake connection success or direct subscription fan-out in shipping paths.
