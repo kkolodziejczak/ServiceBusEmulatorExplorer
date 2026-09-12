@@ -31,6 +31,14 @@ $env:SBE_ADMIN_CONNECTION_STRING = "Endpoint=sb://localhost:5300;SharedAccessKey
 dotnet test --filter TestCategory=Integration
 ```
 
+The focused investigation leaf proof in [InvestigationPeekIntegrationTests.cs](ServiceBusEmulatorExplorer.Integration.Tests/InvestigationPeekIntegrationTests.cs) uses unique queue/topic fixtures, 62 messages, pages of 50, Active/DLQ peeking, cancellation and binary payload preservation. With the integration environment variables above set, run:
+
+```powershell
+dotnet test tests/ServiceBusEmulatorExplorer.Integration.Tests/ServiceBusEmulatorExplorer.Integration.Tests.csproj --filter FullyQualifiedName~InvestigationPeekIntegrationTests -m:1 -nr:false --logger "console;verbosity=detailed"
+```
+
+Run from the repository root against an isolated emulator. The proof deletes only its generated entities. Runtime counts are logged as observations because the emulator can report zero while messages remain readable. This verifies leaf SDK behavior; it does not verify the investigation workspace UI or combined topic paging.
+
 WPF UI smoke tests:
 
 ```powershell
