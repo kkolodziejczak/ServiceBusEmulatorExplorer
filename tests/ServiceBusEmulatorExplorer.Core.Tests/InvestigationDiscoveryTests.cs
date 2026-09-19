@@ -104,8 +104,96 @@ public sealed class InvestigationDiscoveryTests
         Assert.Equal(2, snapshot.Entities.Count(item => item.Entity.Kind == EntityKind.Subscription));
     }
 
-    private static async Task<EntityDiscoverySnapshot> DiscoverAsync(FakeAdministrationClient admin) =>
-        await new InvestigationEntityBrowser(new FakeClientFactory(admin)).DiscoverAsync(CancellationToken.None);
+    [Fact]
+    public async Task Emulator_runtime_counts_are_unavailable_without_marking_discovery_incomplete()
+    {
+        var admin = new FakeAdministrationClient
+        {
+            Queues = [Queue("orders")],
+            Topics = [Topic("events")],
+            Subscriptions = { ["events"] = [Subscription("events", "billing")] },
+            QueueRuntime = { ["orders"] = QueueRuntime("orders", active: 2, deadLetter: 1, scheduled: 3) },
+            TopicRuntime = { ["events"] = TopicRuntime("events", scheduled: 4) },
+            SubscriptionRuntime = { [("events", "billing")] = SubscriptionRuntime("events", "billing", active: 5, deadLetter: 6) }
+        };
+
+        EntityDiscoverySnapshot snapshot = await DiscoverAsync(admin, supportsRuntimeCounts: false);
+
+        EntityObservation queue = snapshot.Entities.Single(item => item.Entity.Kind == EntityKind.Queue);
+        AssertUnavailable(queue.Counts.Active);
+        AssertUnavailable(queue.Counts.DeadLetter);
+        AssertUnavailable(queue.Counts.Scheduled);
+
+        EntityObservation topic = snapshot.Entities.Single(item => item.Entity.Kind == EntityKind.Topic);
+        AssertUnavailable(topic.Counts.Active);
+        AssertUnavailable(topic.Counts.DeadLetter);
+        AssertUnavailable(topic.Counts.Scheduled);
+
+        EntityObservation subscription = snapshot.Entities.Single(item => item.Entity.Kind == EntityKind.Subscription);
+        AssertUnavailable(subscription.Counts.Active);
+        AssertUnavailable(subscription.Counts.DeadLetter);
+        Assert.Equal(CountAvailability.NotSupported, subscription.Counts.Scheduled.Availability);
+        Assert.Null(subscription.Counts.Scheduled.Value);
+        Assert.True(snapshot.IsComplete);
+        Assert.Empty(snapshot.Issues);
+    }
+
+    [Fact]
+    public async Task Emulator_count_limitation_preserves_runtime_entity_timestamps()
+    {
+        DateTimeOffset created = new(2026, 9, 1, 12, 0, 0, TimeSpan.Zero);
+        DateTimeOffset updated = created.AddHours(1);
+        var admin = new FakeAdministrationClient
+        {
+            Queues = [Queue("orders")],
+            Topics = [Topic("events")],
+            Subscriptions = { ["events"] = [Subscription("events", "billing")] },
+            QueueRuntime = { ["orders"] = ServiceBusModelFactory.QueueRuntimeProperties("orders", createdAt: created, updatedAt: updated) },
+            TopicRuntime = { ["events"] = ServiceBusModelFactory.TopicRuntimeProperties("events", createdAt: created, updatedAt: updated) },
+            SubscriptionRuntime = { [("events", "billing")] = ServiceBusModelFactory.SubscriptionRuntimeProperties("events", "billing", createdAt: created, updatedAt: updated) }
+        };
+
+        EntityDiscoverySnapshot snapshot = await DiscoverAsync(admin, supportsRuntimeCounts: false);
+
+        Assert.Equal(3, snapshot.Entities.Count);
+        Assert.All(snapshot.Entities, observation =>
+        {
+            Assert.Equal(created, observation.Entity.Metadata.CreatedAtUtc);
+            Assert.Equal(updated, observation.Entity.Metadata.UpdatedAtUtc);
+            AssertUnavailable(observation.Counts.Active);
+        });
+        Assert.True(snapshot.IsComplete);
+    }
+
+    [Fact]
+    public async Task Emulator_empty_topic_does_not_report_a_zero_aggregate_count()
+    {
+        var admin = new FakeAdministrationClient
+        {
+            Topics = [Topic("events")],
+            TopicRuntime = { ["events"] = TopicRuntime("events", scheduled: 0) }
+        };
+
+        EntityDiscoverySnapshot snapshot = await DiscoverAsync(admin, supportsRuntimeCounts: false);
+        EntityObservation topic = Assert.Single(snapshot.Entities);
+
+        AssertUnavailable(topic.Counts.Active);
+        AssertUnavailable(topic.Counts.DeadLetter);
+        AssertUnavailable(topic.Counts.Scheduled);
+        Assert.True(snapshot.IsComplete);
+    }
+
+    private static void AssertUnavailable(CountObservation observation)
+    {
+        Assert.Equal(CountAvailability.Unavailable, observation.Availability);
+        Assert.Null(observation.Value);
+        Assert.Contains("emulator", observation.Detail, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task<EntityDiscoverySnapshot> DiscoverAsync(
+        FakeAdministrationClient admin,
+        bool supportsRuntimeCounts = true) =>
+        await new InvestigationEntityBrowser(new FakeClientFactory(admin, supportsRuntimeCounts)).DiscoverAsync(CancellationToken.None);
 
     private static QueueProperties Queue(string name) =>
         ServiceBusModelFactory.QueueProperties(name, status: EntityStatus.Active, maxDeliveryCount: 10, userMetadata: "",
@@ -130,8 +218,10 @@ public sealed class InvestigationDiscoveryTests
     private static SubscriptionRuntimeProperties SubscriptionRuntime(string topic, string name, long active, long deadLetter) =>
         ServiceBusModelFactory.SubscriptionRuntimeProperties(topic, name, activeMessageCount: active, deadLetterMessageCount: deadLetter);
 
-    private sealed class FakeClientFactory(FakeAdministrationClient admin) : IServiceBusClientFactory
+    private sealed class FakeClientFactory(FakeAdministrationClient admin, bool supportsRuntimeCounts = true) : IServiceBusClientFactory
     {
+        public bool SupportsRuntimeCounts => supportsRuntimeCounts;
+
         public ServiceBusAdministrationClient AdministrationClient => admin;
 
         public ServiceBusClient RuntimeClient => null!;

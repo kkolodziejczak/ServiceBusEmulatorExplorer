@@ -46,4 +46,30 @@ public sealed class MessageProjectionTests
         Assert.Equal("value", message.ApplicationProperties["custom"]);
         Assert.Equal(42L, message.SystemProperties["SequenceNumber"]);
     }
+
+    [Fact]
+    public void Create_projects_scheduled_enqueue_time_as_utc()
+    {
+        DateTimeOffset scheduled = new(2026, 7, 8, 14, 30, 0, TimeSpan.FromHours(2));
+        ServiceBusReceivedMessage source = ServiceBusModelFactory.ServiceBusReceivedMessage(
+            body: BinaryData.FromString("scheduled"),
+            scheduledEnqueueTime: scheduled);
+
+        ExplorerMessage message = MessageProjection.Create(source);
+
+        Assert.Equal(
+            scheduled.ToUniversalTime(),
+            Assert.IsType<DateTimeOffset>(message.SystemProperties["ScheduledEnqueueTimeUtc"]));
+    }
+
+    [Fact]
+    public void Create_omits_scheduled_enqueue_time_when_message_is_not_scheduled()
+    {
+        ServiceBusReceivedMessage source = ServiceBusModelFactory.ServiceBusReceivedMessage(
+            body: BinaryData.FromString("immediate"));
+
+        ExplorerMessage message = MessageProjection.Create(source);
+
+        Assert.False(message.SystemProperties.ContainsKey("ScheduledEnqueueTimeUtc"));
+    }
 }

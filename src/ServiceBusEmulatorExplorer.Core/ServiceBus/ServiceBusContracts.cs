@@ -142,6 +142,13 @@ public sealed record SendMessageCommand(
 
 public interface IServiceBusClientFactory : IAsyncDisposable
 {
+    /// <summary>
+    /// Indicates whether the connected broker provides reliable runtime message counts.
+    /// The local development emulator exposes count fields that may remain zero while
+    /// messages are present, so callers must represent those counts as unavailable.
+    /// </summary>
+    bool SupportsRuntimeCounts => true;
+
     Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken);
 
     ServiceBusAdministrationClient AdministrationClient { get; }

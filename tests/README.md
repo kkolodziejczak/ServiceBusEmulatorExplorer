@@ -120,7 +120,7 @@ The last two cases require only `SBE_RUN_UI_TESTS=true`, not a broker. The input
 
 ## Daily workflow audit
 
-The [2026-09-19 audit](../specs/daily-workflow-audit-2026-09-19.md) adds explicit daily-workflow and edge-case integration cases. These include acceptance checks that can intentionally fail against current production behavior. Keep application failures visible; do not weaken assertions to obtain a green run.
+The [2026-09-19 audit](../specs/daily-workflow-audit-2026-09-19.md) adds explicit daily-workflow and edge-case integration cases. Its original failures and subsequent fixes are recorded in the [remediation report](../specs/daily-workflow-audit-remediation-2026-09-19.md), including the emulator counter limitation. Keep application failures visible; do not weaken assertions to obtain a green run.
 
 Run against an isolated local emulator with `SBE_RUNTIME_CONNECTION_STRING` and `SBE_ADMIN_CONNECTION_STRING` set to its endpoints. The desktop cases also need an interactive Windows session. They create unique entities and isolated profiles; do not use production credentials. `DailyAudit` workspace tests use actual broker services on a WPF dispatcher, while `DailyWindowAuditTests` launches the executable through FlaUI.
 

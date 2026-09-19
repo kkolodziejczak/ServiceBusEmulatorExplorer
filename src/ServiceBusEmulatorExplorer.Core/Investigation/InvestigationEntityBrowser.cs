@@ -10,6 +10,9 @@ namespace ServiceBusEmulatorExplorer.Core.Investigation;
 /// </summary>
 public sealed class InvestigationEntityBrowser(IServiceBusClientFactory clientFactory) : IInvestigationEntityBrowser
 {
+    private const string EmulatorCountUnavailableDetail =
+        "The local Service Bus emulator does not provide reliable runtime message counts; browse messages to inspect current contents.";
+
     private static readonly CountObservation UnsupportedScheduledCount =
         new(null, CountAvailability.NotSupported, "The Service Bus administration API does not expose scheduled counts for subscriptions.");
 
@@ -37,8 +40,8 @@ public sealed class InvestigationEntityBrowser(IServiceBusClientFactory clientFa
             return new EntityDiscoverySnapshot(observations, observedAtUtc, false, issues);
         }
 
-        await DiscoverQueuesAsync(client, observations, issues, cancellationToken);
-        await DiscoverTopicsAsync(client, observations, issues, cancellationToken);
+        await DiscoverQueuesAsync(client, observations, issues, cancellationToken, clientFactory.SupportsRuntimeCounts);
+        await DiscoverTopicsAsync(client, observations, issues, cancellationToken, clientFactory.SupportsRuntimeCounts);
 
         isComplete = issues.Count == 0;
         return new EntityDiscoverySnapshot(
@@ -68,7 +71,8 @@ public sealed class InvestigationEntityBrowser(IServiceBusClientFactory clientFa
         ServiceBusAdministrationClient client,
         List<EntityObservation> observations,
         List<string> issues,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool supportsRuntimeCounts)
     {
         try
         {
@@ -83,9 +87,12 @@ public sealed class InvestigationEntityBrowser(IServiceBusClientFactory clientFa
                 try
                 {
                     runtime = (await client.GetQueueRuntimePropertiesAsync(queue.Name, cancellationToken)).Value;
-                    active = Known(runtime.ActiveMessageCount);
-                    deadLetter = Known(runtime.DeadLetterMessageCount);
-                    scheduled = Known(runtime.ScheduledMessageCount);
+                    if (supportsRuntimeCounts)
+                    {
+                        active = Known(runtime.ActiveMessageCount);
+                        deadLetter = Known(runtime.DeadLetterMessageCount);
+                        scheduled = Known(runtime.ScheduledMessageCount);
+                    }
                 }
                 catch (OperationCanceledException)
                 {
@@ -94,6 +101,12 @@ public sealed class InvestigationEntityBrowser(IServiceBusClientFactory clientFa
                 catch (Exception exception)
                 {
                     issues.Add(DiscoveryIssue.ForEntity(EntityKind.Queue, queue.Name, "runtime properties", exception));
+                }
+                if (!supportsRuntimeCounts)
+                {
+                    active = EmulatorUnavailable();
+                    deadLetter = EmulatorUnavailable();
+                    scheduled = EmulatorUnavailable();
                 }
 
                 observations.Add(new EntityObservation(
@@ -115,7 +128,8 @@ public sealed class InvestigationEntityBrowser(IServiceBusClientFactory clientFa
         ServiceBusAdministrationClient client,
         List<EntityObservation> observations,
         List<string> issues,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool supportsRuntimeCounts)
     {
         try
         {
@@ -128,7 +142,10 @@ public sealed class InvestigationEntityBrowser(IServiceBusClientFactory clientFa
                 try
                 {
                     runtime = (await client.GetTopicRuntimePropertiesAsync(topic.Name, cancellationToken)).Value;
-                    scheduled = Known(runtime.ScheduledMessageCount);
+                    if (supportsRuntimeCounts)
+                    {
+                        scheduled = Known(runtime.ScheduledMessageCount);
+                    }
                 }
                 catch (OperationCanceledException)
                 {
@@ -138,6 +155,10 @@ public sealed class InvestigationEntityBrowser(IServiceBusClientFactory clientFa
                 {
                     issues.Add(DiscoveryIssue.ForEntity(EntityKind.Topic, topic.Name, "runtime properties", exception));
                 }
+                if (!supportsRuntimeCounts)
+                {
+                    scheduled = EmulatorUnavailable();
+                }
 
                 var subscriptions = new List<EntityObservation>();
                 bool subscriptionsComplete = await DiscoverSubscriptionsAsync(
@@ -145,11 +166,12 @@ public sealed class InvestigationEntityBrowser(IServiceBusClientFactory clientFa
                     topic,
                     subscriptions,
                     issues,
-                    cancellationToken);
+                    cancellationToken,
+                    supportsRuntimeCounts);
 
                 observations.Add(new EntityObservation(
                     DiscoveryEntityMapper.Topic(topic, runtime),
-                    CreateTopicCounts(subscriptions, subscriptionsComplete, scheduled)));
+                    CreateTopicCounts(subscriptions, subscriptionsComplete, scheduled, supportsRuntimeCounts)));
                 observations.AddRange(subscriptions);
             }
         }
@@ -168,7 +190,8 @@ public sealed class InvestigationEntityBrowser(IServiceBusClientFactory clientFa
         TopicProperties topic,
         List<EntityObservation> observations,
         List<string> issues,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool supportsRuntimeCounts)
     {
         bool isComplete = true;
         try
@@ -188,8 +211,11 @@ public sealed class InvestigationEntityBrowser(IServiceBusClientFactory clientFa
                         topic.Name,
                         subscription.SubscriptionName,
                         cancellationToken)).Value;
-                    active = Known(runtime.ActiveMessageCount);
-                    deadLetter = Known(runtime.DeadLetterMessageCount);
+                    if (supportsRuntimeCounts)
+                    {
+                        active = Known(runtime.ActiveMessageCount);
+                        deadLetter = Known(runtime.DeadLetterMessageCount);
+                    }
                 }
                 catch (OperationCanceledException)
                 {
@@ -204,6 +230,11 @@ public sealed class InvestigationEntityBrowser(IServiceBusClientFactory clientFa
                         "runtime properties",
                         exception,
                         topic.Name));
+                }
+                if (!supportsRuntimeCounts)
+                {
+                    active = EmulatorUnavailable();
+                    deadLetter = EmulatorUnavailable();
                 }
 
                 observations.Add(new EntityObservation(
@@ -227,8 +258,17 @@ public sealed class InvestigationEntityBrowser(IServiceBusClientFactory clientFa
     private static EntityCountObservation CreateTopicCounts(
         IReadOnlyList<EntityObservation> subscriptions,
         bool subscriptionsComplete,
-        CountObservation scheduled)
+        CountObservation scheduled,
+        bool supportsRuntimeCounts)
     {
+        if (!supportsRuntimeCounts)
+        {
+            return new EntityCountObservation(
+                EmulatorUnavailable(),
+                EmulatorUnavailable(),
+                scheduled);
+        }
+
         CountObservation active = AggregateSubscriptionCount(subscriptions, subscriptionsComplete, subscription => subscription.Counts.Active, "active");
         CountObservation deadLetter = AggregateSubscriptionCount(subscriptions, subscriptionsComplete, subscription => subscription.Counts.DeadLetter, "dead-letter");
         return new EntityCountObservation(active, deadLetter, scheduled);
@@ -257,4 +297,6 @@ public sealed class InvestigationEntityBrowser(IServiceBusClientFactory clientFa
     private static CountObservation Known(long value) => new(value, CountAvailability.Known);
 
     private static CountObservation Unavailable(string detail) => new(null, CountAvailability.Unavailable, detail);
+
+    private static CountObservation EmulatorUnavailable() => Unavailable(EmulatorCountUnavailableDetail);
 }

@@ -68,8 +68,10 @@ public sealed class InvestigationLeafReadIntegrationTests
                     item.Entity.Name == firstSubscriptionName && item.Entity.TopicName == topicName);
 
             Assert.True(snapshot.IsComplete);
-            Assert.Equal(CountAvailability.Known, discoveredQueue.Counts.Scheduled.Availability);
-            Assert.Equal(CountAvailability.Known, discoveredTopic.Counts.Scheduled.Availability);
+            Assert.Equal(CountAvailability.Unavailable, discoveredQueue.Counts.Scheduled.Availability);
+            Assert.Null(discoveredQueue.Counts.Scheduled.Value);
+            Assert.Equal(CountAvailability.Unavailable, discoveredTopic.Counts.Scheduled.Availability);
+            Assert.Null(discoveredTopic.Counts.Scheduled.Value);
             Assert.Equal(CountAvailability.NotSupported, discoveredFirstSubscription.Counts.Scheduled.Availability);
             EntityObservation discoveredSecondSubscription = Assert.Single(snapshot.Entities,
                 item => item.Entity.Kind == EntityKind.Subscription &&

@@ -360,16 +360,16 @@ public sealed class DailyOperationsAuditTests(ITestOutputHelper output)
             Assert.True(broker.ScheduledEnqueueTime > DateTimeOffset.UtcNow);
             var projected = Assert.Single(await PeekAsync(new ServiceBusMessageService(factory), address, MessageBucket.Active, token));
             // A daily operator inspecting a scheduled delivery needs the broker's due timestamp.
-            Assert.True(projected.SystemProperties.Values.OfType<DateTimeOffset>()
-                .Any(value => value == broker.ScheduledEnqueueTime),
+            Assert.True(projected.SystemProperties.ContainsKey("ScheduledEnqueueTimeUtc"),
                 "The broker exposes ScheduledEnqueueTime but inspection projection loses it.");
+            Assert.Equal(broker.ScheduledEnqueueTime.ToUniversalTime(), projected.SystemProperties["ScheduledEnqueueTimeUtc"]);
         });
     }
 
     [IntegrationFact]
     [Trait("TestCategory", "Integration")]
     [Trait("Audit", "Daily")]
-    public async Task Runtime_counts_match_the_messages_visible_to_the_user()
+    public async Task Emulator_counts_are_unavailable_while_messages_remain_readable()
     {
         string queue = Name("audit-counts");
         await RunWithQueueAsync(queue, async (admin, factory, address, token) =>
@@ -380,7 +380,18 @@ public sealed class DailyOperationsAuditTests(ITestOutputHelper output)
             IReadOnlyList<ExplorerMessage> visible = await PeekAsync(messages, address, MessageBucket.Active, token);
             QueueRuntimeProperties counts = (await admin.GetQueueRuntimePropertiesAsync(queue, token)).Value;
             output.WriteLine($"Queue {queue}: visible={visible.Count}; runtime active={counts.ActiveMessageCount}; dlq={counts.DeadLetterMessageCount}.");
-            Assert.Equal(visible.Count, counts.ActiveMessageCount);
+            Assert.Equal(2, visible.Count);
+            // Raw emulator counters are provider observations, not an application contract.
+            // Verify the application's capability handling rather than requiring a broker fix.
+            var snapshot = await new InvestigationEntityBrowser(factory).DiscoverAsync(token);
+            var entity = Assert.Single(snapshot.Entities, item => item.Entity.Kind == EntityKind.Queue && item.Entity.Name == queue);
+            Assert.True(snapshot.IsComplete);
+            foreach (var count in new[] { entity.Counts.Active, entity.Counts.DeadLetter, entity.Counts.Scheduled })
+            {
+                Assert.Equal(CountAvailability.Unavailable, count.Availability);
+                Assert.Null(count.Value);
+                Assert.Contains("emulator", count.Detail, StringComparison.OrdinalIgnoreCase);
+            }
         });
     }
 

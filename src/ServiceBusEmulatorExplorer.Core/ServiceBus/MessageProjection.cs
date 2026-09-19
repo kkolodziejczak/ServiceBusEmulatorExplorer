@@ -50,6 +50,11 @@ public static class MessageProjection
             ["DeadLetterErrorDescription"] = message.DeadLetterErrorDescription
         };
 
+        if (message.ScheduledEnqueueTime != default)
+        {
+            properties["ScheduledEnqueueTimeUtc"] = message.ScheduledEnqueueTime.ToUniversalTime();
+        }
+
         return properties;
     }
 
