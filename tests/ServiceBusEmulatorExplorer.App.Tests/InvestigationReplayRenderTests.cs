@@ -324,4 +324,3 @@ public sealed class InvestigationReplayRenderTests
         public Task SendMessageAsync(SendMessageCommand command, CancellationToken cancellationToken) => throw new InvalidOperationException();
     }
 }
-

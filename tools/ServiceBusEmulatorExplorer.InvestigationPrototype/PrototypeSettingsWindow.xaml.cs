@@ -191,6 +191,3 @@ public partial class PrototypeSettingsWindow : Window
 
     private void Done_Click(object sender, RoutedEventArgs e) => Close();
 }
-
-
-

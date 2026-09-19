@@ -1,73 +1,40 @@
 using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
-using ServiceBusEmulatorExplorer.App.Services;
+using ServiceBusEmulatorExplorer.App.Investigation;
 using ServiceBusEmulatorExplorer.Core.Connection;
+using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
 namespace ServiceBusEmulatorExplorer.ReadmeScreenshot;
 
-internal sealed class ScenarioProfileStore : IConnectionProfileStore
+internal sealed class ScenarioWorkspacePreferencesStore(WorkspacePreferences preferences) : IWorkspacePreferencesStore
 {
-    private static readonly ConnectionProfile Profile = ConnectionProfileDefaults.LocalEmulator with
-    {
-        Name = "Retail Operations"
-    };
+    private WorkspacePreferences current = preferences;
 
-    public Task<IReadOnlyList<ConnectionProfile>> LoadAsync(CancellationToken cancellationToken)
-    {
-        return Task.FromResult<IReadOnlyList<ConnectionProfile>>([Profile]);
-    }
+    public Task<PreferencesLoadResult> LoadAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(new PreferencesLoadResult(current));
 
-    public Task SaveAsync(IReadOnlyList<ConnectionProfile> profiles, CancellationToken cancellationToken)
+    public Task SaveAsync(WorkspacePreferences value, CancellationToken cancellationToken)
     {
+        current = value;
         return Task.CompletedTask;
     }
 }
 
 internal sealed class ScenarioClientFactory : IServiceBusClientFactory
 {
-    public ServiceBusAdministrationClient AdministrationClient =>
-        throw new NotSupportedException("The README scenario does not use an SDK client.");
+    public bool SupportsRuntimeCounts => true;
+    public ServiceBusAdministrationClient AdministrationClient => null!;
+    public ServiceBusClient RuntimeClient => null!;
 
-    public ServiceBusClient RuntimeClient =>
-        throw new NotSupportedException("The README scenario does not use an SDK client.");
-
-    public Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken)
-    {
-        return Task.CompletedTask;
-    }
-
-    public ValueTask DisposeAsync()
-    {
-        return ValueTask.CompletedTask;
-    }
+    public Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken) => Task.CompletedTask;
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
 
-internal sealed class ScenarioAdministrationService(IReadOnlyList<ServiceBusEntityNode> entities)
-    : IServiceBusAdministrationService
+internal sealed class ScenarioEntityBrowser(EntityDiscoverySnapshot snapshot) : IInvestigationEntityBrowser
 {
-    public Task<IReadOnlyList<ServiceBusEntityNode>> GetEntityTreeAsync(CancellationToken cancellationToken)
-    {
-        return Task.FromResult(EntityTreeBuilder.AggregateTopicCounts(entities));
-    }
-
-    public Task CreateQueueAsync(CreateQueueCommand command, CancellationToken cancellationToken) => Task.CompletedTask;
-
-    public Task UpdateQueueAsync(UpdateQueueCommand command, CancellationToken cancellationToken) => Task.CompletedTask;
-
-    public Task DeleteQueueAsync(string name, CancellationToken cancellationToken) => Task.CompletedTask;
-
-    public Task CreateTopicAsync(CreateTopicCommand command, CancellationToken cancellationToken) => Task.CompletedTask;
-
-    public Task UpdateTopicAsync(UpdateTopicCommand command, CancellationToken cancellationToken) => Task.CompletedTask;
-
-    public Task DeleteTopicAsync(string name, CancellationToken cancellationToken) => Task.CompletedTask;
-
-    public Task CreateSubscriptionAsync(CreateSubscriptionCommand command, CancellationToken cancellationToken) => Task.CompletedTask;
-
-    public Task UpdateSubscriptionAsync(UpdateSubscriptionCommand command, CancellationToken cancellationToken) => Task.CompletedTask;
-
-    public Task DeleteSubscriptionAsync(string topicName, string subscriptionName, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task<EntityDiscoverySnapshot> DiscoverAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(snapshot);
 }
 
 internal sealed class ScenarioMessageService(IReadOnlyList<ExplorerMessage> messages) : IServiceBusMessageService
@@ -83,89 +50,15 @@ internal sealed class ScenarioMessageService(IReadOnlyList<ExplorerMessage> mess
             && address.Kind == EntityKind.Subscription
             && address.TopicName == "order-events"
             ? messages
+                .Where(message => message.MessageId.EndsWith(address.Name, StringComparison.Ordinal)
+                    || (address.Name == "fulfillment" && message.MessageId == "order-10482-dispatched"))
                 .Where(message => fromSequenceNumber is null || message.SequenceNumber >= fromSequenceNumber)
+                .OrderBy(message => message.SequenceNumber)
                 .Take(take)
-                .ToList()
+                .ToArray()
             : [];
         return Task.FromResult(result);
     }
 
-    public Task SendMessageAsync(SendMessageCommand command, CancellationToken cancellationToken)
-    {
-        return Task.CompletedTask;
-    }
-}
-
-internal sealed class UnsupportedDeadLetterReplayService : IDeadLetterReplayService
-{
-    public Task<ReplayResult> ReplayAsync(ReplayRequest request, CancellationToken cancellationToken)
-    {
-        throw new NotSupportedException("The README scenario is read-only.");
-    }
-
-    public Task<DeleteDeadLetterMessagesResult> DeleteAsync(
-        DeleteDeadLetterMessagesRequest request,
-        CancellationToken cancellationToken)
-    {
-        throw new NotSupportedException("The README scenario is read-only.");
-    }
-}
-
-internal sealed class UnsupportedEntityManagementWorkflow : IEntityManagementWorkflow
-{
-    public Task<EntityManagementOperationResult> CreateQueueAsync(CancellationToken cancellationToken) => Unsupported();
-
-    public Task<EntityManagementOperationResult> CreateTopicAsync(CancellationToken cancellationToken) => Unsupported();
-
-    public Task<EntityManagementOperationResult> CreateSubscriptionAsync(CancellationToken cancellationToken) => Unsupported();
-
-    public Task<EntityManagementOperationResult> UpdateAsync(
-        ServiceBusEntityNode entity,
-        CancellationToken cancellationToken) => Unsupported();
-
-    public Task<EntityManagementOperationResult> DeleteAsync(
-        ServiceBusEntityNode entity,
-        CancellationToken cancellationToken) => Unsupported();
-
-    private static Task<EntityManagementOperationResult> Unsupported()
-    {
-        throw new NotSupportedException("The README scenario is read-only.");
-    }
-}
-
-internal sealed class UnsupportedMessageDialogService : IMessageDialogService
-{
-    public Task<SendMessageCommand?> ShowSendMessageDialogAsync(ServiceBusEntityNode entity)
-    {
-        return Task.FromResult<SendMessageCommand?>(null);
-    }
-
-    public Task<ReplayMessageEdits?> ShowReplayDeadLetterDialogAsync(
-        ServiceBusEntityNode entity,
-        ExplorerMessage message)
-    {
-        return Task.FromResult<ReplayMessageEdits?>(null);
-    }
-
-    public Task<bool> ConfirmDeleteDeadLetterMessagesAsync(
-        ServiceBusEntityNode entity,
-        IReadOnlyList<ExplorerMessage> messages,
-        bool visiblePage)
-    {
-        return Task.FromResult(false);
-    }
-}
-
-internal sealed class ScenarioClock : IClock
-{
-    private DateTimeOffset _current = RetailScreenshotData.ScenarioTime;
-
-    public DateTimeOffset UtcNow
-    {
-        get
-        {
-            _current = _current.AddSeconds(1);
-            return _current;
-        }
-    }
+    public Task SendMessageAsync(SendMessageCommand command, CancellationToken cancellationToken) => Task.CompletedTask;
 }

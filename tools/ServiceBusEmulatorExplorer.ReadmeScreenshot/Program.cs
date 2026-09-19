@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using ServiceBusEmulatorExplorer.App.Investigation;
 
 namespace ServiceBusEmulatorExplorer.ReadmeScreenshot;
 
@@ -16,32 +17,48 @@ internal static class Program
             return 2;
         }
 
-        try
+        RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
+        var application = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        var exitCode = 1;
+        application.Startup += async (_, _) =>
         {
-            RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
-            var application = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-            var viewModel = RetailScreenshotScenario.CreateViewModelAsync().GetAwaiter().GetResult();
-            var window = new ServiceBusEmulatorExplorer.App.MainWindow(viewModel)
-            {
-                ShowActivated = false
-            };
-
+            InvestigationWorkspace? workspace = null;
             try
             {
+                workspace = await RetailScreenshotScenario.CreateWorkspaceAsync();
+                var window = new InvestigationWindow(workspace)
+                {
+                    ShowActivated = false,
+                    ShowInTaskbar = false,
+                    WindowStartupLocation = WindowStartupLocation.Manual,
+                    Left = -32_000,
+                    Top = -32_000
+                };
+
+                window.Show();
+                await window.Dispatcher.InvokeAsync(
+                    () => { },
+                    System.Windows.Threading.DispatcherPriority.ContextIdle);
+                window.UpdateLayout();
+                RetailScreenshotScenario.ValidateRenderedWindow(window, workspace);
                 WpfScreenshot.SaveWindowContent(window, Path.GetFullPath(args[0]));
+                exitCode = 0;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine(ex);
             }
             finally
             {
-                window.Close();
-                application.Shutdown();
+                if (workspace is not null)
+                {
+                    await workspace.DisposeAsync();
+                }
+                application.Shutdown(exitCode);
             }
+        };
 
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine(ex);
-            return 1;
-        }
+        application.Run();
+        return exitCode;
     }
 }

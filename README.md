@@ -14,19 +14,18 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/kkolodziejczak/ServiceBusEmulatorExplorer" alt="MIT license" /></a>
 </p>
 
-Service Bus Emulator Explorer is a WPF application for browsing namespaces, inspecting messages, sending messages, managing entities, and working safely with dead-letter queues (DLQs). It supports connection strings for the local emulator or SAS-based namespaces, and Azure CLI credentials for Azure public-cloud namespaces.
+Service Bus Emulator Explorer is a WPF investigation workspace for browsing namespaces, inspecting message deliveries, monitoring arrivals, and working safely with dead-letter queues (DLQs). It supports connection strings for the local emulator or SAS-based namespaces, and Azure CLI credentials for Azure public-cloud namespaces.
 
 <!-- Updated automatically from a deterministic WPF UI scenario built from released source by .github/workflows/update-readme-screenshot.yml. -->
-![Service Bus Emulator Explorer showing a retail order-events topic, business subscriptions, and an OrderDispatched event](docs/images/service-bus-emulator-explorer.png)
+![Service Bus Emulator Explorer Investigation Workspace showing a connected demo profile, order-events subscriptions, active deliveries, and an OrderDispatched inspector](docs/images/service-bus-emulator-explorer.png)
 
 ## Highlights
 
 - Browse queues, topics, and subscriptions in a namespace tree.
-- Inspect active, scheduled, and dead-lettered messages and their metadata.
-- Send messages to queues and topics.
+- Inspect active and dead-lettered message deliveries and their metadata.
+- Monitor active and dead-letter arrivals across a connection with optional notifications.
 - Replay a DLQ message as a new active message, with optional edits.
 - Delete selected or visible-page DLQ messages through explicit confirmations.
-- Create, update, and delete entities when using connection-string authentication.
 - Save named connection profiles locally.
 - Connect to Azure with the account already authenticated by Azure CLI.
 
@@ -61,9 +60,9 @@ Runtime:        Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAcce
 Administration: Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
 ```
 
-The runtime connection handles message operations. The administration connection handles namespace topology and entity management.
+The runtime connection handles message browsing and replay. The administration connection handles namespace discovery.
 
-Emulator counts marked with `*` are **observed deliveries from browsing**, not live broker totals. Refresh and Load more update them; hover over a count for the check time and whether the scan is partial or complete. Unvisited sources/buckets and unavailable scheduled totals show `—`. Main-queue observations may include scheduled, deferred or expired messages; topic observations count each subscription's delivery separately. Azure profiles continue to use broker-reported counts.
+Emulator counts marked with `*` are **observed deliveries from browsing**, not live broker totals. Refresh and Load more update them; hover over a count for the check time and whether the scan is partial or complete. Unvisited sources and buckets show `—`. Scheduled counts are shown only when the broker reports them; scheduled messages are not a separate browse bucket. Main-queue observations may include scheduled, deferred or expired messages; topic observations count each subscription's delivery separately. Azure profiles continue to use broker-reported counts.
 
 When finished:
 
@@ -84,16 +83,15 @@ The supported RBAC contract is **Azure Service Bus Data Owner at the whole names
 | --- | --- |
 | Browse namespace topology | Supported |
 | Peek queue or subscription messages | Supported |
-| Send to a queue or topic | Supported |
-| Create, update, or delete entities | Not supported |
+| Replay a DLQ message copy | Supported |
 
-Topics are send destinations. Read messages from a topic's subscriptions, not from the topic itself. If authentication fails, run `az login` again. Use `az account show` to inspect the active subscription and `az login --tenant <tenant-id>` when the wrong tenant is selected. New role assignments can take several minutes to propagate.
+Read messages from a topic's subscriptions, not from the topic itself. If authentication fails, run `az login` again. Use `az account show` to inspect the active subscription and `az login --tenant <tenant-id>` when the wrong tenant is selected. New role assignments can take several minutes to propagate.
 
 The app never starts an interactive login and never stores Azure CLI access tokens or its credential cache.
 
 ## Important safety notes
 
-- Operations target the namespace you connect to. Verify the namespace and selected entity before sending, replaying, or deleting messages.
+- Operations target the namespace you connect to. Verify the namespace and selected entity before replaying or deleting messages.
 - Replaying a DLQ message is non-destructive: it creates a new active message and leaves the original in the DLQ. Deleting the original is a separate, explicitly confirmed action.
 - Saved connection-string profiles contain secrets. They are stored locally as JSON under `%LOCALAPPDATA%\ServiceBusEmulatorExplorer\connection-profiles.json`. Protect that file and never attach it to an issue or commit it.
 - Logs and screenshots can contain entity names, message bodies, identifiers, and application properties. Sanitize them before sharing.

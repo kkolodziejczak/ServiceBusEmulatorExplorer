@@ -1,89 +1,82 @@
-using ServiceBusEmulatorExplorer.App.Services;
-using ServiceBusEmulatorExplorer.App.ViewModels;
+using System.Windows;
+using ServiceBusEmulatorExplorer.App.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
 namespace ServiceBusEmulatorExplorer.ReadmeScreenshot;
 
 internal static class RetailScreenshotScenario
 {
-    public static async Task<ShellViewModel> CreateViewModelAsync()
+    public static async Task<InvestigationWorkspace> CreateWorkspaceAsync()
     {
-        IReadOnlyList<ServiceBusEntityNode> entities = RetailScreenshotData.CreateEntities();
-        var administrationService = new ScenarioAdministrationService(entities);
-        var messageService = new ScenarioMessageService(RetailScreenshotData.CreateMessages());
-        var viewModel = new ShellViewModel(
-            new ScenarioProfileStore(),
-            new ScenarioClientFactory(),
-            administrationService,
-            messageService,
-            new UnsupportedDeadLetterReplayService(),
-            new UnsupportedEntityManagementWorkflow(),
-            new TopicSubscriptionRefreshWorkflow(administrationService, messageService),
-            new UnsupportedMessageDialogService(),
-            new ScenarioClock());
+        var preferences = RetailScreenshotData.CreatePreferences();
+        var messages = RetailScreenshotData.CreateMessages();
+        var snapshot = RetailScreenshotData.CreateSnapshot();
+        var workflow = new BrokerConnectionWorkflow(
+            () => new ScenarioClientFactory(),
+            _ => new ScenarioEntityBrowser(snapshot),
+            _ => new ScenarioMessageService(messages));
+        var workspace = new InvestigationWorkspace(new ScenarioWorkspacePreferencesStore(preferences), workflow);
 
-        await viewModel.LoadProfilesAsync();
-        await viewModel.ConnectCommand.ExecuteAsync(null);
+        await workspace.InitializeAsync();
+        await workspace.ConnectAsync();
 
-        EntityTreeNodeViewModel orderTopic = FindEntityNode(
-            viewModel.EntityTree,
-            entity => entity.Kind == EntityKind.Topic && entity.Name == "order-events");
-        viewModel.SelectEntity(orderTopic);
-        await viewModel.RefreshSelectedTopicSubscriptionsCommand.ExecuteAsync(null);
+        EntityNode orderEvents = workspace.Browse.AllEntities().Single(node =>
+            node.Kind == nameof(EntityKind.Topic) && node.Name == "order-events");
+        await workspace.Browse.SelectAsync(orderEvents, deadLetter: false);
 
-        ExplorerMessage dispatched = viewModel.MessageInspection.ActiveMessages.First(
-            message => message.MessageId == "order-10482-dispatched");
-        viewModel.MessageInspection.SelectActiveMessage(dispatched);
-        ValidateScenario(viewModel);
-        return viewModel;
+        MessageRow selected = workspace.Browse.Messages.Single(row => row.MessageId == "order-10482-dispatched");
+        workspace.Browse.FocusedMessage = selected;
+        workspace.Activity.Clear();
+        workspace.Activity.Add(new(
+            RetailScreenshotData.ScenarioTime,
+            "Connected to Demo retail workspace.",
+            Warning: false,
+            Watch: false));
+        ValidateScenario(workspace);
+        return workspace;
     }
 
-    private static EntityTreeNodeViewModel FindEntityNode(
-        IEnumerable<EntityTreeNodeViewModel> nodes,
-        Func<ServiceBusEntityNode, bool> predicate)
+    public static void ValidateRenderedWindow(InvestigationWindow window, InvestigationWorkspace workspace)
     {
-        return FindEntityNodeOrDefault(nodes, predicate)
-            ?? throw new InvalidOperationException("The retail screenshot entity was not loaded.");
-    }
-
-    private static EntityTreeNodeViewModel? FindEntityNodeOrDefault(
-        IEnumerable<EntityTreeNodeViewModel> nodes,
-        Func<ServiceBusEntityNode, bool> predicate)
-    {
-        foreach (EntityTreeNodeViewModel node in nodes)
+        if (window is not InvestigationWindow)
         {
-            if (node.Entity is not null && predicate(node.Entity))
-            {
-                return node;
-            }
-
-            EntityTreeNodeViewModel? childMatch = FindEntityNodeOrDefault(node.Children, predicate);
-            if (childMatch is not null)
-            {
-                return childMatch;
-            }
+            throw new InvalidOperationException("The README scenario did not create the Investigation Workspace window.");
         }
 
-        return null;
-    }
-
-    private static void ValidateScenario(ShellViewModel viewModel)
-    {
-        if (viewModel.SelectedEntityTitle != "order-events")
-        {
-            throw new InvalidOperationException("The README scenario did not select order-events.");
-        }
-
-        if (viewModel.MessageInspection.ActiveMessages.Count != 16)
+        if (window.FindName("ConnectionSelector") is not FrameworkElement
+            || window.FindName("MessageGrid") is not FrameworkElement
+            || window.FindName("InspectorTitle") is not FrameworkElement
+            || window.FindName("BodyEditor") is not FrameworkElement)
         {
             throw new InvalidOperationException(
-                $"The README scenario loaded {viewModel.MessageInspection.ActiveMessages.Count} messages instead of 16.");
+                "The README scenario did not render the Investigation Workspace connection, message, and inspector surfaces.");
         }
 
-        if (!viewModel.MessageInspection.SelectedBody.Contains("\"eventType\": \"OrderDispatched\"", StringComparison.Ordinal)
-            || !viewModel.MessageInspection.SelectedApplicationProperties.Contains("eventType: OrderDispatched", StringComparison.Ordinal))
+        if (!workspace.IsConnected || workspace.Surface.Messages.Count != 16
+            || workspace.Surface.FocusedMessage?.MessageId != "order-10482-dispatched")
         {
-            throw new InvalidOperationException("The README scenario did not inspect the OrderDispatched event.");
+            throw new InvalidOperationException("The rendered README scenario lost its connected message inspection state.");
+        }
+    }
+
+    private static void ValidateScenario(InvestigationWorkspace workspace)
+    {
+        if (!workspace.IsConnected || workspace.SelectedProfile.Connection.Name != "Demo retail workspace")
+        {
+            throw new InvalidOperationException("The README scenario did not connect the synthetic demo profile.");
+        }
+
+        if (workspace.Browse.SelectedEntity?.Path != "order-events"
+            || workspace.Browse.Messages.Count != 16
+            || workspace.Browse.FocusedMessage?.MessageId != "order-10482-dispatched")
+        {
+            throw new InvalidOperationException("The README scenario did not select the expected topic and message.");
+        }
+
+        if (!workspace.Inspector.RawText.Contains("OrderDispatched", StringComparison.Ordinal)
+            || !workspace.Inspector.PropertiesText.Contains("eventType", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("The README scenario did not populate the message inspector.");
         }
     }
 }

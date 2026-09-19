@@ -153,7 +153,6 @@ public partial class GlobalWatchWindow : Window
 
     private void Done_Click(object sender, RoutedEventArgs e) => Close();
 }
-
 // Partial parent selections become fully selected on the next click or UIA Toggle.
 internal sealed class IncludeCheckBox : CheckBox
 {

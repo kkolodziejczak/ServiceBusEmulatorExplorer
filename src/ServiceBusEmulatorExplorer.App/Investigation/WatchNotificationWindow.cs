@@ -120,4 +120,3 @@ public sealed class WatchNotificationWindow : Window
         source.Text = $"{connectionName} / {message.Source.Replace("/", " / ")}" + (otherGroups > 0 ? $"\n+ {otherGroups} other watched location{(otherGroups == 1 ? "" : "s")}" : "");
     }
 }
-

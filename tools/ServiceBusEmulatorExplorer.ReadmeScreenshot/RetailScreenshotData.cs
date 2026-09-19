@@ -1,5 +1,7 @@
 using System.Text;
 using System.Text.Json;
+using ServiceBusEmulatorExplorer.Core.Connection;
+using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.Messaging;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
@@ -9,38 +11,65 @@ internal static class RetailScreenshotData
 {
     public static readonly DateTimeOffset ScenarioTime = new(2026, 7, 21, 19, 36, 29, TimeSpan.Zero);
 
-    public static IReadOnlyList<ServiceBusEntityNode> CreateEntities()
+    public static WorkspacePreferences CreatePreferences() => new()
     {
-        return
+        Profiles =
         [
-            CreateEntity(EntityKind.Queue, "webhook-delivery", null, active: 2),
-            CreateEntity(EntityKind.Topic, "inventory-events", null, active: 0),
-            CreateEntity(EntityKind.Subscription, "replenishment", "inventory-events", active: 2),
-            CreateEntity(EntityKind.Subscription, "warehouse-reservations", "inventory-events", active: 2),
-            CreateEntity(EntityKind.Topic, "order-events", null, active: 0),
-            CreateEntity(EntityKind.Subscription, "analytics", "order-events", active: 4),
-            CreateEntity(EntityKind.Subscription, "billing", "order-events", active: 4),
-            CreateEntity(EntityKind.Subscription, "customer-notifications", "order-events", active: 4),
-            CreateEntity(EntityKind.Subscription, "fulfillment", "order-events", active: 4),
-            CreateEntity(EntityKind.Topic, "payment-events", null, active: 0),
-            CreateEntity(EntityKind.Subscription, "accounting", "payment-events", active: 2),
-            CreateEntity(EntityKind.Subscription, "fraud-review", "payment-events", active: 2)
+            new InvestigationProfile(
+                "demo-retail",
+                new ConnectionProfile("Demo retail workspace", "synthetic-runtime", "synthetic-admin"),
+                "#0069FA")
+        ],
+        SelectedProfileId = "demo-retail",
+        WasConnected = false,
+        LogExpanded = true,
+        TimestampDisplay = TimestampDisplay.Utc,
+        WindowWidth = 1500,
+        WindowHeight = 1000,
+        QueuePageSize = 50,
+        TopicPageSize = 50,
+        SubscriptionPageSize = 50
+    };
+
+    public static EntityDiscoverySnapshot CreateSnapshot()
+    {
+        ServiceBusEntityNode[] entities =
+        [
+            CreateEntity(EntityKind.Queue, "checkout-commands", null, active: 18, deadLetter: 1, scheduled: 0),
+            CreateEntity(EntityKind.Topic, "order-events", null, active: 16, deadLetter: 1, scheduled: 3),
+            CreateEntity(EntityKind.Subscription, "fulfillment", "order-events", active: 8, deadLetter: 1, scheduled: 0),
+            CreateEntity(EntityKind.Subscription, "customer-notifications", "order-events", active: 8, deadLetter: 0, scheduled: 0),
+            CreateEntity(EntityKind.Topic, "inventory-events", null, active: 6, deadLetter: 0, scheduled: 0),
+            CreateEntity(EntityKind.Subscription, "warehouse", "inventory-events", active: 6, deadLetter: 0, scheduled: 0)
         ];
+
+        return new(
+            entities.Select(entity => new EntityObservation(
+                entity,
+                new EntityCountObservation(
+                    new(entity.Counts.ActiveMessageCount, CountAvailability.Known),
+                    new(entity.Counts.DeadLetterMessageCount, CountAvailability.Known),
+                    new(entity.Counts.ScheduledMessageCount, CountAvailability.Known)))).ToArray(),
+            ScenarioTime,
+            IsComplete: true,
+            Issues: []);
     }
 
     private static ServiceBusEntityNode CreateEntity(
         EntityKind kind,
         string name,
         string? topicName,
-        long active)
+        long active,
+        long deadLetter,
+        long scheduled)
     {
         return EntityTreeBuilder.CreateNode(new EntityTreeSource(
             kind,
             name,
             topicName,
             active,
-            DeadLetterMessageCount: 0,
-            ScheduledMessageCount: 0,
+            deadLetter,
+            scheduled,
             Status: "Active",
             CreatedAtUtc: new DateTimeOffset(2026, 6, 18, 8, 15, 0, TimeSpan.Zero),
             UpdatedAtUtc: ScenarioTime,
@@ -53,66 +82,46 @@ internal static class RetailScreenshotData
 
     public static IReadOnlyList<ExplorerMessage> CreateMessages()
     {
-        return
-        [
-            CreateMessage(
-                1,
-                "order-10482-placed",
-                "OrderPlaced",
-                new
+        var messages = new List<ExplorerMessage>();
+        string[] subscriptions = ["fulfillment", "customer-notifications"];
+        for (int index = 0; index < 8; index++)
+        {
+            foreach (string subscription in subscriptions)
+            {
+                string eventType = index switch
                 {
-                    orderId = "ORD-10482",
-                    customerId = "CUS-7321",
-                    total = new { amount = 189.90, currency = "EUR" },
-                    items = new[]
+                    0 => "OrderPlaced",
+                    1 => "PaymentAuthorized",
+                    2 => "InventoryReserved",
+                    3 => "OrderDispatched",
+                    _ => "OrderStatusUpdated"
+                };
+                string messageId = index == 3 && subscription == "fulfillment"
+                    ? "order-10482-dispatched"
+                    : $"order-10482-{eventType.ToLowerInvariant()}-{subscription}";
+                messages.Add(CreateMessage(
+                    subscription,
+                    index + 1,
+                    messageId,
+                    eventType,
+                    new
                     {
-                        new { sku = "TRAIL-BAG-28L", quantity = 1 },
-                        new { sku = "BOTTLE-STEEL-750", quantity = 2 }
-                    },
-                    occurredAtUtc = ScenarioTime.AddMinutes(-18)
-                }),
-            CreateMessage(
-                2,
-                "order-10482-paid",
-                "PaymentAuthorized",
-                new
-                {
-                    orderId = "ORD-10482",
-                    paymentId = "PAY-880143",
-                    amount = 189.90,
-                    currency = "EUR",
-                    provider = "ContosoPay",
-                    occurredAtUtc = ScenarioTime.AddMinutes(-15)
-                }),
-            CreateMessage(
-                3,
-                "order-10482-reserved",
-                "InventoryReserved",
-                new
-                {
-                    orderId = "ORD-10482",
-                    warehouse = "WAW-02",
-                    reservationId = "RES-20451",
-                    occurredAtUtc = ScenarioTime.AddMinutes(-11)
-                }),
-            CreateMessage(
-                4,
-                "order-10482-dispatched",
-                "OrderDispatched",
-                new
-                {
-                    orderId = "ORD-10482",
-                    shipmentId = "SHP-55109",
-                    carrier = "DHL",
-                    trackingNumber = "PL839201485",
-                    destination = "Krakow, PL",
-                    occurredAtUtc = ScenarioTime.AddMinutes(-4)
-                })
-        ];
+                        orderId = "ORD-10482",
+                        customerId = "CUS-7321",
+                        shipmentId = eventType == "OrderDispatched" ? "SHP-55109" : null,
+                        destination = eventType == "OrderDispatched" ? "Krakow, PL" : null,
+                        total = new { amount = 189.90, currency = "EUR" },
+                        occurredAtUtc = ScenarioTime.AddMinutes(-18 + index)
+                    }));
+            }
+        }
+
+        return messages;
     }
 
     private static ExplorerMessage CreateMessage(
-        long sequenceNumber,
+        string subscription,
+        int sequenceNumber,
         string messageId,
         string eventType,
         object data)
@@ -139,12 +148,16 @@ internal static class RetailScreenshotData
             {
                 ["environment"] = "demo",
                 ["eventType"] = eventType,
-                ["region"] = "eu-central"
+                ["region"] = "eu-central",
+                ["subscription"] = subscription
             },
             new Dictionary<string, object?>
             {
                 ["SequenceNumber"] = sequenceNumber,
                 ["EnqueuedTimeUtc"] = enqueuedTime
-            });
+            })
+        {
+            RawBody = BinaryData.FromString(body)
+        };
     }
 }

@@ -17,4 +17,3 @@
   <Button x:Name="DoneButton" Grid.Row="3" HorizontalAlignment="Right" Margin="0,16,0,0" Content="Done" Style="{StaticResource PrimaryButton}" Click="Done_Click" AutomationProperties.AutomationId="DoneButton"/>
  </Grid></Border>
 </Window>
-

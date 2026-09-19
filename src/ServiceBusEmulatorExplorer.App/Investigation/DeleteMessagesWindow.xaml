@@ -12,4 +12,3 @@
   <WrapPanel HorizontalAlignment="Right" Margin="0,22,0,0"><Button x:Name="CancelButton" Content="Cancel" IsCancel="True" IsDefault="True" Click="Cancel_Click" Margin="0,0,8,0" AutomationProperties.AutomationId="CancelDeleteButton"/><Button x:Name="ConfirmDeleteButton" IsEnabled="False" Style="{StaticResource DeleteButtonStyle}" Click="Delete_Click" AutomationProperties.Name="Confirm delete messages" AutomationProperties.AutomationId="ConfirmDeleteButton"><StackPanel Orientation="Horizontal"><Path Data="M2,4 H16 M6,4 V1 H12 V4 M4,4 L5,18 H13 L14,4 M7,7 V14 M11,7 V14" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.6" Width="14" Height="16" Stretch="Uniform" Margin="0,0,8,0"/><TextBlock x:Name="DeleteButtonLabel" Text="Delete messages" VerticalAlignment="Center"/></StackPanel></Button></WrapPanel>
  </StackPanel></Border>
 </Window>
-
