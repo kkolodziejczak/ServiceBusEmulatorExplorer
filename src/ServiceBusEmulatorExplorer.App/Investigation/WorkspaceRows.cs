@@ -113,4 +113,4 @@ public sealed class MessageRow : ObservableObject
     }
 }
 
-public sealed record ActivityEntry(DateTimeOffset TimestampUtc, string Message, bool Warning);
+public sealed record ActivityEntry(DateTimeOffset TimestampUtc, string Message, bool Warning, bool Watch = false);

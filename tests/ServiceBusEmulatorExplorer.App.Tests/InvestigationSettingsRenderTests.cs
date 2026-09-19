@@ -91,6 +91,7 @@ public sealed class InvestigationSettingsRenderTests
             TabItem connections = (TabItem)window.FindName("ConnectionsTab")!;
             Button done = (Button)window.FindName("DoneButton")!;
             TextBlock generalStatus = (TextBlock)window.FindName("GeneralStatus")!;
+            AssertPageTypography(general);
 
             queue.SelectedItem = 100;
             Assert.False(done.IsEnabled, "Done must be disabled while the first general save is pending.");
@@ -115,6 +116,7 @@ public sealed class InvestigationSettingsRenderTests
 
             tabs.SelectedItem = connections;
             window.UpdateLayout();
+            AssertPageTypography(connections);
             ListBox profiles = (ListBox)window.FindName("ProfilesList")!;
             Assert.Equal(2, profiles.Items.Count);
             authentication.SelectedIndex = 1;
@@ -216,6 +218,13 @@ public sealed class InvestigationSettingsRenderTests
         WindowWidth = 520,
         WindowHeight = 820
     };
+
+    private static void AssertPageTypography(TabItem tab)
+    {
+        var content = (ScrollViewer)tab.Content;
+        Assert.Equal(Color.FromRgb(0x17, 0x21, 0x3D), ((SolidColorBrush)content.Foreground).Color);
+        Assert.Equal(FontWeights.Normal, content.FontWeight);
+    }
 
     private static void SetGeneralSelector(
         Dispatcher dispatcher,

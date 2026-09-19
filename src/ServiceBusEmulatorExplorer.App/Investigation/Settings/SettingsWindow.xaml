@@ -202,7 +202,7 @@
             </TabControl.Resources>
 
             <TabItem x:Name="GeneralTab" Header="General" AutomationProperties.AutomationId="GeneralTab">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Foreground="{DynamicResource InkBrush}" FontWeight="Normal">
                     <StackPanel Margin="4,22,4,12">
                         <TextBlock Text="Application" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,18" />
                         <Grid>
@@ -247,7 +247,7 @@
             </TabItem>
 
             <TabItem x:Name="ConnectionsTab" Header="Connections" AutomationProperties.AutomationId="ConnectionsTab">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Foreground="{DynamicResource InkBrush}" FontWeight="Normal">
                     <StackPanel Margin="4,20,4,12">
                         <TextBlock Text="Connection profiles" FontSize="16" FontWeight="SemiBold" />
                         <TextBlock Text="Profiles and preferences are saved for your next launch. Connection strings are protected for your Windows user." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryBrush}" FontSize="12" Margin="0,8,0,14" />

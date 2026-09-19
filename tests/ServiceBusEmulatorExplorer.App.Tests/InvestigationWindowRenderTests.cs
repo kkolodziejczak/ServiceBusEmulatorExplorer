@@ -61,6 +61,7 @@ public sealed class InvestigationWindowRenderTests
             Task connect = workspace.ConnectAsync();
             PumpUntil(dispatcher, () => connect.IsCompleted, TimeSpan.FromSeconds(5));
             connect.GetAwaiter().GetResult();
+            AssertActivityPresentation(window, workspace, dispatcher);
             EntityNode topic = workspace.Browse.AllEntities().Single(node => node.Kind == nameof(EntityKind.Topic));
             Task select = workspace.Browse.SelectAsync(topic, deadLetter: false);
             PumpUntil(dispatcher, () => select.IsCompleted, TimeSpan.FromSeconds(5));
@@ -164,6 +165,40 @@ public sealed class InvestigationWindowRenderTests
 
             workspace.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
+    }
+
+    private static void AssertActivityPresentation(InvestigationWindow window, InvestigationWorkspace workspace, Dispatcher dispatcher)
+    {
+        workspace.Activity.Clear();
+        var instant = new DateTimeOffset(2026, 9, 19, 9, 0, 0, TimeSpan.Zero);
+        workspace.Activity.Add(new(instant, "Connected to verification fixture.", false));
+        workspace.Activity.Add(new(instant, "Verification warning.", true));
+        workspace.Activity.Add(new(instant, "Baseline ready.", false, Watch: true));
+        RichTextBox log = (RichTextBox)window.FindName("LogText")!;
+        var paragraphs = log.Document.Blocks.OfType<System.Windows.Documents.Paragraph>().ToArray();
+        var info = paragraphs[0].Inlines.OfType<System.Windows.Documents.Run>().ToArray();
+        var warning = paragraphs[1].Inlines.OfType<System.Windows.Documents.Run>().ToArray();
+        Assert.Equal(3, info.Length);
+        Assert.Equal("09:00:00 UTC   ", info[0].Text);
+        Assert.Equal("#87A7BF", BrushHex(info[0].Foreground));
+        Assert.Equal("INFO    ", info[1].Text);
+        Assert.Equal("#90EE90", BrushHex(info[1].Foreground));
+        Assert.Equal("WARN    ", warning[1].Text);
+        Assert.Equal("#FFA500", BrushHex(warning[1].Foreground));
+        Assert.Equal("Verification warning.", warning[2].Text);
+        var watch = paragraphs[2].Inlines.OfType<System.Windows.Documents.Run>().ToArray();
+        Assert.Equal("WATCH   ", watch[1].Text);
+        Assert.Equal("#00FFFF", BrushHex(watch[1].Foreground));
+        Assert.Equal("09:00:00 UTC", ((TextBlock)window.FindName("LastOperationTime")!).Text);
+        Task local = workspace.UpdateDisplayPreferencesAsync(timestampDisplay: TimestampDisplay.Local);
+        PumpUntil(dispatcher, () => local.IsCompleted, TimeSpan.FromSeconds(5));
+        local.GetAwaiter().GetResult();
+        var localTime = (System.Windows.Documents.Run)((System.Windows.Documents.Paragraph)log.Document.Blocks.FirstBlock).Inlines.FirstInline;
+        Assert.Equal(instant.ToLocalTime().ToString("HH:mm:ss") + " Local   ", localTime.Text);
+        Assert.Equal(instant, workspace.Activity[0].TimestampUtc);
+        Task utc = workspace.UpdateDisplayPreferencesAsync(timestampDisplay: TimestampDisplay.Utc);
+        PumpUntil(dispatcher, () => utc.IsCompleted, TimeSpan.FromSeconds(5));
+        utc.GetAwaiter().GetResult();
     }
 
     private static void ExerciseNotificationRecovery(InvestigationWindow window, InvestigationWorkspace workspace, Dispatcher dispatcher)

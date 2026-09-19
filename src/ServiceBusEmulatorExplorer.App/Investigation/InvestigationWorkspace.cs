@@ -74,7 +74,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
         else if (!watchBaselineReady)
         {
             watchBaselineReady = true;
-            Log("Watch baseline ready. New arrivals will be reported.");
+            Log("Watch baseline ready. New arrivals will be reported.", watch: true);
         }
         foreach (var failure in result.Failures)
             Log($"Watch {failure.Target.Address.TopicName}/{failure.Target.Address.Name} · {failure.Target.Bucket}: {failure.Message}", true);
@@ -316,9 +316,9 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
         NotifyConnection();
     }
 
-    public void Log(string message, bool warning = false)
+    public void Log(string message, bool warning = false, bool watch = false)
     {
-        Activity.Add(new(DateTimeOffset.UtcNow, message, warning));
+        Activity.Add(new(DateTimeOffset.UtcNow, message, warning, watch));
         while (Activity.Count > 100) Activity.RemoveAt(0);
         OnPropertyChanged(nameof(Status));
     }

@@ -240,13 +240,27 @@ public partial class InvestigationWindow : Window
         LogText.Document.Blocks.Clear();
         foreach (var entry in workspace.Activity)
         {
-            var time = workspace.Preferences.TimestampDisplay == TimestampDisplay.Utc ? entry.TimestampUtc : entry.TimestampUtc.ToLocalTime();
-            LogText.Document.Blocks.Add(new Paragraph(new Run($"{time:yyyy-MM-dd HH:mm:ss zzz}  {entry.Message}")) { Margin = new Thickness(0, 0, 0, 4) });
+            var paragraph = new Paragraph { Margin = new Thickness(0, 2, 0, 2) };
+            paragraph.Inlines.Add(new Run(ActivityTime(entry.TimestampUtc) + "   ")
+            {
+                Foreground = new SolidColorBrush(Color.FromRgb(135, 167, 191)),
+                ToolTip = entry.TimestampUtc.ToString("O")
+            });
+            paragraph.Inlines.Add(new Run(entry.Warning ? "WARN    " : entry.Watch ? "WATCH   " : "INFO    ")
+            {
+                Foreground = entry.Warning ? Brushes.Orange : entry.Watch ? Brushes.Cyan : Brushes.LightGreen
+            });
+            paragraph.Inlines.Add(new Run(entry.Message));
+            LogText.Document.Blocks.Add(paragraph);
         }
         var last = workspace.Activity.LastOrDefault();
-        LastOperationTime.Text = last is null ? "" :
-            (workspace.Preferences.TimestampDisplay == TimestampDisplay.Utc ? last.TimestampUtc : last.TimestampUtc.ToLocalTime()).ToString("HH:mm:ss zzz");
+        LastOperationTime.Text = last is null ? "" : ActivityTime(last.TimestampUtc);
+        LastOperationTime.ToolTip = last?.TimestampUtc.ToString("O");
         LogText.ScrollToEnd();
     }
+
+    private string ActivityTime(DateTimeOffset instant) => workspace.Preferences.TimestampDisplay == TimestampDisplay.Utc
+        ? instant.ToString("HH:mm:ss") + " UTC"
+        : instant.ToLocalTime().ToString("HH:mm:ss") + " Local";
 
 }
