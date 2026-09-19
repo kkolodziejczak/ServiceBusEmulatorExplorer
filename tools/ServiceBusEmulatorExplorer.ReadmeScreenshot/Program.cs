@@ -1,6 +1,5 @@
 using System.IO;
 using System.Windows;
-using System.Windows.Interop;
 using System.Windows.Media;
 using ServiceBusEmulatorExplorer.App.Investigation;
 
@@ -26,21 +25,21 @@ internal static class Program
             try
             {
                 workspace = await RetailScreenshotScenario.CreateWorkspaceAsync();
-                var window = new InvestigationWindow(workspace)
-                {
-                    ShowActivated = false,
-                    ShowInTaskbar = false,
-                    WindowStartupLocation = WindowStartupLocation.Manual,
-                    Left = 0,
-                    Top = 0
-                };
+                var window = new InvestigationWindow(workspace);
 
-                window.Show();
-                await window.Dispatcher.InvokeAsync(
-                    () => { },
-                    System.Windows.Threading.DispatcherPriority.ContextIdle);
-                window.Width = workspace.Preferences.WindowWidth;
-                window.Height = workspace.Preferences.WindowHeight;
+                // Give the production window its intended viewport before its normal
+                // Loaded handler chooses the responsive layout. This keeps capture
+                // independent of the hosted runner's small virtual desktop.
+                window.Measure(new Size(
+                    workspace.Preferences.WindowWidth,
+                    workspace.Preferences.WindowHeight));
+                window.Arrange(new Rect(
+                    0,
+                    0,
+                    workspace.Preferences.WindowWidth,
+                    workspace.Preferences.WindowHeight));
+                window.UpdateLayout();
+                window.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
                 await window.Dispatcher.InvokeAsync(
                     () => { },
                     System.Windows.Threading.DispatcherPriority.ContextIdle);
