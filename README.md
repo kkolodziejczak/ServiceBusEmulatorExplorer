@@ -52,7 +52,9 @@ Copy-Item .env.example .env
 docker compose --env-file .env up -d
 ```
 
-Start the application, leave the authentication mode as **ConnectionString**, and use:
+On first launch, the application selects **Local emulator** and automatically attempts to connect using the defaults below. If the emulator is not running, start it and click **Connect**. Existing saved profiles and connected/disconnected startup choices are preserved.
+
+For a manually configured profile, select **ConnectionString** and use:
 
 ```text
 Runtime:        Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
@@ -60,6 +62,8 @@ Administration: Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageShare
 ```
 
 The runtime connection handles message operations. The administration connection handles namespace topology and entity management.
+
+Emulator counts marked with `*` are **observed deliveries from browsing**, not live broker totals. Refresh and Load more update them; hover over a count for the check time and whether the scan is partial or complete. Unvisited sources/buckets and unavailable scheduled totals show `—`. Main-queue observations may include scheduled, deferred or expired messages; topic observations count each subscription's delivery separately. Azure profiles continue to use broker-reported counts.
 
 When finished:
 

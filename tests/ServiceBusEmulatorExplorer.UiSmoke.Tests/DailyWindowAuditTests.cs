@@ -41,8 +41,9 @@ public sealed class DailyWindowAuditTests
         // Audit acceptance: an unavailable count is honest; a numeric zero contradicts the visible delivery.
         // Existing tooltip caveats do not change the visible numeric assertion.
         Assert.DoesNotContain("· 0 Active", fixture.Element("MessageCountSummary").Name);
-        Assert.Contains("· — Active", fixture.Element("MessageCountSummary").Name);
-        fixture.AssertUnavailableTreeCountsAtSupportedSizes("active");
+        Assert.Contains("1 observed", fixture.Element("MessageCountSummary").Name);
+        Assert.Contains("scan complete", fixture.Element("MessageCountSummary").Name);
+        fixture.AssertObservedTreeCountsAtSupportedSizes("active");
     }
 
     [UiNavigationSmokeFact(Timeout = 90_000), Trait("TestCategory", "DailyAudit")]
@@ -61,8 +62,9 @@ public sealed class DailyWindowAuditTests
         fixture.Element("DeadLetterTab").Patterns.Toggle.Pattern.Toggle();
         fixture.WaitLoaded(1);
         Assert.DoesNotContain("· 0 DLQ", fixture.Element("MessageCountSummary").Name);
-        Assert.Contains("· — DLQ", fixture.Element("MessageCountSummary").Name);
-        fixture.AssertUnavailableTreeCountsAtSupportedSizes("dlq");
+        Assert.Contains("1 observed", fixture.Element("MessageCountSummary").Name);
+        Assert.Contains("scan complete", fixture.Element("MessageCountSummary").Name);
+        fixture.AssertObservedTreeCountsAtSupportedSizes("dlq");
     }
 
     [UiNavigationSmokeFact(Timeout = 90_000), Trait("TestCategory", "DailyAudit")]
@@ -110,6 +112,33 @@ public sealed class DailyWindowAuditTests
         fixture.Open();
         fixture.WaitLoaded(2);
         Assert.Equal(2, (await fixture.PeekAsync()).Count);
+    }
+
+    [UiNavigationSmokeFact(Timeout = 90_000), Trait("TestCategory", "DailyAudit")]
+    public async Task Observed_count_tracks_partial_pages_then_refresh_excludes_a_retained_removed_delivery()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        await using var sender = fixture.Client.CreateSender(fixture.Queue);
+        await sender.SendMessagesAsync(Enumerable.Range(1, 65).Select(index =>
+            new ServiceBusMessage("{\"observed\":true}") { MessageId = $"observed-{index}" }), fixture.Token);
+        fixture.Open();
+        fixture.WaitLoaded(50);
+        Assert.Contains("50 observed", fixture.Element("MessageCountSummary").Name);
+        Assert.Contains("partial scan", fixture.Element("MessageCountSummary").Name);
+        fixture.Invoke("LoadMoreButton");
+        fixture.WaitLoaded(65);
+        Assert.Contains("65 observed", fixture.Element("MessageCountSummary").Name);
+        Assert.Contains("scan complete", fixture.Element("MessageCountSummary").Name);
+        string focused = fixture.Element("InspectorMessageId").Name;
+        await using var receiver = fixture.Client.CreateReceiver(fixture.Queue);
+        var removed = await receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(5), fixture.Token);
+        Assert.NotNull(removed);
+        Assert.Equal(focused, removed.MessageId);
+        await receiver.CompleteMessageAsync(removed, fixture.Token);
+        fixture.Invoke("RefreshButton");
+        fixture.Wait(() => fixture.Element("MessageCountSummary").Name.Contains("64 observed", StringComparison.Ordinal));
+        Assert.Equal(focused, fixture.Element("InspectorMessageId").Name);
+        Assert.Equal(64, (await fixture.PeekAsync()).Count);
     }
 
     [UiNavigationSmokeFact(Timeout = 90_000), Trait("TestCategory", "DailyAudit")]
@@ -208,7 +237,7 @@ public sealed class DailyWindowAuditTests
 
         public void WaitLoaded(int count) => Wait(() => Element("MessageCountSummary").Name.StartsWith($"{count} loaded", StringComparison.Ordinal));
 
-        public void AssertUnavailableTreeCountsAtSupportedSizes(string bucket)
+        public void AssertObservedTreeCountsAtSupportedSizes(string bucket)
         {
             foreach (var (width, height) in new[] { (1500, 1000), (1100, 800), (980, 640) })
             {
@@ -219,7 +248,9 @@ public sealed class DailyWindowAuditTests
                 var node = label;
                 while (node is not null && node.ControlType != ControlType.TreeItem) node = node.Parent;
                 Assert.NotNull(node);
-                Assert.Equal(3, node.FindAllDescendants(cf => cf.ByText("—")).Length);
+                Assert.Single(node.FindAllDescendants(cf => cf.ByText("1*")));
+                Assert.Equal(bucket == "active" ? 2 : 1, node.FindAllDescendants(cf => cf.ByText("—")).Length);
+                if (bucket == "dlq") Assert.Single(node.FindAllDescendants(cf => cf.ByText("0*")));
                 Assert.False(Element("MessageCountSummary").IsOffscreen);
                 Assert.False(Element("RefreshButton").IsOffscreen);
                 if (Environment.GetEnvironmentVariable("SBE_CAPTURE_DAILY_FIX_UI") == "true")

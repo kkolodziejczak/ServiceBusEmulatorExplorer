@@ -7,6 +7,31 @@ namespace ServiceBusEmulatorExplorer.App.Tests;
 
 public sealed class InvestigationWorkspaceTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Fresh_store_automatically_attempts_local_emulator_and_handles_failure(bool failure)
+    {
+        string directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "sbe-startup-tests", Guid.NewGuid().ToString("N"));
+        var store = new ServiceBusEmulatorExplorer.App.Investigation.Settings.ProtectedWorkspacePreferencesStore(
+            System.IO.Path.Combine(directory, "profiles.json"));
+        var factory = new FakeFactory { FailConnect = failure };
+        try
+        {
+            await using var workspace = new InvestigationWorkspace(store, new BrokerConnectionWorkflow(
+                () => factory, _ => new FakeBrowser(Snapshot()), _ => new FakeMessages()));
+            await workspace.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(1, factory.ConnectCount);
+            Assert.Equal(ConnectionProfileDefaults.LocalEmulator, factory.LastProfile);
+            Assert.Equal(!failure, workspace.IsConnected);
+            if (failure) Assert.Contains(workspace.Activity, entry => entry.Warning);
+        }
+        finally
+        {
+            if (System.IO.Directory.Exists(directory)) System.IO.Directory.Delete(directory, true);
+        }
+    }
+
     [Fact]
     public async Task DisposeWhilePreferencesLoadIsPending_DoesNotOverwriteStoreOrPublishLatePreferences()
     {
@@ -336,6 +361,8 @@ public sealed class InvestigationWorkspaceTests
 
     private sealed class FakeFactory : IServiceBusClientFactory
     {
+        public bool FailConnect { get; init; }
+        public ConnectionProfile? LastProfile { get; private set; }
         public bool BlockConnect { get; init; }
         public TaskCompletionSource<bool> ConnectStarted { get; } = NewSignal();
         private TaskCompletionSource<bool> ConnectRelease { get; } = NewSignal();
@@ -348,6 +375,8 @@ public sealed class InvestigationWorkspaceTests
         public Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken)
         {
             ConnectCount++;
+            LastProfile = profile;
+            if (FailConnect) throw new InvalidOperationException("Emulator unavailable");
             ConnectStarted.TrySetResult(true);
             return BlockConnect ? WaitForReleaseAsync() : Task.CompletedTask;
         }

@@ -9,6 +9,8 @@ public sealed class EntityNode : ObservableObject
 {
     private bool expanded = true;
     private bool visible = true;
+    private ObservedDeliveryCount? observedMain;
+    private ObservedDeliveryCount? observedDlq;
     public EntityNode(string name, string kind, EntityObservation? observation = null)
     {
         Name = name;
@@ -26,12 +28,19 @@ public sealed class EntityNode : ObservableObject
     public ObservableCollection<EntityNode> Children { get; } = [];
     public bool IsExpanded { get => expanded; set => SetProperty(ref expanded, value); }
     public bool IsVisible { get => visible; set => SetProperty(ref visible, value); }
-    public string DisplayMessageCount => Format(Observation?.Counts.Active);
-    public string DisplayDlqCount => Format(Observation?.Counts.DeadLetter);
+    public string DisplayMessageCount => observedMain?.Display ?? Format(Observation?.Counts.Active);
+    public string DisplayDlqCount => observedDlq?.Display ?? Format(Observation?.Counts.DeadLetter);
     public string DisplayScheduledCount => Format(Observation?.Counts.Scheduled);
-    public string ActiveCountDetail => Detail(Observation?.Counts.Active, "Active messages reported by the broker. Emulator counts may be inaccurate.");
+    public string ActiveCountDetail => observedMain?.Detail(MessageBucket.Active) ?? Detail(Observation?.Counts.Active, "Active messages reported by the broker. Emulator counts may be inaccurate.");
     public string ScheduledCountDetail => Detail(Observation?.Counts.Scheduled, "Scheduled messages reported by the broker.");
-    public string DlqCountDetail => Detail(Observation?.Counts.DeadLetter, "Dead-letter messages reported by the broker. Emulator counts may be inaccurate.");
+    public string DlqCountDetail => observedDlq?.Detail(MessageBucket.DeadLetter) ?? Detail(Observation?.Counts.DeadLetter, "Dead-letter messages reported by the broker. Emulator counts may be inaccurate.");
+    internal ObservedDeliveryCount? GetObservedCount(MessageBucket bucket) => bucket == MessageBucket.Active ? observedMain : observedDlq;
+    internal void SetObservedCount(MessageBucket bucket, ObservedDeliveryCount? count)
+    {
+        if (bucket == MessageBucket.Active) observedMain = count;
+        else observedDlq = count;
+        NotifyCounts();
+    }
     public void UpdateObservation(EntityObservation observation)
     {
         ArgumentNullException.ThrowIfNull(observation);
@@ -40,8 +49,14 @@ public sealed class EntityNode : ObservableObject
             throw new ArgumentException("The observation address must match the existing entity.", nameof(observation));
 
         Observation = observation;
+        if (observation.Counts.Active.Availability == CountAvailability.Stale) observedMain = null;
+        if (observation.Counts.DeadLetter.Availability == CountAvailability.Stale) observedDlq = null;
         OnPropertyChanged(nameof(Path));
         OnPropertyChanged(nameof(Address));
+        NotifyCounts();
+    }
+    private void NotifyCounts()
+    {
         OnPropertyChanged(nameof(DisplayMessageCount));
         OnPropertyChanged(nameof(DisplayDlqCount));
         OnPropertyChanged(nameof(DisplayScheduledCount));

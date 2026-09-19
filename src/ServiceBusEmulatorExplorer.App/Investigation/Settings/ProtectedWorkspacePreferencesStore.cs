@@ -51,7 +51,7 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
     public async Task<PreferencesLoadResult> LoadAsync(CancellationToken cancellationToken)
     {
         if (!File.Exists(filePath))
-            return new PreferencesLoadResult(DefaultPreferences());
+            return new PreferencesLoadResult(DefaultPreferences() with { WasConnected = true });
 
         try
         {

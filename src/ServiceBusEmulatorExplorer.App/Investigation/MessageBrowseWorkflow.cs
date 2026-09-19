@@ -35,7 +35,17 @@ public sealed class MessageBrowseWorkflow : ObservableObject
     public string EntityPath => selectedEntity?.Path ?? "Select an entity";
     public int SelectedCount => Messages.Count(row => row.IsSelected);
     public string CountSummary => selectedEntity is null ? "" :
+        UsesObservedCounts ? ObservedCountSummary() :
         $"{Messages.Count} loaded · {selectedEntity.DisplayMessageCount} Active · {selectedEntity.DisplayScheduledCount} Scheduled · {selectedEntity.DisplayDlqCount} DLQ";
+    private bool UsesObservedCounts => session?.Factory?.SupportsRuntimeCounts == false;
+
+    private string ObservedCountSummary()
+    {
+        var count = selectedEntity!.GetObservedCount(bucket);
+        string observation = count is null ? "not observed" :
+            $"{count.Deliveries.Count:N0} observed · {(count.IsComplete ? "scan complete" : "partial scan")}";
+        return $"{Messages.Count} loaded · {observation} ({(IsDeadLetter ? "DLQ" : "main queue")})";
+    }
     public bool ShowsSource => selectedEntity?.Kind == nameof(EntityKind.Topic);
 
     public void SetPreferences(WorkspacePreferences value)
@@ -84,16 +94,23 @@ public sealed class MessageBrowseWorkflow : ObservableObject
         foreach (var item in observations.Where(item => item.Entity.Kind == EntityKind.Topic))
         {
             var topic = ReconcileNode(item, existingNodes);
+            bool hadSubscriptions = topic.Children.Count > 0;
             topic.Children.Clear();
             foreach (var child in observations.Where(child => child.Entity.Kind == EntityKind.Subscription &&
                 string.Equals(child.Entity.TopicName, item.Entity.Name, StringComparison.OrdinalIgnoreCase)))
                 topic.Children.Add(ReconcileNode(child, existingNodes));
+            if (hadSubscriptions && topic.Children.Count == 0)
+            {
+                topic.SetObservedCount(MessageBucket.Active, null);
+                topic.SetObservedCount(MessageBucket.DeadLetter, null);
+            }
             topics.Children.Add(topic);
         }
         Roots.Clear();
         Roots.Add(queues);
         Roots.Add(topics);
         selectedEntity = AllEntities().FirstOrDefault(node => node.Address == previousAddress);
+        if (UsesObservedCounts) ObservedDeliveryCounts.AggregateTopics(AllEntities());
         ApplyEntityFilter();
         NotifyScope();
     }
@@ -218,10 +235,20 @@ public sealed class MessageBrowseWorkflow : ObservableObject
         {
             var deliveries = await pager.LoadNextAsync(PageSize(), cancellation.Token);
             if (operationVersion != version) return;
-            var keys = Messages.Select(row => row.Key).ToHashSet();
+            var rowsByKey = Messages.ToDictionary(row => row.Key);
             foreach (var delivery in deliveries)
-                if (keys.Add(delivery.Identity)) AddRow(new(delivery, preferences.TimestampDisplay));
+            {
+                if (deleted.Contains(delivery.Identity)) continue;
+                if (rowsByKey.TryGetValue(delivery.Identity, out var existing)) existing.UpdateDelivery(delivery);
+                else
+                {
+                    var row = new MessageRow(delivery, preferences.TimestampDisplay);
+                    rowsByKey.Add(delivery.Identity, row);
+                    AddRow(row);
+                }
+            }
             FocusedMessage ??= Messages.FirstOrDefault();
+            CaptureObservedCounts();
         }
         finally
         {
@@ -304,6 +331,7 @@ public sealed class MessageBrowseWorkflow : ObservableObject
             }
 
             ReconcileMessages(rows);
+            CaptureObservedCounts();
             FocusedMessage = oldFocusedKey is not null
                 ? Messages.FirstOrDefault(row => row.Key == oldFocusedKey) ?? Messages.FirstOrDefault()
                 : Messages.FirstOrDefault();
@@ -333,7 +361,15 @@ public sealed class MessageBrowseWorkflow : ObservableObject
             Messages.Remove(row);
         }
         if (FocusedMessage is not null && deleted.Contains(FocusedMessage.Key)) FocusedMessage = Messages.FirstOrDefault();
+        if (UsesObservedCounts) ObservedDeliveryCounts.ForgetDeleted(AllEntities().ToArray(), deleted);
         NotifyScope();
+    }
+
+    private void CaptureObservedCounts()
+    {
+        if (UsesObservedCounts && selectedEntity is not null && pager is not null)
+            ObservedDeliveryCounts.Capture(AllEntities().ToArray(), selectedEntity, Messages,
+                bucket, !pager.HasMore, DateTimeOffset.UtcNow);
     }
 
     public void Cancel()

@@ -9,6 +9,24 @@ namespace ServiceBusEmulatorExplorer.App.Tests;
 public sealed class InvestigationPreferencesTests
 {
     [Fact]
+    public async Task Fresh_installation_selects_local_emulator_and_connects_at_startup()
+    {
+        var result = await new ProtectedWorkspacePreferencesStore(CreatePath()).LoadAsync(CancellationToken.None);
+        Assert.Null(result.Warning);
+        Assert.Equal(ConnectionProfileDefaults.LocalEmulator, Assert.Single(result.Preferences.Profiles).Connection);
+        Assert.Equal("local-emulator", result.Preferences.SelectedProfileId);
+        Assert.True(result.Preferences.WasConnected);
+    }
+
+    [Fact]
+    public async Task Saved_disconnected_startup_choice_is_preserved()
+    {
+        var store = new ProtectedWorkspacePreferencesStore(CreatePath());
+        await store.SaveAsync(new WorkspacePreferences { WasConnected = false }, CancellationToken.None);
+        Assert.False((await store.LoadAsync(CancellationToken.None)).Preferences.WasConnected);
+    }
+
+    [Fact]
     public async Task Save_and_load_round_trip_protects_connection_strings_and_preserves_approved_preferences()
     {
         string path = CreatePath();
@@ -132,6 +150,7 @@ public sealed class InvestigationPreferencesTests
         Assert.DoesNotContain("JsonException", loaded.Warning, StringComparison.Ordinal);
         Assert.Single(loaded.Preferences.Profiles);
         Assert.Equal("local-emulator", loaded.Preferences.SelectedProfileId);
+        Assert.False(loaded.Preferences.WasConnected);
     }
 
     [Fact]
