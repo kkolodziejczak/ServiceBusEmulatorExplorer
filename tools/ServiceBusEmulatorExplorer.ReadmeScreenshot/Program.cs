@@ -23,6 +23,7 @@ internal static class Program
         application.Startup += async (_, _) =>
         {
             InvestigationWorkspace? workspace = null;
+            NativeWindowSizeOverride? nativeWindowSizeOverride = null;
             try
             {
                 workspace = await RetailScreenshotScenario.CreateWorkspaceAsync();
@@ -41,6 +42,13 @@ internal static class Program
 
                 var contentRendered = new TaskCompletionSource<bool>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
+                window.SourceInitialized += (_, _) =>
+                {
+                    nativeWindowSizeOverride = NativeWindowSizeOverride.Install(
+                        window,
+                        WpfScreenshot.CaptureWidth,
+                        WpfScreenshot.CaptureHeight);
+                };
                 window.ContentRendered += (_, _) => contentRendered.TrySetResult(true);
                 window.Show();
                 await contentRendered.Task.WaitAsync(TimeSpan.FromSeconds(30));
@@ -60,6 +68,7 @@ internal static class Program
             }
             finally
             {
+                nativeWindowSizeOverride?.Dispose();
                 if (workspace is not null)
                 {
                     await workspace.DisposeAsync();
