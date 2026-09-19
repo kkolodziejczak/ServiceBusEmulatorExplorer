@@ -23,6 +23,7 @@ internal static class Program
         application.Startup += async (_, _) =>
         {
             InvestigationWorkspace? workspace = null;
+            NativeWindowSizeOverride? nativeWindowSizeOverride = null;
             try
             {
                 workspace = await RetailScreenshotScenario.CreateWorkspaceAsync();
@@ -31,11 +32,28 @@ internal static class Program
                     ShowActivated = false,
                     ShowInTaskbar = false,
                     WindowStartupLocation = WindowStartupLocation.Manual,
-                    Left = -32_000,
-                    Top = -32_000
+                    WindowStyle = WindowStyle.None,
+                    ResizeMode = ResizeMode.NoResize,
+                    Width = WpfScreenshot.CaptureWidth,
+                    Height = WpfScreenshot.CaptureHeight,
+                    Left = 0,
+                    Top = 0
                 };
 
+                var contentRendered = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                window.SourceInitialized += (_, _) =>
+                {
+                    nativeWindowSizeOverride = NativeWindowSizeOverride.Install(
+                        window,
+                        WpfScreenshot.CaptureWidth,
+                        WpfScreenshot.CaptureHeight);
+                };
+                window.ContentRendered += (_, _) => contentRendered.TrySetResult(true);
                 window.Show();
+                await contentRendered.Task.WaitAsync(TimeSpan.FromSeconds(30));
+                window.Width = WpfScreenshot.CaptureWidth;
+                window.Height = WpfScreenshot.CaptureHeight;
                 await window.Dispatcher.InvokeAsync(
                     () => { },
                     System.Windows.Threading.DispatcherPriority.ContextIdle);
@@ -50,6 +68,7 @@ internal static class Program
             }
             finally
             {
+                nativeWindowSizeOverride?.Dispose();
                 if (workspace is not null)
                 {
                     await workspace.DisposeAsync();

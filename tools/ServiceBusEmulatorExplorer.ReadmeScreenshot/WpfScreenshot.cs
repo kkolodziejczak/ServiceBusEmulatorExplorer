@@ -9,8 +9,8 @@ internal static class WpfScreenshot
 {
     private const int MinimumWidth = 1200;
     private const int MinimumHeight = 650;
-    private const int CaptureWidth = 1484;
-    private const int CaptureHeight = 961;
+    internal const int CaptureWidth = 1484;
+    internal const int CaptureHeight = 961;
 
     public static void SaveWindowContent(Window window, string outputPath)
     {
@@ -19,8 +19,6 @@ internal static class WpfScreenshot
             throw new InvalidOperationException("The main window does not contain a renderable WPF element.");
         }
 
-        content.Measure(new Size(CaptureWidth, CaptureHeight));
-        content.Arrange(new Rect(0, 0, CaptureWidth, CaptureHeight));
         content.UpdateLayout();
 
         int width = (int)Math.Ceiling(content.ActualWidth);
