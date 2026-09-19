@@ -1,4 +1,6 @@
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 using ServiceBusEmulatorExplorer.App.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
@@ -44,12 +46,49 @@ internal static class RetailScreenshotScenario
         }
 
         if (window.FindName("ConnectionSelector") is not FrameworkElement
-            || window.FindName("MessageGrid") is not FrameworkElement
+            || window.FindName("MessageGrid") is not DataGrid messageGrid
             || window.FindName("InspectorTitle") is not FrameworkElement
-            || window.FindName("BodyEditor") is not FrameworkElement)
+            || window.FindName("BodyEditor") is not FrameworkElement
+            || window.FindName("InspectorPane") is not FrameworkElement inspectorPane)
         {
             throw new InvalidOperationException(
                 "The README scenario did not render the Investigation Workspace connection, message, and inspector surfaces.");
+        }
+
+        double messageColumnWidth = messageGrid.Columns[1].ActualWidth;
+        FrameworkElement content = window.Content as FrameworkElement
+            ?? throw new InvalidOperationException("The README scenario has no renderable window content.");
+        DataGridColumn enqueuedColumn = messageGrid.Columns.Single(column =>
+            string.Equals(column.Header?.ToString(), "Enqueued (UTC)", StringComparison.Ordinal));
+        bool hasRealizedRow = messageGrid.ItemContainerGenerator.ContainerFromIndex(0) is DataGridRow;
+        DpiScale dpi = VisualTreeHelper.GetDpi(window);
+        Console.WriteLine(
+            $"Live screenshot layout: window {window.ActualWidth:F0}x{window.ActualHeight:F0}, " +
+            $"content {content.ActualWidth:F0}x{content.ActualHeight:F0}, DPI {dpi.PixelsPerInchX:F0}, " +
+            $"grid {messageGrid.ActualWidth:F0}, columns " +
+            $"{string.Join(", ", messageGrid.Columns.Select(column => $"{column.Header as string ?? "Select"}={column.ActualWidth:F0}"))}.");
+
+        if (!window.IsLoaded || !messageGrid.IsLoaded || !hasRealizedRow
+            || Math.Abs(window.ActualWidth - WpfScreenshot.CaptureWidth) > 1
+            || Math.Abs(window.ActualHeight - WpfScreenshot.CaptureHeight) > 1
+            || Math.Abs(content.ActualWidth - WpfScreenshot.CaptureWidth) > 1
+            || Math.Abs(content.ActualHeight - WpfScreenshot.CaptureHeight) > 1
+            || Grid.GetColumn(inspectorPane) != 2
+            || Grid.GetRow(inspectorPane) != 0
+            || enqueuedColumn.Visibility != Visibility.Visible
+            || messageGrid.ActualWidth < 600
+            || Math.Abs(messageGrid.Columns[0].ActualWidth - 40) > 1
+            || messageColumnWidth < 250
+            || Math.Abs(messageGrid.Columns[2].ActualWidth - 145) > 1
+            || Math.Abs(enqueuedColumn.ActualWidth - 140) > 1
+            || inspectorPane.ActualWidth < 350)
+        {
+            throw new InvalidOperationException(
+                $"The README scenario rendered a compact or unstable workspace: " +
+                $"window {window.ActualWidth:F0}x{window.ActualHeight:F0}px, " +
+                $"content {content.ActualWidth:F0}x{content.ActualHeight:F0}px, " +
+                $"message grid {messageGrid.ActualWidth:F0}px, message column {messageColumnWidth:F0}px, " +
+                $"inspector {inspectorPane.ActualWidth:F0}px, realized row {hasRealizedRow}.");
         }
 
         if (!workspace.IsConnected || workspace.Surface.Messages.Count != 16

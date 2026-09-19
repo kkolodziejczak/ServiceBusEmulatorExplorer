@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Media;
 using ServiceBusEmulatorExplorer.App.Investigation;
 
@@ -25,21 +26,26 @@ internal static class Program
             try
             {
                 workspace = await RetailScreenshotScenario.CreateWorkspaceAsync();
-                var window = new InvestigationWindow(workspace);
+                var window = new InvestigationWindow(workspace)
+                {
+                    ShowActivated = false,
+                    ShowInTaskbar = false,
+                    WindowStartupLocation = WindowStartupLocation.Manual,
+                    WindowStyle = WindowStyle.None,
+                    ResizeMode = ResizeMode.NoResize,
+                    Width = WpfScreenshot.CaptureWidth,
+                    Height = WpfScreenshot.CaptureHeight,
+                    Left = 0,
+                    Top = 0
+                };
 
-                // Give the production window its intended viewport before its normal
-                // Loaded handler chooses the responsive layout. This keeps capture
-                // independent of the hosted runner's small virtual desktop.
-                window.Measure(new Size(
-                    workspace.Preferences.WindowWidth,
-                    workspace.Preferences.WindowHeight));
-                window.Arrange(new Rect(
-                    0,
-                    0,
-                    workspace.Preferences.WindowWidth,
-                    workspace.Preferences.WindowHeight));
-                window.UpdateLayout();
-                window.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
+                var contentRendered = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                window.ContentRendered += (_, _) => contentRendered.TrySetResult(true);
+                window.Show();
+                await contentRendered.Task.WaitAsync(TimeSpan.FromSeconds(30));
+                window.Width = WpfScreenshot.CaptureWidth;
+                window.Height = WpfScreenshot.CaptureHeight;
                 await window.Dispatcher.InvokeAsync(
                     () => { },
                     System.Windows.Threading.DispatcherPriority.ContextIdle);
