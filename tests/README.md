@@ -118,6 +118,26 @@ The remaining investigation E2E filters use the same runner and isolated profile
 
 The last two cases require only `SBE_RUN_UI_TESTS=true`, not a broker. The input case uses UIA to establish its starting focus, then Windows `SendInput` for the tested actions. A restricted desktop sandbox can reject `SendInput` with Access Denied; rerun in an authorized interactive session instead of replacing input with UIA invocation. This is not physical hardware or spoken screen-reader certification. Monitor coverage reports the current environment and does not change display scaling or establish untested 125/150/200% behavior. The current completion boundaries are recorded in the [handoff](../specs/investigation-workspace-handoff.md).
 
+## Daily workflow audit
+
+The [2026-09-19 audit](../specs/daily-workflow-audit-2026-09-19.md) adds explicit daily-workflow and edge-case integration cases. These include acceptance checks that can intentionally fail against current production behavior. Keep application failures visible; do not weaken assertions to obtain a green run.
+
+Run against an isolated local emulator with `SBE_RUNTIME_CONNECTION_STRING` and `SBE_ADMIN_CONNECTION_STRING` set to its endpoints. The desktop cases also need an interactive Windows session. They create unique entities and isolated profiles; do not use production credentials. `DailyAudit` workspace tests use actual broker services on a WPF dispatcher, while `DailyWindowAuditTests` launches the executable through FlaUI.
+
+From the repository root, build into a separate output tree so an already-running application does not lock the build output:
+
+```powershell
+$env:SBE_RUN_UI_TESTS = "true"
+$env:SBE_RUN_INTEGRATION_TESTS = "true"
+dotnet build tests/ServiceBusEmulatorExplorer.UiSmoke.Tests --artifacts-path artifacts/daily-audit/repro -m:1 -nr:false -p:UseSharedCompilation=false
+dotnet build tests/ServiceBusEmulatorExplorer.Integration.Tests --artifacts-path artifacts/daily-audit/repro -m:1 -nr:false -p:UseSharedCompilation=false
+$env:SBE_APP_EXE = "$PWD/artifacts/daily-audit/repro/bin/ServiceBusEmulatorExplorer.App/debug/ServiceBusEmulatorExplorer.App.exe"
+dotnet test artifacts/daily-audit/repro/bin/ServiceBusEmulatorExplorer.UiSmoke.Tests/debug/ServiceBusEmulatorExplorer.UiSmoke.Tests.dll --filter TestCategory=DailyAudit --logger "trx;LogFileName=daily-workspaces.trx" --results-directory artifacts/daily-audit/repro-results --blame-hang --blame-hang-timeout 110s
+dotnet test artifacts/daily-audit/repro/bin/ServiceBusEmulatorExplorer.Integration.Tests/debug/ServiceBusEmulatorExplorer.Integration.Tests.dll --filter FullyQualifiedName~DailyOperationsAuditTests --logger "trx;LogFileName=daily-operations.trx" --results-directory artifacts/daily-audit/repro-results --blame-hang --blame-hang-timeout 110s
+```
+
+Run these suites serially: namespace discovery and search should not overlap another suite's fixture creation/removal. Count final unique cases, excluding superseded harness runs. The audit report separates application failures, provider discrepancies, and unverified environment branches.
+
 ## First UI Smoke Test
 
 The first FlaUI/UIA3 smoke test should:
