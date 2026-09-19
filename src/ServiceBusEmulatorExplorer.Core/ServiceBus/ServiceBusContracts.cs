@@ -58,7 +58,11 @@ public sealed record ExplorerMessage(
     string? SessionId,
     string? Subject,
     IReadOnlyDictionary<string, object?> ApplicationProperties,
-    IReadOnlyDictionary<string, object?> SystemProperties);
+    IReadOnlyDictionary<string, object?> SystemProperties)
+{
+    /// <summary>Original broker bytes, independent of the decoded body used for text display.</summary>
+    public BinaryData? RawBody { get; init; }
+}
 
 public sealed record ReplayRequest(
     EntityAddress Source,
@@ -138,6 +142,13 @@ public sealed record SendMessageCommand(
 
 public interface IServiceBusClientFactory : IAsyncDisposable
 {
+    /// <summary>
+    /// Indicates whether the connected broker provides reliable runtime message counts.
+    /// The local development emulator exposes count fields that may remain zero while
+    /// messages are present, so callers must represent those counts as unavailable.
+    /// </summary>
+    bool SupportsRuntimeCounts => true;
+
     Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken);
 
     ServiceBusAdministrationClient AdministrationClient { get; }

@@ -2,6 +2,7 @@ using Azure.Identity;
 using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
 using ServiceBusEmulatorExplorer.Core.Connection;
+using System.Data.Common;
 
 namespace ServiceBusEmulatorExplorer.Core.ServiceBus;
 
@@ -9,6 +10,8 @@ public sealed class DirectServiceBusClientFactory : IServiceBusClientFactory
 {
     private ServiceBusAdministrationClient? _administrationClient;
     private ServiceBusClient? _runtimeClient;
+
+    public bool SupportsRuntimeCounts { get; private set; } = true;
 
     public ServiceBusAdministrationClient AdministrationClient =>
         _administrationClient ?? throw new InvalidOperationException("Connect before using the administration client.");
@@ -39,6 +42,23 @@ public sealed class DirectServiceBusClientFactory : IServiceBusClientFactory
         await DisposeAsync();
         _administrationClient = administrationClient;
         _runtimeClient = runtimeClient;
+        SupportsRuntimeCounts = RuntimeCountsSupported(profile);
+    }
+
+    internal static bool RuntimeCountsSupported(ConnectionProfile profile) =>
+        profile.AuthenticationMode == ConnectionAuthenticationMode.AzureCli ||
+        !HasDevelopmentEmulatorFlag(profile.AdministrationConnectionString);
+
+    private static bool HasDevelopmentEmulatorFlag(string connectionString)
+    {
+        var builder = new DbConnectionStringBuilder
+        {
+            ConnectionString = connectionString
+        };
+
+        return builder.TryGetValue("UseDevelopmentEmulator", out object? value) &&
+            bool.TryParse(Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture), out bool enabled) &&
+            enabled;
     }
 
     internal static (ServiceBusAdministrationClient AdministrationClient, ServiceBusClient RuntimeClient) CreateClients(ConnectionProfile profile)
@@ -79,5 +99,6 @@ public sealed class DirectServiceBusClientFactory : IServiceBusClientFactory
 
         _runtimeClient = null;
         _administrationClient = null;
+        SupportsRuntimeCounts = true;
     }
 }

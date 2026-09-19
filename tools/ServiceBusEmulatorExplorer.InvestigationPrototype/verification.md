@@ -1,0 +1,367 @@
+# Correlation investigation walkthrough
+
+Actual rendered WPF with synthetic messages; routed actions, no physical pointer automation.
+
+- PASS: Opening scope loads its first 50 sample messages
+PASS: Preview changes preserve checked messages; header and row checkbox centers align within 1 pixel.
+PASS: Two ordinary checkbox clicks keep both messages checked without modifiers.
+PASS: Row preview does not alter the checked set.
+PASS: Header checkbox selects all loaded messages from a partial selection.
+PASS: Select all batches selection notifications instead of notifying once per row.
+PASS: Header checkbox clears all loaded messages.
+PASS: Space on the header selects all, not a current row.
+PASS: Space on a row checkbox toggles that checkbox once.
+- PASS: Refresh preserves preview and checked messages
+- PASS: Load more retains preview and adds another page
+- PASS: Loaded rows expose typed correlation IDs
+- PASS: Message grid includes a correlation ID column
+- PASS: Raw tab retains the unformatted original body
+- PASS: Properties tab retains correlation metadata
+- PASS: Find selects a match in the inline JSON editor
+- PASS: Primary controls fit the 1500 × 1000 viewport
+- PASS: desktop: namespace typing renders entity suggestions
+- PASS: desktop: namespace suggestions match complete entity paths
+- PASS: desktop: namespace typing filters the tree live
+- PASS: desktop: namespace clear action is visible and accessible
+- PASS: desktop: repeated Down advances namespace suggestions
+- PASS: desktop: Up returns to the first namespace suggestion
+- PASS: desktop: Escape dismisses suggestions without clearing the namespace filter
+- PASS: desktop: Enter fills the full subscription path and opens its messages
+- PASS: desktop: clicking a queue suggestion opens that queue
+- PASS: desktop: unmatched entity search shows its empty state and offers global ID searches
+- PASS: desktop: clear restores the entire namespace tree
+- PASS: desktop: clearing namespace search preserves the open entity
+- PASS: desktop: namespace search preserves MessageCount and DLQ totals
+- PASS: compact: namespace typing renders entity suggestions
+- PASS: compact: namespace suggestions match complete entity paths
+- PASS: compact: namespace typing filters the tree live
+- PASS: compact: namespace clear action is visible and accessible
+- PASS: compact: repeated Down advances namespace suggestions
+- PASS: compact: Up returns to the first namespace suggestion
+- PASS: compact: Escape dismisses suggestions without clearing the namespace filter
+- PASS: compact: Enter fills the full subscription path and opens its messages
+- PASS: compact: clicking a queue suggestion opens that queue
+- PASS: compact: unmatched entity search shows its empty state and offers global ID searches
+- PASS: compact: clear restores the entire namespace tree
+- PASS: compact: clearing namespace search preserves the open entity
+- PASS: compact: namespace search preserves MessageCount and DLQ totals
+- PASS: Unified search suggests a loaded message with its typed identity
+- PASS: Unified search offers explicit namespace-wide correlation and message ID actions
+- PASS: Unified suggestions identify their category and target
+- PASS: Explicit message ID search returns only exact message ID matches
+- PASS: Choosing a global message search dismisses suggestions
+- PASS: Unified clear restores browsing and the complete namespace tree
+- PASS: Clicking a loaded message suggestion opens its entity and focuses that message
+- PASS: Expanded activity log spans the application width
+- PASS: Expanded log exposes an icon-only clear action with a tooltip
+- PASS: Collapsed activity log hides its clear action
+- PASS: Collapsing the full-width activity log releases workspace height
+- PASS: Reopening the activity log retains operation history
+- PASS: Expanded log restores clear action while last operation remains in the footer
+- PASS: Clear removes console history and preserves the last-operation footer
+- PASS: Empty correlation input has no suggestions or clear action
+- PASS: Typing a correlation prefix suggests known IDs
+- PASS: Suggestion popup is rendered while typing
+- PASS: Repeated Down advances to the second suggestion
+- PASS: Up returns to the first suggestion
+- PASS: Explicit correlation action searches the typed query globally
+- PASS: Applied correlation search exposes an accessible inline clear action and closes suggestions
+- PASS: Clearing changed pending text also removes the applied filter and restores the entity page
+- PASS: Emptying input retains inline clear for the applied filter without reopening suggestions
+- PASS: Inline clear removes an applied filter even with empty input
+- PASS: Clicking a correlation suggestion fills the ID and searches globally
+- PASS: Global correlation search completes visibly
+- PASS: Global results match the complete correlation ID exactly
+- PASS: Search returns every matching fixture across the namespace, including later pages
+- PASS: Correlation results include multiple entity locations
+- PASS: Correlation results include both active and dead-letter messages
+- PASS: Global search scans beyond the first page
+- PASS: Rendered search status reports scan progress or completion
+- PASS: Correlation copy icon sits within 10 pixels of its ID
+- PASS: Copy correlation sends the exact ID to the clipboard for log lookup
+- PASS: Find related searches the focused message correlation globally
+- PASS: Correlation matching is case sensitive
+- PASS: Clear search returns to the entity workspace
+- PASS: Inline JSON opens formatted without changing original bytes
+- PASS: Formatting alone leaves default Replay action and clean state
+- PASS: Inline JSON wraps to available inspector width
+- PASS: Rendered editor uses preview colors for keys, strings and scalars
+- PASS: Editing a middle value preserves the caret and refreshes coloring
+- PASS: Undo reverses text editing without a formatting-only step
+- PASS: Redo restores exact edited JSON
+- PASS: Incomplete JSON stays editable without rewriting text
+- PASS: Editor always wraps and keeps horizontal scrolling disabled
+- PASS: Default replay ID includes a readable replay suffix
+- PASS: Inspector displays the proposed replay ID
+- PASS: Untouched replay retains the DLQ original
+- PASS: Repeated replay advances the numbered default ID
+- PASS: A second replay advances the counter again
+- PASS: Fixture includes a meaningful editable JSON value
+- PASS: Changing JSON exposes Modified and Edit and Replay
+- PASS: A dirty draft exposes Discard changes
+- PASS: Switching rows preserves the original row's draft
+- PASS: Discard restores original formatted JSON and Replay label
+- PASS: Incomplete JSON cannot be sent as an edited replay
+- PASS: Edited replay leaves original DLQ body unchanged
+- PASS: Untouched replay copies exact original body bytes and preserves correlation
+- PASS: Edited JSON is sent in the new active copy with the same correlation
+- PASS: Global results provide two DLQ messages for batch selection
+- PASS: Mixed active and DLQ checks block replay instead of silently skipping active rows
+- PASS: Batch selection with one draft blocks replay
+- PASS: Focusing a clean row does not bypass a checked draft
+- PASS: Multiple checked drafts require individual replay or discard
+- PASS: Discarding one draft does not ignore another checked draft
+- PASS: Two checked DLQ results form a replay batch
+- PASS: Batch replay retains both DLQ originals
+- PASS: Completed zero-result search clears stale rows and focused message
+- PASS: No-results state is rendered in list and inspector
+- PASS: No-results state offers no stale replay action
+- PASS: Canceled zero-result scan explicitly says search incomplete
+- PASS: Empty search clear action restores entity browsing
+PASS: Preview changes preserve checked messages; header and row checkbox centers align within 1 pixel.
+PASS: Two ordinary checkbox clicks keep both messages checked without modifiers.
+PASS: Row preview does not alter the checked set.
+PASS: Header checkbox selects all loaded messages from a partial selection.
+PASS: Select all batches selection notifications instead of notifying once per row.
+PASS: Header checkbox clears all loaded messages.
+PASS: Space on the header selects all, not a current row.
+PASS: Space on a row checkbox toggles that checkbox once.
+- PASS: Primary controls fit the 1100 × 800 viewport
+- PASS: Compact inspector retains JSON wrapping
+- PASS: Primary controls fit the 980 × 640 viewport
+- PASS: Minimum viewport retains four lines of usable JSON editor
+- PASS: Minimum viewport displays at least one complete message row
+- PASS: Message ID text fits fully inside the compact row
+- PASS: Minimum viewport exposes replay and discard for a draft
+- PASS: Minimum viewport keeps the inline correlation clear beside the text and vertically centered
+- PASS: Clearing a pending compact correlation query closes suggestions and retains browsing
+- PASS: Plain text and malformed JSON are labelled and preserved exactly
+- PASS: Plain text and malformed JSON are labelled and preserved exactly
+- PASS: Valid JSON returns to the formatted JSON label
+- PASS: Exiting search through the tree resumes five-second automatic refresh and preserves preview
+- PASS: Pausing automatic refresh prevents incoming sample messages
+- PASS: Disconnect clears rows and focused inspector
+- PASS: Disconnected state hides stale replay controls
+- PASS: Disconnected state still permits clearing pending correlation text
+- PASS: Disconnected clear removes correlation criteria without reconnecting or displaying stale rows
+- PASS: Reconnect restores a focused first page of sample messages
+- PASS: Enabling Watch starts silently without notifying for existing messages
+- PASS: Watch label reflects the selected entity rather than other watched entities
+- PASS: Independent Watch generates Active and DLQ arrivals for an unselected entity
+- PASS: Background arrivals preserve the investigation scope and focused message
+- PASS: Watch notification is a separate visible desktop window, independent of the main window
+- PASS: Repeated arrivals group by entity and Active/DLQ bucket in one persistent notification
+- PASS: Notification close uses a square target and soft blue hover (simulated pointer state)
+- PASS: Desktop notification remains visible while the application is hidden
+- PASS: Investigate restores the app, searches across the connection, and focuses the latest notified message
+- PASS: Grouped notification searches all distinct notified correlation IDs without unrelated results
+- PASS: Notification investigation includes every matching active and DLQ message across the connection
+- PASS: Responding advances to the next pending watched bucket
+- PASS: Dismiss closes the final notification without removing any messages
+- PASS: Watch pauses arrivals and notifications while disconnected
+- PASS: Disabling all watched buckets stops new arrivals
+- PASS: Stopping one watched bucket clears its pending notification and advances to the remaining bucket
+- PASS: Stopping the final bucket closes pending notifications and restores the Watch label
+- PASS: Proof lifetime can exercise a real desktop notification without starting tray services
+- PASS: Closing in proof mode closes the app window and all owned watch resources without lingering windows
+- PASS: No watches hides header bell and crosses out toolbar bell
+- PASS: Watch opens a selector with independent Active and DLQ choices
+- PASS: Unwatched entity starts with both Watch choices off
+- PASS: Active can be enabled independently without closing the Watch selector
+- PASS: Both Watch buckets can be enabled in one selector visit
+- PASS: Enabled Watch fills toolbar bell and reveals header bell
+- PASS: Header Watch overview opens with the application menu styling
+- PASS: Watch overview styles both checked Active and DLQ locations consistently
+- PASS: Styled Watch overview accepts logical focus on a watched location
+- PASS: Invoking checked Watch overview location unchecks it
+- PASS: Unchecking overview Active stops only that bucket and retains DLQ watch
+- PASS: Reopened Watch selector retains both selected buckets
+- PASS: Stop watching clears the entity Watch state and closes its selector
+- PASS: Stop watching resets both choices on reopening
+- PASS: Settings opens a dedicated owned window
+- PASS: General settings expose enabled close-to-tray and notification defaults
+- PASS: General switches respond independently to UI Automation Toggle
+- PASS: Done closes Settings
+- PASS: Reopening Settings retains this session's general preferences
+- PASS: Connections page exposes named profile and masked runtime and administration fields
+- PASS: Saved connection draft survives closing and reopening Settings within this session
+- PASS: Saving connection draft retains its profile identity
+- PASS: Compact Settings scrolls the form to keep Save and Done reachable
+- PASS: General tab returns from Connections to preferences
+- PASS: Refresh selector opens all four supported intervals
+- PASS: Styled refresh selector retains selectable 30-second interval
+- PASS: Header connection picker starts on the current local emulator profile
+- PASS: Connection-switch proof starts with a pending watched arrival
+- PASS: Using a selected connection updates header and disconnects before investigation
+- PASS: Connection switch clears watches, pending notifications, and search
+- PASS: Connection switch resets the previous session's synthetic arrivals
+- PASS: Local emulator can be selected again and reconnected
+- PASS: Correlation OR returns both exact IDs across the connection
+- PASS: Compound searches are not offered as literal correlation IDs
+- PASS: Correlation wildcard matches every ID with the requested prefix
+- PASS: Message wildcard can search every sample message across the connection
+- PASS: Message search supports case-insensitive OR operator syntax
+- PASS: Search value matching stays case-sensitive
+- PASS: Regex punctuation is treated as literal text rather than executable search syntax
+- PASS: Quoted exact correlation searches preserve literal IDs
+- PASS: Incomplete OR query surfaces a validation error without starting a scan
+- PASS: Invalid search explanation is visible in the rendered workspace
+- PASS: Clear recovers from invalid query into normal browsing
+- PASS: Normal entity browsing hides redundant Location / State column
+- PASS: Global correlation search shows Location / State for cross-entity results
+- PASS: OR search shows only matching sources and parents with exact Active / DLQ aggregate counts
+- PASS: Search projections preserve underlying namespace totals
+- PASS: Global message ID search also shows Location / State
+- PASS: Wildcard message search shows only matching sources and parents with exact Active / DLQ aggregate counts
+- PASS: Stopping after one page retains a bounded partial search
+- PASS: Stopped partial search shows only matching sources and parents with exact Active / DLQ aggregate counts
+- PASS: No-results search hides every unmatched tree branch
+- PASS: Clearing search restores the whole namespace tree and removes redundant result location column
+- PASS: Clearing search restores displayed namespace totals for every node
+- PASS: Time proof starts with existing activity history
+- PASS: UTC selection changes the rendered Enqueued header and numerical timestamp
+- PASS: UTC selection reformats existing console timestamps from their original UTC instants
+- PASS: UTC selection reformats the footer's existing last-operation timestamp
+- PASS: Local selection changes the rendered Enqueued header and numerical timestamp
+- PASS: Local selection reformats existing console timestamps from their original UTC instants
+- PASS: Local selection reformats the footer's existing last-operation timestamp
+- PASS: Server selection changes the rendered Enqueued header and numerical timestamp
+- PASS: Server selection reformats existing console timestamps from their original UTC instants
+- PASS: Server selection reformats the footer's existing last-operation timestamp
+- PASS: Time display preferences preserve original message JSON, metadata and UTC instant
+- PASS: Investigate unions the applied message-ID search with the notified correlation across the connection
+- PASS: Investigate preserves applied search meaning, replaces unrelated draft text and focuses the arrival
+- PASS: Investigating the same notification again does not duplicate criteria
+- PASS: An empty notification batch preserves the applied query and result snapshot
+- PASS: A notified message without correlation appends its message-ID criterion without dropping prior cases
+- PASS: Global Watch switches independently enable both buckets
+- PASS: Unchecking a topic removes Active and DLQ watches for every child
+- PASS: Unchecking a child updates its parent inclusion state truthfully
+- PASS: Checking Topics selects all subscriptions and clears child exceptions
+- PASS: Global inclusion filter displays its no-results state
+- PASS: Global rules include newly discovered queues without adding explicit watches
+- PASS: Topic browsing shows message source subscriptions
+- PASS: Topic Watch selector enables Active choice
+- PASS: Topic Watch applies to its subscriptions
+- PASS: Delete confirmation begins disabled with an empty confirmation field
+- PASS: Cancelling delete confirmation preserves sample messages
+- PASS: Delete confirmation begins disabled with an empty confirmation field
+- PASS: Delete stays disabled for non-exact confirmation: 'wrong'
+- PASS: Delete stays disabled for non-exact confirmation: 'delete'
+- PASS: Delete stays disabled for non-exact confirmation: 'DELETE '
+- PASS: Delete stays disabled for non-exact confirmation: ' DELETE'
+- PASS: Exact uppercase DELETE enables confirmation
+- PASS: Clearing typed DELETE disables confirmation again
+- PASS: Retyping exact DELETE restores the enabled action
+- PASS: Confirmed selection deletes one Active and one DLQ sample message
+- PASS: Delete targets exact messages and decrements corresponding Active and DLQ totals
+- PASS: Repeated deletion does not remove extra messages or decrement totals twice
+- PASS: Workspace delete proof starts with two checked Active messages
+- PASS: Main Delete action cancellation preserves checked messages and count
+- PASS: Main Delete action, typed confirmation and model removal delete exactly checked messages and update displayed count
+- PASS: Saving a connection profile retains its chosen palette color
+- PASS: Connected health renders a green indicator and explicit label
+- PASS: Connection warning renders amber with diagnostic detail
+- PASS: Header profile selector switches connection and renders disconnected health in red
+- PASS: Returning to the original profile and connecting restores green health
+- PASS: Preferences save to an isolated proof file:
+- PASS: Persisted connection strings do not appear as plaintext in the preference file
+- PASS: Protected connection strings round-trip for the current Windows user
+- PASS: Restored Watch inclusion keeps an unchecked child while covering future subscriptions
+- PASS: A fresh application restores refresh interval, time display and collapsed console
+- PASS: A fresh application restores tray, notification and profile color preferences
+- PASS: Fresh application restores saved Watch tree inclusion
+- PASS: Closing and reopening persists changed refresh, time and console settings
+- PASS: Closing and reopening restores nondefault entity, paused refresh and message-ID search with its original meaning
+- PASS: Corrupt preferences return safe defaults and a warning instead of throwing
+- PASS: Profile primary resource follows #0069FA
+- PASS: Rendered primary Watch button follows #0069FA
+- PASS: Selected Active tab follows #0069FA
+- PASS: Selected message cells use the profile selection tint for #0069FA
+- PASS: Header chrome uses profile theme for #0069FA
+- PASS: Profile primary resource follows #7540BF
+- PASS: Rendered primary Watch button follows #7540BF
+- PASS: Selected Active tab follows #7540BF
+- PASS: Selected message cells use the profile selection tint for #7540BF
+- PASS: Header chrome uses profile theme for #7540BF
+- PASS: Settings inherits the purple profile theme
+- PASS: Global Watch inherits the purple profile theme
+- PASS: Profile primary resource follows #007F80
+- PASS: Rendered primary Watch button follows #007F80
+- PASS: Selected Active tab follows #007F80
+- PASS: Selected message cells use the profile selection tint for #007F80
+- PASS: Header chrome uses profile theme for #007F80
+- PASS: Profile primary resource follows #B85B00
+- PASS: Rendered primary Watch button follows #B85B00
+- PASS: Selected Active tab follows #B85B00
+- PASS: Selected message cells use the profile selection tint for #B85B00
+- PASS: Header chrome uses profile theme for #B85B00
+- PASS: Profile primary resource follows #C83B3B
+- PASS: Rendered primary Watch button follows #C83B3B
+- PASS: Selected Active tab follows #C83B3B
+- PASS: Selected message cells use the profile selection tint for #C83B3B
+- PASS: Header chrome uses profile theme for #C83B3B
+- PASS: Settings inherits the red profile theme
+- PASS: Global Watch inherits the red profile theme
+- PASS: A warning is displayed only when a new acknowledgment is required
+- PASS: profile-warning-cancel displays the confirmation
+- PASS: Cancelling a profile warning preserves the current connection, search and results
+- PASS: A warning is displayed only when a new acknowledgment is required
+- PASS: profile-warning-continue displays the confirmation
+- PASS: Accepting a profile warning selects that profile and leaves it disconnected
+- PASS: profile-warning-acknowledged avoids duplicate confirmation
+- PASS: First Connect consumes the profile-switch acknowledgment without a duplicate prompt
+- PASS: A warning is displayed only when a new acknowledgment is required
+- PASS: profile-warning-reconnect-cancel displays the confirmation
+- PASS: Cancelling a later reconnect warning keeps the profile disconnected
+- PASS: A warning is displayed only when a new acknowledgment is required
+- PASS: profile-warning-reconnect displays the confirmation
+- PASS: Accepting a later reconnect warning reconnects sample data
+- PASS: A warning is displayed only when a new acknowledgment is required
+- PASS: Saving during a pending warning retains the approved profile, connected state and search
+- PASS: profile-warning-pending-header-save displays the confirmation
+- PASS: Header warning cancellation retains the approved profile after an in-modal save
+- PASS: Managing an inactive profile preserves the approved connection and applied search
+- PASS: Profile warning text round-trips through an isolated preferences file
+- PASS: A warning is displayed only when a new acknowledgment is required
+- PASS: Startup warning appears before the saved connection loads messages
+- PASS: profile-warning-startup-False displays the confirmation
+- PASS: Saved connected profile requires startup warning approval: cancelled
+- PASS: Profile warning text round-trips through an isolated preferences file
+- PASS: A warning is displayed only when a new acknowledgment is required
+- PASS: Startup warning appears before the saved connection loads messages
+- PASS: profile-warning-startup-True displays the confirmation
+- PASS: Saved connected profile requires startup warning approval: accepted
+- PASS: Accepting the startup warning restores the saved nondefault entity and DLQ tab
+- PASS: Add connection creates a third profile with a unique identity and blank connection strings
+- PASS: Adding a connection preserves the active profile
+- PASS: Saving a new connection retains identity and edited name, warning, color and credentials
+- PASS: Saved new profile appears in the main selector without switching the active connection
+- PASS: Added profile survives a protected preferences round trip through an isolated proof file
+- PASS: New profile credentials are absent as plaintext from persisted preferences
+- PASS: Watch search displays its placeholder when empty
+- PASS: Watch dialog omits redundant introductory and instructional paragraphs
+- PASS: Typing filters Watch entities and hides its search placeholder
+- PASS: Clearing Watch search restores its placeholder
+- PASS: Automatically connect on profile switch defaults to off
+- PASS: Switching profiles with auto-connect off leaves the connection disconnected
+- PASS: Enabling auto-connect connects the newly selected profile
+- PASS: Auto-connect warning cancellation keeps the previously connected profile
+- PASS: Approving auto-connect warning connects once without a second prompt
+- PASS: Saving the current profile does not trigger auto-connect
+- PASS: Auto-connect preference persists to an isolated preferences file
+- PASS: A fresh Settings window restores the saved auto-connect switch
+- PASS: Toolbar has only a subtle bottom divider
+- PASS: Settings content does not repeat the native window title
+- PASS: Blank connection fields disable their copy actions
+- PASS: Copy actions use the exact unsaved runtime and administration field values
+- PASS: Compact Settings scrolls long content with a rendered vertical scrollbar
+- PASS: Main investigation workspace scrolls long content with a rendered vertical scrollbar
+- PASS: Watch tree with many entities scrolls long content with a rendered vertical scrollbar
+- PASS: Shared scrollbar style harness supports both horizontal and vertical scrolling
+- PASS: Horizontal scrollbar renders the shared ThumbSurface
+- PASS: Horizontal scrollbar page button advances its ScrollViewer
+- PASS: Horizontal scrollbar Thumb drag advances its ScrollViewer
+- PASS: Vertical scrollbar renders the shared ThumbSurface
+- PASS: Vertical scrollbar page button advances its ScrollViewer
+- PASS: Vertical scrollbar Thumb drag advances its ScrollViewer

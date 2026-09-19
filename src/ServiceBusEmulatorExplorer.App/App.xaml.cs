@@ -4,6 +4,9 @@ using ServiceBusEmulatorExplorer.App.Services;
 using ServiceBusEmulatorExplorer.App.ViewModels;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.Core.Investigation;
+using ServiceBusEmulatorExplorer.App.Investigation;
+using ServiceBusEmulatorExplorer.App.Investigation.Settings;
 
 namespace ServiceBusEmulatorExplorer.App;
 
@@ -12,15 +15,15 @@ public partial class App : Application
     private const string ProfileStorePathOption = "--profile-store-path";
     private ServiceProvider? _serviceProvider;
 
-    protected override async void OnStartup(StartupEventArgs e)
+    protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
         _serviceProvider = CreateServices(e.Args);
-        var viewModel = _serviceProvider.GetRequiredService<ShellViewModel>();
-        await viewModel.LoadProfilesAsync();
-
-        var window = _serviceProvider.GetRequiredService<MainWindow>();
+        var window = _serviceProvider.GetRequiredService<InvestigationWindow>();
+        MainWindow = window;
+        ShutdownMode = ShutdownMode.OnMainWindowClose;
+        window.InitializeSystemTray();
         window.Show();
     }
 
@@ -46,6 +49,16 @@ public partial class App : Application
         services.AddSingleton<IMessageDialogService, WpfMessageDialogService>();
         services.AddSingleton<ShellViewModel>();
         services.AddSingleton<MainWindow>();
+        services.AddSingleton<IWorkspacePreferencesStore>(_ =>
+        {
+            var path = FindOptionValue(args, ProfileStorePathOption);
+            return string.IsNullOrWhiteSpace(path) ? ProtectedWorkspacePreferencesStore.CreateDefault()
+                : new ProtectedWorkspacePreferencesStore(path);
+        });
+        services.AddSingleton(_ => new BrokerConnectionWorkflow(() => new DirectServiceBusClientFactory(),
+            factory => new InvestigationEntityBrowser(factory), factory => new ServiceBusMessageService(factory)));
+        services.AddSingleton<InvestigationWorkspace>();
+        services.AddSingleton<InvestigationWindow>();
     }
 
     private static IConnectionProfileStore CreateConnectionProfileStore(string[] args)

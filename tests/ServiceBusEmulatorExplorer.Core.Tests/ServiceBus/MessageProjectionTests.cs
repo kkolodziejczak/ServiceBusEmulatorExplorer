@@ -6,6 +6,19 @@ namespace ServiceBusEmulatorExplorer.Core.Tests.ServiceBus;
 public sealed class MessageProjectionTests
 {
     [Fact]
+    public void Create_retains_original_bytes_when_body_is_not_valid_utf8()
+    {
+        byte[] bytes = [0xFF, 0x00, 0xC3, 0x28];
+        var source = ServiceBusModelFactory.ServiceBusReceivedMessage(body: BinaryData.FromBytes(bytes));
+
+        ExplorerMessage message = MessageProjection.Create(source);
+
+        Assert.NotNull(message.RawBody);
+        Assert.Equal(bytes, message.RawBody.ToArray());
+        Assert.Equal(bytes.Length, message.BodySizeBytes);
+    }
+
+    [Fact]
     public void Create_preserves_body_properties_and_normalizes_dates_to_utc()
     {
         ServiceBusReceivedMessage source = ServiceBusModelFactory.ServiceBusReceivedMessage(
@@ -32,5 +45,31 @@ public sealed class MessageProjectionTests
         Assert.Equal(new DateTimeOffset(2026, 7, 8, 10, 0, 0, TimeSpan.Zero), message.EnqueuedTime);
         Assert.Equal("value", message.ApplicationProperties["custom"]);
         Assert.Equal(42L, message.SystemProperties["SequenceNumber"]);
+    }
+
+    [Fact]
+    public void Create_projects_scheduled_enqueue_time_as_utc()
+    {
+        DateTimeOffset scheduled = new(2026, 7, 8, 14, 30, 0, TimeSpan.FromHours(2));
+        ServiceBusReceivedMessage source = ServiceBusModelFactory.ServiceBusReceivedMessage(
+            body: BinaryData.FromString("scheduled"),
+            scheduledEnqueueTime: scheduled);
+
+        ExplorerMessage message = MessageProjection.Create(source);
+
+        Assert.Equal(
+            scheduled.ToUniversalTime(),
+            Assert.IsType<DateTimeOffset>(message.SystemProperties["ScheduledEnqueueTimeUtc"]));
+    }
+
+    [Fact]
+    public void Create_omits_scheduled_enqueue_time_when_message_is_not_scheduled()
+    {
+        ServiceBusReceivedMessage source = ServiceBusModelFactory.ServiceBusReceivedMessage(
+            body: BinaryData.FromString("immediate"));
+
+        ExplorerMessage message = MessageProjection.Create(source);
+
+        Assert.False(message.SystemProperties.ContainsKey("ScheduledEnqueueTimeUtc"));
     }
 }

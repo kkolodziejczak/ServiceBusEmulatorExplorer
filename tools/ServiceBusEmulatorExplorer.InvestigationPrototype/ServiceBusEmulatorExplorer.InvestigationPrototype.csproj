@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationIcon>..\..\src\ServiceBusEmulatorExplorer.App\Assets\AppIcon.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
+    <Content Include="..\..\src\ServiceBusEmulatorExplorer.App\Assets\AppIcon.ico" Link="Assets\AppIcon.ico" CopyToOutputDirectory="PreserveNewest" />
+    <PackageReference Include="AvalonEdit" Version="6.3.1.120" />
+    <Resource Include="..\..\src\ServiceBusEmulatorExplorer.App\Assets\AppIcon.png" Link="Assets\AppIcon.png" />
+  </ItemGroup>
+</Project>

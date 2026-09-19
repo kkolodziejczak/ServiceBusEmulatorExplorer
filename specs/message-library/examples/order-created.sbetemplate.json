@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "b8c93fc3-58a4-458d-aa15-a477898dc53f",
+  "name": "Order created",
+  "description": "Create one order event per input row.",
+  "body": {
+    "format": "json",
+    "source": "{\n  \"eventId\": \"$(EventId)\",\n  \"customerId\": \"$(CustomerId)\",\n  \"amount\": \"$(Amount)\",\n  \"occurredAt\": \"$(OccurredAt)\"\n}"
+  },
+  "properties": {
+    "contentType": "application/json",
+    "subject": "OrderCreated",
+    "correlationId": "order-$(CustomerId)",
+    "sessionId": null,
+    "applicationProperties": {
+      "source": { "type": "string", "source": "message-library" }
+    }
+  },
+  "variables": [
+    { "name": "CustomerId", "type": "string", "source": "input" },
+    { "name": "Amount", "type": "number", "source": "input" },
+    { "name": "EventId", "type": "string", "source": "guid" },
+    { "name": "OccurredAt", "type": "string", "source": "utcNow" }
+  ]
+}

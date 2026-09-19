@@ -21,7 +21,10 @@ public static class MessageProjection
             message.SessionId,
             message.Subject,
             CopyProperties(message.ApplicationProperties),
-            CreateSystemProperties(message));
+            CreateSystemProperties(message))
+        {
+            RawBody = BinaryData.FromBytes(message.Body.ToArray())
+        };
     }
 
     private static IReadOnlyDictionary<string, object?> CreateSystemProperties(ServiceBusReceivedMessage message)
@@ -38,11 +41,19 @@ public static class MessageProjection
             ["SessionId"] = message.SessionId,
             ["Subject"] = message.Subject,
             ["PartitionKey"] = message.PartitionKey,
+            ["TransactionPartitionKey"] = message.TransactionPartitionKey,
+            ["ReplyToSessionId"] = message.ReplyToSessionId,
+            ["TimeToLive"] = message.TimeToLive,
             ["ReplyTo"] = message.ReplyTo,
             ["To"] = message.To,
             ["DeadLetterReason"] = message.DeadLetterReason,
             ["DeadLetterErrorDescription"] = message.DeadLetterErrorDescription
         };
+
+        if (message.ScheduledEnqueueTime != default)
+        {
+            properties["ScheduledEnqueueTimeUtc"] = message.ScheduledEnqueueTime.ToUniversalTime();
+        }
 
         return properties;
     }

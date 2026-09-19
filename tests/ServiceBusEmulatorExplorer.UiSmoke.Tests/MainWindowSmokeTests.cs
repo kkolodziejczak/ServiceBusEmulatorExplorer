@@ -17,7 +17,10 @@ public sealed class MainWindowSmokeTests
         string executablePath = WpfAppPath.Resolve();
         Assert.True(File.Exists(executablePath), $"Build the WPF app before running UI smoke tests. Missing: {executablePath}");
 
-        using Application application = LaunchWpfApp(executablePath);
+        string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
+            Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        using Application application = Application.Launch(executablePath,
+            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
         using var automation = new UIA3Automation();
 
         try
@@ -25,27 +28,72 @@ public sealed class MainWindowSmokeTests
             Window window = WaitForMainWindowWithAutomationId(
                 application,
                 automation,
-                "ConnectButton",
+                "ConnectionButton",
                 TimeSpan.FromSeconds(15));
 
             Assert.Equal("Service Bus Emulator Explorer", window.Title);
-            Assert.NotNull(WaitForAutomationId(window, "ConnectButton", TimeSpan.FromSeconds(10)));
-            Assert.NotNull(WaitForAutomationId(window, "DisconnectButton", TimeSpan.FromSeconds(10)));
+            Assert.NotNull(WaitForAutomationId(window, "ConnectionSelector", TimeSpan.FromSeconds(10)));
+            Assert.NotNull(WaitForAutomationId(window, "SearchBox", TimeSpan.FromSeconds(10)));
             Assert.NotNull(WaitForAutomationId(window, "RefreshButton", TimeSpan.FromSeconds(10)));
-            AutomationElement authenticationMode = WaitForAutomationId(window, "AuthenticationModeSelector", TimeSpan.FromSeconds(10));
-            Assert.NotNull(WaitForAutomationId(window, "RuntimeConnectionStringTextBox", TimeSpan.FromSeconds(10)));
-            Assert.NotNull(WaitForAutomationId(window, "AdministrationConnectionStringTextBox", TimeSpan.FromSeconds(10)));
-            authenticationMode.AsComboBox().Select("AzureCli");
-            Assert.NotNull(WaitForAutomationId(window, "FullyQualifiedNamespaceTextBox", TimeSpan.FromSeconds(10)));
-            Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("RuntimeConnectionStringTextBox")));
-            Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("AdministrationConnectionStringTextBox")));
+            Assert.NotNull(WaitForAutomationId(window, "SettingsButton", TimeSpan.FromSeconds(10)));
+
+            InvokeButton(window, "SettingsButton", TimeSpan.FromSeconds(5));
+            Window settings = WaitForWindowWithAutomationId(
+                application,
+                automation,
+                "SettingsTabs",
+                TimeSpan.FromSeconds(10));
+            settings = FindAncestor(WaitForAutomationId(settings, "SettingsTabs", TimeSpan.FromSeconds(5)),
+                ControlType.Window).AsWindow();
+
+            Assert.Equal("Settings", settings.Title);
+            Assert.NotNull(WaitForAutomationId(settings, "QueuePageSizeSelector", TimeSpan.FromSeconds(5)));
+            Assert.NotNull(WaitForAutomationId(settings, "TopicPageSizeSelector", TimeSpan.FromSeconds(5)));
+            Assert.NotNull(WaitForAutomationId(settings, "SubscriptionPageSizeSelector", TimeSpan.FromSeconds(5)));
+            AutomationElement closeToTray = WaitForAutomationId(settings, "CloseToTrayToggle", TimeSpan.FromSeconds(5));
+            Assert.True(closeToTray.IsEnabled);
+            Assert.Equal(ToggleState.On, closeToTray.Patterns.Toggle.Pattern.ToggleState.Value);
+            closeToTray.Patterns.Toggle.Pattern.Toggle();
+            Assert.True(SpinWait.SpinUntil(() =>
+                closeToTray.Patterns.Toggle.Pattern.ToggleState.Value == ToggleState.Off && closeToTray.IsEnabled,
+                TimeSpan.FromSeconds(5)), "The close-to-tray preference did not finish saving. " +
+                WaitForAutomationId(settings, "GeneralStatus", TimeSpan.FromSeconds(2)).Name);
+
+            SelectTab(settings, "Connections", TimeSpan.FromSeconds(5));
+            Assert.NotNull(WaitForAutomationId(settings, "ProfileName", TimeSpan.FromSeconds(5)));
+            AutomationElement authenticationMode = WaitForAutomationId(settings, "AuthenticationModeSelector", TimeSpan.FromSeconds(5));
+            authenticationMode.AsComboBox().Select("Azure CLI");
+            Assert.NotNull(WaitForAutomationId(settings, "FullyQualifiedNamespace", TimeSpan.FromSeconds(5)));
+            Assert.Null(settings.FindFirstDescendant(cf => cf.ByAutomationId("RuntimeConnection")));
+            Assert.Null(settings.FindFirstDescendant(cf => cf.ByAutomationId("AdministrationConnection")));
+            InvokeButton(settings, "DoneButton", TimeSpan.FromSeconds(5));
             Assert.DoesNotContain(
                 application.GetAllTopLevelWindows(automation),
                 topLevelWindow => topLevelWindow.Title.Contains("Exception", StringComparison.OrdinalIgnoreCase));
+            window.Patterns.Window.Pattern.Close();
+            Assert.True(SpinWait.SpinUntil(() => application.HasExited, TimeSpan.FromSeconds(10)),
+                "With close-to-tray disabled, closing the main window must exit the application.");
+            using Application restarted = Application.Launch(executablePath,
+                $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+            try
+            {
+                Window restored = WaitForMainWindowWithAutomationId(restarted, automation,
+                    "ConnectionButton", TimeSpan.FromSeconds(15));
+                restored.Patterns.Window.Pattern.Close();
+                Assert.True(SpinWait.SpinUntil(() => restarted.HasExited, TimeSpan.FromSeconds(10)),
+                    "The saved close-to-tray setting must survive an application restart.");
+            }
+            finally { CloseApplication(restarted); }
         }
         finally
         {
             CloseApplication(application);
+            Assert.True(SpinWait.SpinUntil(() => application.HasExited, TimeSpan.FromSeconds(5)),
+                "The launch smoke application did not exit during cleanup.");
+            if (File.Exists(profilePath)) File.Delete(profilePath);
+            string directory = Path.GetDirectoryName(profilePath)!;
+            if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                Directory.Delete(directory);
         }
 
         await Task.CompletedTask;
