@@ -13,7 +13,7 @@ This feature targets the **new Investigation application**. `App.xaml.cs` starts
 ## Agreed product decisions
 
 1. A Postman-style message library stores reusable messages in local folders, including folders inside Git checkouts. Users clone, pull, commit and push externally. Multiple roots appear in the library tree. Git itself is not required.
-2. Templates contain a body and reusable message properties. Connection profiles and send destinations are chosen locally when sending, not stored in shared templates.
+2. Templates contain a body, reusable message properties and optional queue/topic associations. Associations contain entity kind/path only; connection profiles and fully qualified send destinations remain local. Follow the [topic context amendment](message-library/topic-context.md).
 3. An inspected Active or DLQ message can be saved as a template. This does not settle, consume, replay or delete the source message.
 4. One CSV data record creates one message. Validate the whole input before enabling review/send; do not skip invalid records.
 5. Support named `$(Name)` placeholders, explicit types, defaults, generated GUIDs and generated UTC timestamps. No scripting engine, loops or conditions.
@@ -21,6 +21,8 @@ This feature targets the **new Investigation application**. `App.xaml.cs` starts
 7. The bridge is Inspect → Save as template → choose root/folder/name → open library; template → single values or CSV → preview → destination → review/send → View destination.
 8. Support Send now / Schedule for later with **one scheduled instant for the whole run**, including CSV batches. No per-row CSV schedule.
 9. Include all six approved audit additions: TTL, optional custom MessageId, ReplyTo/ReplyToSessionId, explicit scheduled-message cancellation, richer scalar application-property types and advanced PartitionKey. Their authoritative detailed contracts are in [properties and cancellation](message-library/message-properties-and-cancellation.md). Read that document for every stage. Binary templates, raw AMQP editing, native multi-message sending and transactions remain separately deferred.
+10. Keep the namespace sidebar beside the original library/editor/prepare panes. Topic selection filters both trees; template selection applies its associations in reverse. Hide unrelated branches; Clear filter restores both without discarding drafts. Infer a single valid destination and show read-only Send to; use a picker only when a choice is needed. The topic context amendment defines R18.
+11. Implement the **five explicitly approved boards pixel-perfect**, under the [visual acceptance contract](message-library/design/README.md). Discarded compact images and earlier layouts are not design authority.
 
 The engineering defaults below make these choices implementable. They are specifications, not claims that the user individually selected every threshold or wire-format detail. A change to these contracts during implementation requires a coordinator decision.
 
@@ -67,19 +69,19 @@ No broker mutation occurs during capture, editing, validation or preview. Broker
 
 ## UI contract and mock
 
-Read the [visual contract, audited screen pack and state coverage](message-library/design/README.md) before implementing any UI stage. It embeds all seven reference boards and specifies exact DIP geometry, tokens, responsive behavior, state variants and mandatory corrections to generated-image inaccuracies. The user approved the overall design direction and requested this audit. The [new prototype preview](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/preview.png) and [UI language](ui-language.md) remain authoritative for existing chrome/tokens. Do not copy the obsolete README screenshot. The earlier [single proposal](message-library/mockup-dedicated-workspace.png) is historical and superseded by the audited pack.
+Read the [approved five-board visual contract](message-library/design/README.md) and [topic context amendment](message-library/topic-context.md) before any UI stage. Only those five boards are approved. The prior seven-board set, compact mockups and alternative layouts are superseded. The [new prototype preview](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/preview.png) and [UI language](ui-language.md) retain authority for existing chrome/tokens.
 
-![Message Library desktop reference — read the visual contract corrections](message-library/design/01-workspace.png)
+![Approved Message Library workspace](message-library/design/approved/01-workspace.png)
 
-![Capture, mapping, review and cancellation reference — read the visual contract corrections](message-library/design/02-capture-review.png)
+![Approved capture and properties](message-library/design/approved/03-capture-properties.png)
 
-Generated images are arrangement references, not pixel-accurate WPF evidence. Use the visual contract's dimensions and shared tokens for implementation; production render comparisons remain required. Do not implement incidental image details that conflict with the contract.
+**Pixel-perfect fidelity is mandatory**, not an illustrative aspiration. Match the approved composition and app tokens; verify real WPF captures with side-by-side/overlay comparisons and repair discrepancies before completion. Only the visual contract's explicit generated-text, runtime-data and production-resource corrections are exceptions. No rendered implementation PASS is claimed by these images.
 
 - Keep connection/profile controls above two tabs: Investigation and Message Library. Retain Watch/Settings behavior. Switching tabs does not disconnect, reset browsing, stop Watch or discard either workspace's drafts.
-- Library left pane: Add folder, Refresh libraries, search, roots → ordinary directories → template names. Search is local name/description matching, case-insensitive, not the broker query language. Filtered trees retain ancestors and selection identity. No broker counts or entities in this tree.
+- Persistent far-left namespace pane retains broker tree/counts/refresh. Beside it, the separate library pane has Add folder, Refresh libraries, search and roots → directories → templates. Search is local name/description matching. One shared topic filter prunes both projections under R18, retaining matching ancestors/subscriptions; no broker counts appear in the library tree.
 - Authoring pane: name/description, Save, Save as; Body/Properties/Variables tabs. Variables live in the Variables tab to preserve useful editor height at compact sizes. New template and New folder are available in the library toolbar/context menu. Rename/delete/move can remain external in version 1; Refresh reconciles them.
-- Preview pane: Single message / CSV batch; input controls; Validate/Preview; per-row status list; selected row body and reusable-property preview; destination picker; Review N messages. Virtualize rows and cap preview display at the selected row rather than rendering every JSON document.
-- A review dialog displays profile, namespace, exact queue/topic, message count, size summary and topic fan-out explanation. Send is an explicit action. Subscription addresses are never accepted or silently redirected to their parent topic.
+- Preview pane: Single message / CSV batch; inputs; Validate/Preview; per-row status; selected body/properties; read-only Send to for one resolved target, otherwise a destination picker; Review N messages. Virtualize rows and show only the selected JSON document.
+- Review displays profile, namespace, exact queue/topic, count, size and topic fan-out. Send is explicit. Selecting a subscription resolves context to its visibly labeled parent topic under R18; a subscription address is never accepted as the SDK send destination.
 - Properties and review include ID mode, TTL, reply fields, advanced PartitionKey and the complete scalar type selector, with validation and automation IDs from the linked extension contract. Results expose Cancel scheduled messages for eligible retained receipts, distinct from Stop and DLQ deletion.
 - Send state replaces review actions with progress and Stop. Results show `Confirmed sent`, `Confirmed scheduled`, `Failed`, `Outcome unknown`, `Not attempted`, with row number and MessageId. No automatic retry or misleading rollback label. View destination opens queue Active browsing or the existing combined topic view; it does not promise immediate visibility or delivery to every subscription. A scheduled receipt is not evidence of activation or consumption; show its due time and receipt separately.
 - On one focused inspected message, show Save as template. It opens a draft and root/folder/name selection; no file is written until Save. The capture dialog defaults to original observed body. If an edited inspector draft exists, offer explicit Original / Edited choices and show the selected body. Saving a library template never clears the inspector draft.
@@ -87,7 +89,7 @@ Generated images are arrangement references, not pixel-accurate WPF evidence. Us
 - Roots and saved templates work disconnected. Profile changes retain template/input drafts, clear the chosen destination and invalidate review authorization; reuse the app's existing connection-warning behavior. While sending, profile changes require Stop and completion of in-flight accounting before the connection changes.
 - Empty library, unavailable root, loading, malformed template, read-only folder, save conflict, invalid CSV, canceled validation, disconnected destination and partial send each have distinct actionable states. Invalid files must not hide healthy siblings.
 - Stable automation IDs: `WorkspaceTabs`, `MessageLibraryTab`, `LibraryTree`, `LibraryAddFolder`, `LibraryRefresh`, `TemplateName`, `TemplateSave`, `TemplateBodyEditor`, `TemplateProperties`, `TemplateVariables`, `TemplateInputMode`, `TemplateCsvPath`, `TemplateValidate`, `TemplatePreviewRows`, `TemplateDestination`, `TemplateReview`, `TemplateConfirmSend`, `TemplateStop`, `TemplateRunResults`, `TemplateViewDestination`, `InspectorSaveTemplate`. Scope repeated controls under their owning view/dialog.
-- At 1500×1000 use three resizable panes. At 1100×800 keep all three usable with wrapping and compact spacing. Below 1100 DIPs keep the tree and use Author / Preview tabs for the remaining area instead of squeezing two editors. At 980×640 every primary action remains reachable without outer horizontal scrolling. Expanded/collapsed activity log must both work. Preserve existing profile themes/focus rings and use named vector icons.
+- The approved wide layout has four resizable panes: namespaces, saved templates, author, prepare/preview. Verify 1500×1000, 1100×800 and 980×640 with both trees retained and reachable actions, no outer horizontal clipping. No compact mockup was approved; establish an approved responsive reference before completing a rearranged compact viewport. Preserve themes/focus/icons and expanded/collapsed log.
 
 ## Shared files and schema v1
 
@@ -126,6 +128,8 @@ The runnable examples are [template](message-library/examples/order-created.sbet
 ```
 
 Schema rules:
+
+- Optional `associations` follows the topic context amendment: at most 32 literal queue/topic kind/path hints, no endpoint/profile/credentials; omitted means empty and older templates remain valid. These are not SDK destination addresses.
 
 - Required: schemaVersion=1, canonical GUID id, nonblank name (max 120 characters), body, properties, variables (may be empty). Description optional, max 2,000 characters. Unknown schema versions and unknown members are errors, never silently discarded on save. Reject duplicate JSON object keys at any depth before deserializing; reject duplicate variable names. Case-sensitive wire members and enum values. Max JSON depth 64.
 - `body.format`: `json` or `text`. `body.source` is the editable text; persist its exact characters through JSON string encoding. Format=json source must be valid JSON with placeholders inside string values. Do not auto-convert malformed JSON to text. Format=text permits any valid UTF-8 text, including empty text; the user explicitly chooses text mode.
@@ -205,6 +209,7 @@ Proposed paths below are new unless linked in Current evidence. They are file ow
 | App `MessageLibrary/TemplateEditorViewModel.cs` | Editable body/property/variable state and validation diagnostics. |
 | App `MessageLibrary/TemplatePreparationWorkflow.cs` | Background validation, generation cancellation and replacing only current results. |
 | App `MessageLibrary/TemplateSendWorkflow.cs` | Review approval, captured connection identity, progress/Stop/results and View destination. |
+| App `MessageLibrary/MessageLibraryContext.cs` | R18 shared filter projections and association-based target resolution; reuse existing namespace discovery/refresh and prevent selection loops. |
 | Core `ServiceBus/ScheduledMessageCanceller.cs`, App `MessageLibrary/ScheduledCancellationWorkflow.cs` | Separate no-retry receipt-bound cancellation and attempt history; never target by current tree selection. |
 | App `MessageLibrary/MessageLibraryView.xaml/.cs`, focused dialogs | Bindings, UI-only event bridging, accessible routed controls. |
 | Existing `InvestigationWorkspace`, `InvestigationWindow`, `App.xaml.cs`, preference model/store | Coordinator-owned composition, workspace tabs, inspector action, connection lifecycle and local registration persistence. |
@@ -287,9 +292,10 @@ Primary sources: [scheduling API and receipt](https://learn.microsoft.com/en-us/
 - [ ] S1.3 Extend preference envelope mappings and serialized registration commands; loading missing roots is nonfatal.
 - [ ] S1.4 Add dedicated workspace/editor, New template/New folder/Save/Save as, search/refresh/remove root; Save as generates a new template ID.
 - [ ] S1.5 Exercise save/reopen, unreadable sibling, external change, dirty close and all viewport states using temporary roots.
+- [ ] S1.7 Implement R18 association schema and shared filter projections, including both directions, empty/missing states, no selection loops and draft preservation; match approved board A pixel-perfect.
 - [ ] S1.6 Add all extended descriptors/type tags and offline editing under R15/R16 in the extension; prove omitted-field examples still load with generated ID/inherited TTL defaults.
 
-**Acceptance:** R1–R4 plus the Stage 1 portions of R15/R16 pass; literal JSON/text files survive reopen; healthy siblings remain usable; no app-generated credentials/machine file paths enter a template. **Stop:** current-shell or preference ownership conflicts, stronger filesystem guarantees requested, or schema divergence. **Prompt:** Implement Stage 1 only, derive red tests from R1–R4 and R15/R16 schema/editor cases, integrate the real startup path, run the required gates, record proof and stop.
+**Acceptance:** R1–R4 plus the Stage 1 portions of R15/R16 and R18 pass; literal JSON/text files survive reopen; healthy siblings remain usable; no app-generated credentials/machine file paths enter a template. **Stop:** current-shell or preference ownership conflicts, stronger filesystem guarantees requested, or schema divergence. **Prompt:** Implement Stage 1 only, derive red tests from R1–R4 and R15/R16 and R18 schema/editor cases, integrate the real startup path, run the required gates, record proof and stop.
 
 ## Stage 2 — Capture, fill and send one template
 
@@ -314,8 +320,9 @@ Primary sources: [scheduling API and receipt](https://learn.microsoft.com/en-us/
 - [ ] S2.6 Implement and prove common-time scheduling for one message, receipt/export and dispatch-mode review using R7/R8 and the scheduling contract.
 - [ ] S2.7 Implement R15/R16 extended-property compilation/capture/preview/send, including custom-ID acknowledgement, TTL/reply/partition and every scalar tag; execute the source/SDK/broker proof matrix.
 - [ ] S2.8 Implement R17 single-receipt cancellation, confirmation, connection binding, attempt history and export; preserve original dispatch results.
+- [ ] S2.9 Prove R18 capture associations, inferred target/conditional picker, explicit subscription-parent mapping, context mismatch and namespace refresh preservation with pixel-perfect B–E states.
 
-**Acceptance:** R5–R8 and single-message R15–R17 pass, source remains unchanged, saved template reused offline, same prepared content reaches the broker, topic routing is explicit. **Stop:** unsupported capture formats requested, SDK cannot establish the specified preflight/outcome boundary, or new auth infrastructure required. **Prompt:** Implement Stage 2 only, prove the complete capture-to-new-send flow with R5–R8 and R15–R17, preserve source messages, obtain independent reviews, record results and stop.
+**Acceptance:** R5–R8 and single-message R15–R18 pass, source remains unchanged, saved template reused offline, same prepared content reaches the broker, topic routing is explicit. **Stop:** unsupported capture formats requested, SDK cannot establish the specified preflight/outcome boundary, or new auth infrastructure required. **Prompt:** Implement Stage 2 only, prove the complete capture-to-new-send flow with R5–R8 and R15–R18, preserve source messages, obtain independent reviews, record results and stop.
 
 ## Stage 3 — CSV preparation and bounded batch send
 
@@ -339,8 +346,9 @@ Primary sources: [scheduling API and receipt](https://learn.microsoft.com/en-us/
 - [ ] S3.5 Execute valid/invalid/partial-outcome full journeys and compare actual message IDs/bodies/properties rather than runtime counts.
 - [ ] S3.6 Apply the common scheduled instant to CSV rows; prove partial scheduling/Stop/elapsed-time outcomes under R11 with no automatic rollback or retry.
 - [ ] S3.7 Prove extended property expressions for every CSV row, duplicate-ID grouping and all-or-none validation; cancel selected eligible scheduled rows with per-attempt outcomes under R15–R17.
+- [ ] S3.8 Prove R18 CSV target stability and filter changes cannot mutate in-flight targets, prepared IDs or retained cancellation receipts.
 
-**Acceptance:** R9–R12 and CSV/selection R15–R17 pass; provided example generates three distinct-ID messages with numeric amounts; invalid third row prevents all sending; stopped/unknown sends are never retried. **Stop:** grouped rows, scripts, parallel sending, durable resume or larger limits are requested; these require a new scope decision. **Prompt:** Implement Stage 3 only with R9–R12 and R15–R17 CSV/selection red proof, reuse Stage 2 semantics, prove actual row outcomes and the whole UI flow, record results and stop.
+**Acceptance:** R9–R12 and CSV/selection R15–R18 pass; provided example generates three distinct-ID messages with numeric amounts; invalid third row prevents all sending; stopped/unknown sends are never retried. **Stop:** grouped rows, scripts, parallel sending, durable resume or larger limits are requested; these require a new scope decision. **Prompt:** Implement Stage 3 only with R9–R12 and R15–R18 CSV/selection red proof, reuse Stage 2 semantics, prove actual row outcomes and the whole UI flow, record results and stop.
 
 ## Stage 4 — Sharing walkthrough and release-readiness evidence
 
@@ -355,13 +363,13 @@ Primary sources: [scheduling API and receipt](https://learn.microsoft.com/en-us/
 | R13 | Machine-specific sharing or unproven integration — coordinator + independent verifier | fresh profile/root relocated/teammate edits/missing root; no credentials copied | Copy example/library to a different temp directory and separate profile; externally edit then refresh; real receive/save/reuse/CSV send | Teammate can use same files with own destination; end-to-end proof links; Pending |
 | R14 | Regressions hidden by scoped checks — reviewer + UI verifier | old Investigation + new Library, themes/sizes/close/reopen | Existing regression suites and affected UI matrix; assess docs against actual behavior | Gates PASS or explicit BLOCKED with exact scope, no invented UI/broker proof; Pending |
 
-- [ ] S4.1 Independently trace every agreed decision and R1–R17 to code and executed tests; add missing proof before completion, including the extension's property/cancellation matrix.
+- [ ] S4.1 Independently trace every agreed decision and R1–R18 to code and executed tests; add missing proof before completion, including the extension's property/cancellation matrix.
 - [ ] S4.2 Run sharing/relocation and malformed/conflict recovery walkthroughs with synthetic data.
 - [ ] S4.3 Run rendered and executable gate including keyboard traversal, focus restoration, preview/property contents, themes and supported sizes; report DPI/screen-reader limits separately.
 - [ ] S4.4 Write narrow user instructions for format/mapping/defaults/generated values, external Git workflow, session-only results, conflict limitations and outcome unknown.
 - [ ] S4.5 Reconcile this plan's evidence, validate affected links, remove temporary diagnostic code, run whitespace checks and commit only authorized milestone files.
 
-**Acceptance:** R1–R17 and all linked manifests reconciled; no dead controls/placeholders; no known blocking defects. **Stop:** two unsuccessful repair/review cycles on the same defect or unavailable required runtime proof—report revised diagnosis/blocked gate. **Prompt:** Implement Stage 4 only, audit and prove the finished integrated feature without expanding it; record remaining environment limitations truthfully and stop before release.
+**Acceptance:** R1–R18 and all linked manifests reconciled; no dead controls/placeholders; no known blocking defects. **Stop:** two unsuccessful repair/review cycles on the same defect or unavailable required runtime proof—report revised diagnosis/blocked gate. **Prompt:** Implement Stage 4 only, audit and prove the finished integrated feature without expanding it; record remaining environment limitations truthfully and stop before release.
 
 ## Verification matrix and flow traceability
 
@@ -376,6 +384,7 @@ Primary sources: [scheduling API and receipt](https://learn.microsoft.com/en-us/
 | Schedule one message or CSV run at one instant | Same workflow/sender, scheduled dispatch mode | Future-time/DST checks, frozen payload, per-row receipts, due-time metadata and broker activation; no per-row CSV schedule |
 | TTL, custom IDs, reply metadata, PartitionKey and rich scalar properties | MessagePropertyCompiler/ApplicationPropertyCodec/capture | Extension R15/R16 matrix: ranges/types, capture, duplicate warnings, SDK normalization, emulator/cloud limits |
 | Explicit cancel of acknowledged scheduled messages | ScheduledCancellationWorkflow/ScheduledMessageCanceller | R17: correct receipts/endpoint, denied confirmation, partial/unknown/racing outcomes, retries/export preserve dispatch history |
+| Associations and synchronized namespace/library context | MessageLibraryContext + existing discovery/refresh + TemplateSendWorkflow | R18: both directions, pruning, clear without reapply, missing/multiple entities, immutable reviewed target, no refresh regression; see topic context amendment |
 | Cancel/partial/unknown | Same run sender | Deterministic fake adapter outcomes plus real successful broker path; no impossible claim to simulate every network failure with emulator |
 | Switch workspace/profile, close/reopen | Shell lifecycle + feature view models | Dirty state, generation invalidation, actual window transitions, offline authoring |
 | Share with teammate | Schema/FileStore | Move/copy folder to unrelated path and fresh preferences; no absolute/shared profile dependency |
@@ -408,14 +417,17 @@ No app-managed Git, remote URL browsing, collection marketplace, cloud sharing, 
 Feature Definition of Done:
 
 - [ ] Every agreed product decision is exercised through the production startup path.
-- [ ] All four stage acceptance blocks and R1–R17 proof obligations are reconciled, including the property/cancellation extension.
+- [ ] All four stage acceptance blocks and R1–R18 proof obligations are reconciled, including the property/cancellation extension.
 - [ ] Shared example files work from a different folder/profile and contain no machine-specific state.
 - [ ] Capture is non-destructive; prepared content equals sent content; partial/unknown results are truthful.
 - [ ] Mandatory plan, quality and UI gates report evidence-backed outcomes.
+- [ ] Five approved boards match pixel-perfect under the visual contract; production overlays/diffs reviewed, no unresolved visual mismatches, explicit approval for any responsive rearrangement. No discarded mockup used.
 - [ ] User documentation, path checks, focused regression suites and scoped commits are complete.
 - [ ] Remaining Azure, physical accessibility, DPI or environment gaps are explicitly listed; no release is implied.
 
 ## Planning validation record
+
+Latest approval update (2026-09-20): the user selected exactly five boards and required pixel-perfect implementation. The active visual contract and repository-local `design/approved/` images supersede all prior visual selections; eight obsolete repository mockups were deleted at the user's explicit request. R18 now specifies associations, bidirectional filtering, inferred destinations and preserved namespace refresh. Independent Luna review returned NO_FINDINGS after clarifying capture's MessageId as read-only. All 38 local links in the changed documents and five approved PNGs validated. Production/render/accessibility proof remains Pending. Records below describe earlier revisions, not authority for discarded designs.
 
 Independent Luna read-only review completed on 2026-09-19. Three required findings were repaired and closed in a focused recheck: ML-001 numeric range/precision/serialization, ML-002 preflight authorization overclaim, ML-003 source-code path versus shared-data directory ambiguity. No remaining issue was identified in that reviewed scope. This is plan review, not a production-code or runtime PASS.
 
