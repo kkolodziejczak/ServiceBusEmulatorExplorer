@@ -57,36 +57,27 @@ Primary references verified during planning: [CsvHelper package/version](https:/
 
 Actors: author, teammate, local filesystem/Git client, app, broker. Shared artifacts are templates; root registrations, connection credentials, input CSV paths and execution results are local. CSV files are user inputs and are not copied into shared repositories automatically.
 
-```mermaid
-sequenceDiagram
-    actor User
-    participant App
-    participant Files
-    participant Broker
-    User->>App: Save inspected message as template
-    App->>App: Copy body and approved reusable properties
-    User->>App: Choose folder, edit and save
-    App->>Files: Write versioned template
-    Note over User,Files: Share files using external Git tooling
-    User->>App: Open template; supply values or CSV
-    App->>Files: Read bounded input snapshot
-    App->>App: Validate every row; freeze generated values
-    App-->>User: Exact payload previews and destination review
-    User->>App: Send reviewed messages
-    App->>Broker: Send sequentially with fixed MessageIds
-    Broker-->>App: Acknowledgment or uncertain outcome
-    App-->>User: Per-row results; View destination
-```
+![Message Library sequence including scheduling and cancellation](message-library/design/message-sequence.png)
+
+![Message Library flow and guarded transitions](message-library/design/message-flow.png)
+
+The PNG diagrams render without Mermaid support. Editable [sequence source](message-library/design/message-sequence.mmd) and [flow source](message-library/design/message-flow.mmd) are generated alongside the images by the documentation-only [renderer](message-library/design/render-diagrams.ps1). Regenerate both formats together when the flow changes. Mermaid source can also be pasted into the repository's [offline viewer](mermaid-viewer/mermaid-offline-viewer.html). The flow's cancellation tail is optional and available only for eligible acknowledged schedules.
 
 No broker mutation occurs during capture, editing, validation or preview. Broker preflight may create an SDK sender/batch to check encoded size, but does not send. A completed validation is not a guarantee of authorization, quota or broker availability at send time.
 
 ## UI contract and mock
 
-Use [the selected layout proposal](message-library/mockup-dedicated-workspace.png) for the three-pane arrangement and workspace switch. It is an image-generation proposal, not a pixel-accurate WPF implementation or proof. The [new prototype preview](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/preview.png) and [UI language](ui-language.md) remain authoritative for existing chrome/tokens. Do not copy the obsolete README screenshot. Any illustrative labels in the generated image yield to the contracts below.
+Read the [visual contract, audited screen pack and state coverage](message-library/design/README.md) before implementing any UI stage. It embeds all seven reference boards and specifies exact DIP geometry, tokens, responsive behavior, state variants and mandatory corrections to generated-image inaccuracies. The user approved the overall design direction and requested this audit. The [new prototype preview](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/preview.png) and [UI language](ui-language.md) remain authoritative for existing chrome/tokens. Do not copy the obsolete README screenshot. The earlier [single proposal](message-library/mockup-dedicated-workspace.png) is historical and superseded by the audited pack.
+
+![Message Library desktop reference — read the visual contract corrections](message-library/design/01-workspace.png)
+
+![Capture, mapping, review and cancellation reference — read the visual contract corrections](message-library/design/02-capture-review.png)
+
+Generated images are arrangement references, not pixel-accurate WPF evidence. Use the visual contract's dimensions and shared tokens for implementation; production render comparisons remain required. Do not implement incidental image details that conflict with the contract.
 
 - Keep connection/profile controls above two tabs: Investigation and Message Library. Retain Watch/Settings behavior. Switching tabs does not disconnect, reset browsing, stop Watch or discard either workspace's drafts.
 - Library left pane: Add folder, Refresh libraries, search, roots → ordinary directories → template names. Search is local name/description matching, case-insensitive, not the broker query language. Filtered trees retain ancestors and selection identity. No broker counts or entities in this tree.
-- Authoring pane: name/description, Save, Save as; Body/Properties/Variables tabs. The image's variables table below the body is illustrative: implement it in the Variables tab to preserve useful editor height at compact sizes. New template and New folder are available in the library toolbar/context menu. Rename/delete/move can remain external in version 1; Refresh reconciles them.
+- Authoring pane: name/description, Save, Save as; Body/Properties/Variables tabs. Variables live in the Variables tab to preserve useful editor height at compact sizes. New template and New folder are available in the library toolbar/context menu. Rename/delete/move can remain external in version 1; Refresh reconciles them.
 - Preview pane: Single message / CSV batch; input controls; Validate/Preview; per-row status list; selected row body and reusable-property preview; destination picker; Review N messages. Virtualize rows and cap preview display at the selected row rather than rendering every JSON document.
 - A review dialog displays profile, namespace, exact queue/topic, message count, size summary and topic fan-out explanation. Send is an explicit action. Subscription addresses are never accepted or silently redirected to their parent topic.
 - Properties and review include ID mode, TTL, reply fields, advanced PartitionKey and the complete scalar type selector, with validation and automation IDs from the linked extension contract. Results expose Cancel scheduled messages for eligible retained receipts, distinct from Stop and DLQ deletion.
@@ -435,3 +426,5 @@ The selected mockup is copied into this repository so the plan does not depend o
 Follow-up capability audit: common-time scheduling was added after the user's explicit choice. Independent focused review identified an incomplete receipt export contract (SCH-001); the row/run fields, null behavior, Int64 string serialization and tests were added, and the reviewer closed the finding. The [capability research](message-library-send-capabilities-research.md) inventories all 14 public message properties and sender operations using primary sources. The user subsequently approved all six proposed additions; their detailed contracts and R15–R17 now form part of this plan. This documentation pass did not run SDK/emulator tests or verify cloud behavior.
 
 Six-capability extension review completed on 2026-09-19 with independent Luna review and a focused final recheck: PASS, no remaining blockers in the reviewed scope. Review-status and historical-approval wording were corrected. A suspected singular cancellation API mismatch was disproved against the pinned 7.20.1 source; the evidence is linked in the extension. Final local validation resolved all 25 relative links across the three planning documents, parsed the advanced JSON fixture, and passed the whitespace check. This establishes documentation readiness only; implementation, SDK/emulator, cloud and rendered UI proofs remain Pending.
+
+Visual/flow audit completed on 2026-09-19 after the user approved the proposed direction. Independent Luna coverage audit identified missing lifecycle, input, execution and responsive references; the seven-board visual pack now maps every journey/state family to the implementation stages. Final independent documentation review returned NO_FINDINGS. Both sequence/flow PNG fallbacks were rendered and visually inspected; all 44 relative links and nine PNG decode checks passed. Generated-image inaccuracies are explicitly overridden by the visual contract. No production WPF, keyboard, accessibility, DPI or broker PASS is claimed.

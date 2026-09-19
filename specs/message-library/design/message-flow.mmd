@@ -1,0 +1,25 @@
+flowchart TD
+    Entry["Inspect and capture OR open/create a template"]
+    Draft["Edit body, properties and variables; Save / Save as"]
+    Input["Single values OR CSV + mapping; generated values read-only"]
+    Validate["Validate every row; freeze values and IDs when valid"]
+    Preview["Inspect body and typed properties; select queue/topic"]
+    Review["Preflight all rows; review Send now OR one schedule time"]
+    Dispatch["Confirm; sequential submission; Stop accounts for in-flight"]
+    Results["Acknowledged / failed / unknown / not attempted; export"]
+    Cancel["Optional: eligible future receipts; explicit confirmation"]
+    Attempts["Per-receipt attempt outcomes; explicit eligible retry only"]
+    Entry --> Draft
+    Draft --> Input
+    Input --> Validate
+    Validate --> Preview
+    Preview --> Review
+    Review --> Dispatch
+    Dispatch --> Results
+    Results --> Cancel
+    Cancel --> Attempts
+    Validate -->|Invalid or canceled| Input
+    Preview -->|Source changed| Draft
+    Review -->|Blocked or Back| Preview
+    Results -->|View destination| Investigation
+    Attempts -->|Eligible explicit retry| Cancel
