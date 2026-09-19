@@ -32,3 +32,11 @@ jobs:
       - name: Run fast tests
         shell: pwsh
         run: dotnet test ServiceBusEmulatorExplorer.slnx --configuration Release --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
+
+      - name: Verify README screenshot generation
+        shell: pwsh
+        timeout-minutes: 3
+        run: |
+          dotnet build tools\ServiceBusEmulatorExplorer.ReadmeScreenshot\ServiceBusEmulatorExplorer.ReadmeScreenshot.csproj --configuration Release -p:UseSharedCompilation=false -p:NodeReuse=false
+          $outputPath = Join-Path $env:RUNNER_TEMP "readme-screenshot\service-bus-emulator-explorer.png"
+          .\scripts\Update-ReadmeScreenshot.ps1 -OutputPath $outputPath -TimeoutSeconds 120

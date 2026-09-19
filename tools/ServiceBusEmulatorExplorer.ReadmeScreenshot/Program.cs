@@ -31,11 +31,16 @@ internal static class Program
                     ShowActivated = false,
                     ShowInTaskbar = false,
                     WindowStartupLocation = WindowStartupLocation.Manual,
-                    Left = -32_000,
-                    Top = -32_000
+                    Left = 0,
+                    Top = 0
                 };
 
                 window.Show();
+                await window.Dispatcher.InvokeAsync(
+                    () => { },
+                    System.Windows.Threading.DispatcherPriority.ContextIdle);
+                window.Width = workspace.Preferences.WindowWidth;
+                window.Height = workspace.Preferences.WindowHeight;
                 await window.Dispatcher.InvokeAsync(
                     () => { },
                     System.Windows.Threading.DispatcherPriority.ContextIdle);
