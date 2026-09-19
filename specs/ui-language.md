@@ -1,6 +1,6 @@
 # Investigation UI language and final audit
 
-Status: prototype approved as complete by the user on 2026-09-12, baseline `8575a2c`; rendered flows and supported window sizes verified. Preserve this UI during production implementation. The production application has not been promoted.
+Status: prototype approved as complete by the user on 2026-09-12, baseline `8575a2c`. The production application now uses the investigation workspace; final verification is tracked in the latest [handoff checkpoints](investigation-workspace-handoff.md). Preserve the approved UI and the explicit production decisions below. Broader physical keyboard, spoken screen-reader and Windows scaling proof remain separate from rendered-window evidence.
 
 Authority: the latest decisions in the “Audit and simplify Service Bus UI” conversation, then the current [prototype preview](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/preview.png). Earlier generated images are historical references. Preserve the approved compact connection toolbar, three panes, full-width console, and bottom time selector.
 
@@ -59,7 +59,7 @@ Do not confuse glyph dimensions with hit targets. Keep Copy beside the correlati
 - Preserve the accessible names and routed behavior already covered by proofs. Verify physical keyboard traversal, Escape, Space, Enter, screen-reader labels and focus restoration; these are not proven by logical-focus assertions alone.
 - Capture the complete affected surface after each style migration. Include expanded/collapsed log, Watch on/off, notification hover, profile selection, invalid/empty search, dirty editor and compact sizing.
 - Verify global and topic Watch scope, Active/DLQ independence, future-entity inheritance and child overrides. The searchable inclusion tree uses checked/unchecked/mixed states; a branch choice applies to its descendants and a later specific child choice overrides inherited inclusion. A scope summary must not imply a topic itself is a receiving endpoint.
-- Delete remains a visible action with exact typed `DELETE` confirmation showing targeted Active/DLQ counts. Checked messages form the batch; otherwise the focused message is targeted. Cancellation changes nothing; unseen messages are never implied by select-all.
+- Delete remains a visible action with exact typed `DELETE` confirmation. The approved production safety decision restricts it to captured DLQ deliveries; mixed Active selections disable it. Checked messages form the batch; otherwise the focused message is targeted. Canceling confirmation changes nothing; cancellation after settlement preserves and reports confirmed per-delivery outcomes. Unseen messages are never implied by select-all.
 
 - General settings omit the duplicate connection picker. Automatically connect when switching profiles is an opt-in saved switch; it does not bypass warnings or connect on profile edits.
 - Add connection opens a uniquely named empty editor without changing the active connection; Save persists its color and optional warning. Saved warnings gate switching, Connect and restored startup attempts. Cancel preserves the previous connection or leaves the pending attempt disconnected.

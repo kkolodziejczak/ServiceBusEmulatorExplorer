@@ -106,6 +106,18 @@ With `SBE_RUN_UI_TESTS=true` and the same broker environment, the current invest
 
 This creates unique queue/topic fixtures and an isolated protected profile, verifies 25/50/52-row paging, DLQ inspection, related-message search across two subscriptions, Clear and normal shutdown, then compares complete broker peek observations before and after. The generated entities and profile are cleaned up. The older navigation/administration/mutation cases in `MainWindowSmokeTests` still target the previous shell and need migration; this focused pass does not establish a full-suite pass.
 
+The remaining investigation E2E filters use the same runner and isolated profiles:
+
+| Filter suffix (`FullyQualifiedName~...`) | Proof |
+| --- | --- |
+| `InvestigationWatchEndToEndTests` | Real broker Watch arrival and notification journey |
+| `InvestigationDeleteEndToEndTests` | Replay, typed DLQ deletion and protected replay-counter cleanup |
+| `InvestigationSearchEndToEndTests` | Live search Stop/Continue and disconnect/reconnect with a unique 1,500-message queue |
+| `Windows_input_navigates_settings_and_restores_focus` | Windows-injected Enter/Tab/Shift+Tab/Space/Escape, Settings actions and return focus |
+| `Window_moves_to_each_available_monitor_and_records_dpi_without_display_changes` | Real window movement across available monitor work areas and observed window DPI |
+
+The last two cases require only `SBE_RUN_UI_TESTS=true`, not a broker. The input case uses UIA to establish its starting focus, then Windows `SendInput` for the tested actions. A restricted desktop sandbox can reject `SendInput` with Access Denied; rerun in an authorized interactive session instead of replacing input with UIA invocation. This is not physical hardware or spoken screen-reader certification. Monitor coverage reports the current environment and does not change display scaling or establish untested 125/150/200% behavior. The current completion boundaries are recorded in the [handoff](../specs/investigation-workspace-handoff.md).
+
 ## First UI Smoke Test
 
 The first FlaUI/UIA3 smoke test should:

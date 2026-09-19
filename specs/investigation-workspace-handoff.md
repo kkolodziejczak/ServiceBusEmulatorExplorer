@@ -1,6 +1,6 @@
 # Promote the investigation prototype
 
-Prepared 2026-09-11; prototype approved by the user on 2026-09-12. **Prototype complete; ready for production implementation after the relevant broker questions below are answered.** This handoff does not authorize a release. No planning skills were used.
+Prepared 2026-09-11; prototype approved by the user on 2026-09-12. **Production workflows are implemented; final verification is in progress.** Latest dated checkpoints supersede historical pending questions and implementation status below. Physical keyboard, spoken screen-reader and Windows scaling evidence are not implied by prototype approval or automated renders. This handoff does not authorize a release.
 
 ## Starting point
 
@@ -18,7 +18,7 @@ Prepared 2026-09-11; prototype approved by the user on 2026-09-12. **Prototype c
 - [x] Preferences persist, including per-profile Watch inclusions and connection warnings; credentials use Windows user-scoped protection.
 - [x] Active/DLQ deletion requires exact `DELETE`; warning cancellation preserves the approved connection and pending saves cannot select an unapproved profile.
 - [x] Rendered walkthrough, restart/persistence and tray evidence recorded in the [prototype report](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/verification.md) and [tray report](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/tray-verification.md).
-- [ ] Production workflows implemented and proven against real brokers (separate completion checklist below).
+- [x] Approved production workflows implemented and proven against the real emulator through SDK and executable journeys. Azure remains unverified; full UI signoff still has the explicit accessibility/scaling gaps below.
 
 Do not reopen visual design, add redundant controls, or run another prototype-design phase by default. Transfer the approved interaction contract to the existing App. Physical keyboard, screen-reader and DPI/multi-monitor validation still belongs to production verification; approval does not turn missing evidence into a pass.
 
@@ -185,15 +185,15 @@ Before enabling Active or DLQ Delete, prove that the adapter can target the sele
 - Tests cleaned up only their generated entities. Coordinator tore down only the dedicated `sbe-investigation-proof` Compose project afterward. No ordinary data, profiles or Docker projects were mutated. No worker holds a runtime lease.
 - Remaining evidence: combined topic pagination, production workflows and their emulator E2E, rendered UI parity, Watch/replay/deletion/session/lock behavior, Azure, physical keyboard, screen-reader and DPI/multi-monitor validation. Leaf-service success does not close those checklist items.
 
-- [ ] All questions affecting the current stage answered and recorded; unresolved stages remain unstarted.
+- [x] All questions affecting the current stage answered and recorded; latest approved decisions supersede historical questions.
 - [ ] Approved interaction matrix works in the actual App, not just in the prototype executable.
-- [ ] No synthetic fixture injection, fixed server offset, fake connection success or direct subscription fan-out in shipping paths.
-- [ ] Fast existing unit/view-model tests remain green; meaningful new tests cover each changed workflow.
-- [ ] Emulator proof includes >50 messages, multiple sources, Active+DLQ, zero/unknown runtime counts, cancellation, disconnect/reconnect, replay-copy and confirmed delete if approved.
-- [ ] Azure behavior tested when credentials/environment are authorized; otherwise explicitly unverified. Never present emulator-only evidence as Azure certification.
+- [x] No synthetic fixture injection, fixed server offset, fake connection success or direct subscription fan-out in shipping paths; production wiring/source reviews and SDK/executable proofs recorded below.
+- [x] Fast existing unit/view-model tests remain green; meaningful new tests cover each changed workflow. Final App 293/293 combined and Core 178/178 evidence below.
+- [x] Emulator proof includes >50 messages, multiple sources, Active+DLQ, zero/unknown runtime counts, cancellation, disconnect/reconnect, replay-copy and confirmed delete; final live search journey also passed.
+- [x] Azure behavior explicitly **unverified**: no authorized Azure environment was supplied. Emulator evidence is not Azure certification.
 - [ ] Rendered desktop/compact/settings/notification states and keyboard/DPI checks satisfy [UI language](ui-language.md); no user-as-first-tester handoff.
-- [ ] Root README remains user-facing; narrow internal docs and affected links updated; `git diff --check` passes.
-- [ ] Evidence and remaining limitations recorded; completed work committed on current branch; no release performed.
+- [x] Root README remains user-facing and unchanged; narrow internal docs and affected links updated; local Markdown path validation and `git diff --check` pass.
+- [x] Evidence and remaining limitations recorded; completed work committed on current branch; no release performed. Full-product UI approval is not claimed.
 
 Start with existing commands in [tests README](../tests/README.md) and inspect scripts before running. Normal fast check: `dotnet test ServiceBusEmulatorExplorer.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"`. Integration/UI runs are opt-in and require the coordinator's runtime lease. Use bounded execution and the repository's UI smoke runner.
 
@@ -410,3 +410,56 @@ Continue through the approved production checklist, asking only when a consequen
 - Changed only ConfigureRefresh to preserve an already-running unchanged interval. The same focused command then passed3/3 in31 seconds: one discovery within the expected28–35 second window plus pause/off/interval/search/disconnect/resume behavior. Existing style and layout are unchanged. Rollback is the single timer configuration method. No repair/re-review cycle beyond the initial fix was needed.
 - Final audit still needs joined prototype parity, physical keyboard/screen-reader,100/125/150/200% Windows scaling/monitor evidence and in-progress broker-backed search cancellation/reconnect. Existing leaf paging/search and executable read-only/Watch/replay/delete proofs cover their recorded scopes, not those remaining cases. Azure remains explicitly unverified without an authorized environment.
 - Final verification of the same production/test diff: focused timer tests3/3 passed; remaining App suite289/289 passed in39 seconds, excluding only the unchanged protected legacy migration case and the separately executed timer class. Fresh review-this verdict PASS on Spec and Standards/Quality axes. UI gate PASS for the exercised real-window timer/control transitions; no visual styling changed. Full-product evidence gaps above remain open.
+
+## Final integration audit — 2026-09-19
+
+Normal checkout resumed at `c53038f` on `prototype/investigation-workspace`. Coordinator runtime metadata reports Astra medium. Child session logs, matched by parent/path, report `gpt-5.6-luna` / `high` for the explorer, implementer and reviewer assignments. Role-file configuration alone was not used as runtime proof. Coordinator retains all Docker, build and desktop leases; no ordinary profile or broker data is a fixture.
+
+The joined comparison uses baseline `8575a2c`, the committed prototype previews, current UI language, and later approved production decisions. Scheduled counts, separate paging defaults, search budgets, Azure CLI fields, outlined Active badges and DLQ-only deletion are approved differences. Different fixture contents and timestamps prevent a meaningful whole-image pixel-equality claim.
+
+| Surface / transition | Production evidence and final comparison | Result / remaining boundary |
+| --- | --- | --- |
+| Browse, source tree, paging, checks, inspector tabs, long bodies | `InvestigationWindowRenderTests`; desktop 1500×1000, compact 1100×800, minimum 980×640 captures; prior external read-only broker proof | Rendered parity PASS, including approved one-row minimum-size tradeoff |
+| Settings General/Connections, preferences, failed save and warning/discard modals | Settings, Tray and Warning render suites; default/minimum captures; protected persistence tests | PASS after typography repair below |
+| Search partial/Stop/Continue/Clear, invalid/empty input, suggestions and draft restoration | Search render suite at three sizes plus workflow tests; final external broker search journey | PASS for rendered and real-broker automated scope |
+| Watch inclusion, independent buckets, notifications and tray lifetime | Watch/Notification/Tray render suites, long-name captures, prior external Watch proof | Rendered PASS; spoken announcements remain unverified |
+| Replay clean/edited/invalid/pending/uncertain and topic confirmation | Replay render suite at three sizes; prior real queue/topic lineage proofs | PASS for recorded scope; Azure unverified |
+| Typed deletion, pending/cancel/result and confirmed-only dependent updates | Delete dialog 470/400 and window 1500/1100/980 captures; prior external replay/delete/protected-counter proof | PASS for recorded scope |
+| Console, UTC/Local and footer | Rendered INFO/WARN/WATCH, original UTC instant retained, display-zone switch and fresh whole-window captures | PASS after semantic presentation repair below |
+| Keyboard, screen reader, Windows scales and monitor movement | Prior UIA/routed-focus tests establish only their stated scope | Full accessibility/scaling gate remains open; actual environment probes are required |
+
+### Reproduced parity repairs
+
+- Settings selected-tab foreground/font weight leaked into both page contents. Ranked hypotheses: inherited tab properties (predicted primary-blue/bold content), incorrect `InkBrush` resource (predicted wrong resource value), or direct heading styles (predicted local heading values). The approved prototype resets content inheritance; production did not. The new real-window regression failed with expected `#FF17213D`, actual `#FF0069FA`. Resetting only the two content ScrollViewers to `InkBrush`/Normal passed the same proof and restored the inspected page hierarchy.
+- Production console ignored the existing warning flag and flattened the approved timestamp/severity/message runs. Alternatives were a wrong warning flag or color-resource failure; rendered entries with explicit false/true flags still had one unstyled run, and the renderer never read the flag. The regression failed with expected three runs, actual one. Restored INFO/WARN/WATCH labels and prototype colors, time-only UTC/Local presentation, original ISO UTC tooltips and footer display. Watch classification is explicit data rather than a message-text heuristic. The proof checks warning/info/watch colors, UTC/Local conversion and unchanged underlying instants.
+- Focused Settings and main-window proofs passed. Fresh independent review passed Spec and Standards/Quality and inspected the joined surface captures. No new design, broker contract or dependency was introduced.
+
+### Final regression evidence to date
+
+- Full rendered selection: **30/30 passed** in 71 seconds before the parity repairs; the full App run after repairs includes that selection and the real timer proofs.
+- Full App run: **292 passed**, with only the known sandbox-denied protected legacy migration failing. The identical isolated migration then passed **1/1** with required filesystem escalation: **293/293 combined evidence**. Protected atomic replacement was not weakened.
+- Core: **178/178 passed**. UI smoke project build passed with zero warnings/errors before the new external runtime proofs.
+- Final investigation emulator selection: **11/11 passed** in 70 seconds using only unique fixtures in the isolated Compose project.
+- Live in-progress search proof **passed 1/1 in 69 seconds**. The real executable observes Searching with enabled Stop, stops with truthful partial results, continues to more scanned deliveries with exactly one target row, disconnects during another active scan, confirms stale search state is cleared, reconnects and explicitly selects the fixture for a fresh 50-row page. The unique 1,500-message queue, protected profile and app are cleaned. A diagnostic run also directly observed one retained match at 1,000 scanned deliveries followed by one match after all 1,500 deliveries; it later exposed the test's invalid prior-queue restoration expectation.
+- Harness corrections were evidence-led: the initial 12,000-message setup exhausted the total budget before search; a redundant Stop re-query raced with the scan ending; the count parser rejected the host's `pl-PL` nonbreaking-space grouping; reconnect incorrectly assumed automatic restoration of the prior queue. After pausing to inspect the reconnect path, the test was aligned with the approved fresh-session behavior: disconnect clears selection and the prototype also reconnects to its default. No production search behavior was changed to satisfy the test.
+- Parity repairs are committed as `2b33322`. Final proof/documentation changes form a separate milestone commit. Both isolated emulator containers and their network were removed after verification; no shared runtime lease remains.
+- Azure remains unverified. No merge, tag, release, README screenshot replacement or Lessons edit is authorized or performed by this milestone.
+
+### Windows input and monitor evidence
+
+- Two independent executable tests were added in `InvestigationKeyboardEndToEndTests`. Their first runtime exposed an xUnit harness requirement: timeout-decorated cases must be async; the test signatures now satisfy it. The Windows-input case then reproduced Win32 Access Denied inside the sandbox. With escalation, Enter opened Settings. Its initial descendant-focus assertion was invalid for a dialog without an explicit initial child focus; the test now records that initial state and explicitly establishes its navigation starting point, without claiming to prove initial dialog focus.
+- The repaired Windows-input case **passed 1/1** in three seconds with escalation. Enter, forward/backward Tab, Space preference toggle/restoration, Escape close and return focus all use OS input. UIA establishes and reads focus; it does not substitute action invocation. This closes the narrow Windows-input proof, not physical hardware or the complete product keyboard matrix.
+- Monitor movement **passed 1/1**. A focused detailed-output run recorded two 1920×1080 monitors: DISPLAY1 at `(0,0)` and DISPLAY2 at `(-1920,0)`, both with 1920×1032 work areas. The 1500×1000 real app moved to `(8,8)` and `(-1912,8)` respectively and belonged to the expected monitor. `GetDpiForWindow` returned **96 on both**. No display setting was changed. This proves same-DPI movement at 100%, not mixed-DPI transitions or 125/150/200% scaling.
+- Windows Narrator is installed but no spoken output was captured or verified. Full physical keyboard traversal across Browse/Search/editor/dialog flows, Narrator names/states/live announcements, higher scaling levels and mixed-DPI notification placement remain open. The next proof needs an interactive operator session at those actual scale settings; 96-DPI bitmap captures cannot close it.
+
+### Full-product UI gate
+
+| Gate | Result | Evidence / remaining action |
+| --- | --- | --- |
+| Design authority and readiness | PASS | Approved prototype, explicit production amendments, joined comparison and repaired discrepancies |
+| Rendered flows and geometry | PASS | Fresh production captures and render assertions across 1500×1000, 1100×800, 980×640 plus modal sizes |
+| Automated interactions and broker state | PASS | App/Core regressions, 11 emulator cases, external search and prior Watch/replay/delete/read-only journeys |
+| Accessibility and responsiveness | BLOCKED for complete signoff | Narrow Windows-input and two-monitor 96-DPI movement passed. Full keyboard traversal, spoken Narrator proof, actual 125/150/200% and mixed-DPI notification movement need an interactive operator proof |
+| Regression and clean close | PASS | Reviewed repairs, bounded fixture/profile/process cleanup, isolated emulator removed, path and whitespace checks |
+
+The remaining unchecked interaction and UI umbrella items deliberately retain the full objective. To close them, record keyboard traversal/actions/focus restoration for Browse, Search, editor and all dialogs; verify spoken control names/states and dynamic search/save/notification announcements; exercise the approved sizes at actual 125/150/200% Windows scaling and move main/notification windows between unlike-DPI monitors. Record actual window DPI, work areas, screenshots and outcomes. No Azure claim is needed without a separately authorized Azure environment.
