@@ -74,3 +74,7 @@ The toolbar uses only a 1-DIP neutral gray (#DFE6EE) divider below, meeting the 
 All shared scrollbars use an 18-DIP hit lane, a rounded 8-DIP visible thumb and profile-themed hover/drag feedback. Preserve wheel, keyboard, page and thumb behavior in both orientations. Dark editor/log backgrounds remain dark beneath the transparent track.
 
 Chrome-polish verification: zero-warning build and 347 routed checks pass. Actual desktop/compact/minimum screenshots, masked-field copying, Watch scrolling, and page/drag commands in both orientations were checked. Current rendered evidence is reflected in the linked previews and walkthrough; prior physical-input/DPI limitations remain. One initial run encountered external clipboard contention while restoring clipboard contents; the complete final rerun passed.
+
+## Application identity (2026-09-21)
+
+Approved: cobalt bus spine, three cyan terminals, and a satin silver investigation lens. Use the shared [PNG](../src/ServiceBusEmulatorExplorer.App/Assets/AppIcon.png) and [multi-size ICO](../src/ServiceBusEmulatorExplorer.App/Assets/AppIcon.ico) for native windows, the taskbar, system tray and executable. The [README image](../docs/images/service-bus-emulator-explorer-icon.png) matches the PNG. The ICO contains transparent 16, 20, 24, 32, 40, 48, 64, 96, 128 and 256 pixel frames. This identity is static and independent of connection state or profile theme.
