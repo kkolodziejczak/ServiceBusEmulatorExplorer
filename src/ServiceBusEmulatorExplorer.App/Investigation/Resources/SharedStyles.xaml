@@ -44,6 +44,32 @@
  <SolidColorBrush x:Key="DarkButtonHoverBrush" Color="#344B63"/>
  <SolidColorBrush x:Key="DarkButtonPressedBrush" Color="#182432"/>
  <SolidColorBrush x:Key="DarkButtonDisabledTextBrush" Color="#99A9BB"/>
+ <Style x:Key="CenteredDataGridColumnHeader" TargetType="DataGridColumnHeader">
+  <Setter Property="Background" Value="{DynamicResource ColumnHeaderBrush}"/><Setter Property="Foreground" Value="{DynamicResource ActionTextBrush}"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/><Setter Property="BorderThickness" Value="0,0,0,1"/><Setter Property="Padding" Value="8,7"/>
+ </Style>
+ <Style x:Key="CenteredDataGridRow" TargetType="DataGridRow">
+  <Setter Property="Background" Value="{DynamicResource RaisedBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/><Setter Property="BorderThickness" Value="0,0,0,1"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+  <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource NeutralHoverBrush}"/></Trigger><Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource SelectionBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Trigger></Style.Triggers>
+ </Style>
+ <Style x:Key="CenteredDataGridCell" TargetType="DataGridCell">
+  <Setter Property="Background" Value="{DynamicResource RaisedBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="8,0"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+  <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource NeutralHoverBrush}"/></Trigger><Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource SelectionBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Trigger><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource InkBrush}"/><Setter Property="BorderThickness" Value="1"/></Trigger></Style.Triggers>
+ </Style>
+ <Style x:Key="CenteredDataGridText" TargetType="TextBlock">
+  <Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="TextAlignment" Value="Center"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+ </Style>
+ <Style x:Key="CenteredDataGridEditingText" TargetType="TextBox">
+  <Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="TextAlignment" Value="Center"/>
+ </Style>
+ <Style x:Key="CenteredDataGridCombo" TargetType="ComboBox">
+  <Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+ </Style>
+ <Style x:Key="CenteredDataGridComboDisplay" TargetType="ComboBox" BasedOn="{StaticResource {x:Static DataGridComboBoxColumn.TextBlockComboBoxStyleKey}}">
+  <Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="IsHitTestVisible" Value="False"/><Setter Property="IsTabStop" Value="False"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
+ </Style>
+ <Style x:Key="CenteredDataGridCheckBox" TargetType="CheckBox">
+  <Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="VerticalAlignment" Value="Center"/>
+ </Style>
  <Style TargetType="Button">
   <Setter Property="FontFamily" Value="Segoe UI"/><Setter Property="FontSize" Value="14"/>
   <Setter Property="MinHeight" Value="32"/><Setter Property="Padding" Value="12,7"/><Setter Property="Margin" Value="3,0"/>

@@ -136,6 +136,20 @@ public partial class MessageLibraryPrototypeDialog : Window
     public event Action? ValidateAgainRequested;
 
     private void ApplyDestination_Click(object sender, RoutedEventArgs e) => DialogResult = true;
+
+    public void ConfigureAssociationPicker(string? current, bool editing)
+    {
+        Title = editing ? "Edit association" : "Add association";
+        DestinationHeading.Text = editing ? "Edit association" : "Add association";
+        DestinationDescription.Text = editing
+            ? "Choose the dummy queue or topic for this association."
+            : "Choose a dummy queue or topic to associate with this template.";
+        ApplyDestinationButton.Content = editing ? "Save association" : "Add association";
+        DestinationPicker.SelectedItem = DestinationPicker.Items.OfType<ComboBoxItem>()
+            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), current,
+                StringComparison.OrdinalIgnoreCase))
+            ?? DestinationPicker.Items.OfType<ComboBoxItem>().FirstOrDefault();
+    }
     private void UseSampleCsv_Click(object sender, RoutedEventArgs e) => DialogResult = true;
 
     public PrototypeRunSnapshot? CaptureRun() => results.Count == 0 ? null : new PrototypeRunSnapshot(

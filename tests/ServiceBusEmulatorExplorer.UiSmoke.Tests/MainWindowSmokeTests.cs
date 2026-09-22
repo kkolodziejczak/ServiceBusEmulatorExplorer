@@ -333,6 +333,18 @@ public sealed class MainWindowSmokeTests
             if (libraryTab.Patterns.Toggle.Pattern.ToggleState != ToggleState.On)
                 libraryTab.Patterns.Toggle.Pattern.Toggle();
             InvokeButton(window, "LibraryEditorProperties", TimeSpan.FromSeconds(5));
+            var routing = WaitForAutomationId(window, "LibraryReplyRouting", TimeSpan.FromSeconds(5));
+            Assert.Equal(ExpandCollapseState.Collapsed, routing.Patterns.ExpandCollapse.Pattern.ExpandCollapseState);
+            var propertyGrid = WaitForAutomationId(window, "LibraryApplicationProperties", TimeSpan.FromSeconds(5));
+            int originalPropertyCount = propertyGrid.Patterns.Grid.Pattern.RowCount;
+            var deleteProperty = WaitForAutomationId(window, "LibraryDeleteSelectedProperty", TimeSpan.FromSeconds(5));
+            Assert.False(deleteProperty.IsEnabled);
+            InvokeButton(window, "LibraryAddProperty", TimeSpan.FromSeconds(5));
+            Assert.Equal(originalPropertyCount + 1, propertyGrid.Patterns.Grid.Pattern.RowCount);
+            Assert.True(deleteProperty.IsEnabled);
+            InvokeButton(window, "LibraryDeleteSelectedProperty", TimeSpan.FromSeconds(5));
+            Assert.Equal(originalPropertyCount, propertyGrid.Patterns.Grid.Pattern.RowCount);
+            Assert.False(deleteProperty.IsEnabled);
             SetText(window, "LibrarySubject", "OrderCreatedEdited");
             InvokeButton(window, "LibrarySave", TimeSpan.FromSeconds(5));
 

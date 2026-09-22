@@ -18,6 +18,8 @@ Also verify 1500×1000, 1100×800 and 980×640, profile themes, expanded/collaps
 
 ## Composition and theme
 
+The 2026-09-22 user refinement also requires Add/Edit association to reuse the app's styled dialog controls and a noneditable dropdown of available destinations. In the dummy-data prototype these are the sample topics and queue; production discovery remains outside this prototype. Variables provide substitution inputs, while application properties are metadata emitted on the prepared message.
+
 - Wide layout: **Namespaces | Saved templates | Author | Prepare/preview**, with resizable splitters and full-width activity log. At A's reference extent pane boundaries are approximately x=310, 565 and 1074; measure actual bounds against the raster, including splitters.
 - The 40-DIP top toolbar reads **Workspaces | Investigation | Message Workbench** on the left and **connection state | profile selector | Watch all | Settings** on the right. Preserve the existing status bar, UTC/Local selector and Investigation Active/DLQ inspector. No new avatar/logo/app heading. Counts refresh while the workbench is open when refresh is enabled.
 - Topic filtering uses the existing Namespaces search field; the approved mockup shows `order-events` there with an in-field clear action. Do not add a full-width filter/chip row. Hide unrelated entities and library branches, retaining matching subscriptions and folder ancestors. The Saved templates search remains separate for local name/description matching. Keep Add folder/Refresh/New at the bottom of the library pane, never in the namespace tree.
@@ -72,6 +74,8 @@ Also exercise same-style variants: loading/canceled validation, malformed CSV, u
 Approval: **revised Board A plus Boards B–E accepted as the prototype/mockup plan**; pixel-perfect implementation and rendered/accessibility proof remain **Pending**. Previous seven-board and original Board A review records are historical. This approval does not authorize production UI implementation.
 
 ## Dummy-data prototype
+
+Approved refinement (2026-09-22): [centered tables and property controls](approved/07-table-properties-refinement.png). The user approved centered headers and values in both axes, the existing light-blue selection treatment instead of native gray, a Delete selected action alongside Add property, and Reply and routing collapsed on opening. The [UI language registry](../../ui-language.md) defines the app-wide table scope and preserves the existing flat palette and density.
 
 The user separately authorized the clickable in-app prototype and repairs using dummy data only (2026-09-22). Launch the app with `--message-workbench-prototype` to open the seeded workspace. Templates, edits, generated messages and simulated results live only in the session. **Export results** can explicitly save those dummy results as JSON to a user-selected file; it does not persist or restore the workspace. Send, schedule and cancellation do not contact a broker.
 

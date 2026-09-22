@@ -2,7 +2,9 @@ using System.Globalization;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
+using System.Windows.Input;
 using System.Collections.ObjectModel;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
@@ -842,7 +844,8 @@ public partial class MessageLibraryPrototypeView : UserControl
         ReviewButton.IsEnabled = previewReady;
     }
 
-    private static bool IsSampleDestination(string? path) => path is "order-events" or "inventory-events" or "order-replies";
+    private static bool IsSampleDestination(string? path) =>
+        path is "order-events" or "inventory-events" or "order-replies";
 
     private void UpdateDestinationControls()
     {
@@ -942,8 +945,50 @@ public partial class MessageLibraryPrototypeView : UserControl
 
     private void AddProperty_Click(object sender, RoutedEventArgs e)
     {
-        applicationProperties.Add(new PrototypeProperty("newProperty", "string", ""));
+        var property = new PrototypeProperty("newProperty", "string", "");
+        applicationProperties.Add(property);
+        ApplicationPropertiesGrid.SelectedItems.Clear();
+        ApplicationPropertiesGrid.SelectedItem = property;
+        ApplicationPropertiesGrid.ScrollIntoView(property);
+        UpdateDeletePropertyState();
         InvalidatePreview();
+    }
+
+    private void DeleteSelectedProperty_Click(object sender, RoutedEventArgs e)
+    {
+        var selected = ApplicationPropertiesGrid.SelectedItems.OfType<PrototypeProperty>().ToArray();
+        if (selected.Length == 0 || !CommitApplicationPropertyEdit()) return;
+
+        foreach (var property in selected) applicationProperties.Remove(property);
+        ApplicationPropertiesGrid.SelectedItems.Clear();
+        ApplicationPropertiesGrid.SelectedIndex = -1;
+        UpdateDeletePropertyState();
+        InvalidatePreview();
+    }
+
+    private void ApplicationPropertiesGrid_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        UpdateDeletePropertyState();
+
+    private void ApplicationPropertiesGrid_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Delete || e.OriginalSource is TextBoxBase or ComboBox or CheckBox) return;
+        DeleteSelectedProperty_Click(sender, new RoutedEventArgs(Button.ClickEvent));
+        e.Handled = true;
+    }
+
+    private bool CommitApplicationPropertyEdit()
+    {
+        if (ApplicationPropertiesGrid.CommitEdit(DataGridEditingUnit.Cell, true) &&
+            ApplicationPropertiesGrid.CommitEdit(DataGridEditingUnit.Row, true)) return true;
+        ApplicationPropertiesGrid.CancelEdit(DataGridEditingUnit.Cell);
+        ApplicationPropertiesGrid.CancelEdit(DataGridEditingUnit.Row);
+        return false;
+    }
+
+    private void UpdateDeletePropertyState()
+    {
+        if (DeleteSelectedPropertyButton is not null)
+            DeleteSelectedPropertyButton.IsEnabled = ApplicationPropertiesGrid.SelectedItems.Count > 0;
     }
 
     private string BuildPropertyDetails(string customerId, PrototypePreparedMessage? prepared = null, string? amount = null)
@@ -1015,10 +1060,18 @@ public partial class MessageLibraryPrototypeView : UserControl
 
     private void AddAssociation_Click(object sender, RoutedEventArgs e)
     {
-        string? topic = PromptForName("Add association", "Topic or queue", selectedDestination ?? "order-events");
-        if (topic is null || currentAssociations.Contains(topic, StringComparer.OrdinalIgnoreCase)) return;
-        currentAssociations.Add(topic);
+        string? destination = ChooseAssociationDestination(selectedDestination ?? currentAssociations.FirstOrDefault(), false);
+        if (destination is null || currentAssociations.Contains(destination, StringComparer.OrdinalIgnoreCase)) return;
+        currentAssociations.Add(destination);
         UpdateAssociations();
+    }
+
+    private string? ChooseAssociationDestination(string? current, bool editing)
+    {
+        var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Destination,
+            currentProfileName, current ?? "", 1) { Owner = Window.GetWindow(this) };
+        dialog.ConfigureAssociationPicker(current, editing);
+        return dialog.ShowDialog() == true ? dialog.ChosenDestination : null;
     }
 
     private void UpdateAssociations()
@@ -1037,9 +1090,10 @@ public partial class MessageLibraryPrototypeView : UserControl
                 ToolTip = $"Edit {path} association" };
             edit.Click += (_, _) =>
             {
-                string? changed = PromptForName("Edit association", "Topic or queue", path);
+                string? changed = ChooseAssociationDestination(path, true);
                 if (changed is null || currentAssociations.Any(value => value != path &&
                     value.Equals(changed, StringComparison.OrdinalIgnoreCase))) return;
+                if (changed.Equals(path, StringComparison.OrdinalIgnoreCase)) return;
                 currentAssociations[currentAssociations.IndexOf(path)] = changed;
                 UpdateAssociations();
             };
