@@ -5,7 +5,11 @@ namespace ServiceBusEmulatorExplorer.App.Investigation;
 
 public partial class InvestigationWindow
 {
-    private void Window_SizeChanged(object sender, SizeChangedEventArgs e) { if (ready) UpdateLayoutMode(); }
+    private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (initializingWindow) resizedDuringInitialize = true;
+        if (ready) UpdateLayoutMode();
+    }
     private void UpdateLayoutMode()
     {
         var nextCompact = ActualWidth < 1200;
@@ -49,6 +53,34 @@ public partial class InvestigationWindow
         InspectorSplitter.Width = compact ? double.NaN : 5;
         InspectorSplitter.Height = compact ? 5 : double.NaN;
         InspectorSplitter.ResizeDirection = compact ? GridResizeDirection.Rows : GridResizeDirection.Columns;
+        UpdateWorkspaceColumns();
         UpdateSearchSurface();
+    }
+
+    private void UpdateWorkspaceColumns()
+    {
+        if (WorkspaceGrid is null || MessageLibraryPrototype is null) return;
+        bool compactLibrary = MessageLibraryPrototype.Visibility == Visibility.Visible && ActualWidth < 1200;
+        WorkspaceGrid.ColumnDefinitions[0].MinWidth = 240;
+        WorkspaceGrid.ColumnDefinitions[0].Width = new GridLength(compactLibrary ? 250 : 305);
+        NamespaceCountHeadings.ColumnDefinitions[1].Width = new GridLength(compactLibrary ? 50 : 65);
+        NamespaceCountHeadings.ColumnDefinitions[2].Width = new GridLength(compactLibrary ? 55 : 65);
+        NamespaceCountHeadings.ColumnDefinitions[3].Width = new GridLength(compactLibrary ? 27 : 36);
+        foreach (TextBlock label in NamespaceCountHeadings.Children.OfType<TextBlock>())
+            label.FontSize = compactLibrary ? 10 : 12;
+        PrototypeNamespaceTree.FontSize = compactLibrary ? 11 : 14;
+        ResizePrototypeHeader(PrototypeQueueHeader, compactLibrary ? 188 : 230, compactLibrary);
+        ResizePrototypeHeader(PrototypeTopicHeader, compactLibrary ? 188 : 213, compactLibrary);
+        ResizePrototypeHeader(PrototypeBillingHeader, compactLibrary ? 162 : 194, compactLibrary);
+        ResizePrototypeHeader(PrototypeAnalyticsHeader, compactLibrary ? 162 : 194, compactLibrary);
+        ResizePrototypeHeader(PrototypeNotificationsHeader, compactLibrary ? 162 : 194, compactLibrary);
+    }
+
+    private static void ResizePrototypeHeader(Grid header, double width, bool compact)
+    {
+        header.Width = width;
+        header.ColumnDefinitions[1].Width = new GridLength(compact ? 25 : 35);
+        header.ColumnDefinitions[2].Width = new GridLength(compact ? 20 : 35);
+        header.ColumnDefinitions[3].Width = new GridLength(compact ? 20 : 25);
     }
 }

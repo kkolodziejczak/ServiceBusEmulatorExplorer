@@ -1,0 +1,225 @@
+using System.Runtime.ExceptionServices;
+using System.Threading;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Threading;
+using ServiceBusEmulatorExplorer.App.Investigation;
+
+namespace ServiceBusEmulatorExplorer.App.Tests;
+
+[Collection("WPF presentation")]
+public sealed class MessageWorkbenchLayoutTests
+{
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void Properties_editor_aligns_labels_and_keeps_default_sections_visible_at_reference_size()
+    {
+        RunOnSta((dispatcher, view, window) =>
+        {
+            Button propertiesTab = ByName<Button>(view, "EditorPropertiesTab");
+            propertiesTab.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            WaitForLayout(dispatcher);
+
+            ScrollViewer propertiesSurface = ByName<ScrollViewer>(view, "PropertiesEditorSurface");
+            Assert.Equal(Visibility.Visible, propertiesSurface.Visibility);
+
+            AssertAlignedRow(view, propertiesSurface, "Subject", ByName<TextBox>(view, "PropertySubject"));
+            AssertAlignedRow(view, propertiesSurface, "Content type", ByName<ComboBox>(view, "PropertyContentType"));
+            AssertAlignedRow(view, propertiesSurface, "Correlation ID", ByName<TextBox>(view, "PropertyCorrelationId"));
+            AssertAlignedRow(view, propertiesSurface, "Session ID", ByName<TextBox>(view, "PropertySessionId"));
+
+            DataGrid applicationProperties = ByName<DataGrid>(view, "ApplicationPropertiesGrid");
+            Panel associations = ByName<Panel>(view, "AssociationChips");
+            Button addAssociation = Descendants<Button>(propertiesSurface)
+                .Single(button => string.Equals(button.Content?.ToString(), "+ Add association", StringComparison.Ordinal));
+
+            Assert.Equal(3, applicationProperties.Items.Count);
+            Assert.NotEmpty(associations.Children);
+            Assert.True(propertiesSurface.ViewportHeight > 0);
+            AssertFullyInside(applicationProperties, propertiesSurface, "application properties");
+            AssertFullyInside(associations, propertiesSurface, "topic associations");
+            AssertFullyInside(addAssociation, propertiesSurface, "add association action");
+            foreach (Button action in Descendants<Button>(associations))
+                AssertFullyInside(action, associations, "association " + action.Content);
+
+            RadioButton customMessageId = ByName<RadioButton>(view, "CustomMessageId");
+            RadioButton specifyTtl = ByName<RadioButton>(view, "SpecifyTtl");
+            customMessageId.IsChecked = true;
+            specifyTtl.IsChecked = true;
+            WaitForLayout(dispatcher);
+            AssertFullyInside(ByName<TextBox>(view, "CustomMessageIdInput"), propertiesSurface, "custom message ID editor");
+            AssertFullyInside(ByName<TextBox>(view, "TtlMinutes"), propertiesSurface, "TTL duration editor");
+        }, 1332, 843);
+    }
+
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void Single_inputs_use_vertical_rows_and_keep_generated_values_and_actions_at_reference_and_compact_sizes()
+    {
+        foreach ((double width, double height) in new[] { (1332d, 843d), (845d, 684d), (725d, 564d) })
+        {
+            RunOnSta((dispatcher, view, window) =>
+            {
+                RadioButton singleMode = ByName<RadioButton>(view, "SingleMode");
+                singleMode.IsChecked = true;
+                WaitForLayout(dispatcher);
+
+                StackPanel singleInputs = ByName<StackPanel>(view, "SingleInputs");
+                Assert.Equal(Visibility.Visible, singleInputs.Visibility);
+
+                TextBlock customerLabel = VisibleLabel(singleInputs, "CustomerId");
+                TextBlock amountLabel = VisibleLabel(singleInputs, "Amount");
+                TextBox customerInput = ByName<TextBox>(view, "CustomerInput");
+                TextBox amountInput = ByName<TextBox>(view, "AmountInput");
+                Button validate = ByName<Button>(view, "SingleValidateButton");
+
+                AssertAlignedRow(customerLabel, customerInput, "CustomerId");
+                AssertAlignedRow(amountLabel, amountInput, "Amount");
+                Assert.True(amountLabel.TransformToAncestor(singleInputs).Transform(new Point(0, 0)).Y
+                    > customerLabel.TransformToAncestor(singleInputs).Transform(new Point(0, 0)).Y,
+                    "Amount must be below CustomerId in the single-message form.");
+
+                Rect amountBounds = Bounds(amountInput, singleInputs);
+                Rect validateBounds = Bounds(validate, singleInputs);
+                Assert.True(validateBounds.Top >= amountBounds.Bottom,
+                    "Validate must follow the required input rows.");
+
+                Border divider = Descendants<Border>(singleInputs)
+                    .Where(border => border.BorderThickness.Top > 0 && border.BorderThickness.Bottom == 0
+                        && border.ActualHeight <= 3 && border.ActualWidth >= 100)
+                    .OrderBy(border => Bounds(border, singleInputs).Top)
+                    .FirstOrDefault()
+                    ?? throw new Xunit.Sdk.XunitException("Single-message generated values need a visible divider after validation.");
+                Rect dividerBounds = Bounds(divider, singleInputs);
+                Assert.True(dividerBounds.Top >= validateBounds.Bottom,
+                    "The divider must follow Validate & preview.");
+
+                TextBlock eventLabel = VisibleLabel(singleInputs, "EventId");
+                TextBlock occurredLabel = VisibleLabel(singleInputs, "OccurredAt");
+                Assert.True(Bounds(eventLabel, singleInputs).Top >= dividerBounds.Bottom,
+                    "EventId must follow the divider.");
+                Assert.True(Bounds(occurredLabel, singleInputs).Top >= dividerBounds.Bottom,
+                    "OccurredAt must follow the divider.");
+                Assert.True(Bounds(occurredLabel, singleInputs).Top > Bounds(eventLabel, singleInputs).Top,
+                    "OccurredAt must follow EventId in the generated values section.");
+
+                TextBox generatedEventId = ByAutomationId<TextBox>(singleInputs, "LibraryGeneratedEventId");
+                TextBox generatedOccurredAt = ByAutomationId<TextBox>(singleInputs, "LibraryGeneratedOccurredAt");
+                Assert.True(generatedEventId.IsReadOnly && generatedOccurredAt.IsReadOnly);
+                Assert.Equal("Generated when validated", generatedEventId.Text);
+                Assert.Equal("Generated when validated", generatedOccurredAt.Text);
+                AssertFullyInside(generatedEventId, singleInputs, "generated EventId");
+                AssertFullyInside(generatedOccurredAt, singleInputs, "generated OccurredAt");
+                AssertFullyInside(validate, view, "single validation action");
+                AssertFullyInside(ByName<Button>(view, "ReviewButton"), view, "single review action");
+            }, width, height);
+        }
+    }
+
+    private static void RunOnSta(
+        Action<Dispatcher, MessageLibraryPrototypeView, Window> assertion,
+        double width,
+        double height)
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            Window? window = null;
+            try
+            {
+                var view = new MessageLibraryPrototypeView();
+                window = new Window
+                {
+                    Width = width,
+                    Height = height,
+                    Content = view,
+                    ShowInTaskbar = false,
+                    WindowStyle = WindowStyle.None
+                };
+                window.Show();
+                WaitForLayout(window.Dispatcher);
+                assertion(window.Dispatcher, view, window);
+            }
+            catch (Exception exception)
+            {
+                failure = exception;
+            }
+            finally
+            {
+                window?.Close();
+                Dispatcher.CurrentDispatcher.InvokeShutdown();
+            }
+        })
+        {
+            IsBackground = true
+        };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        Assert.True(thread.Join(TimeSpan.FromSeconds(20)), "Message Workbench layout proof exceeded its time bound.");
+        if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
+    private static void AssertAlignedRow(DependencyObject root, FrameworkElement surface, string labelText, FrameworkElement value)
+    {
+        TextBlock label = VisibleLabel(surface, labelText);
+        AssertAlignedRow(label, value, labelText);
+        AssertFullyInside(value, surface, labelText + " value");
+    }
+
+    private static void AssertAlignedRow(TextBlock label, FrameworkElement value, string name)
+    {
+        Visual ancestor = FindCommonAncestor(label, value);
+        Rect labelBounds = Bounds(label, ancestor);
+        Rect valueBounds = Bounds(value, ancestor);
+        Assert.True(valueBounds.Left >= labelBounds.Right + 8,
+            $"{name} value should be to the right of its label: label={labelBounds}, value={valueBounds}.");
+        Assert.InRange(Math.Abs(valueBounds.Top + valueBounds.Height / 2 - (labelBounds.Top + labelBounds.Height / 2)), 0, 8);
+    }
+
+    private static void AssertFullyInside(FrameworkElement element, FrameworkElement surface, string name)
+    {
+        Rect elementBounds = Bounds(element, surface);
+        Assert.True(elementBounds.Left >= -0.5 && elementBounds.Top >= -0.5
+            && elementBounds.Right <= surface.ActualWidth + 0.5
+            && elementBounds.Bottom <= surface.ActualHeight + 0.5,
+            $"{name} is clipped: {elementBounds} in {surface.ActualWidth}x{surface.ActualHeight}.");
+    }
+
+    private static TextBlock VisibleLabel(FrameworkElement root, string text) => Descendants<TextBlock>(root)
+        .Where(block => block.Visibility == Visibility.Visible && block.IsVisible)
+        .Single(block => string.Equals(block.Text.Trim(), text, StringComparison.Ordinal)
+            || block.Text.Trim().StartsWith(text + " ", StringComparison.Ordinal));
+
+    private static T ByName<T>(FrameworkElement root, string name) where T : FrameworkElement => root.FindName(name) as T
+        ?? throw new Xunit.Sdk.XunitException($"Named control '{name}' was not found.");
+
+    private static T ByAutomationId<T>(DependencyObject root, string automationId) where T : DependencyObject => Descendants<T>(root)
+        .Single(element => string.Equals(System.Windows.Automation.AutomationProperties.GetAutomationId(element), automationId, StringComparison.Ordinal));
+
+    private static IEnumerable<T> Descendants<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(parent, index);
+            if (child is T match) yield return match;
+            foreach (T descendant in Descendants<T>(child)) yield return descendant;
+        }
+    }
+
+    private static Rect Bounds(FrameworkElement element, Visual ancestor) =>
+        element.TransformToAncestor(ancestor).TransformBounds(new Rect(element.RenderSize));
+
+    private static Visual FindCommonAncestor(Visual first, Visual second)
+    {
+        var ancestors = new HashSet<Visual>();
+        for (Visual? current = first; current is not null; current = VisualTreeHelper.GetParent(current) as Visual)
+            ancestors.Add(current);
+        for (Visual? current = second; current is not null; current = VisualTreeHelper.GetParent(current) as Visual)
+            if (ancestors.Contains(current)) return current;
+        throw new Xunit.Sdk.XunitException("Controls do not share a visual ancestor.");
+    }
+
+    private static void WaitForLayout(Dispatcher dispatcher) =>
+        dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+}

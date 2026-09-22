@@ -50,6 +50,22 @@ Sizes below are WPF device-independent units (DIPs), not physical pixels. Use na
 
 Do not confuse glyph dimensions with hit targets. Keep Copy beside the correlation text. Preserve the crossed-out/filled Watch distinction and the selected rounded-copy shape. The app name/icon belongs in the native title bar, not a duplicate banner.
 
+## Component registry
+
+Read this registry before proposing or changing UI. Record every distinct new component or interaction concept here with its purpose, states, usage, canonical source, and approval status. A mockup or prototype is **Proposed** until the user approves the rendered behavior; update the entry and validate its links when that changes.
+
+| Component / status | Purpose, states, and usage | Canonical source |
+| --- | --- | --- |
+| Connection toolbar — Approved | Profile selection, health, Watch all and Settings; connected/disconnected/warning, focus and disabled states; shared window chrome | [Production window](../src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWindow.xaml) |
+| Namespace tree and search — Approved | Browse/search entities and show Messages/Scheduled/DLQ counts; selected, filtered, empty, loading and unavailable states; persistent left pane | [Production window](../src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWindow.xaml) |
+| Message inspector and JSON surface — Approved | Body/Properties/Raw inspection; dark Consolas surface, syntax colors, read-only/edited/invalid states; Investigation workspace | [Production window](../src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWindow.xaml) and [syntax colorizer](../src/ServiceBusEmulatorExplorer.App/Investigation/Inspection/JsonSyntaxColorizer.cs) |
+| Activity log and time footer — Approved | Expanded/collapsed log, UTC/Local and status; full-window footer | [Production window](../src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWindow.xaml) |
+| Buttons, tabs, focus, palette and scrollbars — Approved | Normal/hover/pressed/focused/selected/disabled, profile accent and dark editor palette; all WPF surfaces | [Shared styles](../src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SharedStyles.xaml) |
+| Message Workbench workspace — Approved mockup plan, not implemented | One-row Workspaces switcher on the left; connection state then profile selector, Watch all and Settings on the right; namespace Search carries topic filtering; four panes and Scheduled counts remain | [Approved workspace mockup](message-library/design/approved/01-message-workbench.png) and [visual contract](message-library/design/README.md) |
+| Message Workbench in-memory prototype — Proposed POC | Four-pane Namespaces | Saved templates | Author | Prepare/preview composition; CSV and single preparation, validation, preview, review and schedule states; synthetic data only; no template persistence or broker transport | [Prototype view](../src/ServiceBusEmulatorExplorer.App/Investigation/MessageLibraryPrototypeView.xaml) and [approved workspace](message-library/design/approved/01-message-workbench.png) |
+
+The [five-board Message Workbench contract](message-library/design/README.md) remains the approved feature baseline. The in-app prototype is deliberately synthetic and does not authorize repository-backed templates, compilation, CSV transport, or broker send/schedule/cancel behavior.
+
 ## State contract and visual gate
 
 - Buttons, tabs, checkboxes, selectors and menu items: normal, hover, keyboard focus, pressed, selected/checked and disabled must be explicit and consistent. Avoid opacity-only hover treatment.

@@ -13,6 +13,7 @@ namespace ServiceBusEmulatorExplorer.App;
 public partial class App : Application
 {
     private const string ProfileStorePathOption = "--profile-store-path";
+    private const string MessageWorkbenchPrototypeOption = "--message-workbench-prototype";
     private ServiceProvider? _serviceProvider;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -25,6 +26,8 @@ public partial class App : Application
         ShutdownMode = ShutdownMode.OnMainWindowClose;
         window.InitializeSystemTray();
         window.Show();
+        if (e.Args.Contains(MessageWorkbenchPrototypeOption, StringComparer.OrdinalIgnoreCase))
+            window.OpenMessageWorkbenchPrototype();
     }
 
     private static ServiceProvider CreateServices(string[] args)

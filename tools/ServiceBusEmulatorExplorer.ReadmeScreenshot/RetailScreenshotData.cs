@@ -22,7 +22,7 @@ internal static class RetailScreenshotData
         ],
         SelectedProfileId = "demo-retail",
         WasConnected = false,
-        LogExpanded = true,
+        LogExpanded = false,
         TimestampDisplay = TimestampDisplay.Utc,
         WindowWidth = 1500,
         WindowHeight = 1000,

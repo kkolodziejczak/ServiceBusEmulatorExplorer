@@ -92,6 +92,21 @@ $env:SBE_APP_EXE = "$PWD\src\ServiceBusEmulatorExplorer.App\bin\Debug\net10.0-wi
 - UI smoke tests should pass `--profile-store-path` when launching the app so profile persistence stays in a per-test writable path instead of user-local AppData.
 - After interrupted UI runs, check for lingering `dotnet`, `testhost`, and `ServiceBusEmulatorExplorer.App` processes before rerunning.
 
+## App-only WPF screenshot proof
+
+- For visual verification without desktop capture/control, first use the existing [WPF screenshot harness](tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/Program.cs). It instantiates the real app window with synthetic services, invokes WPF routed actions, waits for layout, and captures only the window content through [RenderTargetBitmap](tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/WpfScreenshot.cs). Missing desktop-control tools alone do not block this route. It still requires a working Windows/WPF runtime.
+- Inspect the harness before running it. Build its project when source freshness matters; use a 60-second process deadline for build and each capture. Save proof images to the current task's writable artifact directory, never over the README screenshot. A fresh capture from an existing binary proves that binary, not unbuilt source changes.
+
+```powershell
+dotnet build tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/ServiceBusEmulatorExplorer.ReadmeScreenshot.csproj --no-restore
+# Set $proofOutput to a new absolute PNG path in the current task's artifact directory.
+dotnet tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/bin/Debug/net10.0-windows/ServiceBusEmulatorExplorer.ReadmeScreenshot.dll $proofOutput --message-library-prepare
+```
+
+- The wide workbench capture is 1642x958. Other current modes cover 1500/1100/980 widths, compact Author, Properties, Variables, Single, and mapping/capture/review/results dialogs; inspect `Program.cs` for exact switches. On 2026-09-22 the existing binary successfully produced a fresh wide capture without desktop capture/control.
+- Open and inspect every proof image against the approved visual contract. For interaction proof, assert state before and after real routed actions and capture the resulting state; a directly constructed dialog or restored result fixture proves appearance only, not reachability or a completed workflow. Extend this harness within an approved task when a required state is missing.
+- Report rendering, routed interactions, UI Automation, and physical-input/accessibility proof separately. App-only screenshots do not establish broker correctness, physical keyboard/mouse behavior, screen-reader support, or multi-monitor/DPI correctness. Mark only the unavailable proof blocked, with the actual failure evidence.
+
 ## Service Bus And DLQ Behavior
 
 - Service Bus entity management and message operations are separate concepts. Messages are not updated in place.
@@ -105,6 +120,8 @@ $env:SBE_APP_EXE = "$PWD\src\ServiceBusEmulatorExplorer.App\bin\Debug\net10.0-wi
 
 ## Product And Planning Lessons
 
+- For every UI proposal or UI change, read [the UI language and component registry](specs/ui-language.md), the applicable approved feature visual contract, and the production [shared WPF styles](src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SharedStyles.xaml) before drawing or coding. Reuse approved components and their documented states. Record each genuinely new UI concept or component in the registry with its purpose, states, usage locations, and approval status; validate those paths. A proposed component does not become approved merely because it appears in a generated mockup or prototype.
+- For a new UI concept, capture the current running app first and edit that capture to propose only the changed area. Obtain the user's explicit approval of the final mockup before implementing the UI; approval of a direction or variant alone is not build approval. Carry forward unchanged chrome and components from the actual app rather than recreating them in a separate mock window.
 - If a reference project is mentioned, ask whether it is authoritative or illustrative. The earlier Minimal API reference helped with endpoint and UI interaction shape, but it was not an architecture constraint for this WPF app.
 - The intended workflow reference is closer to `paolosalvatori/ServiceBusExplorer`: menu bar, toolbar, namespace tree, tabbed entity view, message list/detail panes, action strip, and log pane. The visual treatment should be modern, not a legacy clone.
 - Treat the MVP wireframe as a functional contract. If something appears in the wireframe, implement that workflow; if a reference tool has extra conveniences not in the MVP, do not leave them as placeholders.

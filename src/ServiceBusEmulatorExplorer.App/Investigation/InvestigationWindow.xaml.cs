@@ -20,11 +20,40 @@ public partial class InvestigationWindow : Window
     private bool paused;
     private bool closing;
     private bool synchronizingBucketTabs;
+    private bool synchronizingWorkspaceTabs;
+    private bool initializingWindow;
+    private bool resizedDuringInitialize;
+    private string investigationSearchText = "";
 
     public InvestigationWindow(InvestigationWorkspace workspace)
     {
         this.workspace = workspace;
         InitializeComponent();
+        MessageLibraryPrototype.TemplateContextRequested += topic =>
+        {
+            if (MessageLibraryPrototype.Visibility == Visibility.Visible)
+                SearchBox.Text = topic ?? "";
+        };
+        MessageLibraryPrototype.TemplateAssociationsRequested += paths =>
+        {
+            if (MessageLibraryPrototype.Visibility != Visibility.Visible) return;
+            SearchBox.Text = "";
+            foreach (TreeViewItem group in PrototypeNamespaceTree.Items)
+            {
+                bool hasVisibleEntity = false;
+                foreach (TreeViewItem entity in group.Items)
+                {
+                    string path = ((string)entity.Tag)[(((string)entity.Tag).IndexOf(':') + 1)..];
+                    bool visible = paths.Contains(path, StringComparer.OrdinalIgnoreCase);
+                    entity.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                    hasVisibleEntity |= visible;
+                    foreach (TreeViewItem child in entity.Items)
+                        child.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                }
+                group.Visibility = hasVisibleEntity ? Visibility.Visible : Visibility.Collapsed;
+            }
+            MessageLibraryPrototype.FilterByTemplateAssociations(paths);
+        };
         DataContext = workspace.Surface;
         workspace.ConfirmWarning = profile => Task.FromResult(new ProfileWarningWindow(profile.Connection.Name,
             profile.WarningMessage, profile.ColorHex) { Owner = this }.ShowDialog() == true);
@@ -44,10 +73,15 @@ public partial class InvestigationWindow : Window
     private async void WindowLoaded(object sender, RoutedEventArgs e)
     {
         ready = true;
+        initializingWindow = true;
         await workspace.InitializeAsync();
         if (closing || closePending) return;
-        Width = workspace.Preferences.WindowWidth;
-        Height = workspace.Preferences.WindowHeight;
+        initializingWindow = false;
+        if (!resizedDuringInitialize)
+        {
+            Width = workspace.Preferences.WindowWidth;
+            Height = workspace.Preferences.WindowHeight;
+        }
         UpdateWorkspace();
         UpdateLayoutMode();
         UpdateInspector();
@@ -71,6 +105,7 @@ public partial class InvestigationWindow : Window
         {
             ConnectionSelector.ItemsSource = workspace.Preferences.Profiles;
             ConnectionSelector.SelectedItem = workspace.SelectedProfile;
+            MessageLibraryPrototype.SetProfileName(workspace.SelectedProfile.Connection.Name);
             ConnectionHealthText.Text = workspace.HealthText;
             ConnectionButton.ToolTip = workspace.HealthDetail;
             ConnectionHealthDot.SetResourceReference(System.Windows.Shapes.Shape.FillProperty,
@@ -130,6 +165,79 @@ public partial class InvestigationWindow : Window
 
     private void Settings_Click(object sender, RoutedEventArgs e) =>
         new SettingsWindow(workspace.Preferences, workspace.ApplyPreferencesAsync, tray is not null) { Owner = this }.ShowDialog();
+
+    private void InvestigationWorkspace_Checked(object sender, RoutedEventArgs e) => SelectWorkspaceTab(false);
+    private void MessageLibrary_Checked(object sender, RoutedEventArgs e) => SelectWorkspaceTab(true);
+
+    internal void OpenMessageWorkbenchPrototype() => SelectWorkspaceTab(true);
+
+    private void SelectWorkspaceTab(bool library)
+    {
+        if (synchronizingWorkspaceTabs || ContentGrid is null) return;
+        synchronizingWorkspaceTabs = true;
+        try
+        {
+            bool enteringLibrary = ContentGrid.Visibility != Visibility.Collapsed && library;
+            bool leavingLibrary = ContentGrid.Visibility == Visibility.Collapsed && !library;
+            if (enteringLibrary) investigationSearchText = SearchBox.Text;
+            InvestigationWorkspaceTab.IsChecked = !library;
+            MessageLibraryTab.IsChecked = library;
+            ContentGrid.Visibility = library ? Visibility.Collapsed : Visibility.Visible;
+            MessageLibraryPrototype.Visibility = library ? Visibility.Visible : Visibility.Collapsed;
+            NamespaceTree.Visibility = library ? Visibility.Collapsed : Visibility.Visible;
+            PrototypeNamespaceTree.Visibility = library ? Visibility.Visible : Visibility.Collapsed;
+            UpdateWorkspaceColumns();
+            NamespaceEmpty.Visibility = library ? Visibility.Collapsed : NamespaceEmpty.Visibility;
+            if (enteringLibrary) SearchBox.Text = "";
+            if (leavingLibrary) SearchBox.Text = investigationSearchText;
+            if (library) FilterPrototypeNamespaces(SearchBox.Text);
+        }
+        finally { synchronizingWorkspaceTabs = false; }
+    }
+
+    private void PrototypeNamespace_Selected(object sender, RoutedPropertyChangedEventArgs<object> e)
+    {
+        if (MessageLibraryPrototype is null || e.NewValue is not TreeViewItem { Tag: string identity }) return;
+        string path = identity[(identity.IndexOf(':') + 1)..];
+        if (identity.StartsWith("subscription:", StringComparison.Ordinal)) path = path.Split('/')[0];
+        SearchBox.Text = path;
+        MessageLibraryPrototype.SelectEntityContext(identity);
+    }
+
+    private void FilterPrototypeNamespaces(string query)
+    {
+        if (PrototypeNamespaceTree is null || MessageLibraryPrototype is null) return;
+        foreach (TreeViewItem group in PrototypeNamespaceTree.Items)
+        {
+            bool any = false;
+            foreach (TreeViewItem entity in group.Items)
+            {
+                bool directMatch = query.Length == 0 || (entity.Tag as string)?.Contains(query, StringComparison.OrdinalIgnoreCase) == true;
+                bool childMatch = false;
+                foreach (TreeViewItem child in entity.Items)
+                {
+                    bool matches = query.Length == 0 || directMatch || (child.Tag as string)?.Contains(query, StringComparison.OrdinalIgnoreCase) == true;
+                    child.Visibility = matches ? Visibility.Visible : Visibility.Collapsed;
+                    childMatch |= matches;
+                }
+                bool visible = directMatch || childMatch;
+                entity.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                any |= visible;
+            }
+            group.Visibility = any ? Visibility.Visible : Visibility.Collapsed;
+        }
+        string libraryQuery = query;
+        if (query.Length > 0)
+        {
+            var matchingSubscription = PrototypeNamespaceTree.Items.OfType<TreeViewItem>()
+                .SelectMany(group => group.Items.OfType<TreeViewItem>())
+                .SelectMany(entity => entity.Items.OfType<TreeViewItem>())
+                .FirstOrDefault(child => (child.Tag as string)?.Contains(query, StringComparison.OrdinalIgnoreCase) == true);
+            if (matchingSubscription?.Tag is string identity)
+                libraryQuery = identity[(identity.IndexOf(':') + 1)..].Split('/')[0];
+        }
+        MessageLibraryPrototype.FilterByNamespaceQuery(libraryQuery);
+    }
 
     private async void Tree_Selected(object sender, RoutedPropertyChangedEventArgs<object> e)
     {

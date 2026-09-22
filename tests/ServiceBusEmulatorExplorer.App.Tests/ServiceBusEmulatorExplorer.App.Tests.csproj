@@ -24,4 +24,9 @@
     <ProjectReference Include="..\..\src\ServiceBusEmulatorExplorer.Core\ServiceBusEmulatorExplorer.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\..\tools\ServiceBusEmulatorExplorer.ReadmeScreenshot\WpfScreenshot.cs"
+             Link="Screenshot\WpfScreenshot.cs" />
+  </ItemGroup>
+
 </Project>
