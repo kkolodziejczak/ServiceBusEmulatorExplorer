@@ -92,6 +92,11 @@ $env:SBE_APP_EXE = "$PWD\src\ServiceBusEmulatorExplorer.App\bin\Debug\net10.0-wi
 - UI smoke tests should pass `--profile-store-path` when launching the app so profile persistence stays in a per-test writable path instead of user-local AppData.
 - After interrupted UI runs, check for lingering `dotnet`, `testhost`, and `ServiceBusEmulatorExplorer.App` processes before rerunning.
 
+## Launching for user testing
+
+- When the user asks to open the app for manual testing, launch it outside the sandbox using `exec_command` with `sandbox_permissions: "require_escalated"`, so it opens on the user's normal desktop. Use a visible window and preserve the requested mode; for dummy-data Message Workbench testing, pass `--message-workbench-prototype` and an isolated `--profile-store-path`.
+- A running process or window handle alone does not prove the user can see the app: sandbox launches previously returned both while remaining invisible to the user. If the outside-sandbox launch is blocked, report that limitation instead of claiming the app is ready for manual testing.
+
 ## App-only WPF screenshot proof
 
 - For visual verification without desktop capture/control, first use the existing [WPF screenshot harness](tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/Program.cs). It instantiates the real app window with synthetic services, invokes WPF routed actions, waits for layout, and captures only the window content through [RenderTargetBitmap](tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/WpfScreenshot.cs). Missing desktop-control tools alone do not block this route. It still requires a working Windows/WPF runtime.
