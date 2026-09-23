@@ -42,7 +42,7 @@
    </StackPanel>
   </ScrollViewer>
   <Border x:Name="ReviewFooter" Grid.Row="1" Visibility="Collapsed" Background="{DynamicResource RaisedBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="0,10,0,12">
-   <StackPanel><Border Background="{DynamicResource NeutralHoverBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="3" Padding="12" Margin="0,0,0,12"><TextBlock x:Name="ReviewNotice" Text="Subscriptions receive according to their rules." TextWrapping="Wrap"/></Border><StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="Back to preparation" Click="Back_Click" Padding="10,7"/><Button x:Name="ConfirmDispatch" Content="Send 3 messages" Click="Dispatch_Click" Style="{StaticResource PrimaryButton}" Padding="13,8" AutomationProperties.AutomationId="PrototypeConfirmDispatch"/></StackPanel></StackPanel>
+   <StackPanel><Border Background="{DynamicResource NeutralHoverBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="3" Padding="12" Margin="0,0,0,12"><TextBlock x:Name="ReviewNotice" Text="Subscriptions receive according to their rules." TextWrapping="Wrap"/></Border><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Button Content="Back to preparation" Click="Back_Click" Padding="10,7"/><Button x:Name="ConfirmDispatch" Grid.Column="2" Content="Send 3 messages" Click="Dispatch_Click" Style="{StaticResource PrimaryButton}" Padding="13,8" AutomationProperties.AutomationId="PrototypeConfirmDispatch"/></Grid></StackPanel>
   </Border>
  </Grid>
 </UserControl>

@@ -69,6 +69,30 @@ public sealed class MessageWorkbenchLayoutTests
         }, 1332, 843);
     }
 
+    [Theory]
+    [InlineData(1332, 843)]
+    [InlineData(725, 564)]
+    [Trait("TestCategory", "UiRender")]
+    public void Review_footer_places_back_left_and_send_right(int width, int height)
+    {
+        RunOnSta((dispatcher, view, _) =>
+        {
+            ByName<Button>(view, "ContinueToPrepareButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            ByName<Button>(view, "ReviewButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            WaitForLayout(dispatcher);
+
+            var review = Assert.IsType<MessageLibraryPrototypeReviewSurface>(ByName<ContentControl>(view, "ReviewHost").Content);
+            var back = Descendants<Button>(review).Single(button => Equals(button.Content, "Back to preparation"));
+            var send = ByName<Button>(review, "ConfirmDispatch");
+            Rect backBounds = Bounds(back, review);
+            Rect sendBounds = Bounds(send, review);
+            Assert.True(backBounds.Left <= 40, $"Back should align to the left edge at {width}x{height}: {backBounds}.");
+            Assert.True(sendBounds.Right >= review.ActualWidth - 40,
+                $"Send should align to the right edge at {width}x{height}: {sendBounds} in {review.ActualWidth}.");
+            Assert.True(backBounds.Right < sendBounds.Left, "Back and Send should occupy opposite ends of the footer.");
+        }, width, height);
+    }
+
     [Fact]
     [Trait("TestCategory", "UiRender")]
     public void Wizard_keeps_draft_and_preparation_state_when_moving_back_and_forward()
