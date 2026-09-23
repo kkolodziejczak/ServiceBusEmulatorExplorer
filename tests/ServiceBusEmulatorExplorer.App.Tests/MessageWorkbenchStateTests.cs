@@ -16,13 +16,12 @@ public sealed class MessageWorkbenchStateTests
     [Fact]
     public void Single_generated_fields_match_prepared_body_and_clear_on_input_change() => Run((window, view) =>
     {
+        Click(view, "ContinueToPrepareButton");
         Get<RadioButton>(view, "SingleMode").IsChecked = true;
         Click(view, "SingleValidateButton");
         using var body = JsonDocument.Parse(Get<JsonEditor>(view, "PreviewText").Text);
-        var eventId = Descendants(view).OfType<TextBox>().Single(control =>
-            AutomationProperties.GetName(control) == "Generated event ID");
-        var occurredAt = Descendants(view).OfType<TextBox>().Single(control =>
-            AutomationProperties.GetName(control) == "Generated UTC time");
+        var eventId = Get<TextBox>(view, "SingleEventId");
+        var occurredAt = Get<TextBox>(view, "SingleOccurredAt");
         Assert.Equal(body.RootElement.GetProperty("eventId").GetString(), eventId.Text);
         Assert.Equal(body.RootElement.GetProperty("occurredAt").GetString(), occurredAt.Text);
         Assert.True(Guid.TryParse(eventId.Text, out _));
@@ -38,6 +37,7 @@ public sealed class MessageWorkbenchStateTests
     [Fact]
     public void Csv_selected_preview_and_review_keep_the_same_prepared_event_ids() => Run((window, view) =>
     {
+        Click(view, "ContinueToPrepareButton");
         Click(view, "ValidateButton");
         var rows = Get<DataGrid>(view, "CsvRowsGrid");
         var ids = new List<string>();
@@ -48,21 +48,12 @@ public sealed class MessageWorkbenchStateTests
             ids.Add(body.RootElement.GetProperty("eventId").GetString()!);
         }
         Assert.Equal(3, ids.Distinct().Count());
-        Exception? dialogFailure = null;
-        window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
-        {
-            var dialog = window.OwnedWindows.OfType<MessageLibraryPrototypeDialog>().Single();
-            try
-            {
-                string summary = Get<TextBlock>(dialog, "ReviewMessageIds").Text;
-                foreach (string id in ids) Assert.Contains(id, summary);
-                Assert.NotNull(dialog.FindName("ReviewTotalSize"));
-            }
-            catch (Exception exception) { dialogFailure = exception; }
-            finally { dialog.Close(); }
-        }));
         Click(view, "ReviewButton");
-        if (dialogFailure is not null) ExceptionDispatchInfo.Capture(dialogFailure).Throw();
+        var review = Assert.IsType<MessageLibraryPrototypeReviewSurface>(Get<ContentControl>(view, "ReviewHost").Content);
+        string summary = Get<TextBlock>(review, "ReviewMessageIds").Text;
+        foreach (string id in ids) Assert.Contains(id, summary);
+        Assert.NotNull(review.FindName("ReviewTotalSize"));
+        Click(view, "PrepareStepButton");
         rows.SelectedIndex = 0;
         using var selectedAgain = JsonDocument.Parse(Get<JsonEditor>(view, "PreviewText").Text);
         Assert.Equal(ids[0], selectedAgain.RootElement.GetProperty("eventId").GetString());
@@ -152,17 +143,12 @@ public sealed class MessageWorkbenchStateTests
         Get<RadioButton>(view, "CustomMessageId").IsChecked = true;
         Get<TextBox>(view, "CustomMessageIdInput").Text = "my-dummy-id";
         Click(view, "SingleValidateButton");
-        Exception? dialogFailure = null;
-        window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
-        {
-            var dialog = window.OwnedWindows.OfType<MessageLibraryPrototypeDialog>().Single();
-            try { Assert.Contains("my-dummy-id", Get<TextBlock>(dialog, "ReviewMessageIds").Text); }
-            catch (Exception exception) { dialogFailure = exception; }
-            finally { dialog.Close(); }
-        }));
         Click(view, "ReviewButton");
-        if (dialogFailure is not null) ExceptionDispatchInfo.Capture(dialogFailure).Throw();
+        var review = Assert.IsType<MessageLibraryPrototypeReviewSurface>(Get<ContentControl>(view, "ReviewHost").Content);
+        Assert.Contains("my-dummy-id", Get<TextBlock>(review, "ReviewMessageIds").Text);
+        Click(view, "ComposeStepButton");
         Get<JsonEditor>(view, "EditorText").Text = "{ invalid json";
+        Click(view, "ContinueToPrepareButton");
         Click(view, "SingleValidateButton");
         Assert.False(Get<Button>(view, "ReviewButton").IsEnabled);
         Assert.Equal("Generated when validated", Get<TextBox>(view, "SingleEventId").Text);

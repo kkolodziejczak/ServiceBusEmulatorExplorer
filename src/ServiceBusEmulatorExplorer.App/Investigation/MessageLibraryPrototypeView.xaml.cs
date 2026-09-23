@@ -19,8 +19,8 @@ public partial class MessageLibraryPrototypeView : UserControl
     private bool refreshingTemplates;
     private bool loadingEditor;
     private bool loadingVariableDefault;
-    private bool compactWorkbench;
-    private bool compactAuthorSelected;
+    private WizardStage wizardStage = WizardStage.Compose;
+    private enum WizardStage { Compose, Prepare, Review }
     private bool textMode;
     private bool draftIsNew;
     private string currentBody = "";
@@ -106,8 +106,9 @@ public partial class MessageLibraryPrototypeView : UserControl
             ShowPrepare();
             CsvRowsGrid.SelectedIndex = 0;
             Validate_Click(this, new RoutedEventArgs());
+            ShowWizardStage(WizardStage.Compose);
         };
-        SizeChanged += (_, _) => UpdateCompactLayout();
+        SizeChanged += (_, _) => UpdateWizardLayout();
     }
 
     public void SetProfileName(string profileName)
@@ -128,68 +129,83 @@ public partial class MessageLibraryPrototypeView : UserControl
         DestinationProfileText.Text = profileName;
     }
 
-    private void UpdateCompactLayout()
+    private void UpdateWizardLayout()
     {
-        if (FooterActions is null || WorkbenchRoot is null) return;
-        bool compact = ActualWidth < 1145;
-        compactWorkbench = compact;
+        if (FooterActions is null || WorkbenchRoot is null || PrepareBody is null) return;
         var columns = WorkbenchRoot.ColumnDefinitions;
-        if (compact)
+        bool compact = ActualWidth < 1100;
+        columns[0].Width = new GridLength(compact ? 230 : 250);
+        double stageWidth = ActualWidth - columns[0].Width.Value - columns[1].Width.Value;
+        bool sideBySide = stageWidth >= 820;
+        if (sideBySide)
         {
-            PreparePane.RowDefinitions[1].Height = new GridLength(1, GridUnitType.Star);
-            PreparePane.RowDefinitions[3].Height = new GridLength(0);
-            columns[0].MinWidth = 220;
-            columns[0].Width = new GridLength(230);
-            columns[2].MinWidth = 0;
-            columns[2].Width = new GridLength(1, GridUnitType.Star);
-            columns[3].Width = new GridLength(0);
-            columns[4].MinWidth = 0;
-            columns[4].Width = new GridLength(0);
-            Grid.SetColumn(PreparePane, 2);
-            AuthorSplitter.Visibility = Visibility.Collapsed;
-            WorkbenchRoot.RowDefinitions[0].Height = new GridLength(40);
-            CompactWorkspaceTabs.Visibility = Visibility.Visible;
-            SelectCompactTab(compactAuthorSelected);
+            PrepareBody.ColumnDefinitions[0].Width = new GridLength(0.9, GridUnitType.Star);
+            PrepareBody.ColumnDefinitions[1].Width = new GridLength(1.1, GridUnitType.Star);
+            PrepareBody.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
+            PrepareBody.RowDefinitions[1].Height = new GridLength(0);
+            Grid.SetColumn(PreviewSurface, 1);
+            Grid.SetRow(PreviewSurface, 0);
+            PrepareInputsScroll.Margin = new Thickness(0, 0, 18, 0);
+            PreviewSurface.Margin = new Thickness(18, 16, 0, 0);
         }
         else
         {
-            PreparePane.RowDefinitions[1].Height = new GridLength(1, GridUnitType.Auto);
-            PreparePane.RowDefinitions[3].Height = new GridLength(1, GridUnitType.Star);
-            bool full = ActualWidth >= 1284;
-            columns[0].MinWidth = 230;
-            columns[0].Width = new GridLength(full ? 250 : 230);
-            columns[2].MinWidth = 420;
-            columns[2].Width = new GridLength(full ? 504 : 420);
-            columns[3].Width = new GridLength(5);
-            columns[4].MinWidth = full ? 520 : 500;
-            columns[4].Width = new GridLength(1, GridUnitType.Star);
-            Grid.SetColumn(PreparePane, 4);
-            AuthorSplitter.Visibility = Visibility.Visible;
-            WorkbenchRoot.RowDefinitions[0].Height = new GridLength(0);
-            CompactWorkspaceTabs.Visibility = Visibility.Collapsed;
-            AuthorPane.Visibility = Visibility.Visible;
-            PreparePane.Visibility = Visibility.Visible;
+            PrepareBody.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
+            PrepareBody.ColumnDefinitions[1].Width = new GridLength(0);
+            PrepareBody.RowDefinitions[0].Height = new GridLength(320);
+            PrepareBody.RowDefinitions[1].Height = new GridLength(1, GridUnitType.Star);
+            Grid.SetColumn(PreviewSurface, 0);
+            Grid.SetRow(PreviewSurface, 1);
+            PrepareInputsScroll.Margin = new Thickness(0);
+            PreviewSurface.Margin = new Thickness(0, 10, 0, 0);
         }
-        FooterActions.Orientation = compact ? Orientation.Vertical : Orientation.Horizontal;
+        FooterActions.Orientation = stageWidth < 650 ? Orientation.Vertical : Orientation.Horizontal;
         FooterActions.HorizontalAlignment = HorizontalAlignment.Right;
+        FooterDestination.Visibility = stageWidth < 650 ? Visibility.Collapsed : Visibility.Visible;
+        ComposeConnector.Width = PrepareConnector.Width = stageWidth < 620 ? 20 : 64;
+        ReviewStepButton.Content = stageWidth < 620 ? "Review" : "Review & send";
     }
 
-    private void CompactAuthor_Click(object sender, RoutedEventArgs e) => SelectCompactTab(true);
-    private void CompactPrepare_Click(object sender, RoutedEventArgs e) => SelectCompactTab(false);
-
-    private void SelectCompactTab(bool author)
+    private void ShowWizardStage(WizardStage stage)
     {
-        compactAuthorSelected = author;
-        if (!compactWorkbench) return;
-        AuthorPane.Visibility = author ? Visibility.Visible : Visibility.Collapsed;
-        PreparePane.Visibility = author ? Visibility.Collapsed : Visibility.Visible;
-        CompactAuthorTab.Style = (Style)FindResource(author ? "PreviewTabActive" : "PreviewTab");
-        CompactPrepareTab.Style = (Style)FindResource(author ? "PreviewTab" : "PreviewTabActive");
+        wizardStage = stage;
+        AuthorPane.Visibility = stage == WizardStage.Compose ? Visibility.Visible : Visibility.Collapsed;
+        PreparePane.Visibility = stage == WizardStage.Prepare ? Visibility.Visible : Visibility.Collapsed;
+        ReviewHost.Visibility = stage == WizardStage.Review ? Visibility.Visible : Visibility.Collapsed;
+        ComposeStepButton.Style = (Style)FindResource(stage == WizardStage.Compose ? "WizardStepActive" : "WizardStep");
+        PrepareStepButton.Style = (Style)FindResource(stage == WizardStage.Prepare ? "WizardStepActive" : "WizardStep");
+        ReviewStepButton.Style = (Style)FindResource(stage == WizardStage.Review ? "WizardStepActive" : "WizardStep");
+        ReviewStepButton.IsEnabled = (previewReady && selectedDestination is not null) || lastRun is not null;
     }
+
+    private void ComposeStep_Click(object sender, RoutedEventArgs e) => ShowWizardStage(WizardStage.Compose);
+    private void PrepareStep_Click(object sender, RoutedEventArgs e) => ShowWizardStage(WizardStage.Prepare);
+    private void ReviewStep_Click(object sender, RoutedEventArgs e)
+    {
+        if (ReviewHost.Content is MessageLibraryPrototypeReviewSurface review &&
+            (!previewReady || review.CaptureRun() is null))
+        {
+            ShowWizardStage(WizardStage.Review);
+            return;
+        }
+        if (previewReady) Review_Click(sender, e);
+        else if (lastRun is not null) ViewRunResults_Click(sender, e);
+    }
+    private void ContinueToPrepare_Click(object sender, RoutedEventArgs e) => ShowWizardStage(WizardStage.Prepare);
+    private void BackToCompose_Click(object sender, RoutedEventArgs e) => ShowWizardStage(WizardStage.Compose);
 
     private void TemplateSearch_Changed(object sender, TextChangedEventArgs e)
     {
+        if (ClearTemplateSearchButton is not null)
+            ClearTemplateSearchButton.Visibility = string.IsNullOrEmpty(TemplateSearch.Text)
+                ? Visibility.Collapsed : Visibility.Visible;
         if (TemplateList is not null) RefreshTemplateList();
+    }
+
+    private void ClearTemplateSearch_Click(object sender, RoutedEventArgs e)
+    {
+        TemplateSearch.Clear();
+        TemplateSearch.Focus();
     }
 
     private void TemplateList_Changed(object sender, SelectionChangedEventArgs e)
@@ -240,6 +256,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         ShowEditorBody();
         ShowPrepare();
         InvalidatePreview();
+        ShowWizardStage(WizardStage.Compose);
         if (currentAssociations.Count > 1)
             TemplateAssociationsRequested?.Invoke(currentAssociations.ToArray());
         else TemplateContextRequested?.Invoke(currentAssociations.FirstOrDefault());
@@ -500,6 +517,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         ShowEditorBody();
         ShowPrepare();
         InvalidatePreview();
+        ShowWizardStage(WizardStage.Compose);
     }
 
     private void NewTemplate_Click(object sender, RoutedEventArgs e)
@@ -524,6 +542,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         UpdateDestinationControls();
         ShowEditorBody();
         InvalidatePreview();
+        ShowWizardStage(WizardStage.Compose);
     }
 
     private void Save_Click(object sender, RoutedEventArgs e)
@@ -646,7 +665,10 @@ public partial class MessageLibraryPrototypeView : UserControl
         if (PreviewText is null) return;
         ClearPreparedMessages();
         previewReady = false;
+        if (ReviewHost is not null) ReviewHost.Content = null;
         ReviewButton.IsEnabled = false;
+        if (ReviewStepButton is not null) ReviewStepButton.IsEnabled = lastRun is not null;
+        if (wizardStage == WizardStage.Review) ShowWizardStage(WizardStage.Prepare);
         PreviewHint.Text = "Validate the sample inputs to generate a preview.";
         PreviewHint.Visibility = Visibility.Visible;
         PreviewText.Text = "No preview yet.";
@@ -730,6 +752,7 @@ public partial class MessageLibraryPrototypeView : UserControl
             PreviewHint.Visibility = Visibility.Visible;
             previewReady = false;
             ReviewButton.IsEnabled = false;
+            ReviewStepButton.IsEnabled = lastRun is not null;
             return;
         }
         if (CsvMode.IsChecked != true && (string.IsNullOrWhiteSpace(CustomerInput.Text)
@@ -740,6 +763,7 @@ public partial class MessageLibraryPrototypeView : UserControl
             PreviewText.Text = "No preview generated.";
             previewReady = false;
             ReviewButton.IsEnabled = false;
+            ReviewStepButton.IsEnabled = lastRun is not null;
             return;
         }
 
@@ -779,6 +803,7 @@ public partial class MessageLibraryPrototypeView : UserControl
             ValidationDetailsButton.IsEnabled = valid != 3 || lastRun is not null;
             ValidationDetailsButton.Opacity = ValidationDetailsButton.IsEnabled ? 1 : 0.45;
             ReviewButton.IsEnabled = previewReady && selectedDestination is not null;
+            ReviewStepButton.IsEnabled = ReviewButton.IsEnabled || lastRun is not null;
             PreviewHint.Text = previewReady ? "3 of 3 rows valid · Row 1 preview" :
                 preparationError ?? (valid == 3 ? "Template body is not valid JSON. Correct it and validate again." : "Fix the CSV input or mapping, then validate again.");
             PreviewHint.Visibility = previewReady ? Visibility.Collapsed : Visibility.Visible;
@@ -792,12 +817,14 @@ public partial class MessageLibraryPrototypeView : UserControl
         if (!previewReady)
         {
             ReviewButton.IsEnabled = false;
+            ReviewStepButton.IsEnabled = lastRun is not null;
             PreviewHint.Text = preparationError ?? "Template body is not valid JSON. Correct it and validate again.";
             PreviewHint.Visibility = Visibility.Visible;
             return;
         }
         propertiesPreview = false;
         ReviewButton.IsEnabled = selectedDestination is not null;
+        ReviewStepButton.IsEnabled = ReviewButton.IsEnabled || lastRun is not null;
         ReviewButton.Content = CsvMode.IsChecked == true ? "Review 3 messages" : "Review 1 message";
         PreviewHint.Text = CsvMode.IsChecked == true ? "3 of 3 rows valid · Row 1 preview" : "1 sample message valid";
         PreviewHint.Visibility = Visibility.Collapsed;
@@ -840,28 +867,49 @@ public partial class MessageLibraryPrototypeView : UserControl
     private void Review_Click(object sender, RoutedEventArgs e)
     {
         if (!previewReady || selectedDestination is null) return;
-        var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Review, currentProfileName,
-            selectedDestination, CsvMode.IsChecked == true ? 3 : 1) { Owner = Window.GetWindow(this) };
-        dialog.SetReviewProperties(
+        var review = new MessageLibraryPrototypeReviewSurface(currentProfileName,
+            selectedDestination, CsvMode.IsChecked == true ? 3 : 1);
+        review.SetReviewProperties(
             string.Join("\n", preparedMessages.Select(message => message.MessageId)),
             SpecifyTtl.IsChecked == true ? $"Time to live: {TtlMinutes.Text} minutes" : "Time to live: inherit entity default",
             BuildPropertyDetails(CustomerInput.Text, preparedMessages[0]));
-        dialog.SetPreparedMessages(preparedMessages);
-        dialog.ViewDestinationRequested += topic =>
+        review.SetPreparedMessages(preparedMessages);
+        PresentReview(review);
+    }
+
+    private void PresentReview(MessageLibraryPrototypeReviewSurface review)
+    {
+        review.BackRequested += () =>
+        {
+            RememberRun(review);
+            ShowWizardStage(WizardStage.Prepare);
+        };
+        review.RunCompleted += run => RememberRun(run);
+        review.ViewDestinationRequested += topic =>
         {
             selectedDestination = topic;
             DestinationText.Text = $"Send to: {topic} ({(topic == "order-replies" ? "Queue" : "Topic")})";
             TemplateContextRequested?.Invoke(topic);
+            RememberRun(review);
+            ShowWizardStage(WizardStage.Prepare);
         };
-        dialog.ShowDialog();
-        if (dialog.CaptureRun() is { } run)
-        {
-            lastRun = run;
-            ViewRunResultsButton.Visibility = Visibility.Visible;
-            ValidationDetailsButton.Content = "View results";
-            ValidationDetailsButton.IsEnabled = true;
-            ValidationDetailsButton.Opacity = 1;
-        }
+        ReviewHost.Content = review;
+        ShowWizardStage(WizardStage.Review);
+    }
+
+    private void RememberRun(MessageLibraryPrototypeReviewSurface review)
+    {
+        if (review.CaptureRun() is { } run) RememberRun(run);
+    }
+
+    private void RememberRun(PrototypeRunSnapshot run)
+    {
+        lastRun = run;
+        ViewRunResultsButton.Visibility = Visibility.Visible;
+        ValidationDetailsButton.Content = "View results";
+        ValidationDetailsButton.IsEnabled = true;
+        ValidationDetailsButton.Opacity = 1;
+        ReviewStepButton.IsEnabled = true;
     }
 
     private void ChooseDestination_Click(object sender, RoutedEventArgs e)
@@ -890,12 +938,9 @@ public partial class MessageLibraryPrototypeView : UserControl
     private void ViewRunResults_Click(object sender, RoutedEventArgs e)
     {
         if (lastRun is not { } run) return;
-        var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Results, run.Profile, run.Target,
-            run.Results.Count) { Owner = Window.GetWindow(this) };
-        dialog.RestoreRun(run);
-        dialog.ViewDestinationRequested += topic => TemplateContextRequested?.Invoke(topic);
-        dialog.ShowDialog();
-        lastRun = dialog.CaptureRun() ?? run;
+        var review = new MessageLibraryPrototypeReviewSurface(run.Profile, run.Target, run.Results.Count);
+        review.ShowPriorResults(run);
+        PresentReview(review);
     }
 
     private void EditorBody_Click(object sender, RoutedEventArgs e) => ShowEditorBody();

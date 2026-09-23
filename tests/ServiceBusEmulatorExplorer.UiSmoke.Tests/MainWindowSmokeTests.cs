@@ -131,8 +131,10 @@ public sealed class MainWindowSmokeTests
             if (libraryTab.Patterns.Toggle.Pattern.ToggleState != ToggleState.On)
                 libraryTab.Patterns.Toggle.Pattern.Toggle();
             WaitForAutomationId(window, "LibrarySearch", TimeSpan.FromSeconds(5));
-            Assert.False(WaitForAutomationId(window, "LibraryValidationDetails", TimeSpan.FromSeconds(5)).IsEnabled);
             CapturePrototypeState(window, "workbench-wide");
+
+            InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
+            Assert.False(WaitForAutomationId(window, "LibraryValidationDetails", TimeSpan.FromSeconds(5)).IsEnabled);
 
             InvokeButton(window, "LibraryMapColumns", TimeSpan.FromSeconds(5));
             Window mapping = WaitForWindowWithAutomationId(application, automation,
@@ -152,19 +154,15 @@ public sealed class MainWindowSmokeTests
             Assert.Equal("Review 1 message", review.Name);
 
             InvokeButton(window, "LibraryReview", TimeSpan.FromSeconds(5));
-            Window dispatch = WaitForWindowWithAutomationId(application, automation,
-                "PrototypeConfirmDispatch", TimeSpan.FromSeconds(5));
-            Assert.NotNull(WaitForText(dispatch, "Review 1 message", TimeSpan.FromSeconds(5)));
-            CapturePrototypeState(dispatch, "review-single-message");
-            InvokeButton(dispatch, "PrototypeConfirmDispatch", TimeSpan.FromSeconds(5));
-            WaitForAutomationId(dispatch, "PrototypeRunResults", TimeSpan.FromSeconds(5));
-            Assert.NotNull(WaitForText(dispatch, "Confirmed sent", TimeSpan.FromSeconds(5)));
-            CapturePrototypeState(dispatch, "run-results");
-            InvokeButton(dispatch, "PrototypeViewDestination", TimeSpan.FromSeconds(5));
+            Assert.NotNull(WaitForText(window, "Review 1 message", TimeSpan.FromSeconds(5)));
+            CapturePrototypeState(window, "review-single-message");
+            InvokeButton(window, "PrototypeConfirmDispatch", TimeSpan.FromSeconds(5));
+            WaitForAutomationId(window, "PrototypeRunResults", TimeSpan.FromSeconds(5));
+            Assert.NotNull(WaitForText(window, "Confirmed sent", TimeSpan.FromSeconds(5)));
+            CapturePrototypeState(window, "run-results");
+            InvokeButton(window, "PrototypeViewDestination", TimeSpan.FromSeconds(5));
             InvokeButton(window, "LibraryViewRunResults", TimeSpan.FromSeconds(5));
-            Window retained = WaitForWindowWithAutomationId(application, automation,
-                "PrototypeRunResults", TimeSpan.FromSeconds(5));
-            Assert.NotNull(WaitForText(retained, "Confirmed sent", TimeSpan.FromSeconds(5)));
+            Assert.NotNull(WaitForText(window, "Confirmed sent", TimeSpan.FromSeconds(5)));
         }
         finally
         {
@@ -201,6 +199,7 @@ public sealed class MainWindowSmokeTests
 
             AutomationElement unassociated = WaitForText(window, "Unassociated sample", TimeSpan.FromSeconds(5));
             FindAncestor(unassociated, ControlType.ListItem).Patterns.SelectionItem.Pattern.Select();
+            InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
             Assert.False(WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled);
             InvokeButton(window, "LibraryChooseDestination", TimeSpan.FromSeconds(5));
             Window picker = WaitForWindowWithAutomationId(application, automation,
@@ -248,19 +247,18 @@ public sealed class MainWindowSmokeTests
             AutomationElement libraryTab = WaitForAutomationId(window, "MessageLibraryTab", TimeSpan.FromSeconds(5));
             if (libraryTab.Patterns.Toggle.Pattern.ToggleState != ToggleState.On)
                 libraryTab.Patterns.Toggle.Pattern.Toggle();
+            InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
             InvokeButton(window, "LibraryValidatePreview", TimeSpan.FromSeconds(5));
             InvokeButton(window, "LibraryReview", TimeSpan.FromSeconds(5));
-            Window dispatch = WaitForWindowWithAutomationId(application, automation,
-                "PrototypeConfirmDispatch", TimeSpan.FromSeconds(5));
-            WaitForAutomationId(dispatch, "PrototypeScheduleLater", TimeSpan.FromSeconds(5))
+            WaitForAutomationId(window, "PrototypeScheduleLater", TimeSpan.FromSeconds(5))
                 .Patterns.SelectionItem.Pattern.Select();
-            Assert.Equal("Schedule 3 messages", WaitForAutomationId(dispatch,
+            Assert.Equal("Schedule 3 messages", WaitForAutomationId(window,
                 "PrototypeConfirmDispatch", TimeSpan.FromSeconds(5)).Name);
-            InvokeButton(dispatch, "PrototypeConfirmDispatch", TimeSpan.FromSeconds(5));
-            WaitForAutomationId(dispatch, "PrototypeRunResults", TimeSpan.FromSeconds(8));
-            Assert.NotNull(WaitForText(dispatch, "Confirmed scheduled", TimeSpan.FromSeconds(5)));
-            InvokeButton(dispatch, "PrototypeShowCancellation", TimeSpan.FromSeconds(5));
-            WaitForAutomationId(dispatch, "PrototypeScheduledResults", TimeSpan.FromSeconds(5));
+            InvokeButton(window, "PrototypeConfirmDispatch", TimeSpan.FromSeconds(5));
+            WaitForAutomationId(window, "PrototypeRunResults", TimeSpan.FromSeconds(8));
+            Assert.NotNull(WaitForText(window, "Confirmed scheduled", TimeSpan.FromSeconds(5)));
+            InvokeButton(window, "PrototypeShowCancellation", TimeSpan.FromSeconds(5));
+            WaitForAutomationId(window, "PrototypeScheduledResults", TimeSpan.FromSeconds(5));
         }
         finally
         {
@@ -290,6 +288,7 @@ public sealed class MainWindowSmokeTests
             AutomationElement libraryTab = WaitForAutomationId(window, "MessageLibraryTab", TimeSpan.FromSeconds(5));
             if (libraryTab.Patterns.Toggle.Pattern.ToggleState != ToggleState.On)
                 libraryTab.Patterns.Toggle.Pattern.Toggle();
+            InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
             InvokeButton(window, "LibraryBrowseCsv", TimeSpan.FromSeconds(5));
             Window picker = WaitForWindowWithAutomationId(application, automation,
                 "PrototypeUseSampleCsv", TimeSpan.FromSeconds(5));
@@ -391,9 +390,8 @@ public sealed class MainWindowSmokeTests
                 libraryTab.Patterns.Toggle.Pattern.Toggle();
             WaitForAutomationId(window, "PrototypeNamespaceTree", TimeSpan.FromSeconds(5));
             WaitForAutomationId(window, "LibraryTree", TimeSpan.FromSeconds(5));
-            InvokeButton(window, "LibraryCompactAuthor", TimeSpan.FromSeconds(5));
             Assert.False(WaitForAutomationId(window, "LibraryAuthorEditor", TimeSpan.FromSeconds(5)).IsOffscreen);
-            InvokeButton(window, "LibraryCompactPrepare", TimeSpan.FromSeconds(5));
+            InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
             Assert.False(WaitForAutomationId(window, "LibraryMapColumns", TimeSpan.FromSeconds(5)).IsOffscreen);
             InvokeButton(window, "LibraryValidatePreview", TimeSpan.FromSeconds(5));
             Assert.True(WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled);

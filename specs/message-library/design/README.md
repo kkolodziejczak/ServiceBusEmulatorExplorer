@@ -75,6 +75,8 @@ Approval: **revised Board A plus Boards B–E accepted as the prototype/mockup p
 
 ## Dummy-data prototype
 
+Approved wizard refinement (2026-09-23): [Compose](approved/08-wizard-compose.png), [Prepare](approved/09-wizard-prepare.png), and [Review & send](approved/10-wizard-review.png). The Saved templates search matches Namespaces search without a redundant heading. The Namespaces and templates panes remain visible while the main pane advances through one stage at a time. At compact widths, preparation inputs and preview stack vertically. Returning to an earlier stage retains the in-memory draft and prepared values. Review, simulated progress, results and cancellation live in the third stage rather than opening a separate review window.
+
 Approved refinement (2026-09-22): [centered tables and property controls](approved/07-table-properties-refinement.png). The user approved centered headers and values in both axes, the existing light-blue selection treatment instead of native gray, a Delete selected action alongside Add property, and Reply and routing collapsed on opening. The [UI language registry](../../ui-language.md) defines the app-wide table scope and preserves the existing flat palette and density.
 
 The user separately authorized the clickable in-app prototype and repairs using dummy data only (2026-09-22). Launch the app with `--message-workbench-prototype` to open the seeded workspace. Templates, edits, generated messages and simulated results live only in the session. **Export results** can explicitly save those dummy results as JSON to a user-selected file; it does not persist or restore the workspace. Send, schedule and cancellation do not contact a broker.

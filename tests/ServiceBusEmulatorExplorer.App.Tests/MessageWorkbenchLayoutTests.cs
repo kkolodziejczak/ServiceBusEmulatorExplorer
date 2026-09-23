@@ -13,6 +13,28 @@ public sealed class MessageWorkbenchLayoutTests
 {
     [Fact]
     [Trait("TestCategory", "UiRender")]
+    public void Wizard_keeps_draft_and_preparation_state_when_moving_back_and_forward()
+    {
+        RunOnSta((dispatcher, view, _) =>
+        {
+            Assert.Equal(Visibility.Visible, ByName<Grid>(view, "AuthorPane").Visibility);
+            Assert.Equal(Visibility.Collapsed, ByName<Grid>(view, "PreparePane").Visibility);
+            Assert.Equal(Visibility.Collapsed, ByName<ContentControl>(view, "ReviewHost").Visibility);
+            ByName<TextBox>(view, "TemplateSearch").Text = "order";
+            ByName<TextBox>(view, "PropertySubject").Text = "EditedSubject";
+            ByName<Button>(view, "ContinueToPrepareButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(Visibility.Visible, ByName<Grid>(view, "PreparePane").Visibility);
+            ByName<TextBox>(view, "CustomerInput").Text = "C9001";
+            ByName<Button>(view, "BackToComposeButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal("EditedSubject", ByName<TextBox>(view, "PropertySubject").Text);
+            Assert.Equal("order", ByName<TextBox>(view, "TemplateSearch").Text);
+            ByName<Button>(view, "ContinueToPrepareButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal("C9001", ByName<TextBox>(view, "CustomerInput").Text);
+        }, 1332, 843);
+    }
+
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
     public void Properties_editor_aligns_labels_and_keeps_default_sections_visible_at_reference_size()
     {
         RunOnSta((dispatcher, view, window) =>
@@ -61,6 +83,8 @@ public sealed class MessageWorkbenchLayoutTests
         {
             RunOnSta((dispatcher, view, window) =>
             {
+                ByName<Button>(view, "ContinueToPrepareButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                WaitForLayout(dispatcher);
                 RadioButton singleMode = ByName<RadioButton>(view, "SingleMode");
                 singleMode.IsChecked = true;
                 WaitForLayout(dispatcher);

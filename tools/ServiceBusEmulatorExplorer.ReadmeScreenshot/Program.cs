@@ -16,7 +16,7 @@ internal static class Program
         bool prototypeCapture = args.Length == 2 && args[1] is
             "--message-library-prepare" or "--message-library-prepare-1500" or "--message-library-prepare-compact" or "--message-library-prepare-minimum"
             or "--message-library-properties" or "--message-library-properties-bottom" or "--message-library-properties-selected" or "--message-library-variables" or "--message-library-single"
-            or "--message-library-author-minimum" or "--message-library-properties-minimum"
+            or "--message-library-author-minimum" or "--message-library-properties-minimum" or "--message-library-wizard-review" or "--message-library-wizard-review-minimum"
             or "--message-library-single-minimum" or "--message-library-prepare-log";
         bool dialogCapture = args.Length == 2 && args[1] is
             "--message-library-map" or "--message-library-capture" or "--message-library-review" or "--message-library-results"
@@ -24,17 +24,17 @@ internal static class Program
             or "--message-library-scheduled-results" or "--message-library-cancellation-history"
             or "--message-library-association" or "--message-library-association-edit";
         int captureWidth = dialogCapture ? 760 :
-            args.Length == 2 && args[1] is "--message-library-prepare" or "--message-library-properties" or "--message-library-properties-bottom" or "--message-library-properties-selected" or "--message-library-variables" or "--message-library-single" or "--message-library-prepare-log" ? 1642 :
+            args.Length == 2 && args[1] is "--message-library-prepare" or "--message-library-properties" or "--message-library-properties-bottom" or "--message-library-properties-selected" or "--message-library-variables" or "--message-library-single" or "--message-library-prepare-log" or "--message-library-wizard-review" ? 1642 :
             args.Length == 2 && args[1] == "--message-library-prepare-1500" ? 1500 :
             args.Length == 2 && args[1] == "--message-library-prepare-compact" ? 1100 :
-            args.Length == 2 && args[1] is "--message-library-prepare-minimum" or "--message-library-author-minimum" or "--message-library-properties-minimum" or "--message-library-single-minimum" ? 980 : WpfScreenshot.CaptureWidth;
+            args.Length == 2 && args[1] is "--message-library-prepare-minimum" or "--message-library-author-minimum" or "--message-library-properties-minimum" or "--message-library-single-minimum" or "--message-library-wizard-review-minimum" ? 980 : WpfScreenshot.CaptureWidth;
         int captureHeight = dialogCapture ? args[1] is "--message-library-association" or "--message-library-association-edit" ? 500 :
             args[1] == "--message-library-capture" ? 925 :
             args[1] == "--message-library-map" ? 590 : args[1] == "--message-library-conflict" ? 500 : 620 :
             captureWidth == 1642 ? 958 : captureWidth == 1500 ? 1000 : captureWidth == 1100 ? 800 : captureWidth == 980 ? 640 : WpfScreenshot.CaptureHeight;
         if ((args.Length != 1 && !prototypeCapture && !dialogCapture) || string.IsNullOrWhiteSpace(args[0]))
         {
-            Console.Error.WriteLine("Usage: ServiceBusEmulatorExplorer.ReadmeScreenshot <output-png> [--message-library-prepare|--message-library-prepare-1500|--message-library-prepare-compact|--message-library-prepare-minimum|--message-library-properties|--message-library-variables|--message-library-single]");
+            Console.Error.WriteLine("Usage: ServiceBusEmulatorExplorer.ReadmeScreenshot <output-png> [--message-library-prepare|--message-library-prepare-1500|--message-library-prepare-compact|--message-library-prepare-minimum|--message-library-properties|--message-library-variables|--message-library-single|--message-library-wizard-review|--message-library-wizard-review-minimum]");
             return 2;
         }
 
@@ -148,11 +148,6 @@ internal static class Program
                     validate.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, validate));
                     if (args[1] is "--message-library-properties" or "--message-library-properties-bottom" or "--message-library-properties-selected" or "--message-library-properties-minimum")
                     {
-                        if (captureWidth == 980)
-                        {
-                            var author = (Button)prototype.FindName("CompactAuthorTab")!;
-                            author.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, author));
-                        }
                         var properties = (Button)prototype.FindName("EditorPropertiesTab")!;
                         properties.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, properties));
                         if (args[1] == "--message-library-properties-selected")
@@ -180,8 +175,18 @@ internal static class Program
                     }
                     else if (args[1] == "--message-library-author-minimum")
                     {
-                        var author = (Button)prototype.FindName("CompactAuthorTab")!;
+                        var author = (Button)prototype.FindName("ComposeStepButton")!;
                         author.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, author));
+                    }
+                    if (args[1] is "--message-library-prepare" or "--message-library-prepare-1500" or "--message-library-prepare-compact" or "--message-library-prepare-minimum" or "--message-library-prepare-log" or "--message-library-single" or "--message-library-single-minimum" or "--message-library-wizard-review" or "--message-library-wizard-review-minimum")
+                    {
+                        var next = (Button)prototype.FindName("ContinueToPrepareButton")!;
+                        next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, next));
+                    }
+                    if (args[1] is "--message-library-wizard-review" or "--message-library-wizard-review-minimum")
+                    {
+                        var review = (Button)prototype.FindName("ReviewButton")!;
+                        review.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, review));
                     }
                     if (args[1] == "--message-library-prepare-log")
                     {
