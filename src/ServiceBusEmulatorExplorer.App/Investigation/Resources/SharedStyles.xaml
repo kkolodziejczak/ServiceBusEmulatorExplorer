@@ -70,21 +70,22 @@
  <Style x:Key="CenteredDataGridCheckBox" TargetType="CheckBox">
   <Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="VerticalAlignment" Value="Center"/>
  </Style>
+ <Style x:Key="KeyboardActionFocusVisual" TargetType="Control">
+  <Setter Property="Template"><Setter.Value><ControlTemplate><Border BorderBrush="{DynamicResource PrimaryBrush}" BorderThickness="0,0,0,2" Margin="2" IsHitTestVisible="False"/></ControlTemplate></Setter.Value></Setter>
+ </Style>
  <Style TargetType="Button">
   <Setter Property="FontFamily" Value="Segoe UI"/><Setter Property="FontSize" Value="14"/>
   <Setter Property="MinHeight" Value="32"/><Setter Property="Padding" Value="12,7"/><Setter Property="Margin" Value="3,0"/>
   <Setter Property="Background" Value="{DynamicResource RaisedBrush}"/><Setter Property="Foreground" Value="{DynamicResource ActionTextBrush}"/>
   <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Cursor" Value="Hand"/>
-  <Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+  <Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardActionFocusVisual}"/>
   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
    <Grid>
     <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3" Padding="{TemplateBinding Padding}">
      <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True"/>
     </Border>
-    <Border x:Name="FocusRing" Visibility="Collapsed" BorderBrush="{DynamicResource InkBrush}" BorderThickness="1" CornerRadius="3" Margin="1" IsHitTestVisible="False"><Border BorderBrush="White" BorderThickness="1" CornerRadius="2"/></Border>
    </Grid>
-   <ControlTemplate.Triggers><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="FocusRing" Property="Visibility" Value="Visible"/></Trigger></ControlTemplate.Triggers>
-  </ControlTemplate></Setter.Value></Setter>
+   </ControlTemplate></Setter.Value></Setter>
   <Style.Triggers>
    <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource NeutralHoverBrush}"/></Trigger>
    <Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="{DynamicResource SelectionBrush}"/></Trigger>
@@ -116,15 +117,13 @@
  </Style>
  <Style x:Key="TabToggle" TargetType="ToggleButton">
   <Setter Property="FontFamily" Value="Segoe UI"/><Setter Property="FontSize" Value="14"/><Setter Property="Padding" Value="12,8"/>
-  <Setter Property="Foreground" Value="{DynamicResource ActionTextBrush}"/><Setter Property="Background" Value="Transparent"/><Setter Property="Cursor" Value="Hand"/>
+  <Setter Property="Foreground" Value="{DynamicResource ActionTextBrush}"/><Setter Property="Background" Value="Transparent"/><Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardActionFocusVisual}"/>
   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToggleButton"><Grid>
    <Border x:Name="TabSurface" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" BorderBrush="Transparent" BorderThickness="0,0,0,3"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/></Border>
-   <Border x:Name="FocusRing" BorderBrush="{DynamicResource InkBrush}" BorderThickness="1" Margin="1" Visibility="Collapsed" IsHitTestVisible="False"/>
    </Grid><ControlTemplate.Triggers>
     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="{DynamicResource NeutralHoverBrush}"/></Trigger>
     <Trigger Property="IsChecked" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="{DynamicResource SelectionBrush}"/><Setter TargetName="TabSurface" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/><Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/><Setter Property="FontWeight" Value="SemiBold"/></Trigger>
     <Trigger Property="IsPressed" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="{DynamicResource NeutralPressedBrush}"/></Trigger>
-    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="FocusRing" Property="Visibility" Value="Visible"/></Trigger>
     <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
    </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
  </Style>

@@ -127,6 +127,32 @@ public sealed class MessageWorkbenchLayoutTests
 
     [Fact]
     [Trait("TestCategory", "UiRender")]
+    public void Focused_wizard_and_action_buttons_do_not_leave_a_persistent_frame()
+    {
+        RunOnSta((dispatcher, view, _) =>
+        {
+            ByName<Button>(view, "ContinueToPrepareButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            WaitForLayout(dispatcher);
+
+            Button back = ByName<Button>(view, "BackToComposeButton");
+            Assert.True(back.Focus());
+            WaitForLayout(dispatcher);
+            Assert.Null(back.Template.FindName("FocusRing", back));
+            Assert.NotNull(back.FocusVisualStyle);
+
+            ByName<Button>(view, "ReviewButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            WaitForLayout(dispatcher);
+            Button stage = ByName<Button>(view, "ReviewStepButton");
+            Assert.True(stage.Focus());
+            WaitForLayout(dispatcher);
+            var stageFrame = Assert.IsType<Border>(stage.Template.FindName("StepFrame", stage));
+            Assert.Equal(Colors.Transparent, Assert.IsType<SolidColorBrush>(stageFrame.BorderBrush).Color);
+            Assert.NotNull(stage.FocusVisualStyle);
+        }, 1332, 843);
+    }
+
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
     public void Wizard_keeps_draft_and_preparation_state_when_moving_back_and_forward()
     {
         RunOnSta((dispatcher, view, _) =>

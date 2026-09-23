@@ -1,6 +1,7 @@
 using System.Runtime.ExceptionServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
@@ -27,6 +28,14 @@ public sealed class InvestigationResourceTests
                 button.Measure(new Size(200, 60));
                 Assert.True(button.DesiredSize.Width > 0);
                 Assert.True(button.DesiredSize.Height >= 32);
+                Assert.NotNull(button.FocusVisualStyle);
+                Assert.Null(button.Template.FindName("FocusRing", button));
+
+                var tab = new ToggleButton { Content = "Investigation", Resources = resources };
+                tab.Style = Assert.IsType<Style>(resources["TabToggle"]);
+                Assert.True(tab.ApplyTemplate());
+                Assert.NotNull(tab.FocusVisualStyle);
+                Assert.Null(tab.Template.FindName("FocusRing", tab));
             }
             catch (Exception exception)
             {
