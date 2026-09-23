@@ -93,6 +93,38 @@ public sealed class MessageWorkbenchLayoutTests
         }, width, height);
     }
 
+    [Theory]
+    [InlineData(1332, 843)]
+    [InlineData(725, 564)]
+    [Trait("TestCategory", "UiRender")]
+    public void Workbench_footer_dividers_align_across_saved_templates_prepare_and_review(int width, int height)
+    {
+        RunOnSta((dispatcher, view, _) =>
+        {
+            var root = ByName<Grid>(view, "WorkbenchRoot");
+            var savedFooter = NearestBorder(ByAutomationId<Button>(view, "LibraryAddFolder"));
+            ByName<Button>(view, "ContinueToPrepareButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            WaitForLayout(dispatcher);
+            var prepareFooter = NearestBorder(ByName<Button>(view, "BackToComposeButton"));
+            double savedTop = Bounds(savedFooter, root).Top;
+            Assert.True(Math.Abs(savedTop - Bounds(prepareFooter, root).Top) <= 1,
+                $"Saved and Prepare footer lines differ: saved height={savedFooter.ActualHeight}, prepare height={prepareFooter.ActualHeight}, saved top={savedTop}, prepare top={Bounds(prepareFooter, root).Top}.");
+
+            ByName<Button>(view, "ReviewButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            WaitForLayout(dispatcher);
+            var review = Assert.IsType<MessageLibraryPrototypeReviewSurface>(ByName<ContentControl>(view, "ReviewHost").Content);
+            var reviewFooter = ByName<Border>(review, "ReviewFooter");
+            var notice = ByName<TextBlock>(review, "ReviewNotice");
+            double reviewTop = Bounds(reviewFooter, root).Top;
+            Assert.InRange(Math.Abs(savedTop - reviewTop), 0, 1);
+            Assert.True(Bounds(notice, root).Bottom <= reviewTop,
+                "The review notice should sit above the aligned action footer.");
+            review.ShowResults();
+            WaitForLayout(dispatcher);
+            Assert.False(notice.IsVisible, "The review-only notice should disappear on results.");
+        }, width, height);
+    }
+
     [Fact]
     [Trait("TestCategory", "UiRender")]
     public void Wizard_keeps_draft_and_preparation_state_when_moving_back_and_forward()
@@ -310,6 +342,14 @@ public sealed class MessageWorkbenchLayoutTests
 
     private static Rect Bounds(FrameworkElement element, Visual ancestor) =>
         element.TransformToAncestor(ancestor).TransformBounds(new Rect(element.RenderSize));
+
+    private static Border NearestBorder(Visual element)
+    {
+        for (Visual? current = VisualTreeHelper.GetParent(element) as Visual; current is not null;
+             current = VisualTreeHelper.GetParent(current) as Visual)
+            if (current is Border border) return border;
+        throw new Xunit.Sdk.XunitException("Button has no containing footer border.");
+    }
 
     private static Visual FindCommonAncestor(Visual first, Visual second)
     {
