@@ -338,7 +338,8 @@ public partial class MessageLibraryPrototypeView : UserControl
             Margin = new Thickness(0, 0, 8, 0)
         });
         row.Children.Add(new TextBlock { Text = template.Name, VerticalAlignment = VerticalAlignment.Center });
-        var item = new ListBoxItem { Content = row, Tag = template.Name, ToolTip = template.Name };
+        var item = new ListBoxItem { Content = row, Tag = template.Name,
+            ToolTip = template.FileName is null ? template.Name : $"{template.Name} · {template.FileName}" };
         System.Windows.Automation.AutomationProperties.SetName(item, template.Name);
         return item;
     }
@@ -435,17 +436,22 @@ public partial class MessageLibraryPrototypeView : UserControl
     {
         var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Capture,
             currentProfileName, "order-events", 1) { Owner = Window.GetWindow(this) };
+        ConfigureCaptureCollections(dialog);
         dialog.SetCaptureSource("order-events / billing · Active",
             "{\n  \"customerId\": \"C1001\",\n  \"amount\": 149.90\n}",
             "{\n  \"customerId\": \"C1001\",\n  \"amount\": 149.90,\n  \"reviewed\": true\n}",
             "order-events");
         if (dialog.ShowDialog() == true)
             OpenCapturedDraft(dialog.CaptureTemplateName, dialog.CaptureTemplateBody, dialog.CaptureTopic,
-                dialog.CaptureCollectionName);
+                dialog.CaptureCollectionName, dialog.CaptureProperties,
+                fileName: dialog.CaptureFileName.Text.Trim());
     }
 
+    public void ConfigureCaptureCollections(MessageLibraryPrototypeDialog dialog) =>
+        dialog.SetCaptureCollections(folders, selectedFolder);
+
     public void OpenCapturedDraft(string name, string body, string topic, string? collection = null,
-        PrototypeCaptureProperties? properties = null)
+        PrototypeCaptureProperties? properties = null, string? fileName = null)
     {
         if (!string.IsNullOrWhiteSpace(collection))
         {
@@ -453,7 +459,8 @@ public partial class MessageLibraryPrototypeView : UserControl
             selectedFolder = collection;
         }
         name = UniqueTemplateName(name);
-        templates.Add(new PrototypeTemplate(name, topic, "Captured message draft · review properties before saving.", body, selectedFolder, [topic]));
+        templates.Add(new PrototypeTemplate(name, topic, "Captured message draft · review properties before saving.",
+            body, selectedFolder, [topic], fileName));
         savedSettings[name] = defaultSettings;
         RestoreSettings(defaultSettings);
         selectedTemplateName = name;
@@ -559,23 +566,48 @@ public partial class MessageLibraryPrototypeView : UserControl
         return candidate;
     }
 
-    private string? PromptForName(string title, string label, string initial)
+    private string? PromptForName(string title, string label, string initial,
+        Func<string, bool>? isValid = null, string? validationMessage = null)
     {
         var dialog = new Window
         {
-            Title = title, Width = 420, Height = 190, MinWidth = 360, ResizeMode = ResizeMode.NoResize,
+            Title = title, Width = 420, Height = isValid is null ? 190 : 220,
+            MinWidth = 360, ResizeMode = ResizeMode.NoResize,
             WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = Window.GetWindow(this),
-            Background = (System.Windows.Media.Brush)FindResource("RaisedBrush")
+            Background = (System.Windows.Media.Brush)FindResource("CanvasBrush"),
+            Foreground = (System.Windows.Media.Brush)FindResource("InkBrush"),
+            FontFamily = new System.Windows.Media.FontFamily("Segoe UI"), FontSize = 14
         };
+        dialog.Resources.MergedDictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri("/ServiceBusEmulatorExplorer.App;component/Investigation/Resources/SharedStyles.xaml", UriKind.Relative)
+        });
         var panel = new StackPanel { Margin = new Thickness(20) };
-        panel.Children.Add(new TextBlock { Text = label, Margin = new Thickness(0, 0, 0, 8) });
-        var input = new TextBox { Text = initial, Margin = new Thickness(0, 0, 0, 18) };
+        panel.Children.Add(new TextBlock { Text = label, FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 8) });
+        var input = new TextBox { Text = initial, MinHeight = 32, Padding = new Thickness(9, 6, 9, 6),
+            BorderBrush = (System.Windows.Media.Brush)dialog.FindResource("ControlBorderBrush"),
+            Margin = new Thickness(0, 0, 0, 18) };
         panel.Children.Add(input);
+        var error = new TextBlock { Text = validationMessage ?? "Enter a valid name.",
+            Foreground = (System.Windows.Media.Brush)dialog.FindResource("DestructiveBrush"),
+            Margin = new Thickness(0, -10, 0, 12), Visibility = Visibility.Collapsed };
+        panel.Children.Add(error);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         var cancel = new Button { Content = "Cancel", Margin = new Thickness(0, 0, 8, 0) };
         cancel.Click += (_, _) => dialog.DialogResult = false;
-        var save = new Button { Content = "Save", MinWidth = 80 };
-        save.Click += (_, _) => { if (!string.IsNullOrWhiteSpace(input.Text)) dialog.DialogResult = true; };
+        var save = new Button { Content = "Save", MinWidth = 80,
+            Style = (Style)dialog.FindResource("PrimaryButton") };
+        save.Click += (_, _) =>
+        {
+            if (string.IsNullOrWhiteSpace(input.Text) ||
+                (isValid is not null && !isValid(input.Text.Trim())))
+            {
+                error.Visibility = Visibility.Visible;
+                return;
+            }
+            dialog.DialogResult = true;
+        };
         actions.Children.Add(cancel);
         actions.Children.Add(save);
         panel.Children.Add(actions);
@@ -748,7 +780,7 @@ public partial class MessageLibraryPrototypeView : UserControl
             ValidationDetailsButton.Opacity = ValidationDetailsButton.IsEnabled ? 1 : 0.45;
             ReviewButton.IsEnabled = previewReady && selectedDestination is not null;
             PreviewHint.Text = previewReady ? "3 of 3 rows valid · Row 1 preview" :
-                valid == 3 ? "Template body is not valid JSON. Correct it and validate again." : "Fix the CSV input or mapping, then validate again.";
+                preparationError ?? (valid == 3 ? "Template body is not valid JSON. Correct it and validate again." : "Fix the CSV input or mapping, then validate again.");
             PreviewHint.Visibility = previewReady ? Visibility.Collapsed : Visibility.Visible;
             CsvValidationSummary.Visibility = Visibility.Visible;
             PreviewText.Text = previewReady ? "" : "No preview generated.";
@@ -760,7 +792,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         if (!previewReady)
         {
             ReviewButton.IsEnabled = false;
-            PreviewHint.Text = "Template body is not valid JSON. Correct it and validate again.";
+            PreviewHint.Text = preparationError ?? "Template body is not valid JSON. Correct it and validate again.";
             PreviewHint.Visibility = Visibility.Visible;
             return;
         }
@@ -993,10 +1025,16 @@ public partial class MessageLibraryPrototypeView : UserControl
 
     private string BuildPropertyDetails(string customerId, PrototypePreparedMessage? prepared = null, string? amount = null)
     {
-        string Resolve(string value) => value.Replace("$(CustomerId)", customerId, StringComparison.Ordinal)
-            .Replace("$(Amount)", amount ?? AmountInput.Text, StringComparison.Ordinal)
-            .Replace("$(EventId)", prepared?.EventId ?? "$(EventId)", StringComparison.Ordinal)
-            .Replace("$(OccurredAt)", prepared?.OccurredAt ?? "$(OccurredAt)", StringComparison.Ordinal);
+        var values = prepared?.VariableValues is { } preparedValues
+            ? preparedValues
+            : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["CustomerId"] = customerId,
+                ["Amount"] = amount ?? AmountInput.Text,
+                ["EventId"] = prepared?.EventId ?? "$(EventId)",
+                ["OccurredAt"] = prepared?.OccurredAt ?? "$(OccurredAt)"
+            };
+        string Resolve(string value) => ExpandTextForPreview(value, values);
         var lines = new List<string>
         {
             $"Subject: {Resolve(PropertySubject.Text)}",
@@ -1010,6 +1048,24 @@ public partial class MessageLibraryPrototypeView : UserControl
                 $"{property.Name} ({property.Type}) = {Resolve(property.Value)}"))
         };
         return string.Join("\n", lines);
+    }
+
+    private static string ExpandTextForPreview(string value, IReadOnlyDictionary<string, string> values)
+    {
+        int cursor = 0;
+        var result = new System.Text.StringBuilder(value.Length);
+        while (cursor < value.Length)
+        {
+            int start = value.IndexOf("$(", cursor, StringComparison.Ordinal);
+            if (start < 0) { result.Append(value, cursor, value.Length - cursor); break; }
+            result.Append(value, cursor, start - cursor);
+            int end = value.IndexOf(')', start + 2);
+            if (end < 0) { result.Append(value, start, value.Length - start); break; }
+            string name = value[(start + 2)..end];
+            result.Append(values.TryGetValue(name, out string? resolved) ? resolved : value[start..(end + 1)]);
+            cursor = end + 1;
+        }
+        return result.ToString();
     }
 
     private void VariableSelection_Changed(object sender, SelectionChangedEventArgs e)
@@ -1046,7 +1102,9 @@ public partial class MessageLibraryPrototypeView : UserControl
 
     private void AddVariable_Click(object sender, RoutedEventArgs e)
     {
-        string? name = PromptForName("Add variable", "Variable name", "NewVariable");
+        string? name = PromptForName("Add variable", "Variable name", "NewVariable",
+            value => System.Text.RegularExpressions.Regex.IsMatch(value, "^[A-Za-z_][A-Za-z0-9_]*$"),
+            "Use letters, digits or underscores; start with a letter or underscore.");
         if (name is null) return;
         if (variables.Any(value => value.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
         {
@@ -1125,7 +1183,7 @@ public partial class MessageLibraryPrototypeView : UserControl
     private sealed record PrototypeVariableSetting(string Name, string Type, string Source,
         bool HasDefault, string DefaultValue);
     private sealed record PrototypeTemplate(string Name, string Topic, string Description, string Body,
-        string Folder = "Orders", IReadOnlyList<string>? Associations = null);
+        string Folder = "Orders", IReadOnlyList<string>? Associations = null, string? FileName = null);
     private sealed class PrototypeProperty(string name, string type, string value)
     {
         public string Name { get; set; } = name;

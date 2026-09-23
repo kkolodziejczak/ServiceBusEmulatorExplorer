@@ -122,14 +122,27 @@ public partial class MessageLibraryPrototypeDialog : Window
     public PrototypeDraftChoice DraftChoice { get; private set; } = PrototypeDraftChoice.Cancel;
     public string CaptureTemplateName => CaptureName.Text.Trim();
     public string CaptureTemplateBody => CaptureEdited.IsChecked == true ? editedCaptureBody : originalCaptureBody;
-    public string CaptureTopic => CaptureAssociation.Text.Trim();
-    public string CaptureCollectionName => ((ComboBoxItem)CaptureCollection.SelectedItem).Content.ToString()!.Split('/').Last();
+    public string CaptureTopic => (CaptureAssociation.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? string.Empty;
+    public string CaptureCollectionName => ((ComboBoxItem)CaptureCollection.SelectedItem).Tag?.ToString()
+        ?? ((ComboBoxItem)CaptureCollection.SelectedItem).Content.ToString()!.Split('/').Last();
     public PrototypeCaptureProperties? CaptureProperties => capturedMessage is { } message
         ? new PrototypeCaptureProperties(message.Subject, message.ContentType, message.CorrelationId,
             message.SessionId, CaptureCopyTtl.IsChecked == true && message.ExpiresAt is { } expiry &&
             message.EnqueuedTime is { } enqueued ? (int)Math.Ceiling((expiry - enqueued).TotalMinutes) : null,
             message.ApplicationProperties)
         : null;
+
+    public void SetCaptureCollections(IEnumerable<string> collections, string? selected)
+    {
+        CaptureCollection.Items.Clear();
+        foreach (string name in collections.Where(name => !string.IsNullOrWhiteSpace(name)).Distinct(StringComparer.OrdinalIgnoreCase))
+            CaptureCollection.Items.Add(new ComboBoxItem { Content = $"Team messages/{name}", Tag = name });
+        if (CaptureCollection.Items.Count == 0)
+            CaptureCollection.Items.Add(new ComboBoxItem { Content = "Team messages/Orders", Tag = "Orders" });
+        CaptureCollection.SelectedItem = CaptureCollection.Items.OfType<ComboBoxItem>()
+            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), selected, StringComparison.OrdinalIgnoreCase))
+            ?? CaptureCollection.Items[0];
+    }
     public string ChosenDestination => (string)((ComboBoxItem)DestinationPicker.SelectedItem).Tag;
     public event Action<string>? ViewDestinationRequested;
     public event Action? EditMappingRequested;
@@ -242,7 +255,15 @@ public partial class MessageLibraryPrototypeDialog : Window
         CaptureSource.Text = source;
         originalCaptureBody = originalBody;
         editedCaptureBody = editedBody;
-        CaptureAssociation.Text = topic;
+        var association = CaptureAssociation.Items.OfType<ComboBoxItem>()
+            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), topic,
+                StringComparison.OrdinalIgnoreCase));
+        if (association is null && message is not null && !string.IsNullOrWhiteSpace(topic))
+        {
+            association = new ComboBoxItem { Content = $"{topic} (Source)", Tag = topic };
+            CaptureAssociation.Items.Add(association);
+        }
+        CaptureAssociation.SelectedItem = association ?? CaptureAssociation.Items.OfType<ComboBoxItem>().FirstOrDefault();
         CaptureEdited.IsEnabled = editedBody != originalBody;
         CapturePreview.Text = originalBody;
         if (message is not null)
@@ -443,7 +464,33 @@ public partial class MessageLibraryPrototypeDialog : Window
     {
         var save = new SaveFileDialog { Title = "Export sample results", Filter = "JSON files (*.json)|*.json", FileName = "message-workbench-results.json" };
         if (save.ShowDialog(this) != true) return;
-        File.WriteAllText(save.FileName, JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true }));
+        PrototypeRunSnapshot? snapshot = CaptureRun();
+        if (snapshot is null) return;
+        var export = new
+        {
+            snapshot.Profile,
+            snapshot.Target,
+            snapshot.Scheduled,
+            Results = snapshot.Results.Select(row => new
+            {
+                row.Row,
+                row.MessageId,
+                row.Outcome,
+                row.Details
+            }),
+            ScheduledResults = snapshot.ScheduledResults.Select(row => new
+            {
+                row.Row,
+                row.Receipt,
+                row.Payload,
+                row.Outcome,
+                row.DueTime,
+                row.Selected,
+                row.CancellationStatus,
+                row.AttemptTime
+            })
+        };
+        File.WriteAllText(save.FileName, JsonSerializer.Serialize(export, new JsonSerializerOptions { WriteIndented = true }));
     }
 
     private void ViewDestination_Click(object sender, RoutedEventArgs e)
@@ -456,6 +503,7 @@ public partial class MessageLibraryPrototypeDialog : Window
     {
         ResultsSurface.Visibility = Visibility.Collapsed;
         CancellationSurface.Visibility = Visibility.Visible;
+        CancellationError.Visibility = Visibility.Collapsed;
         CancellationTarget.Text = $"{ReviewProfile.Text} · {ReviewTarget.Text} · {ResolvedSchedule.Text}";
         Title = "Scheduled results";
     }
@@ -471,7 +519,12 @@ public partial class MessageLibraryPrototypeDialog : Window
     private void ConfirmCancellation_Click(object sender, RoutedEventArgs e)
     {
         var selected = scheduledResults.Where(row => row.Selected && row.CancellationStatus != "Cancellation acknowledged").ToArray();
-        if (selected.Length == 0) return;
+        if (selected.Length == 0)
+        {
+            CancellationError.Visibility = Visibility.Visible;
+            return;
+        }
+        CancellationError.Visibility = Visibility.Collapsed;
         if (MessageBox.Show(this,
             $"Cancel {selected.Length} selected scheduled message{(selected.Length == 1 ? "" : "s")}? Activation may race this request.",
             "Confirm cancellation", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;

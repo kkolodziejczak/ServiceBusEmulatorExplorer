@@ -5,4 +5,7 @@ public record PrototypePreparedMessage(
     string MessageId,
     string EventId,
     string OccurredAt,
-    string Body);
+    string Body)
+{
+    public IReadOnlyDictionary<string, string>? VariableValues { get; init; }
+}

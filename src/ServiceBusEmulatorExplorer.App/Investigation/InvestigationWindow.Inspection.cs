@@ -245,11 +245,13 @@ public partial class InvestigationWindow
         string sourceLabel = $"{source.Name} · {current.Identity.Bucket}";
         var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Capture,
             workspace.SelectedProfile.Connection.Name, topic, 1) { Owner = this };
+        MessageLibraryPrototype.ConfigureCaptureCollections(dialog);
         dialog.SetCaptureSource(sourceLabel, workspace.Inspector.RawText,
             workspace.Inspector.Document.Text, topic, current.Message);
         if (dialog.ShowDialog() != true) return;
         MessageLibraryPrototype.OpenCapturedDraft(dialog.CaptureTemplateName,
-            dialog.CaptureTemplateBody, dialog.CaptureTopic, dialog.CaptureCollectionName, dialog.CaptureProperties);
+            dialog.CaptureTemplateBody, dialog.CaptureTopic, dialog.CaptureCollectionName, dialog.CaptureProperties,
+            dialog.CaptureFileName.Text.Trim());
         SelectWorkspaceTab(true);
     }
 
