@@ -35,6 +35,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         dispatchTimer.Tick += DispatchTick;
         Unloaded += (_, _) => dispatchTimer.Stop();
         SizeChanged += (_, _) => UpdateReviewCardLayout();
+        ReviewScroll.SizeChanged += (_, _) => UpdateReviewCardLayout();
         Configure(profile, target, count);
     }
 
@@ -47,6 +48,10 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         Grid.SetColumn(ReviewSummaryCard, stacked ? 0 : 1);
         ReviewTargetCard.Margin = stacked ? new Thickness(0, 0, 0, 12) : new Thickness(0, 0, 9, 0);
         ReviewSummaryCard.Margin = stacked ? new Thickness(0) : new Thickness(9, 0, 0, 0);
+        double availableCardHeight = Math.Max(0, ReviewScroll.ActualHeight - ReviewHeading.ActualHeight
+            - ReviewHeading.Margin.Bottom - ReviewCards.Margin.Bottom - 2);
+        ReviewTargetCard.MinHeight = stacked ? 0 : availableCardHeight;
+        ReviewSummaryCard.MinHeight = stacked ? 0 : availableCardHeight;
     }
 
     public void Configure(string profile, string target, int count)
@@ -141,7 +146,8 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     {
         if (preparedMessages.Count == 0)
             ReviewMessageIds.Text = messageIds;
-        ReviewTtl.Text = ttl;
+        ReviewTtl.Text = ttl.StartsWith("Time to live: ", StringComparison.OrdinalIgnoreCase)
+            ? ttl["Time to live: ".Length..] : ttl;
         ReviewPropertyDetails.Text = details;
     }
 
@@ -156,7 +162,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
             ? "Message IDs: none"
             : string.Join("\n", preparedMessages.Select(message => $"{message.Row}. {message.MessageId}"));
         long totalBytes = preparedMessages.Sum(message => (long)Encoding.UTF8.GetByteCount(message.Body));
-        ReviewTotalSize.Text = $"{totalBytes:N0} bytes UTF-8 (sample body size; sum of prepared bodies)";
+        ReviewTotalSize.Text = $"{totalBytes:N0} bytes UTF-8 across prepared messages";
     }
 
     public PrototypeRunSnapshot? CaptureRun() => results.Count == 0 ? null : new PrototypeRunSnapshot(
@@ -214,13 +220,18 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         ConfirmDispatch.Content = $"{(schedule ? "Schedule" : "Send")} {messageCount} message{(messageCount == 1 ? "" : "s")}";
         ReviewNotice.Text = schedule
             ? $"{messageCount} sample message{(messageCount == 1 ? "" : "s")} will be scheduled for the same instant."
-            : "Subscriptions receive according to their rules.";
+            : ReviewTarget.Text == "order-replies" ? messageCount == 1
+                ? "This message will be sent to the queue."
+                : $"{messageCount} messages will be sent to the queue."
+                : "Subscriptions receive messages according to their rules.";
+        ConfirmDispatch.IsEnabled = !schedule;
         if (!schedule) return;
-        if (!TryResolveSchedule(out DateTime utc))
+        if (!TryResolveSchedule(out DateTime utc) || utc <= DateTime.UtcNow)
         {
-            ResolvedSchedule.Text = "Enter a valid, unambiguous date and time (HH:mm).";
+            ResolvedSchedule.Text = "Choose a future date and a valid, unambiguous time (HH:mm).";
             return;
         }
+        ConfirmDispatch.IsEnabled = true;
         ResolvedSchedule.Text = $"Resolved time: {utc:dd MMM yyyy HH:mm} UTC · one time for all messages";
     }
 

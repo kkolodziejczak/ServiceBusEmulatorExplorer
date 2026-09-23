@@ -14,11 +14,36 @@ namespace ServiceBusEmulatorExplorer.App.Tests;
 public sealed class MessageWorkbenchStateTests
 {
     [Fact]
+    public void Switching_body_editor_mode_does_not_regenerate_prepared_message() => Run((window, view) =>
+    {
+        string before = Get<JsonEditor>(view, "PreviewText").Text;
+        Click(view, "EditorTextTab");
+        Click(view, "EditorJsonTab");
+        window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+        Assert.Equal(before, Get<JsonEditor>(view, "PreviewText").Text);
+    });
+
+    [Fact]
+    public void Editing_single_input_automatically_refreshes_validation_and_preview() => Run((window, view) =>
+    {
+        Click(view, "ContinueToPrepareButton");
+        Get<RadioButton>(view, "SingleMode").IsChecked = true;
+        Get<TextBox>(view, "AmountInput").Text = "invalid";
+        window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+        Assert.False(Get<Button>(view, "ReviewButton").IsEnabled);
+        Get<TextBox>(view, "AmountInput").Text = "25.00";
+        window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+        Assert.True(Get<Button>(view, "ReviewButton").IsEnabled);
+        using var body = JsonDocument.Parse(Get<JsonEditor>(view, "PreviewText").Text);
+        Assert.Equal(25, body.RootElement.GetProperty("amount").GetDecimal());
+    });
+
+    [Fact]
     public void Single_generated_fields_match_prepared_body_and_clear_on_input_change() => Run((window, view) =>
     {
         Click(view, "ContinueToPrepareButton");
         Get<RadioButton>(view, "SingleMode").IsChecked = true;
-        Click(view, "SingleValidateButton");
+        window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
         using var body = JsonDocument.Parse(Get<JsonEditor>(view, "PreviewText").Text);
         var eventId = Get<TextBox>(view, "SingleEventId");
         var occurredAt = Get<TextBox>(view, "SingleOccurredAt");
@@ -28,9 +53,9 @@ public sealed class MessageWorkbenchStateTests
         Assert.True(DateTimeOffset.TryParse(occurredAt.Text, out _));
         Get<TextBox>(view, "AmountInput").Text = "invalid";
         Assert.False(Get<Button>(view, "ReviewButton").IsEnabled);
-        Assert.Equal("Generated when validated", eventId.Text);
-        Assert.Equal("Generated when validated", occurredAt.Text);
-        Click(view, "SingleValidateButton");
+        Assert.Equal("Waiting for valid inputs", eventId.Text);
+        Assert.Equal("Waiting for valid inputs", occurredAt.Text);
+        window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
         Assert.False(Get<Button>(view, "ReviewButton").IsEnabled);
     });
 
@@ -38,7 +63,7 @@ public sealed class MessageWorkbenchStateTests
     public void Csv_selected_preview_and_review_keep_the_same_prepared_event_ids() => Run((window, view) =>
     {
         Click(view, "ContinueToPrepareButton");
-        Click(view, "ValidateButton");
+        window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
         var rows = Get<DataGrid>(view, "CsvRowsGrid");
         var ids = new List<string>();
         for (int index = 0; index < rows.Items.Count; index++)
@@ -142,16 +167,16 @@ public sealed class MessageWorkbenchStateTests
         Get<RadioButton>(view, "SingleMode").IsChecked = true;
         Get<RadioButton>(view, "CustomMessageId").IsChecked = true;
         Get<TextBox>(view, "CustomMessageIdInput").Text = "my-dummy-id";
-        Click(view, "SingleValidateButton");
+        window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
         Click(view, "ReviewButton");
         var review = Assert.IsType<MessageLibraryPrototypeReviewSurface>(Get<ContentControl>(view, "ReviewHost").Content);
         Assert.Contains("my-dummy-id", Get<TextBlock>(review, "ReviewMessageIds").Text);
         Click(view, "ComposeStepButton");
         Get<JsonEditor>(view, "EditorText").Text = "{ invalid json";
         Click(view, "ContinueToPrepareButton");
-        Click(view, "SingleValidateButton");
+        window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
         Assert.False(Get<Button>(view, "ReviewButton").IsEnabled);
-        Assert.Equal("Generated when validated", Get<TextBox>(view, "SingleEventId").Text);
+        Assert.Equal("Waiting for valid inputs", Get<TextBox>(view, "SingleEventId").Text);
     });
 
     private static void Run(Action<Window, MessageLibraryPrototypeView> proof)

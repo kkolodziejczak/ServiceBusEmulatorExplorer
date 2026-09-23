@@ -30,11 +30,12 @@ public sealed class MessageWorkbenchPropertyTests
             Assert.NotNull(grid.SelectedItem);
             Assert.True(delete.IsEnabled);
 
-            Get<Button>(view, "ValidateButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Drain(window);
             Assert.True(Get<Button>(view, "ReviewButton").IsEnabled);
 
             delete.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.False(Get<Button>(view, "ReviewButton").IsEnabled);
+            Drain(window);
+            Assert.True(Get<Button>(view, "ReviewButton").IsEnabled);
             Assert.Equal(3, grid.Items.Count);
             Assert.False(delete.IsEnabled);
         });

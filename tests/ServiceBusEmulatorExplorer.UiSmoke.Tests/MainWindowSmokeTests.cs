@@ -146,9 +146,7 @@ public sealed class MainWindowSmokeTests
             WaitForAutomationId(window, "LibrarySingleMode", TimeSpan.FromSeconds(5)).Patterns.SelectionItem.Pattern.Select();
             WaitForAutomationId(window, "LibraryCustomerId", TimeSpan.FromSeconds(5));
             AutomationElement review = WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5));
-            Assert.False(review.IsEnabled);
-
-            InvokeButton(window, "LibraryValidateSinglePreview", TimeSpan.FromSeconds(5));
+            Assert.True(SpinWait.SpinUntil(() => review.IsEnabled, TimeSpan.FromSeconds(5)));
             review = WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5));
             Assert.True(review.IsEnabled);
             Assert.Equal("Review 1 message", review.Name);
@@ -205,8 +203,8 @@ public sealed class MainWindowSmokeTests
             Window picker = WaitForWindowWithAutomationId(application, automation,
                 "PrototypeApplyDestination", TimeSpan.FromSeconds(5));
             InvokeButton(picker, "PrototypeApplyDestination", TimeSpan.FromSeconds(5));
-            InvokeButton(window, "LibraryValidatePreview", TimeSpan.FromSeconds(5));
-            Assert.True(WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled);
+            Assert.True(SpinWait.SpinUntil(() => WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled,
+                TimeSpan.FromSeconds(5)));
 
             SetText(window, "SearchBox", "inventory-events");
             Assert.NotNull(WaitForText(window, "Stock reserved", TimeSpan.FromSeconds(5)));
@@ -248,7 +246,8 @@ public sealed class MainWindowSmokeTests
             if (libraryTab.Patterns.Toggle.Pattern.ToggleState != ToggleState.On)
                 libraryTab.Patterns.Toggle.Pattern.Toggle();
             InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
-            InvokeButton(window, "LibraryValidatePreview", TimeSpan.FromSeconds(5));
+            Assert.True(SpinWait.SpinUntil(() => WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled,
+                TimeSpan.FromSeconds(5)));
             InvokeButton(window, "LibraryReview", TimeSpan.FromSeconds(5));
             WaitForAutomationId(window, "PrototypeScheduleLater", TimeSpan.FromSeconds(5))
                 .Patterns.SelectionItem.Pattern.Select();
@@ -295,7 +294,6 @@ public sealed class MainWindowSmokeTests
             WaitForAutomationId(picker, "PrototypeSampleCsvPicker", TimeSpan.FromSeconds(5))
                 .AsComboBox().Select("orders-invalid.csv — row 2 amount is abc");
             InvokeButton(picker, "PrototypeUseSampleCsv", TimeSpan.FromSeconds(5));
-            InvokeButton(window, "LibraryValidatePreview", TimeSpan.FromSeconds(5));
             Assert.False(WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled);
             Assert.NotNull(WaitForText(window, "1 invalid row · Nothing can be sent", TimeSpan.FromSeconds(5)));
             InvokeButton(window, "LibraryValidationDetails", TimeSpan.FromSeconds(5));
@@ -393,8 +391,8 @@ public sealed class MainWindowSmokeTests
             Assert.False(WaitForAutomationId(window, "LibraryAuthorEditor", TimeSpan.FromSeconds(5)).IsOffscreen);
             InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
             Assert.False(WaitForAutomationId(window, "LibraryMapColumns", TimeSpan.FromSeconds(5)).IsOffscreen);
-            InvokeButton(window, "LibraryValidatePreview", TimeSpan.FromSeconds(5));
-            Assert.True(WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled);
+            Assert.True(SpinWait.SpinUntil(() => WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled,
+                TimeSpan.FromSeconds(5)));
         }
         finally
         {

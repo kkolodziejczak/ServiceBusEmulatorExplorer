@@ -54,7 +54,7 @@ public sealed class MessageWorkbenchVariableResolutionTests
             Get<JsonEditor>(view, "EditorText").Text = "{\n  \"greeting\": \"$(Greeting)\",\n  \"amount\": \"$(Amount)\"\n}";
             Get<Button>(view, "EditorPropertiesTab").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             SetPropertyValue(view, "amount", "$(Greeting)");
-            Get<Button>(view, "ValidateButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Drain(window);
 
             Assert.True(Get<Button>(view, "ReviewButton").IsEnabled);
             using var body = JsonDocument.Parse(Get<JsonEditor>(view, "PreviewText").Text);
@@ -73,7 +73,7 @@ public sealed class MessageWorkbenchVariableResolutionTests
             AddVariable(window, view, "RequiredText");
             Get<Button>(view, "EditorBodyTab").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Get<JsonEditor>(view, "EditorText").Text = "{\n  \"value\": \"$(RequiredText)\"\n}";
-            Get<Button>(view, "ValidateButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Drain(window);
 
             Assert.False(Get<Button>(view, "ReviewButton").IsEnabled);
             Assert.Contains("RequiredText", Get<TextBlock>(view, "PreviewHint").Text);
@@ -82,7 +82,7 @@ public sealed class MessageWorkbenchVariableResolutionTests
             Get<CheckBox>(view, "UseVariableDefault").IsChecked = true;
             Get<TextBox>(view, "VariableDefaultValue").Text = "ready";
             Assert.False(Get<Button>(view, "ReviewButton").IsEnabled);
-            Get<Button>(view, "ValidateButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Drain(window);
             Assert.True(Get<Button>(view, "ReviewButton").IsEnabled);
         });
 

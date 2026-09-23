@@ -16,7 +16,7 @@ internal static class Program
         bool prototypeCapture = args.Length == 2 && args[1] is
             "--message-library-prepare" or "--message-library-prepare-1500" or "--message-library-prepare-compact" or "--message-library-prepare-minimum"
             or "--message-library-properties" or "--message-library-properties-bottom" or "--message-library-properties-selected" or "--message-library-variables" or "--message-library-single"
-            or "--message-library-author-minimum" or "--message-library-properties-minimum" or "--message-library-wizard-review" or "--message-library-wizard-review-minimum"
+            or "--message-library-author-minimum" or "--message-library-properties-minimum" or "--message-library-wizard-review" or "--message-library-wizard-review-minimum" or "--message-library-wizard-review-queue"
             or "--message-library-single-minimum" or "--message-library-prepare-log";
         bool dialogCapture = args.Length == 2 && args[1] is
             "--message-library-map" or "--message-library-capture" or "--message-library-review" or "--message-library-results"
@@ -24,7 +24,7 @@ internal static class Program
             or "--message-library-scheduled-results" or "--message-library-cancellation-history"
             or "--message-library-association" or "--message-library-association-edit";
         int captureWidth = dialogCapture ? 760 :
-            args.Length == 2 && args[1] is "--message-library-prepare" or "--message-library-properties" or "--message-library-properties-bottom" or "--message-library-properties-selected" or "--message-library-variables" or "--message-library-single" or "--message-library-prepare-log" or "--message-library-wizard-review" ? 1642 :
+            args.Length == 2 && args[1] is "--message-library-prepare" or "--message-library-properties" or "--message-library-properties-bottom" or "--message-library-properties-selected" or "--message-library-variables" or "--message-library-single" or "--message-library-prepare-log" or "--message-library-wizard-review" or "--message-library-wizard-review-queue" ? 1642 :
             args.Length == 2 && args[1] == "--message-library-prepare-1500" ? 1500 :
             args.Length == 2 && args[1] == "--message-library-prepare-compact" ? 1100 :
             args.Length == 2 && args[1] is "--message-library-prepare-minimum" or "--message-library-author-minimum" or "--message-library-properties-minimum" or "--message-library-single-minimum" or "--message-library-wizard-review-minimum" ? 980 : WpfScreenshot.CaptureWidth;
@@ -144,8 +144,13 @@ internal static class Program
                     var topics = (TreeViewItem)((TreeView)window.FindName("PrototypeNamespaceTree")!).Items[1];
                     ((TreeViewItem)topics.Items[0]).IsSelected = true;
                     var prototype = (MessageLibraryPrototypeView)window.FindName("MessageLibraryPrototype")!;
-                    var validate = (Button)prototype.FindName("ValidateButton")!;
-                    validate.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, validate));
+                    if (args[1] == "--message-library-wizard-review-queue")
+                    {
+                        prototype.SelectEntityContext("queue:order-replies");
+                        var library = (ListBox)prototype.FindName("TemplateList")!;
+                        library.SelectedItem = library.Items.OfType<ListBoxItem>().Single(item => (string)item.Tag == "Order reply");
+                        ((RadioButton)prototype.FindName("SingleMode")!).IsChecked = true;
+                    }
                     if (args[1] is "--message-library-properties" or "--message-library-properties-bottom" or "--message-library-properties-selected" or "--message-library-properties-minimum")
                     {
                         var properties = (Button)prototype.FindName("EditorPropertiesTab")!;
@@ -170,20 +175,18 @@ internal static class Program
                     else if (args[1] is "--message-library-single" or "--message-library-single-minimum")
                     {
                         ((RadioButton)prototype.FindName("SingleMode")!).IsChecked = true;
-                        var singleValidate = (Button)prototype.FindName("SingleValidateButton")!;
-                        singleValidate.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, singleValidate));
                     }
                     else if (args[1] == "--message-library-author-minimum")
                     {
                         var author = (Button)prototype.FindName("ComposeStepButton")!;
                         author.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, author));
                     }
-                    if (args[1] is "--message-library-prepare" or "--message-library-prepare-1500" or "--message-library-prepare-compact" or "--message-library-prepare-minimum" or "--message-library-prepare-log" or "--message-library-single" or "--message-library-single-minimum" or "--message-library-wizard-review" or "--message-library-wizard-review-minimum")
+                    if (args[1] is "--message-library-prepare" or "--message-library-prepare-1500" or "--message-library-prepare-compact" or "--message-library-prepare-minimum" or "--message-library-prepare-log" or "--message-library-single" or "--message-library-single-minimum" or "--message-library-wizard-review" or "--message-library-wizard-review-minimum" or "--message-library-wizard-review-queue")
                     {
                         var next = (Button)prototype.FindName("ContinueToPrepareButton")!;
                         next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, next));
                     }
-                    if (args[1] is "--message-library-wizard-review" or "--message-library-wizard-review-minimum")
+                    if (args[1] is "--message-library-wizard-review" or "--message-library-wizard-review-minimum" or "--message-library-wizard-review-queue")
                     {
                         var review = (Button)prototype.FindName("ReviewButton")!;
                         review.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, review));

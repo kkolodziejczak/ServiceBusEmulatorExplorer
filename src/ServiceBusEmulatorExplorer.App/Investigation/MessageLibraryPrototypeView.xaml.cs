@@ -6,6 +6,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Collections.ObjectModel;
+using System.Windows.Threading;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
@@ -19,6 +20,7 @@ public partial class MessageLibraryPrototypeView : UserControl
     private bool refreshingTemplates;
     private bool loadingEditor;
     private bool loadingVariableDefault;
+    private DispatcherOperation? pendingValidation;
     private WizardStage wizardStage = WizardStage.Compose;
     private enum WizardStage { Compose, Prepare, Review }
     private bool textMode;
@@ -105,7 +107,7 @@ public partial class MessageLibraryPrototypeView : UserControl
             ShowEditorBody();
             ShowPrepare();
             CsvRowsGrid.SelectedIndex = 0;
-            Validate_Click(this, new RoutedEventArgs());
+            RefreshPreparedPreview();
             ShowWizardStage(WizardStage.Compose);
         };
         SizeChanged += (_, _) => UpdateWizardLayout();
@@ -179,7 +181,11 @@ public partial class MessageLibraryPrototypeView : UserControl
     }
 
     private void ComposeStep_Click(object sender, RoutedEventArgs e) => ShowWizardStage(WizardStage.Compose);
-    private void PrepareStep_Click(object sender, RoutedEventArgs e) => ShowWizardStage(WizardStage.Prepare);
+    private void PrepareStep_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshPendingPreview();
+        ShowWizardStage(WizardStage.Prepare);
+    }
     private void ReviewStep_Click(object sender, RoutedEventArgs e)
     {
         if (ReviewHost.Content is MessageLibraryPrototypeReviewSurface review &&
@@ -191,7 +197,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         if (previewReady) Review_Click(sender, e);
         else if (lastRun is not null) ViewRunResults_Click(sender, e);
     }
-    private void ContinueToPrepare_Click(object sender, RoutedEventArgs e) => ShowWizardStage(WizardStage.Prepare);
+    private void ContinueToPrepare_Click(object sender, RoutedEventArgs e) => PrepareStep_Click(sender, e);
     private void BackToCompose_Click(object sender, RoutedEventArgs e) => ShowWizardStage(WizardStage.Compose);
 
     private void TemplateSearch_Changed(object sender, TextChangedEventArgs e)
@@ -669,10 +675,30 @@ public partial class MessageLibraryPrototypeView : UserControl
         ReviewButton.IsEnabled = false;
         if (ReviewStepButton is not null) ReviewStepButton.IsEnabled = lastRun is not null;
         if (wizardStage == WizardStage.Review) ShowWizardStage(WizardStage.Prepare);
-        PreviewHint.Text = "Validate the sample inputs to generate a preview.";
+        PreviewHint.Text = "Updating preview…";
         PreviewHint.Visibility = Visibility.Visible;
         PreviewText.Text = "No preview yet.";
         CsvValidationSummary.Visibility = Visibility.Collapsed;
+        QueueValidation();
+    }
+
+    private void QueueValidation()
+    {
+        if (!IsLoaded) return;
+        if (pendingValidation?.Status == DispatcherOperationStatus.Pending) pendingValidation.Abort();
+        pendingValidation = Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+        {
+            pendingValidation = null;
+            RefreshPreparedPreview();
+        }));
+    }
+
+    private void RefreshPendingPreview()
+    {
+        if (pendingValidation?.Status != DispatcherOperationStatus.Pending) return;
+        pendingValidation.Abort();
+        pendingValidation = null;
+        RefreshPreparedPreview();
     }
 
     private void CsvDelimiter_Changed(object sender, SelectionChangedEventArgs e) => InvalidatePreview();
@@ -738,10 +764,10 @@ public partial class MessageLibraryPrototypeView : UserControl
         dialog.ValidateAgainRequested += () => validateAgain = true;
         dialog.ShowDialog();
         if (editMapping) MapColumns_Click(this, new RoutedEventArgs());
-        else if (validateAgain) Validate_Click(this, new RoutedEventArgs());
+        else if (validateAgain) RefreshPreparedPreview();
     }
 
-    private void Validate_Click(object sender, RoutedEventArgs e)
+    private void RefreshPreparedPreview()
     {
         ClearPreparedMessages();
         previewReady = false;
@@ -805,7 +831,7 @@ public partial class MessageLibraryPrototypeView : UserControl
             ReviewButton.IsEnabled = previewReady && selectedDestination is not null;
             ReviewStepButton.IsEnabled = ReviewButton.IsEnabled || lastRun is not null;
             PreviewHint.Text = previewReady ? "3 of 3 rows valid · Row 1 preview" :
-                preparationError ?? (valid == 3 ? "Template body is not valid JSON. Correct it and validate again." : "Fix the CSV input or mapping, then validate again.");
+                preparationError ?? (valid == 3 ? "Template body is not valid JSON. Correct it to update the preview." : "Fix the CSV input or mapping to update the preview.");
             PreviewHint.Visibility = previewReady ? Visibility.Collapsed : Visibility.Visible;
             CsvValidationSummary.Visibility = Visibility.Visible;
             PreviewText.Text = previewReady ? "" : "No preview generated.";
@@ -818,7 +844,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         {
             ReviewButton.IsEnabled = false;
             ReviewStepButton.IsEnabled = lastRun is not null;
-            PreviewHint.Text = preparationError ?? "Template body is not valid JSON. Correct it and validate again.";
+            PreviewHint.Text = preparationError ?? "Template body is not valid JSON. Correct it to update the preview.";
             PreviewHint.Visibility = Visibility.Visible;
             return;
         }
@@ -990,7 +1016,6 @@ public partial class MessageLibraryPrototypeView : UserControl
         EditorPlainText.Visibility = Visibility.Collapsed;
         EditorJsonTab.Style = (Style)FindResource("PreviewModeActive");
         EditorTextTab.Style = (Style)FindResource("PreviewModeButton");
-        InvalidatePreview();
     }
 
     private void EditorTextMode_Click(object sender, RoutedEventArgs e)
@@ -1003,7 +1028,6 @@ public partial class MessageLibraryPrototypeView : UserControl
         EditorPlainText.Visibility = Visibility.Visible;
         EditorJsonTab.Style = (Style)FindResource("PreviewModeButton");
         EditorTextTab.Style = (Style)FindResource("PreviewModeActive");
-        InvalidatePreview();
     }
 
     private void CopyAuthor_Click(object sender, RoutedEventArgs e) => Clipboard.SetText(currentBody);

@@ -17,8 +17,8 @@ public partial class MessageLibraryPrototypeView
     {
         preparedMessages = [];
         preparationError = null;
-        if (SingleEventId is not null) SingleEventId.Text = "Generated when validated";
-        if (SingleOccurredAt is not null) SingleOccurredAt.Text = "Generated when validated";
+        if (SingleEventId is not null) SingleEventId.Text = "Waiting for valid inputs";
+        if (SingleOccurredAt is not null) SingleOccurredAt.Text = "Waiting for valid inputs";
     }
 
     private bool PrepareMessages(IEnumerable<CsvPreviewRow> rows)

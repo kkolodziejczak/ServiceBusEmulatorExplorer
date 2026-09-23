@@ -15,6 +15,29 @@ namespace ServiceBusEmulatorExplorer.App.Tests;
 [Collection("WPF presentation")]
 public sealed class MessageWorkbenchReviewTests
 {
+    [Theory]
+    [InlineData(1, "This message")]
+    [InlineData(3, "3 messages")]
+    public void Review_disables_scheduling_until_time_is_valid_and_uses_queue_notice(int count, string expectedNotice) => OnSta(() =>
+    {
+        var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Review, "Local", "order-replies", count);
+        try
+        {
+            dialog.Show();
+            string notice = ((TextBlock)dialog.FindName("ReviewNotice")!).Text;
+            Assert.Contains("queue", notice, StringComparison.OrdinalIgnoreCase);
+            Assert.StartsWith(expectedNotice, notice, StringComparison.Ordinal);
+            var schedule = (RadioButton)dialog.FindName("ReviewSchedule")!;
+            schedule.IsChecked = true;
+            var confirm = (Button)dialog.FindName("ConfirmDispatch")!;
+            ((DatePicker)dialog.FindName("ScheduleDateInput")!).SelectedDate = DateTime.Today.AddDays(-1);
+            Assert.False(confirm.IsEnabled);
+            ((DatePicker)dialog.FindName("ScheduleDateInput")!).SelectedDate = DateTime.Today.AddDays(1);
+            Assert.True(confirm.IsEnabled);
+        }
+        finally { dialog.Close(); }
+    });
+
     [Fact]
     [Trait("TestCategory", "UiRender")]
     public void Review_dispatch_uses_prepared_ids_and_reports_utf8_sample_body_size() => OnSta(() =>
@@ -35,7 +58,7 @@ public sealed class MessageWorkbenchReviewTests
             Assert.Contains("11111111-1111-1111-1111-111111111111", ids.Text);
             Assert.Contains("22222222-2222-2222-2222-222222222222", ids.Text);
             Assert.DoesNotContain("generic placeholder", ids.Text);
-            Assert.Contains("Sample body size", totalSize.Text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("bytes UTF-8", totalSize.Text, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("18 bytes", totalSize.Text, StringComparison.OrdinalIgnoreCase);
 
             Invoke((Button)dialog.FindName("ConfirmDispatch")!);

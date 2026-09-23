@@ -13,6 +13,25 @@ public sealed class MessageWorkbenchLayoutTests
 {
     [Fact]
     [Trait("TestCategory", "UiRender")]
+    public void Review_cards_use_available_stage_height_at_wide_size()
+    {
+        RunOnSta((dispatcher, view, _) =>
+        {
+            ByName<Button>(view, "ContinueToPrepareButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            ByName<Button>(view, "ReviewButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            WaitForLayout(dispatcher);
+            var review = Assert.IsType<MessageLibraryPrototypeReviewSurface>(ByName<ContentControl>(view, "ReviewHost").Content);
+            var scroll = ByName<ScrollViewer>(review, "ReviewScroll");
+            var target = ByName<Border>(review, "ReviewTargetCard");
+            var summary = ByName<Border>(review, "ReviewSummaryCard");
+            Assert.True(target.ActualHeight >= scroll.ActualHeight - 85,
+                $"Target card should fill the available review height: card={target.ActualHeight}, viewport={scroll.ActualHeight}.");
+            Assert.InRange(Math.Abs(target.ActualHeight - summary.ActualHeight), 0, 1);
+        }, 1332, 843);
+    }
+
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
     public void Wizard_keeps_draft_and_preparation_state_when_moving_back_and_forward()
     {
         RunOnSta((dispatcher, view, _) =>
@@ -96,7 +115,6 @@ public sealed class MessageWorkbenchLayoutTests
                 TextBlock amountLabel = VisibleLabel(singleInputs, "Amount");
                 TextBox customerInput = ByName<TextBox>(view, "CustomerInput");
                 TextBox amountInput = ByName<TextBox>(view, "AmountInput");
-                Button validate = ByName<Button>(view, "SingleValidateButton");
 
                 AssertAlignedRow(customerLabel, customerInput, "CustomerId");
                 AssertAlignedRow(amountLabel, amountInput, "Amount");
@@ -105,19 +123,16 @@ public sealed class MessageWorkbenchLayoutTests
                     "Amount must be below CustomerId in the single-message form.");
 
                 Rect amountBounds = Bounds(amountInput, singleInputs);
-                Rect validateBounds = Bounds(validate, singleInputs);
-                Assert.True(validateBounds.Top >= amountBounds.Bottom,
-                    "Validate must follow the required input rows.");
 
                 Border divider = Descendants<Border>(singleInputs)
                     .Where(border => border.BorderThickness.Top > 0 && border.BorderThickness.Bottom == 0
                         && border.ActualHeight <= 3 && border.ActualWidth >= 100)
                     .OrderBy(border => Bounds(border, singleInputs).Top)
                     .FirstOrDefault()
-                    ?? throw new Xunit.Sdk.XunitException("Single-message generated values need a visible divider after validation.");
+                    ?? throw new Xunit.Sdk.XunitException("Single-message generated values need a visible divider after the inputs.");
                 Rect dividerBounds = Bounds(divider, singleInputs);
-                Assert.True(dividerBounds.Top >= validateBounds.Bottom,
-                    "The divider must follow Validate & preview.");
+                Assert.True(dividerBounds.Top >= amountBounds.Bottom,
+                    "The divider must follow the input rows.");
 
                 TextBlock eventLabel = VisibleLabel(singleInputs, "EventId");
                 TextBlock occurredLabel = VisibleLabel(singleInputs, "OccurredAt");
@@ -131,11 +146,10 @@ public sealed class MessageWorkbenchLayoutTests
                 TextBox generatedEventId = ByAutomationId<TextBox>(singleInputs, "LibraryGeneratedEventId");
                 TextBox generatedOccurredAt = ByAutomationId<TextBox>(singleInputs, "LibraryGeneratedOccurredAt");
                 Assert.True(generatedEventId.IsReadOnly && generatedOccurredAt.IsReadOnly);
-                Assert.Equal("Generated when validated", generatedEventId.Text);
-                Assert.Equal("Generated when validated", generatedOccurredAt.Text);
+                Assert.True(Guid.TryParse(generatedEventId.Text, out _));
+                Assert.True(DateTimeOffset.TryParse(generatedOccurredAt.Text, out _));
                 AssertFullyInside(generatedEventId, singleInputs, "generated EventId");
                 AssertFullyInside(generatedOccurredAt, singleInputs, "generated OccurredAt");
-                AssertFullyInside(validate, view, "single validation action");
                 AssertFullyInside(ByName<Button>(view, "ReviewButton"), view, "single review action");
             }, width, height);
         }

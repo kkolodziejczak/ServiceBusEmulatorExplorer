@@ -17,7 +17,7 @@ public sealed class MessageWorkbenchAssociationTests
     public void Add_association_uses_noneditable_dummy_destination_picker_and_disables_ambiguous_review()
         => Run((window, view) =>
         {
-            Get<Button>(view, "ValidateButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Drain(window);
             Assert.True(Get<Button>(view, "ReviewButton").IsEnabled);
 
             ChooseDestination(window, "inventory-events");
