@@ -1,7 +1,7 @@
 # Service Bus Emulator Explorer
 
 <p align="center">
-  <img src="docs/images/service-bus-emulator-explorer-icon.png" alt="Service Bus Emulator Explorer icon" width="140" />
+  <img src="docs/images/service-bus-emulator-explorer-icon.png" alt="Service Bus Emulator Explorer — bus spine and investigation lens icon" width="140" />
 </p>
 
 <p align="center">
