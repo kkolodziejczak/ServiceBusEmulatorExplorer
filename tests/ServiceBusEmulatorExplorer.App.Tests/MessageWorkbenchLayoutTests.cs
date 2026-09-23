@@ -32,6 +32,45 @@ public sealed class MessageWorkbenchLayoutTests
 
     [Fact]
     [Trait("TestCategory", "UiRender")]
+    public void Review_summary_fits_short_details_and_scrolls_a_thousand_message_ids()
+    {
+        RunOnSta((dispatcher, view, _) =>
+        {
+            ByName<Button>(view, "ContinueToPrepareButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            ByName<Button>(view, "ReviewButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            WaitForLayout(dispatcher);
+
+            var review = Assert.IsType<MessageLibraryPrototypeReviewSurface>(ByName<ContentControl>(view, "ReviewHost").Content);
+            var ids = ByName<TextBlock>(review, "ReviewMessageIds");
+            var details = ByName<TextBlock>(review, "ReviewPropertyDetails");
+            var idsScroll = Descendants<ScrollViewer>(review).Single(scroll => ReferenceEquals(scroll.Content, ids));
+            var detailsScroll = Descendants<ScrollViewer>(review).Single(scroll => ReferenceEquals(scroll.Content, details));
+            Assert.True(idsScroll.ScrollableHeight <= 1, "Three message IDs should fit without a scrollbar.");
+            Assert.True(detailsScroll.ScrollableHeight <= 1,
+                $"Default properties should fit without a scrollbar: extent={detailsScroll.ExtentHeight}, viewport={detailsScroll.ViewportHeight}, scrollable={detailsScroll.ScrollableHeight}, details={details.Text}.");
+
+            review.Configure("Local emulator", "order-events", 1000);
+            WaitForLayout(dispatcher);
+            Assert.True(idsScroll.ScrollableHeight > 0, "A thousand message IDs should scroll inside the summary.");
+            Assert.True(idsScroll.ActualHeight <= 161, "The message ID list must remain bounded.");
+            idsScroll.ScrollToEnd();
+            WaitForLayout(dispatcher);
+            Assert.True(idsScroll.VerticalOffset > 0, "The large ID list should actually scroll.");
+
+            review.SetReviewProperties("ignored", "inherit entity default",
+                string.Join("\n", Enumerable.Repeat("Application property: a long value to review", 30)));
+            WaitForLayout(dispatcher);
+            Assert.True(detailsScroll.ScrollableHeight > 0, "Long properties should scroll inside the summary.");
+            Assert.True(detailsScroll.ActualHeight <= 281, "The property list must remain bounded.");
+            detailsScroll.ScrollToEnd();
+            WaitForLayout(dispatcher);
+            Assert.True(detailsScroll.VerticalOffset > 0, "The long property list should actually scroll.");
+            AssertFullyInside(ByName<Button>(review, "ConfirmDispatch"), review, "review confirmation");
+        }, 1332, 843);
+    }
+
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
     public void Wizard_keeps_draft_and_preparation_state_when_moving_back_and_forward()
     {
         RunOnSta((dispatcher, view, _) =>
