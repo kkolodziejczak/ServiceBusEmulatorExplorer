@@ -1,0 +1,23 @@
+sequenceDiagram
+    participant User
+    participant App
+    participant Files
+    participant Broker
+    User->>App: Capture inspected message or open template
+    App->>User: Draft: body, properties, variables; no broker mutation
+    User->>App: Edit and Save
+    App->>Files: Write shared template; external Git handles sharing
+    User->>App: Choose single values or CSV and mapping
+    App->>Files: Read bounded input snapshot
+    App->>User: Validate all rows; freeze values and MessageIds
+    User->>App: Select destination and send/schedule mode
+    App->>Broker: Encoded-size preflight only; no send
+    App->>User: Review exact target, payloads, count and due time
+    User->>App: Confirm Send or Schedule
+    App->>Broker: Sequential send OR schedule at one common instant
+    Broker->>App: Acknowledged / failed / unknown; schedule receipts
+    App->>User: Per-row results; Stop leaves later rows unattempted
+    User->>App: Select eligible receipts; confirm cancellation
+    App->>Broker: Cancel sequentially against captured endpoint/entity
+    Broker->>App: Acknowledged / failed / unknown; activation may race
+    App->>User: Preserve dispatch plus attempt history; Export / View

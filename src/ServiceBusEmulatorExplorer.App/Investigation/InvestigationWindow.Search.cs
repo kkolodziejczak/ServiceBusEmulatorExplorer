@@ -38,6 +38,7 @@ public partial class InvestigationWindow
         ListToolbar.Visibility = search.IsActive ? Visibility.Collapsed : Visibility.Visible;
         NamespaceTree.ToolTip = search.IsActive ? "Counts show matching messages found so far. Clear search to restore entity totals." : null;
         NamespaceEmpty.Visibility = workspace.Surface.Roots.Any(node => node.IsVisible) ? Visibility.Collapsed : Visibility.Visible;
+        if (MessageLibraryPrototype.Visibility == Visibility.Visible) NamespaceEmpty.Visibility = Visibility.Collapsed;
         NamespaceEmpty.Text = search.IsActive ? search.IsBusy ? "Searching for matching entities…"
             : "No matching entities found in the scanned deliveries. Clear the search to show all entities."
             : "No matching entities. Clear the search to show all entities.";
@@ -57,6 +58,13 @@ public partial class InvestigationWindow
     private void Search_Changed(object sender, TextChangedEventArgs e)
     {
         if (!ready) return;
+        if (MessageLibraryPrototype.Visibility == Visibility.Visible)
+        {
+            FilterPrototypeNamespaces(SearchBox.Text);
+            ClearSearchButton.Visibility = SearchBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            SuggestionsPopup.IsOpen = false;
+            return;
+        }
         if (!workspace.Search.IsActive) workspace.Browse.FilterEntities(SearchBox.Text);
         ClearSearchButton.Visibility = workspace.Search.IsActive || SearchBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         UpdateSuggestions();
@@ -64,6 +72,13 @@ public partial class InvestigationWindow
 
     private void ClearSearch_Click(object sender, RoutedEventArgs e)
     {
+        if (MessageLibraryPrototype.Visibility == Visibility.Visible)
+        {
+            SearchBox.Clear();
+            PrototypeNamespaceTree.Focus();
+            SearchBox.Focus();
+            return;
+        }
         var wasSearch = workspace.Search.IsActive;
         inspectorSynchronizingSelection = true;
         try { workspace.Search.Clear(); }
@@ -85,6 +100,11 @@ public partial class InvestigationWindow
     private void UpdateSuggestions()
     {
         if (!ready) return;
+        if (MessageLibraryPrototype.Visibility == Visibility.Visible)
+        {
+            SuggestionsPopup.IsOpen = false;
+            return;
+        }
         suggestions.Track(workspace.Surface.Messages);
         var items = suggestions.Build(SearchBox.Text, workspace.Browse.AllEntities(), workspace.IsConnected).ToList();
         var view = new ListCollectionView(items);

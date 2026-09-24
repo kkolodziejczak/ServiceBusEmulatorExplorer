@@ -237,6 +237,24 @@ public partial class InvestigationWindow
         UpdateReplaySurface();
     }
 
+    private void SaveInspectedTemplate_Click(object sender, RoutedEventArgs e)
+    {
+        if (workspace.Inspector.Current is not { } current) return;
+        var source = current.Identity.Source;
+        string topic = source.TopicName ?? source.Name;
+        string sourceLabel = $"{source.Name} · {current.Identity.Bucket}";
+        var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Capture,
+            workspace.SelectedProfile.Connection.Name, topic, 1) { Owner = this };
+        MessageLibraryPrototype.ConfigureCaptureCollections(dialog);
+        dialog.SetCaptureSource(sourceLabel, workspace.Inspector.RawText,
+            workspace.Inspector.Document.Text, topic, current.Message);
+        if (dialog.ShowDialog() != true) return;
+        MessageLibraryPrototype.OpenCapturedDraft(dialog.CaptureTemplateName,
+            dialog.CaptureTemplateBody, dialog.CaptureTopic, dialog.CaptureCollectionName, dialog.CaptureProperties,
+            dialog.CaptureFileName.Text.Trim());
+        SelectWorkspaceTab(true);
+    }
+
     private void ApplyInspectorStateBadge(MessageRow? focused)
     {
         bool deadLetter = focused?.IsDeadLetter == true;

@@ -8,14 +8,14 @@ Production integration decisions approved on 2026-09-12 supersede the correspond
 
 ## Audit findings and current implementation
 
-The findings below describe the original audit baseline. The prototype now has a [shared style dictionary](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/SharedStyles.xaml), shared action templates, explicit button focus rings and normalized Settings profile/tab selection. Verify the complete affected surfaces before closing findings; code changes alone do not constitute a visual pass.
+The findings below describe the original audit baseline. The prototype has a [shared style dictionary](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/SharedStyles.xaml), shared action templates and normalized Settings profile/tab selection. The production app uses keyboard-only button focus cues so pointer clicks do not leave a frame. Verify the complete affected surfaces before closing findings; code changes alone do not constitute a visual pass.
 
 | Priority | Finding and evidence | Required correction |
 | --- | --- | --- |
 | P1 | White 14 DIPs labels on primary blue `#0078F8` have about 4.16:1 contrast; Settings `#087CF0` about 4.08:1. Hover opacity further reduces contrast. | Use one primary palette; proposed existing `#0069FA` provides about 4.77:1 with white. Verify hover/pressed too; do not fade the whole button. |
 | P2 | [Notification](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/WatchNotificationWindow.cs) uses native action-button templates and different default typography. | Share main-window typography, action styles and states; keep compact notification layout and rounded outer panel. |
 | P2 | [Settings](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/PrototypeSettingsWindow.xaml) has blue profile cards but gray native Connections selection; main tabs and Settings tabs have different selected fills. | Use one selection palette and explicit templates for tabs/lists across windows. |
-| P2 | Focus borders differ between controls; a color-only border trigger on a borderless icon button may be invisible. | Give every interactive control a visible, unclipped focus ring; verify keyboard navigation separately from logical focus. |
+| P2 | Focus borders differ between controls; a color-only border trigger on a borderless icon button may be invisible. | Give keyboard navigation a visible, unclipped focus cue without leaving a frame after pointer clicks; verify keyboard navigation separately from logical focus. |
 | P3 | Settings, Pause, Find related, Replay and Discard still use font glyphs. Watch/Refresh/Copy now use paths. | Replace remaining action glyphs with named vector assets in the same family, preserving recognizable meanings. |
 | P3 | Inspector title is 24 in XAML but 25 in code; Settings 22; notification summary 15 (its application title is 12). | Apply the role-based sizes below instead of one-off overrides. |
 | Tradeoff | At minimum size with the log expanded, only one full message row may be visible. | Keep the existing responsive layout for first promotion; explicitly test this tradeoff. Do not silently claim ample space at minimum size. |
@@ -49,6 +49,25 @@ Sizes below are WPF device-independent units (DIPs), not physical pixels. Use na
 | Viewports | Desktop 1500×1000; compact 1100×800; minimum window 980×640. Check 100%, 125%, 150%, 200% Windows scaling and multi-monitor movement. |
 
 Do not confuse glyph dimensions with hit targets. Keep Copy beside the correlation text. Preserve the crossed-out/filled Watch distinction and the selected rounded-copy shape. The app name/icon belongs in the native title bar, not a duplicate banner.
+
+## Component registry
+
+Read this registry before proposing or changing UI. Record every distinct new component or interaction concept here with its purpose, states, usage, canonical source, and approval status. A mockup or prototype is **Proposed** until the user approves the rendered behavior; update the entry and validate its links when that changes.
+
+| Component / status | Purpose, states, and usage | Canonical source |
+| --- | --- | --- |
+| Connection toolbar — Approved | Profile selection, health, Watch all and Settings; connected/disconnected/warning, focus and disabled states; shared window chrome | [Production window](../src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWindow.xaml) |
+| Namespace tree and search — Approved | Browse/search entities and show Messages/Scheduled/DLQ counts; selected, filtered, empty, loading and unavailable states; persistent left pane | [Production window](../src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWindow.xaml) |
+| Message inspector and JSON surface — Approved | Body/Properties/Raw inspection; dark Consolas surface, syntax colors, read-only/edited/invalid states; Investigation workspace | [Production window](../src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWindow.xaml) and [syntax colorizer](../src/ServiceBusEmulatorExplorer.App/Investigation/Inspection/JsonSyntaxColorizer.cs) |
+| Activity log and time footer — Approved | Expanded/collapsed log, UTC/Local and status; full-window footer | [Production window](../src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWindow.xaml) |
+| Buttons, tabs, focus, palette and scrollbars — Approved | Normal/hover/pressed/focused/selected/disabled, profile accent and dark editor palette; all WPF surfaces. Buttons and button-like toggles show a bottom focus cue for keyboard navigation but no lingering frame after pointer clicks. | [Shared styles](../src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SharedStyles.xaml) |
+| Tables and property actions — Approved refinement (2026-09-22) | Center headers and cell values horizontally and vertically across live app tables; white rows, existing header tint, profile-tinted hover/selection including inactive selection, visible focus, centered editors; preserve row density and semantic badges. Workbench Properties provides Add property and Delete selected; deletion is unavailable without selection. Reply and routing starts collapsed. | [Approved refinement](message-library/design/approved/07-table-properties-refinement.png) and [shared styles](../src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SharedStyles.xaml) |
+| Message Workbench workspace — Approved mockup plan, not implemented | One-row Workspaces switcher on the left; connection state then profile selector, Watch all and Settings on the right; namespace Search carries topic filtering; four panes and Scheduled counts remain | [Approved workspace mockup](message-library/design/approved/01-message-workbench.png) and [visual contract](message-library/design/README.md) |
+| Message Workbench in-memory prototype — Approved dummy-data prototype | Persistent Namespaces and templates panes, with template search styled like Namespaces search. Compose → Prepare → Review & send wizard in the main pane; Back retains authoring and preparation state. Editing automatically refreshes CSV or single-message validation and preview; review cards fill the wide stage and stage actions reuse shared button styles. Review lists show short content fully and scroll within bounded areas for large batches or long details, while confirmation stays visible. Simulated send/schedule, results and cancellation use synthetic data only, with no template persistence or broker transport. Active, disabled, invalid, progress and results states are visible in their stages. | [Prototype view](../src/ServiceBusEmulatorExplorer.App/Investigation/MessageLibraryPrototypeView.xaml), [review surface](../src/ServiceBusEmulatorExplorer.App/Investigation/MessageLibraryPrototypeReviewSurface.xaml), and [approved wizard images](message-library/design/approved/08-wizard-compose.png) |
+
+The [five-board Message Workbench contract](message-library/design/README.md) remains the approved feature baseline. The in-app prototype is deliberately synthetic and does not authorize repository-backed templates, compilation, CSV transport, or broker send/schedule/cancel behavior.
+
+The table refinement supersedes earlier left-aligned table examples. Its generated crop illustrates alignment, selection and action placement; existing flat color resources, fonts and row heights remain authoritative over image scaling or generation artifacts. Centering applies to tables, not free-form JSON/text editors or namespace trees.
 
 ## State contract and visual gate
 

@@ -2,6 +2,7 @@ using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
 using FlaUI.Core;
 using FlaUI.Core.AutomationElements;
+using FlaUI.Core.Capturing;
 using FlaUI.Core.Definitions;
 using FlaUI.UIA3;
 using ServiceBusEmulatorExplorer.UiSmoke.Tests.Infrastructure;
@@ -96,6 +97,311 @@ public sealed class MainWindowSmokeTests
                 Directory.Delete(directory);
         }
 
+        await Task.CompletedTask;
+    }
+
+    [UiSmokeFact]
+    [Trait("TestCategory", "UiSmoke")]
+    public async Task Message_library_prototype_supports_an_in_memory_prepare_and_review_flow()
+    {
+        string executablePath = WpfAppPath.Resolve();
+        Assert.True(File.Exists(executablePath), $"Build the WPF app before running UI smoke tests. Missing: {executablePath}");
+
+        string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
+            Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        using Application application = Application.Launch(executablePath,
+            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+        using var automation = new UIA3Automation();
+
+        try
+        {
+            Window window = WaitForMainWindowWithAutomationId(
+                application,
+                automation,
+                "ConnectionButton",
+                TimeSpan.FromSeconds(15));
+
+            window.Patterns.Transform.Pattern.Resize(1642, 958);
+            Assert.True(SpinWait.SpinUntil(() =>
+                Math.Abs(window.BoundingRectangle.Width - 1642) < 3 &&
+                Math.Abs(window.BoundingRectangle.Height - 958) < 3,
+                TimeSpan.FromSeconds(5)), "The main window did not reach the approved wide viewport.");
+
+            AutomationElement libraryTab = WaitForAutomationId(window, "MessageLibraryTab", TimeSpan.FromSeconds(5));
+            if (libraryTab.Patterns.Toggle.Pattern.ToggleState != ToggleState.On)
+                libraryTab.Patterns.Toggle.Pattern.Toggle();
+            WaitForAutomationId(window, "LibrarySearch", TimeSpan.FromSeconds(5));
+            CapturePrototypeState(window, "workbench-wide");
+
+            InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
+            Assert.False(WaitForAutomationId(window, "LibraryValidationDetails", TimeSpan.FromSeconds(5)).IsEnabled);
+
+            InvokeButton(window, "LibraryMapColumns", TimeSpan.FromSeconds(5));
+            Window mapping = WaitForWindowWithAutomationId(application, automation,
+                "PrototypeApplyMapping", TimeSpan.FromSeconds(5));
+            Assert.NotNull(WaitForText(mapping, "Map CSV inputs", TimeSpan.FromSeconds(5)));
+            CapturePrototypeState(mapping, "map-csv-inputs");
+            InvokeButton(mapping, "PrototypeApplyMapping", TimeSpan.FromSeconds(5));
+
+            WaitForAutomationId(window, "LibrarySingleMode", TimeSpan.FromSeconds(5)).Patterns.SelectionItem.Pattern.Select();
+            WaitForAutomationId(window, "LibraryCustomerId", TimeSpan.FromSeconds(5));
+            AutomationElement review = WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5));
+            Assert.True(SpinWait.SpinUntil(() => review.IsEnabled, TimeSpan.FromSeconds(5)));
+            review = WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5));
+            Assert.True(review.IsEnabled);
+            Assert.Equal("Review 1 message", review.Name);
+
+            InvokeButton(window, "LibraryReview", TimeSpan.FromSeconds(5));
+            Assert.NotNull(WaitForText(window, "Review 1 message", TimeSpan.FromSeconds(5)));
+            CapturePrototypeState(window, "review-single-message");
+            InvokeButton(window, "PrototypeConfirmDispatch", TimeSpan.FromSeconds(5));
+            WaitForAutomationId(window, "PrototypeRunResults", TimeSpan.FromSeconds(5));
+            Assert.NotNull(WaitForText(window, "Confirmed sent", TimeSpan.FromSeconds(5)));
+            CapturePrototypeState(window, "run-results");
+            InvokeButton(window, "PrototypeViewDestination", TimeSpan.FromSeconds(5));
+            InvokeButton(window, "LibraryViewRunResults", TimeSpan.FromSeconds(5));
+            Assert.NotNull(WaitForText(window, "Confirmed sent", TimeSpan.FromSeconds(5)));
+        }
+        finally
+        {
+            CloseApplication(application);
+            Assert.True(SpinWait.SpinUntil(() => application.HasExited, TimeSpan.FromSeconds(5)),
+                "The prototype smoke application did not exit during cleanup.");
+            if (File.Exists(profilePath)) File.Delete(profilePath);
+            string directory = Path.GetDirectoryName(profilePath)!;
+            if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                Directory.Delete(directory);
+        }
+
+        await Task.CompletedTask;
+    }
+
+    [UiSmokeFact]
+    [Trait("TestCategory", "UiSmoke")]
+    public async Task Message_library_prototype_filters_topics_and_requires_an_explicit_unassociated_destination()
+    {
+        string executablePath = WpfAppPath.Resolve();
+        string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
+            Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        using Application application = Application.Launch(executablePath,
+            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+        using var automation = new UIA3Automation();
+        try
+        {
+            Window window = WaitForMainWindowWithAutomationId(application, automation,
+                "ConnectionButton", TimeSpan.FromSeconds(15));
+            AutomationElement libraryTab = WaitForAutomationId(window, "MessageLibraryTab", TimeSpan.FromSeconds(5));
+            if (libraryTab.Patterns.Toggle.Pattern.ToggleState != ToggleState.On)
+                libraryTab.Patterns.Toggle.Pattern.Toggle();
+            WaitForAutomationId(window, "LibraryTree", TimeSpan.FromSeconds(5));
+
+            AutomationElement unassociated = WaitForText(window, "Unassociated sample", TimeSpan.FromSeconds(5));
+            FindAncestor(unassociated, ControlType.ListItem).Patterns.SelectionItem.Pattern.Select();
+            InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
+            Assert.False(WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled);
+            InvokeButton(window, "LibraryChooseDestination", TimeSpan.FromSeconds(5));
+            Window picker = WaitForWindowWithAutomationId(application, automation,
+                "PrototypeApplyDestination", TimeSpan.FromSeconds(5));
+            InvokeButton(picker, "PrototypeApplyDestination", TimeSpan.FromSeconds(5));
+            Assert.True(SpinWait.SpinUntil(() => WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled,
+                TimeSpan.FromSeconds(5)));
+
+            SetText(window, "SearchBox", "inventory-events");
+            Assert.NotNull(WaitForText(window, "Stock reserved", TimeSpan.FromSeconds(5)));
+            Assert.Null(window.FindFirstDescendant(cf => cf.ByText("Order reply")));
+            SetText(window, "SearchBox", "");
+            Assert.NotNull(WaitForText(window, "Order reply", TimeSpan.FromSeconds(5)));
+            SetText(window, "SearchBox", "billing");
+            Assert.NotNull(WaitForText(window, "Order created", TimeSpan.FromSeconds(5)));
+            Assert.Null(window.FindFirstDescendant(cf => cf.ByText("Stock reserved")));
+            SetText(window, "SearchBox", "");
+            Assert.NotNull(WaitForText(window, "Stock reserved", TimeSpan.FromSeconds(5)));
+        }
+        finally
+        {
+            CloseApplication(application);
+            if (File.Exists(profilePath)) File.Delete(profilePath);
+            string directory = Path.GetDirectoryName(profilePath)!;
+            if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                Directory.Delete(directory);
+        }
+        await Task.CompletedTask;
+    }
+
+    [UiSmokeFact]
+    [Trait("TestCategory", "UiSmoke")]
+    public async Task Message_library_prototype_schedules_and_exposes_cancellation_results()
+    {
+        string executablePath = WpfAppPath.Resolve();
+        string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
+            Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        using Application application = Application.Launch(executablePath,
+            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+        using var automation = new UIA3Automation();
+        try
+        {
+            Window window = WaitForMainWindowWithAutomationId(application, automation,
+                "ConnectionButton", TimeSpan.FromSeconds(15));
+            AutomationElement libraryTab = WaitForAutomationId(window, "MessageLibraryTab", TimeSpan.FromSeconds(5));
+            if (libraryTab.Patterns.Toggle.Pattern.ToggleState != ToggleState.On)
+                libraryTab.Patterns.Toggle.Pattern.Toggle();
+            InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
+            Assert.True(SpinWait.SpinUntil(() => WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled,
+                TimeSpan.FromSeconds(5)));
+            InvokeButton(window, "LibraryReview", TimeSpan.FromSeconds(5));
+            WaitForAutomationId(window, "PrototypeScheduleLater", TimeSpan.FromSeconds(5))
+                .Patterns.SelectionItem.Pattern.Select();
+            Assert.Equal("Schedule 3 messages", WaitForAutomationId(window,
+                "PrototypeConfirmDispatch", TimeSpan.FromSeconds(5)).Name);
+            InvokeButton(window, "PrototypeConfirmDispatch", TimeSpan.FromSeconds(5));
+            WaitForAutomationId(window, "PrototypeRunResults", TimeSpan.FromSeconds(8));
+            Assert.NotNull(WaitForText(window, "Confirmed scheduled", TimeSpan.FromSeconds(5)));
+            InvokeButton(window, "PrototypeShowCancellation", TimeSpan.FromSeconds(5));
+            WaitForAutomationId(window, "PrototypeScheduledResults", TimeSpan.FromSeconds(5));
+        }
+        finally
+        {
+            CloseApplication(application);
+            if (File.Exists(profilePath)) File.Delete(profilePath);
+            string directory = Path.GetDirectoryName(profilePath)!;
+            if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                Directory.Delete(directory);
+        }
+        await Task.CompletedTask;
+    }
+
+    [UiSmokeFact]
+    [Trait("TestCategory", "UiSmoke")]
+    public async Task Message_library_prototype_blocks_an_invalid_csv_batch_and_shows_row_errors()
+    {
+        string executablePath = WpfAppPath.Resolve();
+        string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
+            Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        using Application application = Application.Launch(executablePath,
+            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+        using var automation = new UIA3Automation();
+        try
+        {
+            Window window = WaitForMainWindowWithAutomationId(application, automation,
+                "ConnectionButton", TimeSpan.FromSeconds(15));
+            AutomationElement libraryTab = WaitForAutomationId(window, "MessageLibraryTab", TimeSpan.FromSeconds(5));
+            if (libraryTab.Patterns.Toggle.Pattern.ToggleState != ToggleState.On)
+                libraryTab.Patterns.Toggle.Pattern.Toggle();
+            InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
+            InvokeButton(window, "LibraryBrowseCsv", TimeSpan.FromSeconds(5));
+            Window picker = WaitForWindowWithAutomationId(application, automation,
+                "PrototypeUseSampleCsv", TimeSpan.FromSeconds(5));
+            WaitForAutomationId(picker, "PrototypeSampleCsvPicker", TimeSpan.FromSeconds(5))
+                .AsComboBox().Select("orders-invalid.csv — row 2 amount is abc");
+            InvokeButton(picker, "PrototypeUseSampleCsv", TimeSpan.FromSeconds(5));
+            Assert.False(WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled);
+            Assert.NotNull(WaitForText(window, "1 invalid row · Nothing can be sent", TimeSpan.FromSeconds(5)));
+            InvokeButton(window, "LibraryValidationDetails", TimeSpan.FromSeconds(5));
+            Window errors = WaitForWindowWithAutomationId(application, automation,
+                "PrototypeValidationResults", TimeSpan.FromSeconds(5));
+            Assert.NotNull(WaitForText(errors, "Expected number, got abc", TimeSpan.FromSeconds(5)));
+        }
+        finally
+        {
+            CloseApplication(application);
+            if (File.Exists(profilePath)) File.Delete(profilePath);
+            string directory = Path.GetDirectoryName(profilePath)!;
+            if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                Directory.Delete(directory);
+        }
+        await Task.CompletedTask;
+    }
+
+    [UiSmokeFact]
+    [Trait("TestCategory", "UiSmoke")]
+    public async Task Message_library_keeps_saved_properties_with_their_template()
+    {
+        string executablePath = WpfAppPath.Resolve();
+        string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
+            Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        using Application application = Application.Launch(executablePath,
+            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+        using var automation = new UIA3Automation();
+        try
+        {
+            Window window = WaitForMainWindowWithAutomationId(application, automation,
+                "ConnectionButton", TimeSpan.FromSeconds(15));
+            AutomationElement libraryTab = WaitForAutomationId(window, "MessageLibraryTab", TimeSpan.FromSeconds(5));
+            if (libraryTab.Patterns.Toggle.Pattern.ToggleState != ToggleState.On)
+                libraryTab.Patterns.Toggle.Pattern.Toggle();
+            InvokeButton(window, "LibraryEditorProperties", TimeSpan.FromSeconds(5));
+            var routing = WaitForAutomationId(window, "LibraryReplyRouting", TimeSpan.FromSeconds(5));
+            Assert.Equal(ExpandCollapseState.Collapsed, routing.Patterns.ExpandCollapse.Pattern.ExpandCollapseState);
+            var propertyGrid = WaitForAutomationId(window, "LibraryApplicationProperties", TimeSpan.FromSeconds(5));
+            int originalPropertyCount = propertyGrid.Patterns.Grid.Pattern.RowCount;
+            var deleteProperty = WaitForAutomationId(window, "LibraryDeleteSelectedProperty", TimeSpan.FromSeconds(5));
+            Assert.False(deleteProperty.IsEnabled);
+            InvokeButton(window, "LibraryAddProperty", TimeSpan.FromSeconds(5));
+            Assert.Equal(originalPropertyCount + 1, propertyGrid.Patterns.Grid.Pattern.RowCount);
+            Assert.True(deleteProperty.IsEnabled);
+            InvokeButton(window, "LibraryDeleteSelectedProperty", TimeSpan.FromSeconds(5));
+            Assert.Equal(originalPropertyCount, propertyGrid.Patterns.Grid.Pattern.RowCount);
+            Assert.False(deleteProperty.IsEnabled);
+            SetText(window, "LibrarySubject", "OrderCreatedEdited");
+            InvokeButton(window, "LibrarySave", TimeSpan.FromSeconds(5));
+
+            FindAncestor(WaitForText(window, "Order updated", TimeSpan.FromSeconds(5)),
+                ControlType.ListItem).Patterns.SelectionItem.Pattern.Select();
+            InvokeButton(window, "LibraryEditorProperties", TimeSpan.FromSeconds(5));
+            Assert.Equal("OrderCreated", WaitForAutomationId(window, "LibrarySubject",
+                TimeSpan.FromSeconds(5)).Patterns.Value.Pattern.Value);
+
+            FindAncestor(WaitForText(window, "Order created", TimeSpan.FromSeconds(5)),
+                ControlType.ListItem).Patterns.SelectionItem.Pattern.Select();
+            InvokeButton(window, "LibraryEditorProperties", TimeSpan.FromSeconds(5));
+            Assert.Equal("OrderCreatedEdited", WaitForAutomationId(window, "LibrarySubject",
+                TimeSpan.FromSeconds(5)).Patterns.Value.Pattern.Value);
+        }
+        finally
+        {
+            CloseApplication(application);
+            if (File.Exists(profilePath)) File.Delete(profilePath);
+            string directory = Path.GetDirectoryName(profilePath)!;
+            if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                Directory.Delete(directory);
+        }
+        await Task.CompletedTask;
+    }
+
+    [UiSmokeFact]
+    [Trait("TestCategory", "UiSmoke")]
+    public async Task Message_library_compact_layout_keeps_both_trees_and_switches_author_prepare()
+    {
+        string executablePath = WpfAppPath.Resolve();
+        string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
+            Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        using Application application = Application.Launch(executablePath,
+            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+        using var automation = new UIA3Automation();
+        try
+        {
+            Window window = WaitForMainWindowWithAutomationId(application, automation,
+                "ConnectionButton", TimeSpan.FromSeconds(15));
+            window.Patterns.Transform.Pattern.Resize(980, 640);
+            AutomationElement libraryTab = WaitForAutomationId(window, "MessageLibraryTab", TimeSpan.FromSeconds(5));
+            if (libraryTab.Patterns.Toggle.Pattern.ToggleState != ToggleState.On)
+                libraryTab.Patterns.Toggle.Pattern.Toggle();
+            WaitForAutomationId(window, "PrototypeNamespaceTree", TimeSpan.FromSeconds(5));
+            WaitForAutomationId(window, "LibraryTree", TimeSpan.FromSeconds(5));
+            Assert.False(WaitForAutomationId(window, "LibraryAuthorEditor", TimeSpan.FromSeconds(5)).IsOffscreen);
+            InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
+            Assert.False(WaitForAutomationId(window, "LibraryMapColumns", TimeSpan.FromSeconds(5)).IsOffscreen);
+            Assert.True(SpinWait.SpinUntil(() => WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled,
+                TimeSpan.FromSeconds(5)));
+        }
+        finally
+        {
+            CloseApplication(application);
+            if (File.Exists(profilePath)) File.Delete(profilePath);
+            string directory = Path.GetDirectoryName(profilePath)!;
+            if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                Directory.Delete(directory);
+        }
         await Task.CompletedTask;
     }
 
@@ -846,6 +1152,15 @@ public sealed class MainWindowSmokeTests
     {
         AutomationElement textBox = WaitForAutomationId(window, automationId, TimeSpan.FromSeconds(5));
         textBox.Patterns.Value.Pattern.SetValue(text);
+    }
+
+    private static void CapturePrototypeState(Window window, string name)
+    {
+        string? directory = Environment.GetEnvironmentVariable("SBE_UI_CAPTURE_DIR");
+        if (string.IsNullOrWhiteSpace(directory)) return;
+        Directory.CreateDirectory(directory);
+        using var capture = Capture.Element(window);
+        capture.ToFile(Path.Combine(directory, name + ".png"));
     }
 
     private static void InvokeButton(Window window, string automationId, TimeSpan timeout)
