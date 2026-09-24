@@ -52,12 +52,9 @@ public partial class MessageLibraryPrototypeView
                             $"Variable '{variable.Name}' requires a default value before this message can be reviewed.");
                 }
 
-                string body = ExpandTemplate(currentBody, values, textMode);
-                if (!textMode)
-                {
-                    using var json = JsonDocument.Parse(body);
-                    body = JsonSerializer.Serialize(json.RootElement, new JsonSerializerOptions { WriteIndented = true });
-                }
+                string body = ExpandTemplate(currentBody, values);
+                using var json = JsonDocument.Parse(body);
+                body = JsonSerializer.Serialize(json.RootElement, new JsonSerializerOptions { WriteIndented = true });
                 prepared.Add(new PrototypePreparedMessage(row.Row, messageId, eventId, occurredAt, body)
                 {
                     VariableValues = values
@@ -99,14 +96,13 @@ public partial class MessageLibraryPrototypeView
             Contains(PropertyReplySessionId.Text) || Contains(PropertyPartitionKey.Text);
     }
 
-    private string ExpandTemplate(string template, IReadOnlyDictionary<string, string> values, bool plainText)
+    private string ExpandTemplate(string template, IReadOnlyDictionary<string, string> values)
     {
         return VariableToken.Replace(template, match =>
         {
             string name = match.Groups["name"].Value;
             if (!values.TryGetValue(name, out string? value))
                 throw new PrototypePreparationException($"Variable '{name}' is not declared.");
-            if (plainText) return value;
             if (string.Equals(name, "Amount", StringComparison.OrdinalIgnoreCase) ||
                 variables.FirstOrDefault(variable => variable.Name.Equals(name, StringComparison.OrdinalIgnoreCase))?.Type == "number")
                 return value;

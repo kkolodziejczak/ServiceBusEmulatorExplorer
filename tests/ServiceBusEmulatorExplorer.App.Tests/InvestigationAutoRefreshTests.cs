@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Threading;
+using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Automation.Peers;
 using System.Windows.Automation.Provider;
@@ -100,6 +101,87 @@ public sealed class InvestigationAutoRefreshTests
         Assert.Equal(TimeSpan.FromSeconds(30), fixture.Timer.Interval);
     });
 
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void WorkbenchUsesLiveBrowseTreeAndRefreshesWhileInvestigationSearchIsPreserved() => OnSta(() =>
+    {
+        using var fixture = new Fixture();
+        var tree = (TreeView)fixture.Window.FindName("NamespaceTree");
+        Assert.Null(fixture.Window.FindName("PrototypeNamespaceTree"));
+        ((TextBox)fixture.Window.FindName("SearchBox")).Text = "checkout";
+        Complete(fixture.Workspace.Search.StartAsync("checkout"));
+        Assert.True(fixture.Workspace.Search.IsActive);
+        Assert.False(fixture.Timer.IsEnabled);
+
+        int discoveries = fixture.Browser.Discoveries;
+        OpenWorkbench(fixture.Window);
+        Assert.Same(fixture.Workspace.Browse.Roots, tree.ItemsSource);
+        Assert.True(fixture.Workspace.Search.IsActive);
+        Assert.True(fixture.Timer.IsEnabled);
+        Assert.Equal("", ((TextBox)fixture.Window.FindName("SearchBox")).Text);
+        fixture.Workspace.Browse.ApplySnapshot(Browser.Snapshot(42));
+        Assert.Equal("42", fixture.Workspace.Browse.AllEntities().Single().DisplayMessageCount);
+
+        typeof(InvestigationWindow).GetMethod("RefreshTimerTick", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(fixture.Window, [null, EventArgs.Empty]);
+        Wait(() => fixture.Browser.Discoveries > discoveries);
+
+        ((System.Windows.Controls.Primitives.ToggleButton)fixture.Window.FindName("InvestigationWorkspaceTab")).IsChecked = true;
+        Assert.Same(fixture.Workspace.Search.Roots, tree.ItemsSource);
+        Assert.True(fixture.Workspace.Search.IsActive);
+        Assert.Equal("checkout", ((TextBox)fixture.Window.FindName("SearchBox")).Text);
+        Assert.False(fixture.Timer.IsEnabled);
+    });
+
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void DisconnectedWorkbenchUsesLabeledSampleNodesOutsideLiveBrowseRoots() => OnSta(() =>
+    {
+        using var fixture = new Fixture();
+        Complete(fixture.Workspace.DisconnectAsync());
+        Assert.Empty(fixture.Workspace.Browse.Roots);
+        var tree = (TreeView)fixture.Window.FindName("NamespaceTree");
+        OpenWorkbench(fixture.Window);
+
+        Assert.NotSame(fixture.Workspace.Browse.Roots, tree.ItemsSource);
+        Assert.Equal(2, tree.Items.Count);
+        Assert.Contains("Sample entities", ((TextBlock)fixture.Window.FindName("NamespaceModeLabel")).Text);
+        var sampleQueue = ((EntityNode)tree.Items[0]).Children.Single();
+        Assert.Equal("order-replies", sampleQueue.Name);
+        Assert.Equal("", sampleQueue.DisplayMessageCount);
+        Assert.Empty(fixture.Workspace.Browse.Roots);
+        typeof(InvestigationWindow).GetMethod("ApplyWorkbenchTemplateAssociations", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(fixture.Window, [new[] { "inventory-events" }]);
+        var sampleTopic = ((EntityNode)tree.Items[1]).Children.Single(node => node.Name == "inventory-events");
+        Assert.False(((EntityNode)tree.Items[0]).IsVisible);
+        Assert.True(sampleTopic.IsVisible);
+
+        ((System.Windows.Controls.Primitives.ToggleButton)fixture.Window.FindName("InvestigationWorkspaceTab")).IsChecked = true;
+        Assert.Same(fixture.Workspace.Surface.Roots, tree.ItemsSource);
+    });
+
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void WorkbenchEntitySelectionFiltersNamespaceWithoutRetargetingAnUnrelatedTemplate() => OnSta(() =>
+    {
+        using var fixture = new Fixture();
+        OpenWorkbench(fixture.Window);
+        var tree = (TreeView)fixture.Window.FindName("NamespaceTree");
+        var entity = fixture.Workspace.Browse.AllEntities().Single();
+        var args = new RoutedPropertyChangedEventArgs<object>(new object(), entity, TreeView.SelectedItemChangedEvent);
+        typeof(InvestigationWindow).GetMethod("Tree_Selected", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(fixture.Window, [tree, args]);
+
+        var view = (MessageLibraryPrototypeView)fixture.Window.FindName("MessageLibraryPrototype");
+        Assert.Equal("orders", ((TextBox)fixture.Window.FindName("SearchBox")).Text);
+        Assert.Equal("Send to: Choose destination", ((TextBlock)view.FindName("DestinationText")).Text);
+
+        Complete(fixture.Workspace.DisconnectAsync());
+        Assert.Contains("Sample entities", ((TextBlock)fixture.Window.FindName("NamespaceModeLabel")).Text);
+        Assert.Equal(2, tree.Items.Count);
+        Assert.True(((EntityNode)tree.Items[0]).IsVisible);
+    });
+
     private sealed class Fixture : IDisposable
     {
         public Browser Browser { get; } = new();
@@ -154,6 +236,9 @@ public sealed class InvestigationAutoRefreshTests
     private static void Invoke(Button button) => ((IInvokeProvider)UIElementAutomationPeer.CreatePeerForElement(button)!
         .GetPattern(PatternInterface.Invoke)).Invoke();
 
+    private static void OpenWorkbench(InvestigationWindow window) =>
+        ((System.Windows.Controls.Primitives.ToggleButton)window.FindName("MessageLibraryTab")).IsChecked = true;
+
     private sealed class Store : IWorkspacePreferencesStore
     {
         private WorkspacePreferences value = new()
@@ -171,10 +256,10 @@ public sealed class InvestigationAutoRefreshTests
         public int Discoveries { get; private set; }
         public Task<EntityDiscoverySnapshot> DiscoverAsync(CancellationToken cancellationToken)
         { Discoveries++; return Task.FromResult(Snapshot()); }
-        public static EntityDiscoverySnapshot Snapshot() => new([new EntityObservation(
+        public static EntityDiscoverySnapshot Snapshot(long activeCount = 0) => new([new EntityObservation(
             new ServiceBusEntityNode(EntityKind.Queue, "orders", null, new(0, 0, 0, 0),
                 new("orders", "Active", null, null, null, null, null, null, null)),
-            new(new(0, CountAvailability.Known), new(0, CountAvailability.Known), new(0, CountAvailability.Known)))],
+            new(new(activeCount, CountAvailability.Known), new(0, CountAvailability.Known), new(0, CountAvailability.Known)))],
             DateTimeOffset.UtcNow, true, []);
     }
 

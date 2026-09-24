@@ -24,36 +24,21 @@ public partial class InvestigationWindow : Window
     private bool initializingWindow;
     private bool resizedDuringInitialize;
     private string investigationSearchText = "";
+    private readonly EntityNode[] sampleNamespaceRoots = CreateSampleNamespaceRoots();
+    private IReadOnlyList<string>? workbenchAssociationPaths;
+    private bool lastNamespaceConnectionState;
 
     public InvestigationWindow(InvestigationWorkspace workspace)
     {
         this.workspace = workspace;
         InitializeComponent();
+        lastNamespaceConnectionState = workspace.IsConnected;
         MessageLibraryPrototype.TemplateContextRequested += topic =>
         {
             if (MessageLibraryPrototype.Visibility == Visibility.Visible)
                 SearchBox.Text = topic ?? "";
         };
-        MessageLibraryPrototype.TemplateAssociationsRequested += paths =>
-        {
-            if (MessageLibraryPrototype.Visibility != Visibility.Visible) return;
-            SearchBox.Text = "";
-            foreach (TreeViewItem group in PrototypeNamespaceTree.Items)
-            {
-                bool hasVisibleEntity = false;
-                foreach (TreeViewItem entity in group.Items)
-                {
-                    string path = ((string)entity.Tag)[(((string)entity.Tag).IndexOf(':') + 1)..];
-                    bool visible = paths.Contains(path, StringComparer.OrdinalIgnoreCase);
-                    entity.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
-                    hasVisibleEntity |= visible;
-                    foreach (TreeViewItem child in entity.Items)
-                        child.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
-                }
-                group.Visibility = hasVisibleEntity ? Visibility.Visible : Visibility.Collapsed;
-            }
-            MessageLibraryPrototype.FilterByTemplateAssociations(paths);
-        };
+        MessageLibraryPrototype.TemplateAssociationsRequested += ApplyWorkbenchTemplateAssociations;
         DataContext = workspace.Surface;
         workspace.ConfirmWarning = profile => Task.FromResult(new ProfileWarningWindow(profile.Connection.Name,
             profile.WarningMessage, profile.ColorHex) { Owner = this }.ShowDialog() == true);
@@ -124,6 +109,9 @@ public partial class InvestigationWindow : Window
             UpdateSearchSurface();
             UpdateWatchSurface();
             UpdateReplaySurface();
+            UpdateNamespaceTreeSource();
+            if (MessageLibraryPrototype.Visibility == Visibility.Visible)
+                FilterWorkbenchNamespaces(SearchBox.Text);
         }
         finally { updating = false; }
     }
@@ -144,6 +132,9 @@ public partial class InvestigationWindow : Window
         EmptyMessage.Text = workspace.Surface.IsBusy ? "Loading messages…" : workspace.IsConnected ? "No messages in this view" : "Connect to browse messages";
         EmptyDescription.Text = workspace.Surface.IsBusy ? "Reading without consuming messages." : "";
         EmptyClearButton.Visibility = Visibility.Collapsed;
+        UpdateNamespaceTreeSource();
+        if (MessageLibraryPrototype.Visibility == Visibility.Visible)
+            FilterWorkbenchNamespaces(SearchBox.Text);
         UpdateSearchSurface();
         UpdateInspector();
     }
@@ -184,63 +175,148 @@ public partial class InvestigationWindow : Window
             MessageLibraryTab.IsChecked = library;
             ContentGrid.Visibility = library ? Visibility.Collapsed : Visibility.Visible;
             MessageLibraryPrototype.Visibility = library ? Visibility.Visible : Visibility.Collapsed;
-            NamespaceTree.Visibility = library ? Visibility.Collapsed : Visibility.Visible;
-            PrototypeNamespaceTree.Visibility = library ? Visibility.Visible : Visibility.Collapsed;
+            NamespaceTree.Visibility = Visibility.Visible;
+            SearchPlaceholder.Text = library ? "Search namespaces" : "Entities, correlation or message ID";
+            SearchBox.ToolTip = library ? "Search namespace entities and filter associated templates" :
+                "Search entities, correlation IDs or message IDs across this connection";
+            System.Windows.Automation.AutomationProperties.SetName(SearchBox,
+                library ? "Search namespace entities" : "Search all entities and messages");
+            NamespaceModeLabel.Visibility = library && !workspace.IsConnected ? Visibility.Visible : Visibility.Collapsed;
+            NamespaceModeLabel.Text = library && !workspace.IsConnected
+                ? "Sample entities · offline; live counts are unavailable"
+                : "";
+            workbenchAssociationPaths = null;
+            UpdateNamespaceTreeSource();
             UpdateWorkspaceColumns();
             NamespaceEmpty.Visibility = library ? Visibility.Collapsed : NamespaceEmpty.Visibility;
             if (enteringLibrary) SearchBox.Text = "";
-            if (leavingLibrary) SearchBox.Text = investigationSearchText;
-            if (library) FilterPrototypeNamespaces(SearchBox.Text);
+            if (leavingLibrary)
+            {
+                SearchBox.Text = investigationSearchText;
+                workspace.Browse.FilterEntities(workspace.Search.IsActive ? "" : investigationSearchText);
+            }
+            if (library) FilterWorkbenchNamespaces(SearchBox.Text);
+            ConfigureRefresh();
+            UpdateSearchSurface();
         }
         finally { synchronizingWorkspaceTabs = false; }
     }
 
-    private void PrototypeNamespace_Selected(object sender, RoutedPropertyChangedEventArgs<object> e)
+    private void UpdateNamespaceTreeSource()
     {
-        if (MessageLibraryPrototype is null || e.NewValue is not TreeViewItem { Tag: string identity }) return;
-        string path = identity[(identity.IndexOf(':') + 1)..];
-        if (identity.StartsWith("subscription:", StringComparison.Ordinal)) path = path.Split('/')[0];
-        SearchBox.Text = path;
-        MessageLibraryPrototype.SelectEntityContext(identity);
+        if (NamespaceTree is null || MessageLibraryPrototype is null) return;
+        bool library = MessageLibraryPrototype.Visibility == Visibility.Visible;
+        bool disconnected = lastNamespaceConnectionState && !workspace.IsConnected;
+        lastNamespaceConnectionState = workspace.IsConnected;
+        IEnumerable<EntityNode> roots = library
+            ? workspace.IsConnected ? workspace.Browse.Roots : sampleNamespaceRoots
+            : workspace.Surface.Roots;
+        var source = roots as object;
+        if (!ReferenceEquals(NamespaceTree.ItemsSource, source)) NamespaceTree.ItemsSource = roots;
+        if (library && disconnected)
+        {
+            workbenchAssociationPaths = null;
+            SearchBox.Clear();
+            MessageLibraryPrototype.SelectEntityContext("topic:order-events");
+        }
+        NamespaceModeLabel.Visibility = library && !workspace.IsConnected ? Visibility.Visible : Visibility.Collapsed;
+        NamespaceModeLabel.Text = library && !workspace.IsConnected
+            ? "Sample entities · offline; live counts are unavailable"
+            : "";
     }
 
-    private void FilterPrototypeNamespaces(string query)
+    internal void ApplyWorkbenchTemplateAssociations(IReadOnlyList<string> paths)
     {
-        if (PrototypeNamespaceTree is null || MessageLibraryPrototype is null) return;
-        foreach (TreeViewItem group in PrototypeNamespaceTree.Items)
+        if (MessageLibraryPrototype.Visibility != Visibility.Visible) return;
+        SearchBox.Text = "";
+        workbenchAssociationPaths = paths;
+        FilterWorkbenchNamespaces("");
+        MessageLibraryPrototype.FilterByTemplateAssociations(paths);
+    }
+
+    private void FilterWorkbenchNamespaces(string query)
+    {
+        if (MessageLibraryPrototype is null) return;
+        IEnumerable<EntityNode> roots = workspace.IsConnected ? workspace.Browse.Roots : sampleNamespaceRoots;
+        if (workspace.IsConnected) workspace.Browse.FilterEntities(query);
+        foreach (var group in roots)
         {
             bool any = false;
-            foreach (TreeViewItem entity in group.Items)
+            foreach (var entity in group.Children)
             {
-                bool directMatch = query.Length == 0 || (entity.Tag as string)?.Contains(query, StringComparison.OrdinalIgnoreCase) == true;
+                string entityPath = WorkbenchPath(entity, roots);
+                bool queryMatchesEntity = query.Length == 0 || entityPath.Contains(query, StringComparison.OrdinalIgnoreCase);
+                bool associationMatchesEntity = workbenchAssociationPaths is null ||
+                    workbenchAssociationPaths.Any(path => path.Equals(entityPath, StringComparison.OrdinalIgnoreCase)
+                        || path.StartsWith(entityPath + "/", StringComparison.OrdinalIgnoreCase));
+                bool directMatch = queryMatchesEntity && associationMatchesEntity;
                 bool childMatch = false;
-                foreach (TreeViewItem child in entity.Items)
+                foreach (var child in entity.Children)
                 {
-                    bool matches = query.Length == 0 || directMatch || (child.Tag as string)?.Contains(query, StringComparison.OrdinalIgnoreCase) == true;
-                    child.Visibility = matches ? Visibility.Visible : Visibility.Collapsed;
-                    childMatch |= matches;
+                    bool queryMatchesChild = query.Length == 0 || queryMatchesEntity || WorkbenchPath(child, roots).Contains(query, StringComparison.OrdinalIgnoreCase);
+                    child.IsVisible = associationMatchesEntity && queryMatchesChild;
+                    childMatch |= child.IsVisible;
                 }
-                bool visible = directMatch || childMatch;
-                entity.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
-                any |= visible;
+                entity.IsVisible = directMatch || childMatch;
+                any |= entity.IsVisible;
             }
-            group.Visibility = any ? Visibility.Visible : Visibility.Collapsed;
+            group.IsVisible = any;
         }
         string libraryQuery = query;
         if (query.Length > 0)
         {
-            var matchingSubscription = PrototypeNamespaceTree.Items.OfType<TreeViewItem>()
-                .SelectMany(group => group.Items.OfType<TreeViewItem>())
-                .SelectMany(entity => entity.Items.OfType<TreeViewItem>())
-                .FirstOrDefault(child => (child.Tag as string)?.Contains(query, StringComparison.OrdinalIgnoreCase) == true);
-            if (matchingSubscription?.Tag is string identity)
-                libraryQuery = identity[(identity.IndexOf(':') + 1)..].Split('/')[0];
+            var matchingSubscription = roots.SelectMany(group => group.Children)
+                .SelectMany(entity => entity.Children)
+                .FirstOrDefault(child => WorkbenchPath(child, roots).Contains(query, StringComparison.OrdinalIgnoreCase));
+            if (matchingSubscription is not null) libraryQuery = WorkbenchPath(matchingSubscription, roots).Split('/')[0];
         }
         MessageLibraryPrototype.FilterByNamespaceQuery(libraryQuery);
     }
 
+    private static EntityNode[] CreateSampleNamespaceRoots()
+    {
+        var queues = new EntityNode("Queues", "Group");
+        queues.Children.Add(new EntityNode("order-replies", "Queue"));
+        var topics = new EntityNode("Topics", "Group");
+        var orders = new EntityNode("order-events", "Topic");
+        orders.Children.Add(new EntityNode("billing", "Subscription"));
+        orders.Children.Add(new EntityNode("analytics", "Subscription"));
+        orders.Children.Add(new EntityNode("notifications", "Subscription"));
+        topics.Children.Add(orders);
+        var inventory = new EntityNode("inventory-events", "Topic");
+        inventory.Children.Add(new EntityNode("warehouse", "Subscription"));
+        topics.Children.Add(inventory);
+        return [queues, topics];
+    }
+
+    private static string WorkbenchPath(EntityNode node, IEnumerable<EntityNode> roots)
+    {
+        if (node.Kind != "Subscription") return node.Path;
+        var parent = roots.SelectMany(root => root.Children).FirstOrDefault(entity => entity.Children.Contains(node));
+        return parent is null ? node.Path : $"{parent.Name}/{node.Name}";
+    }
+
+    private static string WorkbenchIdentity(EntityNode node, IEnumerable<EntityNode> roots) => node.Kind switch
+    {
+        "Subscription" => $"subscription:{WorkbenchPath(node, roots)}",
+        "Topic" => $"topic:{node.Name}",
+        _ => $"queue:{node.Name}"
+    };
+
     private async void Tree_Selected(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
+        if (MessageLibraryPrototype.Visibility == Visibility.Visible)
+        {
+            if (e.NewValue is EntityNode { IsGroup: false } workbenchEntity)
+            {
+                workbenchAssociationPaths = null;
+                IEnumerable<EntityNode> roots = workspace.IsConnected ? workspace.Browse.Roots : sampleNamespaceRoots;
+                string identity = WorkbenchIdentity(workbenchEntity, roots);
+                SearchBox.Text = WorkbenchPath(workbenchEntity, roots);
+                MessageLibraryPrototype.SelectEntityContext(identity);
+            }
+            return;
+        }
         if (workspace.Search.IsActive)
         {
             if (e.NewValue is EntityNode { IsGroup: false } scope)
@@ -316,7 +392,8 @@ public partial class InvestigationWindow : Window
 
     private void ConfigureRefresh()
     {
-        if (paused || workspace.Search.IsActive || !workspace.IsConnected || workspace.Preferences.AutoRefreshSeconds == 0)
+        bool investigationSearch = MessageLibraryPrototype?.Visibility != Visibility.Visible && workspace.Search.IsActive;
+        if (paused || investigationSearch || !workspace.IsConnected || workspace.Preferences.AutoRefreshSeconds == 0)
         {
             refreshTimer.Stop();
             return;
@@ -328,7 +405,11 @@ public partial class InvestigationWindow : Window
 
     private async void RefreshTimerTick(object? sender, EventArgs e)
     {
-        if (!workspace.Search.IsActive && !workspace.Browse.IsBusy) await workspace.RunReadAsync(workspace.Search.IsActive ? workspace.Search.ContinueAsync : workspace.Browse.RefreshAsync);
+        if (workspace.Browse.IsBusy) return;
+        if (MessageLibraryPrototype.Visibility == Visibility.Visible)
+            await workspace.RunReadAsync(workspace.Browse.RefreshAsync);
+        else if (!workspace.Search.IsActive)
+            await workspace.RunReadAsync(workspace.Browse.RefreshAsync);
     }
 
 

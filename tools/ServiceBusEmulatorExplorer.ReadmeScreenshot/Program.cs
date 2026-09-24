@@ -141,9 +141,8 @@ internal static class Program
                 if (prototypeCapture)
                 {
                     ((ToggleButton)window.FindName("MessageLibraryTab")!).IsChecked = true;
-                    var topics = (TreeViewItem)((TreeView)window.FindName("PrototypeNamespaceTree")!).Items[1];
-                    ((TreeViewItem)topics.Items[0]).IsSelected = true;
                     var prototype = (MessageLibraryPrototypeView)window.FindName("MessageLibraryPrototype")!;
+                    prototype.SelectEntityContext("topic:order-events");
                     if (args[1] == "--message-library-wizard-review-queue")
                     {
                         prototype.SelectEntityContext("queue:order-replies");

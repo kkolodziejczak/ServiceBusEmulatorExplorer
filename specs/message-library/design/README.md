@@ -26,7 +26,7 @@ The 2026-09-22 user refinement also requires Add/Edit association to reuse the a
 - Preserve the existing **Entities | Messages | Scheduled | DLQ** namespace count headings and their accessible labels/tooltips. Use real runtime values, including the emulator's unavailable-count em dash, rather than treating mockup numbers as broker truth.
 - Preserve existing Segoe UI/Consolas and shared palette: primary `#0069FA`, text `#17213D`, secondary `#627692`, canvas `#FAFCFF`, border `#CBD8E8`, divider `#DFE6EE`, selection `#DBEDFF`, editor `#1C2937`. Use existing profile accent resources and semantic status colors.
 - Existing defaults remain 14-DIP body/controls, 12 metadata, 16 section heading, 24 primary title, 32 minimum button height, 3 corner radius, 16 vector icons, spacing 4/8/12/16/24. Retain existing focus/hover/pressed/disabled templates. Do not use superseded three-pane dimensions.
-- Preserve author Body/Properties/Variables, JSON/Text, title and Save/Save as; preserve Prepare's Single/CSV, mapping, validation, rows, selected body/properties and bottom Review action.
+- Preserve author Body/Properties/Variables, title and Save/Save as; preserve Prepare's Single/CSV, mapping, validation, rows, selected body/properties and bottom Review action. The dummy-data prototype uses a single JSON body editor per the later user-approved refinement below.
 - Resolved destination is plain read-only Send to. A picker appears only for unresolved/multiple/unavailable targets. Final review shows read-only profile, exact endpoint and entity.
 
 ## A — full workspace
@@ -74,6 +74,8 @@ Also exercise same-style variants: loading/canceled validation, malformed CSV, u
 Approval: **revised Board A plus Boards B–E accepted as the prototype/mockup plan**; pixel-perfect implementation and rendered/accessibility proof remain **Pending**. Previous seven-board and original Board A review records are historical. This approval does not authorize production UI implementation.
 
 ## Dummy-data prototype
+
+Approved refinement (2026-09-24): the Workbench uses the same Namespaces tree and aligned count columns as Investigation. Connected counts continue to refresh at the selected interval; while disconnected, the same tree shows clearly labeled sample entities without invented counts. The author body has one JSON view, with no JSON/Text switch. The library footer has Add folder, Refresh and a direct **+ New template** action. A new template starts with `{}` and no inherited properties or destination; a newly added empty folder remains visible and selectable even under an active namespace filter. Capturing an observed message remains in Investigation through **Save as template**; the Workbench's synthetic capture menu is removed.
 
 Approved wizard refinement (2026-09-23): [Compose](approved/08-wizard-compose.png), [Prepare](approved/09-wizard-prepare.png), and [Review & send](approved/10-wizard-review.png). The Saved templates search matches Namespaces search without a redundant heading. The Namespaces and templates panes remain visible while the main pane advances through one stage at a time. At compact widths, preparation inputs and preview stack vertically. Returning to an earlier stage retains the in-memory draft and prepared values. Review, simulated progress, results and cancellation live in the third stage rather than opening a separate review window.
 
