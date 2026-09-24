@@ -370,7 +370,7 @@ public sealed class MainWindowSmokeTests
 
     [UiSmokeFact]
     [Trait("TestCategory", "UiSmoke")]
-    public async Task Message_library_compact_layout_keeps_both_trees_and_switches_author_prepare()
+    public async Task Message_library_compact_layout_uses_shared_tree_and_switches_author_prepare()
     {
         string executablePath = WpfAppPath.Resolve();
         string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
@@ -386,7 +386,8 @@ public sealed class MainWindowSmokeTests
             AutomationElement libraryTab = WaitForAutomationId(window, "MessageLibraryTab", TimeSpan.FromSeconds(5));
             if (libraryTab.Patterns.Toggle.Pattern.ToggleState != ToggleState.On)
                 libraryTab.Patterns.Toggle.Pattern.Toggle();
-            WaitForAutomationId(window, "PrototypeNamespaceTree", TimeSpan.FromSeconds(5));
+            WaitForAutomationId(window, "NamespaceTree", TimeSpan.FromSeconds(5));
+            Assert.Contains("Sample entities", WaitForAutomationId(window, "NamespaceModeLabel", TimeSpan.FromSeconds(5)).Name);
             WaitForAutomationId(window, "LibraryTree", TimeSpan.FromSeconds(5));
             Assert.False(WaitForAutomationId(window, "LibraryAuthorEditor", TimeSpan.FromSeconds(5)).IsOffscreen);
             InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));

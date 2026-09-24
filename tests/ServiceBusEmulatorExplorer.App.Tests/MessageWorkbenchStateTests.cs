@@ -14,13 +14,61 @@ namespace ServiceBusEmulatorExplorer.App.Tests;
 public sealed class MessageWorkbenchStateTests
 {
     [Fact]
-    public void Switching_body_editor_mode_does_not_regenerate_prepared_message() => Run((window, view) =>
+    public void Body_editor_uses_one_json_surface_without_mode_buttons() => Run((window, view) =>
     {
         string before = Get<JsonEditor>(view, "PreviewText").Text;
-        Click(view, "EditorTextTab");
-        Click(view, "EditorJsonTab");
+        Assert.Null(view.FindName("EditorModeButtons"));
+        Assert.Null(view.FindName("EditorPlainText"));
         window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
         Assert.Equal(before, Get<JsonEditor>(view, "PreviewText").Text);
+    });
+
+    [Fact]
+    public void New_template_is_a_direct_action_without_a_capture_menu() => Run((_, view) =>
+    {
+        Button create = Descendants(view).OfType<Button>().Single(button =>
+            AutomationProperties.GetAutomationId(button) == "LibraryNew");
+        Assert.Null(create.ContextMenu);
+        Assert.Contains(Descendants((DependencyObject)create.Content).OfType<TextBlock>(),
+            text => text.Text == "+ New template");
+    });
+
+    [Fact]
+    public void New_template_starts_with_empty_json_and_no_inherited_properties() => Run((window, view) =>
+    {
+        window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
+        {
+            Window dialog = window.OwnedWindows.OfType<Window>().Single(child => child.Title == "New template");
+            Descendants(dialog).OfType<TextBox>().Single().Text = "Empty example";
+            Descendants(dialog).OfType<Button>().Single(button => Equals(button.Content, "Save"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        }));
+        Descendants(view).OfType<Button>().Single(button =>
+            AutomationProperties.GetAutomationId(button) == "LibraryNew")
+            .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.Equal("Empty example", Get<TextBlock>(view, "AuthorTitle").Text);
+        Assert.Equal("{}", Get<JsonEditor>(view, "EditorText").Text);
+        Assert.Empty((System.Collections.IEnumerable)Get<DataGrid>(view, "ApplicationPropertiesGrid").ItemsSource);
+        Assert.Empty((System.Collections.IEnumerable)Get<DataGrid>(view, "VariablesGrid").ItemsSource);
+    });
+
+    [Fact]
+    public void Added_folder_remains_visible_and_selectable_under_namespace_filter() => Run((window, view) =>
+    {
+        view.FilterByNamespaceQuery("order-events");
+        window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
+        {
+            Window dialog = window.OwnedWindows.OfType<Window>().Single(child => child.Title == "Add folder");
+            Descendants(dialog).OfType<TextBox>().Single().Text = "New folder";
+            Descendants(dialog).OfType<Button>().Single(button => Equals(button.Content, "Save"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        }));
+        Descendants(view).OfType<Button>().Single(button =>
+            AutomationProperties.GetAutomationId(button) == "LibraryAddFolder")
+            .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Panel folders = Get<Panel>(view, "AddedFolders");
+        Assert.Contains(Descendants(folders).OfType<Button>(), button =>
+            AutomationProperties.GetName(button) == "Folder New folder");
     });
 
     [Fact]

@@ -23,7 +23,6 @@ public partial class MessageLibraryPrototypeView : UserControl
     private DispatcherOperation? pendingValidation;
     private WizardStage wizardStage = WizardStage.Compose;
     private enum WizardStage { Compose, Prepare, Review }
-    private bool textMode;
     private bool draftIsNew;
     private string currentBody = "";
     private string sampleCsvFile = "orders.csv";
@@ -89,8 +88,7 @@ public partial class MessageLibraryPrototypeView : UserControl
             new[] { "string", "boolean", "int", "long", "decimal", "double", "guid", "dateTimeUtc" };
         VariablesGrid.ItemsSource = variables;
         VariablesGrid.SelectedIndex = 0;
-        EditorText.TextChanged += (_, _) => { if (!loadingEditor && !textMode) { currentBody = EditorText.Text; InvalidatePreview(); } };
-        EditorPlainText.TextChanged += (_, _) => { if (!loadingEditor && textMode) { currentBody = EditorPlainText.Text; InvalidatePreview(); } };
+        EditorText.TextChanged += (_, _) => { if (!loadingEditor) { currentBody = EditorText.Text; InvalidatePreview(); } };
         PropertySubject.TextChanged += (_, _) => InvalidatePreview();
         PropertyCorrelationId.TextChanged += (_, _) => InvalidatePreview();
         PropertyContentType.SelectionChanged += (_, _) => InvalidatePreview();
@@ -320,10 +318,11 @@ public partial class MessageLibraryPrototypeView : UserControl
         {
             TemplateList.Items.Clear();
             var visible = templates.Where(value =>
-                (namespaceQuery.Length == 0 || TemplateAssociations(value).Any(path => path.Contains(namespaceQuery, StringComparison.OrdinalIgnoreCase))) &&
-                (associationScope is null || TemplateAssociations(value).Any(path => associationScope.Contains(path, StringComparer.OrdinalIgnoreCase))) &&
-                (TemplateSearch.Text.Length == 0 || value.Name.Contains(TemplateSearch.Text, StringComparison.OrdinalIgnoreCase)
-                    || value.Description.Contains(TemplateSearch.Text, StringComparison.OrdinalIgnoreCase))).ToList();
+                (draftIsNew && value.Name == selectedTemplateName) ||
+                ((namespaceQuery.Length == 0 || TemplateAssociations(value).Any(path => path.Contains(namespaceQuery, StringComparison.OrdinalIgnoreCase))) &&
+                 (associationScope is null || TemplateAssociations(value).Any(path => associationScope.Contains(path, StringComparer.OrdinalIgnoreCase))) &&
+                 (TemplateSearch.Text.Length == 0 || value.Name.Contains(TemplateSearch.Text, StringComparison.OrdinalIgnoreCase)
+                     || value.Description.Contains(TemplateSearch.Text, StringComparison.OrdinalIgnoreCase)))).ToList();
             foreach (var template in visible.Where(value => value.Folder == "Orders"))
             {
                 TemplateList.Items.Add(CreateTemplateItem(template));
@@ -333,8 +332,27 @@ public partial class MessageLibraryPrototypeView : UserControl
             foreach (string folder in folders.Where(value => value != "Orders"))
             {
                 var folderTemplates = visible.Where(value => value.Folder == folder).ToList();
-                if (namespaceQuery.Length > 0 && folderTemplates.Count == 0) continue;
-                AddedFolders.Children.Add(new TextBlock { Text = folder, Margin = new Thickness(0, 10, 0, 8), Foreground = (System.Windows.Media.Brush)FindResource("ActionTextBrush") });
+                if (namespaceQuery.Length > 0 && folderTemplates.Count == 0 && folder != selectedFolder) continue;
+                var folderContent = new StackPanel { Orientation = Orientation.Horizontal };
+                folderContent.Children.Add(new System.Windows.Shapes.Path
+                {
+                    Data = System.Windows.Media.Geometry.Parse("M1,4 H7 L9,6 H17 V16 H1 Z"),
+                    Stroke = (System.Windows.Media.Brush)FindResource("PrimaryBrush"), StrokeThickness = 1.5,
+                    Width = 18, Height = 16, Stretch = System.Windows.Media.Stretch.Uniform,
+                    Margin = new Thickness(0, 0, 7, 0)
+                });
+                folderContent.Children.Add(new TextBlock { Text = folder, Foreground = (System.Windows.Media.Brush)FindResource("ActionTextBrush") });
+                var folderRow = new Button
+                {
+                    Tag = folder, HorizontalAlignment = HorizontalAlignment.Stretch,
+                    HorizontalContentAlignment = HorizontalAlignment.Left,
+                    Background = folder == selectedFolder ? (System.Windows.Media.Brush)FindResource("SelectionBrush") : System.Windows.Media.Brushes.Transparent,
+                    BorderThickness = new Thickness(0), Margin = new Thickness(16, 10, 0, 4), Padding = new Thickness(6, 5, 6, 5),
+                    Content = folderContent
+                };
+                System.Windows.Automation.AutomationProperties.SetName(folderRow, $"Folder {folder}");
+                folderRow.Click += (_, _) => { selectedFolder = folder; RefreshTemplateList(); };
+                AddedFolders.Children.Add(folderRow);
                 var list = new ListBox { Margin = new Thickness(37, 0, 0, 0), BorderThickness = new Thickness(0), Background = System.Windows.Media.Brushes.Transparent,
                     ItemContainerStyle = (Style)FindResource("PrototypeTemplateItem") };
                 list.SelectionChanged += TemplateList_Changed;
@@ -446,30 +464,6 @@ public partial class MessageLibraryPrototypeView : UserControl
         InvalidatePreview();
     }
 
-    private void OpenNewMenu_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { ContextMenu: { } menu } button)
-        {
-            menu.PlacementTarget = button;
-            menu.IsOpen = true;
-        }
-    }
-
-    private void CaptureSample_Click(object sender, RoutedEventArgs e)
-    {
-        var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Capture,
-            currentProfileName, "order-events", 1) { Owner = Window.GetWindow(this) };
-        ConfigureCaptureCollections(dialog);
-        dialog.SetCaptureSource("order-events / billing · Active",
-            "{\n  \"customerId\": \"C1001\",\n  \"amount\": 149.90\n}",
-            "{\n  \"customerId\": \"C1001\",\n  \"amount\": 149.90,\n  \"reviewed\": true\n}",
-            "order-events");
-        if (dialog.ShowDialog() == true)
-            OpenCapturedDraft(dialog.CaptureTemplateName, dialog.CaptureTemplateBody, dialog.CaptureTopic,
-                dialog.CaptureCollectionName, dialog.CaptureProperties,
-                fileName: dialog.CaptureFileName.Text.Trim());
-    }
-
     public void ConfigureCaptureCollections(MessageLibraryPrototypeDialog dialog) =>
         dialog.SetCaptureCollections(folders, selectedFolder);
 
@@ -531,14 +525,15 @@ public partial class MessageLibraryPrototypeView : UserControl
         string? name = PromptForName("New template", "Template name", "Untitled message");
         if (name is null) return;
         name = UniqueTemplateName(name);
-        string topic = selectedDestination ?? "order-events";
-        templates.Add(new PrototypeTemplate(name, topic, "New in-memory template.", "{\n  \"message\": \"$(CustomerId)\"\n}", selectedFolder, [topic]));
-        savedSettings[name] = defaultSettings;
-        RestoreSettings(defaultSettings);
+        templates.Add(new PrototypeTemplate(name, "", "New in-memory template.", "{}", selectedFolder, []));
+        var emptySettings = new PrototypeAuthorSettings("", 0, "", "", false, "", false, "", "", "", "", [], []);
+        savedSettings[name] = emptySettings;
+        RestoreSettings(emptySettings);
         selectedTemplateName = name;
-        currentAssociation = topic;
+        currentAssociation = "";
         currentAssociations.Clear();
-        currentAssociations.Add(topic);
+        selectedDestination = null;
+        explicitDestination = false;
         currentBody = templates[^1].Body;
         draftIsNew = true;
         RefreshTemplateList();
@@ -546,6 +541,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         AuthorSubtitle.Text = "New in-memory template.";
         UpdateAssociations();
         UpdateDestinationControls();
+        FilterWarning.Visibility = namespaceQuery.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         ShowEditorBody();
         InvalidatePreview();
         ShowWizardStage(WizardStage.Compose);
@@ -978,9 +974,8 @@ public partial class MessageLibraryPrototypeView : UserControl
         BodyEditorSurface.Visibility = Visibility.Visible;
         PropertiesEditorSurface.Visibility = Visibility.Collapsed;
         VariablesEditorSurface.Visibility = Visibility.Collapsed;
-        EditorModeButtons.Visibility = Visibility.Visible;
         loadingEditor = true;
-        try { EditorText.Text = currentBody; EditorPlainText.Text = currentBody; }
+        try { EditorText.Text = currentBody; }
         finally { loadingEditor = false; }
     }
 
@@ -992,7 +987,6 @@ public partial class MessageLibraryPrototypeView : UserControl
         BodyEditorSurface.Visibility = Visibility.Collapsed;
         PropertiesEditorSurface.Visibility = Visibility.Visible;
         VariablesEditorSurface.Visibility = Visibility.Collapsed;
-        EditorModeButtons.Visibility = Visibility.Collapsed;
     }
 
     private void EditorVariables_Click(object sender, RoutedEventArgs e)
@@ -1003,31 +997,6 @@ public partial class MessageLibraryPrototypeView : UserControl
         BodyEditorSurface.Visibility = Visibility.Collapsed;
         PropertiesEditorSurface.Visibility = Visibility.Collapsed;
         VariablesEditorSurface.Visibility = Visibility.Visible;
-        EditorModeButtons.Visibility = Visibility.Collapsed;
-    }
-
-    private void EditorJson_Click(object sender, RoutedEventArgs e)
-    {
-        textMode = false;
-        loadingEditor = true;
-        try { EditorText.Text = currentBody; }
-        finally { loadingEditor = false; }
-        EditorText.Visibility = Visibility.Visible;
-        EditorPlainText.Visibility = Visibility.Collapsed;
-        EditorJsonTab.Style = (Style)FindResource("PreviewModeActive");
-        EditorTextTab.Style = (Style)FindResource("PreviewModeButton");
-    }
-
-    private void EditorTextMode_Click(object sender, RoutedEventArgs e)
-    {
-        textMode = true;
-        loadingEditor = true;
-        try { EditorPlainText.Text = currentBody; }
-        finally { loadingEditor = false; }
-        EditorText.Visibility = Visibility.Collapsed;
-        EditorPlainText.Visibility = Visibility.Visible;
-        EditorJsonTab.Style = (Style)FindResource("PreviewModeButton");
-        EditorTextTab.Style = (Style)FindResource("PreviewModeActive");
     }
 
     private void CopyAuthor_Click(object sender, RoutedEventArgs e) => Clipboard.SetText(currentBody);

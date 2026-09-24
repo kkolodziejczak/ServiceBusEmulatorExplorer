@@ -36,7 +36,9 @@ public partial class InvestigationWindow
         SearchSummary.Visibility = search.IsActive && ActualWidth >= 1200 ? Visibility.Visible : Visibility.Collapsed;
         SearchSummary.Text = $"{search.QueryText} · {search.Messages.Count:N0} matches{(complete ? "" : " so far")}";
         ListToolbar.Visibility = search.IsActive ? Visibility.Collapsed : Visibility.Visible;
-        NamespaceTree.ToolTip = search.IsActive ? "Counts show matching messages found so far. Clear search to restore entity totals." : null;
+        NamespaceTree.ToolTip = search.IsActive && MessageLibraryPrototype.Visibility != Visibility.Visible
+            ? "Counts show matching messages found so far. Clear search to restore entity totals."
+            : null;
         NamespaceEmpty.Visibility = workspace.Surface.Roots.Any(node => node.IsVisible) ? Visibility.Collapsed : Visibility.Visible;
         if (MessageLibraryPrototype.Visibility == Visibility.Visible) NamespaceEmpty.Visibility = Visibility.Collapsed;
         NamespaceEmpty.Text = search.IsActive ? search.IsBusy ? "Searching for matching entities…"
@@ -60,7 +62,8 @@ public partial class InvestigationWindow
         if (!ready) return;
         if (MessageLibraryPrototype.Visibility == Visibility.Visible)
         {
-            FilterPrototypeNamespaces(SearchBox.Text);
+            workbenchAssociationPaths = null;
+            FilterWorkbenchNamespaces(SearchBox.Text);
             ClearSearchButton.Visibility = SearchBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             SuggestionsPopup.IsOpen = false;
             return;
@@ -75,7 +78,7 @@ public partial class InvestigationWindow
         if (MessageLibraryPrototype.Visibility == Visibility.Visible)
         {
             SearchBox.Clear();
-            PrototypeNamespaceTree.Focus();
+            NamespaceTree.Focus();
             SearchBox.Focus();
             return;
         }

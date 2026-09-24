@@ -62,25 +62,13 @@ public partial class InvestigationWindow
         if (WorkspaceGrid is null || MessageLibraryPrototype is null) return;
         bool compactLibrary = MessageLibraryPrototype.Visibility == Visibility.Visible && ActualWidth < 1200;
         WorkspaceGrid.ColumnDefinitions[0].MinWidth = 240;
-        WorkspaceGrid.ColumnDefinitions[0].Width = new GridLength(compactLibrary ? 250 : 305);
-        NamespaceCountHeadings.ColumnDefinitions[1].Width = new GridLength(compactLibrary ? 50 : 65);
-        NamespaceCountHeadings.ColumnDefinitions[2].Width = new GridLength(compactLibrary ? 55 : 65);
-        NamespaceCountHeadings.ColumnDefinitions[3].Width = new GridLength(compactLibrary ? 27 : 36);
+        WorkspaceGrid.ColumnDefinitions[0].Width = new GridLength(compactLibrary ? 320 :
+            MessageLibraryPrototype.Visibility == Visibility.Visible ? 335 : 305);
+        NamespaceCountHeadings.ColumnDefinitions[1].Width = new GridLength(50);
+        NamespaceCountHeadings.ColumnDefinitions[2].Width = new GridLength(55);
+        NamespaceCountHeadings.ColumnDefinitions[3].Width = new GridLength(27);
         foreach (TextBlock label in NamespaceCountHeadings.Children.OfType<TextBlock>())
-            label.FontSize = compactLibrary ? 10 : 12;
-        PrototypeNamespaceTree.FontSize = compactLibrary ? 11 : 14;
-        ResizePrototypeHeader(PrototypeQueueHeader, compactLibrary ? 188 : 230, compactLibrary);
-        ResizePrototypeHeader(PrototypeTopicHeader, compactLibrary ? 188 : 213, compactLibrary);
-        ResizePrototypeHeader(PrototypeBillingHeader, compactLibrary ? 162 : 194, compactLibrary);
-        ResizePrototypeHeader(PrototypeAnalyticsHeader, compactLibrary ? 162 : 194, compactLibrary);
-        ResizePrototypeHeader(PrototypeNotificationsHeader, compactLibrary ? 162 : 194, compactLibrary);
-    }
-
-    private static void ResizePrototypeHeader(Grid header, double width, bool compact)
-    {
-        header.Width = width;
-        header.ColumnDefinitions[1].Width = new GridLength(compact ? 25 : 35);
-        header.ColumnDefinitions[2].Width = new GridLength(compact ? 20 : 35);
-        header.ColumnDefinitions[3].Width = new GridLength(compact ? 20 : 25);
+            label.FontSize = compactLibrary ? 10 : 11;
+        NamespaceTree.FontSize = compactLibrary ? 11 : 14;
     }
 }
