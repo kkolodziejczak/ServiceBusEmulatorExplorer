@@ -11,9 +11,11 @@ namespace ServiceBusEmulatorExplorer.App.Tests;
 [Collection("WPF presentation")]
 public sealed class MessageWorkbenchLayoutTests
 {
-    [Fact]
+    [Theory]
+    [InlineData(1332, 843)]
+    [InlineData(900, 843)]
     [Trait("TestCategory", "UiRender")]
-    public void Review_cards_use_available_stage_height_at_wide_size()
+    public void Review_cards_fill_wide_stage_and_stack_at_compact_width(int width, int height)
     {
         RunOnSta((dispatcher, view, _) =>
         {
@@ -24,10 +26,20 @@ public sealed class MessageWorkbenchLayoutTests
             var scroll = ByName<ScrollViewer>(review, "ReviewScroll");
             var target = ByName<Border>(review, "ReviewTargetCard");
             var summary = ByName<Border>(review, "ReviewSummaryCard");
+            Assert.True(review.ActualWidth > 0, "Review stage should be arranged before checking card layout.");
+            if (review.ActualWidth < 800)
+            {
+                Assert.Equal(1, Grid.GetRow(summary));
+                Assert.Equal(0, Grid.GetColumn(summary));
+                Assert.Equal(0, target.MinHeight);
+                return;
+            }
+
+            Assert.Equal(0, Grid.GetRow(summary));
             Assert.True(target.ActualHeight >= scroll.ActualHeight - 85,
-                $"Target card should fill the available review height: card={target.ActualHeight}, viewport={scroll.ActualHeight}.");
+                $"Target card should fill the available review height: card={target.ActualHeight}, viewport={scroll.ActualHeight}, review width={review.ActualWidth}.");
             Assert.InRange(Math.Abs(target.ActualHeight - summary.ActualHeight), 0, 1);
-        }, 1332, 843);
+        }, width, height);
     }
 
     [Fact]
