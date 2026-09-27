@@ -4,11 +4,15 @@ using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
-public enum PrototypeDialogMode { SampleCsv, Mapping, Capture, Validation, Conflict, DraftGuard, Destination, Review, Results }
+public enum PrototypeDialogMode { SampleCsv, Mapping, Capture, Validation, Conflict, DraftGuard, Destination, Review, Results, CancellationConfirmation }
 public enum PrototypeDraftChoice { Cancel, Save, Discard, Reload, SaveAs, KeepEditing }
 public sealed record PrototypeRunSnapshot(string Profile, string Target, bool Scheduled,
     IReadOnlyList<(int Row, string MessageId, string Outcome, string Details)> Results,
-    IReadOnlyList<(int Row, string Receipt, string Payload, string Outcome, string DueTime, bool Selected, string CancellationStatus, string AttemptTime)> ScheduledResults);
+    IReadOnlyList<(int Row, string Receipt, string Payload, string Outcome, string DueTime, bool Selected, string CancellationStatus, string AttemptTime)> ScheduledResults)
+{
+    public IReadOnlyList<PrototypeCancellationAttempt> CancellationAttempts { get; init; } = [];
+}
+public sealed record PrototypeCancellationAttempt(int Row, string Receipt, string Payload, string Outcome, DateTimeOffset RequestedAtUtc);
 public sealed record PrototypeCaptureProperties(string? Subject, string? ContentType, string? CorrelationId,
     string? SessionId, int? TtlMinutes, IReadOnlyDictionary<string, object?> ApplicationProperties);
 
@@ -37,6 +41,7 @@ public partial class MessageLibraryPrototypeDialog : Window
         ConflictSurface.Visibility = mode == PrototypeDialogMode.Conflict ? Visibility.Visible : Visibility.Collapsed;
         DraftGuardSurface.Visibility = mode == PrototypeDialogMode.DraftGuard ? Visibility.Visible : Visibility.Collapsed;
         DestinationSurface.Visibility = mode == PrototypeDialogMode.Destination ? Visibility.Visible : Visibility.Collapsed;
+        CancellationConfirmationSurface.Visibility = mode == PrototypeDialogMode.CancellationConfirmation ? Visibility.Visible : Visibility.Collapsed;
         DestinationProfile.Text = profile;
         ReviewSurfaceControl.Configure(profile, target, count);
         ReviewSurfaceControl.SetPreparedMessages(CreateSamplePreparedMessages(count));
@@ -44,7 +49,12 @@ public partial class MessageLibraryPrototypeDialog : Window
             ReviewSurfaceControl.ShowReview();
         else if (mode == PrototypeDialogMode.Results)
             ReviewSurfaceControl.ShowResults();
-        if (mode == PrototypeDialogMode.SampleCsv)
+        if (mode == PrototypeDialogMode.CancellationConfirmation)
+        {
+            Title = "Confirm cancellation";
+            Height = 540;
+        }
+        else if (mode == PrototypeDialogMode.SampleCsv)
         {
             Title = "Choose sample CSV";
             Height = 300;
@@ -94,6 +104,15 @@ public partial class MessageLibraryPrototypeDialog : Window
     }
 
     public string SampleFile { get; set; } = "orders.csv";
+    public bool CancellationConfirmed { get; private set; }
+
+    public void ConfigureCancellationConfirmation(string summary) => CancellationConfirmationSummary.Text = summary;
+
+    private void ConfirmCancellation_Click(object sender, RoutedEventArgs e)
+    {
+        CancellationConfirmed = true;
+        DialogResult = true;
+    }
     public string SelectedSampleCsv => (string)((ComboBoxItem)SampleCsvPicker.SelectedItem).Tag;
     public string? CustomerDeclaredDefault { get; set; }
     public string? AmountDeclaredDefault { get; set; }

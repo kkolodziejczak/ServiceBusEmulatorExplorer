@@ -13,6 +13,8 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.Length == 2 && args[1].StartsWith("--selector-", StringComparison.Ordinal))
+            return SelectorScreenshotScenario.Run(args[0], args[1]);
         bool prototypeCapture = args.Length == 2 && args[1] is
             "--message-library-prepare" or "--message-library-prepare-1500" or "--message-library-prepare-compact" or "--message-library-prepare-minimum"
             or "--message-library-properties" or "--message-library-properties-bottom" or "--message-library-properties-selected" or "--message-library-variables" or "--message-library-single"
@@ -84,7 +86,12 @@ internal static class Program
                         dialog.RestoreRun(new PrototypeRunSnapshot("Local emulator", "order-events", true,
                             [(1, "00000000-0000-0000-0000-000000000001", "Scheduled", "Sample acknowledgement")],
                             [(1, "1001", "Order created", "Scheduled", "2026-09-23 14:30", true, "Cancellation acknowledged", "14:00 UTC"),
-                             (2, "1002", "Order updated", "Scheduled", "2026-09-23 14:30", false, "Outcome unknown", "14:00 UTC")]));
+                             (2, "1002", "Order updated", "Scheduled", "2026-09-23 14:30", false, "Outcome unknown", "14:00 UTC")])
+                        {
+                            CancellationAttempts =
+                            [new(1, "1001", "Order created", "Cancellation acknowledged", new DateTimeOffset(2026, 9, 23, 14, 0, 0, TimeSpan.Zero)),
+                             new(2, "1002", "Order updated", "Outcome unknown", new DateTimeOffset(2026, 9, 23, 14, 0, 0, TimeSpan.Zero))]
+                        });
                         ((Button)dialog.FindName("CancelScheduled")!).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                         if (args[1] == "--message-library-cancellation-history")
                         {

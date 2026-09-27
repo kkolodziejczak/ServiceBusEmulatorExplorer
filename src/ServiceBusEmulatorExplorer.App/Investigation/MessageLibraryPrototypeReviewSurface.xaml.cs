@@ -20,6 +20,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     private readonly DispatcherTimer dispatchTimer = new() { Interval = TimeSpan.FromMilliseconds(550) };
     private readonly ObservableCollection<PrototypeResult> results = [];
     private readonly ObservableCollection<PrototypeScheduledResult> scheduledResults = [];
+    private readonly ObservableCollection<PrototypeCancellationAttempt> cancellationAttempts = [];
     private IReadOnlyList<PrototypePreparedMessage> preparedMessages = [];
     private int messageCount;
     private int dispatchIndex;
@@ -59,7 +60,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         messageCount = count;
         ResultsGrid.ItemsSource = results;
         ScheduledGrid.ItemsSource = scheduledResults;
-        HistoryGrid.ItemsSource = scheduledResults;
+        HistoryGrid.ItemsSource = cancellationAttempts;
         ReviewProfile.Text = profile;
         ReviewTarget.Text = target;
         ReviewTargetKind.Text = target == "order-replies" ? "Queue" : "Topic";
@@ -169,7 +170,8 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         ReviewProfile.Text, ReviewTarget.Text, dispatchScheduled,
         results.Select(row => (row.Row, row.MessageId, row.Outcome, row.Details)).ToArray(),
         scheduledResults.Select(row => (row.Row, row.Receipt, row.Payload, row.Outcome, row.DueTime,
-            row.Selected, row.CancellationStatus, row.AttemptTime)).ToArray());
+            row.Selected, row.CancellationStatus, row.AttemptTime)).ToArray())
+        { CancellationAttempts = cancellationAttempts.ToArray() };
 
     public void RestoreRun(PrototypeRunSnapshot run)
     {
@@ -184,6 +186,9 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         foreach (var row in run.ScheduledResults)
             scheduledResults.Add(new PrototypeScheduledResult(row.Row, row.Receipt, row.Payload, row.Outcome, row.DueTime)
             { Selected = row.Selected, CancellationStatus = row.CancellationStatus, AttemptTime = row.AttemptTime });
+        cancellationAttempts.Clear();
+        foreach (var attempt in run.CancellationAttempts) cancellationAttempts.Add(attempt);
+        UpdateCancellationActions();
         CancelScheduled.Visibility = scheduledResults.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -269,6 +274,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         dispatchIndex = 0;
         results.Clear();
         scheduledResults.Clear();
+        cancellationAttempts.Clear();
         dispatchTimer.Start();
     }
 
@@ -320,7 +326,15 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
             snapshot.Target,
             snapshot.Scheduled,
             Results = snapshot.Results.Select(row => new { row.Row, row.MessageId, row.Outcome, row.Details }),
-            ScheduledResults = snapshot.ScheduledResults.Select(row => new { row.Row, row.Receipt, row.Payload, row.Outcome, row.DueTime, row.Selected, row.CancellationStatus, row.AttemptTime })
+            ScheduledResults = snapshot.ScheduledResults.Select(row => new { row.Row, row.Receipt, row.Payload, row.Outcome, row.DueTime, row.Selected, row.CancellationStatus, row.AttemptTime }),
+            cancellationAttempts = snapshot.CancellationAttempts.Select(attempt => new
+            {
+                row = attempt.Row,
+                receipt = attempt.Receipt,
+                payload = attempt.Payload,
+                outcome = attempt.Outcome,
+                requestedAtUtc = attempt.RequestedAtUtc
+            })
         };
         File.WriteAllText(save.FileName, JsonSerializer.Serialize(export, new JsonSerializerOptions { WriteIndented = true }));
     }
@@ -331,43 +345,6 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     }
 
     private void Back_Click(object sender, RoutedEventArgs e) => BackRequested?.Invoke();
-
-    private void ShowCancellation_Click(object sender, RoutedEventArgs e)
-    {
-        SetSurface(CancellationSurface);
-        CancellationError.Visibility = Visibility.Collapsed;
-        CancellationTarget.Text = $"{ReviewProfile.Text} · {ReviewTarget.Text} · {ResolvedSchedule.Text}";
-        SetWindowTitle("Scheduled results");
-    }
-
-    private void BackToResults_Click(object sender, RoutedEventArgs e)
-    {
-        SetSurface(ResultsSurface);
-        SetWindowTitle("Run results");
-    }
-
-    private void ConfirmCancellation_Click(object sender, RoutedEventArgs e)
-    {
-        var selected = scheduledResults.Where(row => row.Selected && row.CancellationStatus != "Cancellation acknowledged").ToArray();
-        if (selected.Length == 0)
-        {
-            CancellationError.Visibility = Visibility.Visible;
-            return;
-        }
-        CancellationError.Visibility = Visibility.Collapsed;
-        if (MessageBox.Show(Window.GetWindow(this),
-            $"Cancel {selected.Length} selected scheduled message{(selected.Length == 1 ? "" : "s")}? Activation may race this request.",
-            "Confirm cancellation", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
-        foreach (var row in selected)
-        {
-            row.CancellationStatus = row.Row % 2 == 0 ? "Outcome unknown" : "Cancellation acknowledged";
-            row.AttemptTime = DateTime.UtcNow.ToString("HH:mm 'UTC'", CultureInfo.InvariantCulture);
-        }
-        HistoryGrid.Items.Refresh();
-        ScheduledGrid.Items.Refresh();
-        SetSurface(HistorySurface);
-        SetWindowTitle("Cancellation history");
-    }
 
     private void SetSurface(FrameworkElement surface)
     {

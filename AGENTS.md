@@ -135,6 +135,8 @@ dotnet tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/bin/Debug/net10.0-windo
 
 ## WPF Architecture Lessons
 
+- Clean up UI styling incrementally whenever a task touches a component. Put its approved common appearance and interaction states in the application-level [shared resources](src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SharedStyles.xaml), use implicit defaults for standard controls and named `BasedOn` variants for intentional differences, and remove duplicated local templates/setters from the affected surfaces. Preserve bindings, automation names, keyboard behavior, and profile themes. Do not restyle untouched screens or expand the task into a whole-app rewrite. Verify the touched component's normal, hover/open, selected, focused, disabled, and editing states as applicable, including a regression check that new instances inherit the shared style.
+
 - Keep `ShellViewModel` as orchestration, not the owner of every feature workflow. Prior quality gates forced extraction into `EntityManagementWorkflow` and `MessageInspectionViewModel`.
 - Put domain and SDK mapping rules in focused core classes such as request factories, mappers, projections, and validators. Keep dialogs as input collectors, not Service Bus address builders.
 - Profile-load failures should be surfaced through operation/log state rather than crashing before the main window appears.

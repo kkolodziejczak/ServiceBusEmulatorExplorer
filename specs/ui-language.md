@@ -52,6 +52,8 @@ Do not confuse glyph dimensions with hit targets. Keep Copy beside the correlati
 
 ## Component registry
 
+Shared control resources are loaded by [App.xaml](../src/ServiceBusEmulatorExplorer.App/App.xaml). The touched selector surfaces use the implicit [dropdown style](../src/ServiceBusEmulatorExplorer.App/Investigation/Resources/DropdownStyles.xaml), with named compact and table-editing variants; Settings and Workbench dialogs no longer provide independent selector templates. Shared buttons, tables, dialog headings, labels and captions remain in [SharedStyles.xaml](../src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SharedStyles.xaml). This is an incremental migration, not an assertion that every legacy surface has been audited.
+
 Read this registry before proposing or changing UI. Record every distinct new component or interaction concept here with its purpose, states, usage, canonical source, and approval status. A mockup or prototype is **Proposed** until the user approves the rendered behavior; update the entry and validate its links when that changes.
 
 | Component / status | Purpose, states, and usage | Canonical source |
