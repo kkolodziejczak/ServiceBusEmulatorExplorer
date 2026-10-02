@@ -189,7 +189,7 @@ public sealed class InvestigationAutoRefreshTests
         Assert.Equal(2, tree.Items.Count);
         Assert.True(((EntityNode)tree.Items[0]).IsVisible);
         Assert.Equal(Visibility.Visible, ((Border)view.FindName("PrepareDestinationWarning")).Visibility);
-        Assert.Contains("Topic \"order-events\" could not be verified",
+        Assert.Contains("Topic \"order-events\" is not verified",
             ((TextBlock)view.FindName("PrepareDestinationWarningText")).Text, StringComparison.Ordinal);
     });
 

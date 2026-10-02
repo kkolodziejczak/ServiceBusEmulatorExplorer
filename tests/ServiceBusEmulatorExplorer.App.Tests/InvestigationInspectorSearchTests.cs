@@ -36,6 +36,8 @@ public sealed class InvestigationInspectorSearchTests
             ShowActivated = false,
             ShowInTaskbar = false
         };
+        NativeWindowSizeOverride? sizeOverride = null;
+        window.SourceInitialized += (_, _) => sizeOverride = NativeWindowSizeOverride.Install(window, 1500, 1000);
         try
         {
             window.Show();
@@ -183,6 +185,7 @@ public sealed class InvestigationInspectorSearchTests
             workspace.ConfirmDiscard = () => Task.FromResult(true);
             if (window.IsVisible)
             {
+                sizeOverride?.Dispose();
                 window.Close();
                 PumpUntil(dispatcher, () => !window.IsVisible, "window to close");
             }

@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation;
+using ServiceBusEmulatorExplorer.ReadmeScreenshot;
 using ServiceBusEmulatorExplorer.App.Investigation.Inspection;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
@@ -173,6 +174,8 @@ public sealed class MessageWorkbenchResponsiveComposeTests
         window.Width = width;
         window.Height = height;
         WaitForLayout(dispatcher);
+        Assert.InRange(Math.Abs(window.ActualWidth - width), 0, 1);
+        Assert.InRange(Math.Abs(window.ActualHeight - height), 0, 1);
         FrameworkElement content = window.Content as FrameworkElement ?? throw new InvalidOperationException("Window content is missing.");
         double editorWidth = Get<FrameworkElement>(content, "EditorArea").ActualWidth;
         Assert.True(editorWidth > 0, "The editor area should be arranged after resizing.");
@@ -186,17 +189,22 @@ public sealed class MessageWorkbenchResponsiveComposeTests
         var thread = new Thread(() =>
         {
             Window? window = null;
+            NativeWindowSizeOverride? sizeOverride = null;
             try
             {
                 var view = new MessageLibraryPrototypeView();
                 window = new Window { Width = width, Height = height, Content = view, ShowInTaskbar = false, WindowStyle = WindowStyle.None };
+                window.SourceInitialized += (_, _) => sizeOverride = NativeWindowSizeOverride.Install(window, 1700, 1000);
                 window.Show();
+                window.Width = width;
+                window.Height = height;
                 WaitForLayout(window.Dispatcher);
                 assertion(window.Dispatcher, view, window);
             }
             catch (Exception exception) { failure = exception; }
             finally
             {
+                sizeOverride?.Dispose();
                 window?.Close();
                 Dispatcher.CurrentDispatcher.InvokeShutdown();
             }
