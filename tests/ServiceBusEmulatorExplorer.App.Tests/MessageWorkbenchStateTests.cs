@@ -103,6 +103,43 @@ public sealed class MessageWorkbenchStateTests
     });
 
     [Fact]
+    public void Csv_preview_heading_follows_selected_row_on_body_and_properties_and_resets_for_single() => Run((window, view) =>
+    {
+        Click(view, "ContinueToPrepareButton");
+        window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+        var rows = Get<DataGrid>(view, "CsvRowsGrid");
+        var heading = Get<Grid>(view, "PreviewSurface").Children.OfType<TextBlock>().Single(block => Grid.GetRow(block) == 0);
+        foreach (int index in new[] { 1, 2, 0 })
+        {
+            rows.SelectedIndex = index;
+            Click(view, "BodyTab");
+            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            using var body = JsonDocument.Parse(Get<JsonEditor>(view, "PreviewText").Text);
+            Assert.Equal($"C100{index + 1}", body.RootElement.GetProperty("customerId").GetString());
+            Assert.Equal($"Row {index + 1} preview", heading.Text);
+            Click(view, "PropertiesTab");
+            Assert.Contains($"Correlation ID: C100{index + 1}", Get<JsonEditor>(view, "PreviewText").Text);
+            Assert.Equal($"Row {index + 1} preview", heading.Text);
+        }
+        rows.SelectedIndex = 1;
+        Click(view, "BodyTab");
+        window.UpdateLayout();
+        string? proofDirectory = Environment.GetEnvironmentVariable("SBE_ROW_PREVIEW_PROOF");
+        if (!string.IsNullOrEmpty(proofDirectory))
+        {
+            var content = (FrameworkElement)window.Content;
+            ServiceBusEmulatorExplorer.ReadmeScreenshot.WpfScreenshot.SaveWindowContent(window,
+                System.IO.Path.Combine(proofDirectory, "row-2-body.png"),
+                (int)Math.Ceiling(content.ActualWidth), (int)Math.Ceiling(content.ActualHeight));
+        }
+        Get<RadioButton>(view, "SingleMode").IsChecked = true;
+        window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+        Assert.Equal("Row 1 preview", heading.Text);
+        Get<RadioButton>(view, "CsvMode").IsChecked = true;
+        window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+        Assert.Equal("Row 1 preview", heading.Text);
+    });
+    [Fact]
     public void Csv_selected_preview_and_review_keep_the_same_prepared_event_ids() => Run((window, view) =>
     {
         Click(view, "ContinueToPrepareButton");

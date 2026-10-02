@@ -713,6 +713,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         if (!previewReady) return;
         var row = CsvMode.IsChecked == true ? CsvRowsGrid.SelectedItem as CsvPreviewRow : null;
         int rowNumber = row?.Row ?? 1;
+        PreviewHeading.Text = $"Row {rowNumber} preview";
         var prepared = preparedMessages.Single(message => message.Row == rowNumber);
         PreviewHint.Text = CsvMode.IsChecked == true ? $"3 of 3 rows valid · Row {rowNumber} preview" : "1 sample message valid";
         if (propertiesPreview)
