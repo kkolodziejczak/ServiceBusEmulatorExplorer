@@ -2,6 +2,42 @@
 
 These notes are repo-specific guidance gathered from prior planning, implementation, verification, and bug-fix sessions. Treat them as operating guidance for this repository; still inspect the current code and scripts before acting.
 
+## Conventions and memory
+
+Four documents hold what this repository has already decided. Read the ones your task touches
+before designing anything; update them in the same change as the code.
+
+- [DESIGN.md](DESIGN.md) owns every visual rule: tokens, spacing scale, type scale, and the
+  component registry. Build UI only from registered components and tokens. If a screen needs a
+  component, token or value the registry does not have, stop and ask before inventing it; once
+  approved, add it to the registry in the same change. Proposals and mockups stay in
+  [specs/ui-language.md](specs/ui-language.md) until approved.
+- [CAPABILITIES.md](CAPABILITIES.md) indexes solved techniques by pointing at code (file and
+  type or method, no line numbers). Each row says *shared*, *adapt* or *example*. When you solve
+  something another screen or layer could reuse, add a row.
+- [DECISIONS.md](DECISIONS.md) records what the user decided and why. Record a decision when the
+  user states how something must look, behave or be built and gives a reason, or rejects an
+  approach. Do not record routine instructions. When asked "why is X like this", answer from the
+  matching DEC entry and cite its ID. An accepted decision is binding; if a task conflicts with
+  one, say so and stop instead of silently overriding it.
+
+### Start of every task
+
+1. Read this file.
+2. Search `CAPABILITIES.md` and `DECISIONS.md` for the feature, screen or technique by name.
+3. For UI work, open the component registry in `DESIGN.md` and name the components you will
+   reuse before writing XAML.
+4. Say in one line which documents you read and which entries apply.
+
+### End of every change
+
+- Run `tools/check-docs.ps1`. It fails on dead pointers in the four documents, duplicate decision
+  IDs, and new hex colours, `FontSize` literals or off-scale `Margin`/`Padding` values in views
+  above the recorded baseline. Fix the cause; do not raise the baseline to pass. When a clean-up
+  lowers a count, lower the baseline in the same change.
+- If the change added or changed a technique, component, token or decision, confirm the matching
+  document changed in the same commit.
+
 ## Project Shape
 
 - Main solution: `ServiceBusEmulatorExplorer.slnx`.
@@ -114,35 +150,27 @@ dotnet tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/bin/Debug/net10.0-windo
 
 ## Service Bus And DLQ Behavior
 
+- Product rules for replay, delete, labels and timestamps are decisions: see DEC-001 to DEC-004 in [DECISIONS.md](DECISIONS.md).
 - Service Bus entity management and message operations are separate concepts. Messages are not updated in place.
 - Runtime and administration connection strings are both required; keep their validation explicit.
-- DLQ replay must be non-destructive by default. Replaying creates a new active message and leaves the original DLQ message until a separate delete command is explicitly confirmed.
-- Keep DLQ delete separate and visibly destructive. Multi-delete and visible-page delete need clear confirmation; visible-page delete uses typed confirmation.
-- Keep message action labels intent-specific: use labels like `Send New Message`, `Replay DLQ Copy`, and `Edit and Replay DLQ`; avoid overlapping terms such as repair/resubmit/replay copy for the same action.
 - When testing SDK model types, use Azure SDK model factories instead of inventing production seams only for tests.
 - Be careful with sequence-number targeting in DLQ scans. Avoid loops that can keep receiving and abandoning the same non-target messages without progress.
 - If replay send succeeds but abandoning the original DLQ lock fails afterward, do not report the replay send itself as failed.
 
 ## Product And Planning Lessons
 
-- For every UI proposal or UI change, read [the UI language and component registry](specs/ui-language.md), the applicable approved feature visual contract, and the production [shared WPF styles](src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SharedStyles.xaml) before drawing or coding. Reuse approved components and their documented states. Record each genuinely new UI concept or component in the registry with its purpose, states, usage locations, and approval status; validate those paths. A proposed component does not become approved merely because it appears in a generated mockup or prototype.
-- For a new UI concept, capture the current running app first and edit that capture to propose only the changed area. Obtain the user's explicit approval of the final mockup before implementing the UI; approval of a direction or variant alone is not build approval. Carry forward unchanged chrome and components from the actual app rather than recreating them in a separate mock window.
-- If a reference project is mentioned, ask whether it is authoritative or illustrative. The earlier Minimal API reference helped with endpoint and UI interaction shape, but it was not an architecture constraint for this WPF app.
-- The intended workflow reference is closer to `paolosalvatori/ServiceBusExplorer`: menu bar, toolbar, namespace tree, tabbed entity view, message list/detail panes, action strip, and log pane. The visual treatment should be modern, not a legacy clone.
+- UI rules (component reuse, mockup approval, icon-plus-label strips, workflow reference) are in [DESIGN.md](DESIGN.md) and DEC-005, DEC-014 and DEC-017 in [DECISIONS.md](DECISIONS.md). For a new UI concept, capture the current running app first and edit that capture to propose only the changed area; record the proposal in [specs/ui-language.md](specs/ui-language.md).
+- If a reference project is mentioned, ask whether it is authoritative or illustrative.
 - Treat the MVP wireframe as a functional contract. If something appears in the wireframe, implement that workflow; if a reference tool has extra conveniences not in the MVP, do not leave them as placeholders.
 - For this desktop operations tool, compact split-pane layouts clarify scope better than high-fidelity hero-style mockups.
-- For dense action strips, prefer compact icon-plus-label buttons with clear tooltips and automation names. The visible label should explain the operation; automation names should remain stable for tests.
 
 ## Actionable validation
 
-- Apply this convention to all new or changed app validation, across properties, settings, dialogs, and workflow steps. Show a concise cause and remedy in the shared severity-colored frame; place an action button on its right using the same color family, with keyboard focus and readable contrast. Let the layout wrap at narrow widths.
-- When a remedy exists in the app, use a specific label such as `Choose destination` or `Open connection settings`. The action must navigate to the relevant screen/tab, expand and scroll the target into view, and focus the exact field while preserving draft values and selection. For an unavailable destination, open Compose > Properties and focus Destination.
-- Keep validation visible until revalidation succeeds; navigation alone does not resolve it. For conditions without an in-app remedy, explain the concrete next step instead of showing a dead-end button. Verify navigation, focus, preserved input, and clearing after correction for each affected validation path.
+- The convention is defined in [DESIGN.md](DESIGN.md#actionable-validation) (DEC-013). Apply it to all new or changed validation across properties, settings, dialogs and workflow steps. For an unavailable destination, open Compose > Properties and focus Destination. Verify navigation, focus, preserved input, and clearing after correction for each affected validation path.
 
 ## WPF Architecture Lessons
 
-- Clean up UI styling incrementally whenever a task touches a component. Put its approved common appearance and interaction states in the application-level [shared resources](src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SharedStyles.xaml), use implicit defaults for standard controls and named `BasedOn` variants for intentional differences, and remove duplicated local templates/setters from the affected surfaces. Preserve bindings, automation names, keyboard behavior, and profile themes. Do not restyle untouched screens or expand the task into a whole-app rewrite. Verify the touched component's normal, hover/open, selected, focused, disabled, and editing states as applicable, including a regression check that new instances inherit the shared style.
-
+- Styling lives in `SharedStyles.xaml` and is migrated incrementally (DEC-006); the rules and the component registry are in [DESIGN.md](DESIGN.md). Preserve bindings, automation names, keyboard behavior, and profile themes when migrating a component, and verify its states including a regression check that new instances inherit the shared style.
 - Keep `ShellViewModel` as orchestration, not the owner of every feature workflow. Prior quality gates forced extraction into `EntityManagementWorkflow` and `MessageInspectionViewModel`.
 - Put domain and SDK mapping rules in focused core classes such as request factories, mappers, projections, and validators. Keep dialogs as input collectors, not Service Bus address builders.
 - Profile-load failures should be surfaced through operation/log state rather than crashing before the main window appears.
