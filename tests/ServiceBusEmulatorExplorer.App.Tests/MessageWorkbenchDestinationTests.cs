@@ -138,7 +138,12 @@ public sealed class MessageWorkbenchDestinationTests
             Assert.Equal(Visibility.Visible, Get<ScrollViewer>(view, "PropertiesEditorSurface").Visibility);
             Assert.Equal("Keep this unsaved subject", subject.Text);
             Assert.Equal(Visibility.Visible, Get<Border>(view, "ComposeDestinationWarning").Visibility);
-            Assert.True(Get<ScrollViewer>(view, "PropertiesEditorSurface").VerticalOffset > 0);
+            var propertiesSurface = Get<ScrollViewer>(view, "PropertiesEditorSurface");
+            var destination = Get<ComboBox>(view, "TemplateDestination");
+            Rect destinationBounds = destination.TransformToAncestor(propertiesSurface).TransformBounds(new Rect(destination.RenderSize));
+            Assert.True(destinationBounds.Top >= -0.5 && destinationBounds.Bottom <= propertiesSurface.ViewportHeight + 0.5,
+                $"The destination remedy should bring the destination field into the visible viewport: field={destinationBounds}, viewport={propertiesSurface.ViewportHeight}.");
+            Assert.True(destination.IsKeyboardFocusWithin, "The destination remedy should focus the destination field.");
 
             view.SetDestinationDiscovery("profile-a", 2, Snapshot(true,
                 new WorkbenchDestination("order-events", EntityKind.Topic)));

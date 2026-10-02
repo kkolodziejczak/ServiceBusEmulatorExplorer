@@ -21,6 +21,8 @@ internal static class Program
             return LiveMessageCaptureScenario.Run(args[0]);
         if (args.Length == 2 && args[1] == "--compact-tables")
             return CompactTablesScreenshotScenario.Run(args[0]);
+        if (args.Length == 2 && args[1] == "--responsive-compose")
+            return ResponsiveComposeScreenshotScenario.Run(args[0]);
         if (args.Length == 2 && args[1].StartsWith("--workbench-tree", StringComparison.Ordinal))
             return WorkbenchTreeScreenshotScenario.Run(args[0], args[1]);
         if (args.Length == 2 && args[1].StartsWith("--selector-", StringComparison.Ordinal))

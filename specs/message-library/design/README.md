@@ -1,5 +1,9 @@
 # Message Workbench — approved visual contract
 
+## Approved responsive Compose layout (2026-10-02)
+
+The user approved the [hybrid mockup](approved/18-responsive-workbench.png), clarified that small windows use a single property column, and requested implementation. The [responsive layout contract](../responsive-layout.md) defines wide, medium and small behavior and preservation requirements. This supersedes mutually exclusive Body/Properties surfaces only where sufficient editor width permits simultaneous display.
+
 ## Approved capture summary and inspector search (2026-10-02)
 
 The user approved the [revised capture summary](approved/15-capture-summary-expanded.png) together with the [inspector search proposal](approved/16-inspector-search.png), responding "1". The revised capture image supersedes the earlier capture pane; there is no search highlight in the capture preview and no original-message footer label. Existing Find related remains even though image generation omitted it from the inspector crop.

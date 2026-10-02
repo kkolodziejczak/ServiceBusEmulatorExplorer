@@ -792,35 +792,29 @@ public partial class MessageLibraryPrototypeView : UserControl
     private void EditorBody_Click(object sender, RoutedEventArgs e) => ShowEditorBody();
     private void ShowEditorBody()
     {
-        EditorBodyTab.Style = (Style)FindResource("PreviewTabActive");
-        EditorPropertiesTab.Style = (Style)FindResource("PreviewTab");
-        EditorVariablesTab.Style = (Style)FindResource("PreviewTab");
-        BodyEditorSurface.Visibility = Visibility.Visible;
-        PropertiesEditorSurface.Visibility = Visibility.Collapsed;
-        VariablesEditorSurface.Visibility = Visibility.Collapsed;
+        activeTabSurface = EditorSurface.Body;
+        lastFocusedSurface = EditorSurface.Body;
+        inspectorSurface = EditorSurface.Properties;
         loadingEditor = true;
         try { EditorText.Text = currentBody; }
         finally { loadingEditor = false; }
+        ApplyEditorResponsiveLayout();
     }
 
     private void EditorProperties_Click(object sender, RoutedEventArgs e)
     {
-        EditorBodyTab.Style = (Style)FindResource("PreviewTab");
-        EditorPropertiesTab.Style = (Style)FindResource("PreviewTabActive");
-        EditorVariablesTab.Style = (Style)FindResource("PreviewTab");
-        BodyEditorSurface.Visibility = Visibility.Collapsed;
-        PropertiesEditorSurface.Visibility = Visibility.Visible;
-        VariablesEditorSurface.Visibility = Visibility.Collapsed;
+        activeTabSurface = EditorSurface.Properties;
+        lastFocusedSurface = EditorSurface.Properties;
+        inspectorSurface = EditorSurface.Properties;
+        ApplyEditorResponsiveLayout();
     }
 
     private void EditorVariables_Click(object sender, RoutedEventArgs e)
     {
-        EditorBodyTab.Style = (Style)FindResource("PreviewTab");
-        EditorPropertiesTab.Style = (Style)FindResource("PreviewTab");
-        EditorVariablesTab.Style = (Style)FindResource("PreviewTabActive");
-        BodyEditorSurface.Visibility = Visibility.Collapsed;
-        PropertiesEditorSurface.Visibility = Visibility.Collapsed;
-        VariablesEditorSurface.Visibility = Visibility.Visible;
+        activeTabSurface = EditorSurface.Variables;
+        lastFocusedSurface = EditorSurface.Variables;
+        inspectorSurface = EditorSurface.Variables;
+        ApplyEditorResponsiveLayout();
     }
 
     private void CopyAuthor_Click(object sender, RoutedEventArgs e) => Clipboard.SetText(currentBody);

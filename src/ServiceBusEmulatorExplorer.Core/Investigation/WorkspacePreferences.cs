@@ -31,8 +31,8 @@ public sealed record WorkspacePreferences
     public int AutoRefreshSeconds { get; init; }
     public string SelectedEntityPath { get; init; } = "";
     public bool DeadLetter { get; init; }
-    public double WindowWidth { get; init; } = 1500;
-    public double WindowHeight { get; init; } = 1000;
+    public double WindowWidth { get; init; } = 1200;
+    public double WindowHeight { get; init; } = 800;
     public IReadOnlyDictionary<string, IReadOnlyList<WatchPreference>> Watches { get; init; } =
         new Dictionary<string, IReadOnlyList<WatchPreference>>();
     public IReadOnlyDictionary<string, IReadOnlyList<ReplayFamilyState>> ReplayFamilies { get; init; } =

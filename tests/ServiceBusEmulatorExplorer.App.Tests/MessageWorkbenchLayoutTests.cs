@@ -268,10 +268,10 @@ public sealed class MessageWorkbenchLayoutTests
             ScrollViewer propertiesSurface = ByName<ScrollViewer>(view, "PropertiesEditorSurface");
             Assert.Equal(Visibility.Visible, propertiesSurface.Visibility);
 
-            AssertAlignedRow(view, propertiesSurface, "Subject", ByName<TextBox>(view, "PropertySubject"));
-            AssertAlignedRow(view, propertiesSurface, "Content type", ByName<ComboBox>(view, "PropertyContentType"));
-            AssertAlignedRow(view, propertiesSurface, "Correlation ID", ByName<TextBox>(view, "PropertyCorrelationId"));
-            AssertAlignedRow(view, propertiesSurface, "Session ID", ByName<TextBox>(view, "PropertySessionId"));
+            AssertLabelAboveValue(propertiesSurface, "Subject", ByName<TextBox>(view, "PropertySubject"));
+            AssertLabelAboveValue(propertiesSurface, "Content type", ByName<ComboBox>(view, "PropertyContentType"));
+            AssertLabelAboveValue(propertiesSurface, "Correlation ID", ByName<TextBox>(view, "PropertyCorrelationId"));
+            AssertLabelAboveValue(propertiesSurface, "Session ID", ByName<TextBox>(view, "PropertySessionId"));
 
             DataGrid applicationProperties = ByName<DataGrid>(view, "ApplicationPropertiesGrid");
             ComboBox destination = ByName<ComboBox>(view, "TemplateDestination");
@@ -401,6 +401,20 @@ public sealed class MessageWorkbenchLayoutTests
     {
         TextBlock label = VisibleLabel(surface, labelText);
         AssertAlignedRow(label, value, labelText);
+        AssertFullyInside(value, surface, labelText + " value");
+    }
+
+    private static void AssertLabelAboveValue(FrameworkElement surface, string labelText, FrameworkElement value)
+    {
+        TextBlock label = VisibleLabel(surface, labelText);
+        Visual ancestor = FindCommonAncestor(label, value);
+        Rect labelBounds = Bounds(label, ancestor);
+        Rect valueBounds = Bounds(value, ancestor);
+        Assert.InRange(Math.Abs(labelBounds.Left - valueBounds.Left), 0, 8);
+        Assert.True(valueBounds.Top >= labelBounds.Bottom,
+            $"{labelText} value should appear below its label: label={labelBounds}, value={valueBounds}.");
+        Assert.True(valueBounds.Top - labelBounds.Bottom <= 16,
+            $"{labelText} value should remain close to its label: label={labelBounds}, value={valueBounds}.");
         AssertFullyInside(value, surface, labelText + " value");
     }
 

@@ -20,8 +20,8 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
     private const int DefaultPageSize = 50;
     private const int DefaultSearchTimeBudgetSeconds = 30;
     private const int DefaultSearchDeliveryBudget = 10_000;
-    private const double DefaultWindowWidth = 1500;
-    private const double DefaultWindowHeight = 1000;
+    private const double DefaultWindowWidth = 1200;
+    private const double DefaultWindowHeight = 800;
     private const string DefaultColor = "#0069FA";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
