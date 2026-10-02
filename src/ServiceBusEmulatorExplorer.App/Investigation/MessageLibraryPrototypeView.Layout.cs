@@ -1,5 +1,4 @@
 using System.Windows;
-using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
 
@@ -21,9 +20,9 @@ public partial class MessageLibraryPrototypeView
 
     private void WideInspectorToggle_Click(object sender, RoutedEventArgs e)
     {
-        inspectorSurface = inspectorSurface == EditorSurface.Variables
-            ? EditorSurface.Properties
-            : EditorSurface.Variables;
+        inspectorSurface = ReferenceEquals(sender, WideVariablesAction)
+            ? EditorSurface.Variables
+            : EditorSurface.Properties;
         lastFocusedSurface = inspectorSurface;
         ApplyEditorResponsiveLayout();
     }
@@ -130,12 +129,8 @@ public partial class MessageLibraryPrototypeView
         if (WideVariablesAction is not null)
         {
             bool variablesShown = inspectorSurface == EditorSurface.Variables;
-            WidePropertiesHeading.Text = variablesShown ? "Variables" : "Properties";
-            WideVariablesAction.Content = variablesShown ? "Properties" : "Variables";
-            WideVariablesAction.Style = (Style)FindResource(variablesShown
-                ? "PreviewTabActive" : "PreviewTab");
-            AutomationProperties.SetName(WideVariablesAction, variablesShown
-                ? "Show template properties" : "Show template variables");
+            WidePropertiesAction.IsChecked = !variablesShown;
+            WideVariablesAction.IsChecked = variablesShown;
         }
     }
 }

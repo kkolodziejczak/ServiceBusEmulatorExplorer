@@ -36,6 +36,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-020 | accepted | docs | README is user-facing; maintainer mechanics live in AGENTS.md |
 | DEC-021 | accepted | layout | No numeric navigation badges; native title bar carries the app name |
 | DEC-022 | accepted | Workbench layout | Responsive JSON/inspector with two property columns at medium width and one at small width |
+| DEC-023 | accepted | Workbench search and navigation | Contextual suggestions and adjacent inspector tabs |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -183,3 +184,10 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 - Decision: show JSON beside properties when usable editor width permits; otherwise use Body/Properties/Variables tabs. Medium layouts use two property columns; small layouts use one. New windows default to 1200x800 while retaining saved sizes and the 980x640 minimum.
 - Because: the user wanted a combination of proposals 2 and 3: "if we have a lot of space there is no need to hide the Json body editor", and clarified "if window will be smaller then we should have single column."
 - Consequences: resize the existing controls without losing drafts, selection or editing context. Keep Variables and advanced controls reachable. See the [approved contract](specs/message-library/responsive-layout.md).
+
+## DEC-023 — Workbench search context and visible inspector choices
+
+- Status: accepted · 2026-10-02 · Scope: Workbench search and navigation
+- Decision: extend entity suggestions to Workbench namespace search and offer template/folder suggestions with folder context. In wide Compose, show adjacent Properties and Variables tabs using shared selected-tab styling, with JSON always visible.
+- Because: the user wanted more context about search possibilities and found the distant Variables link misleading and hard to discover.
+- Consequences: suggestion actions are specific to Workbench filtering or library selection; they do not retarget a draft destination or start broker message searches. Preserve narrow-layout tabs and responsive editing state. See the [approved contract](specs/message-library/search-and-inspector-tabs.md).

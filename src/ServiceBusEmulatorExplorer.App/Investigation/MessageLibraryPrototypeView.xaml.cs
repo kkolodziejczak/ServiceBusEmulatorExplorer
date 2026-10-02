@@ -214,11 +214,13 @@ public partial class MessageLibraryPrototypeView : UserControl
             ClearTemplateSearchButton.Visibility = string.IsNullOrEmpty(TemplateSearch.Text)
                 ? Visibility.Collapsed : Visibility.Visible;
         if (LibraryTree is not null) RefreshLibraryTree();
+        UpdateLibrarySuggestions();
     }
 
     private void ClearTemplateSearch_Click(object sender, RoutedEventArgs e)
     {
         TemplateSearch.Clear();
+        LibrarySuggestionsPopup.IsOpen = false;
         TemplateSearch.Focus();
     }
 
@@ -231,7 +233,9 @@ public partial class MessageLibraryPrototypeView : UserControl
 
     public void FilterByNamespaceQuery(string query)
     {
+        bool changed = !namespaceQuery.Equals(query, StringComparison.OrdinalIgnoreCase);
         namespaceQuery = query;
+        if (changed) CloseLibrarySearchSuggestions();
         RefreshLibraryTree();
         bool outside = query.Length > 0 && templates.FirstOrDefault(value => value.Name == selectedTemplateName) is { } current
             && !TemplateAssociations(current).Any(path => path.Contains(query, StringComparison.OrdinalIgnoreCase));

@@ -35,6 +35,7 @@ dead paths.
 | Validation frame with a remedy action that navigates and focuses the field | adapt | `src/ServiceBusEmulatorExplorer.App/Investigation/MessageLibraryPrototypeView.xaml` (`ValidationWarningFrame` usage) and its code-behind partials |
 | Responsive editor with retained draft, inspector choice and focused surface | adapt | `src/ServiceBusEmulatorExplorer.App/Investigation/MessageLibraryPrototypeView.Layout.cs`, `ApplyEditorResponsiveLayout`; same-window resize proof in `tests/ServiceBusEmulatorExplorer.App.Tests/MessageWorkbenchResponsiveComposeTests.cs` |
 | JSON syntax colouring on the dark editor | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Inspection/JsonSyntaxColorizer.cs` |
+| Workbench search suggestions with scope-specific navigation | adapt | `src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWindow.Search.cs` (`UpdateSuggestions`, `ChooseSuggestion`) and `src/ServiceBusEmulatorExplorer.App/Investigation/MessageLibraryPrototypeView.Search.cs` |
 | Inspector text search with match navigation (Ctrl+F) | adapt | `src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWindow.Search.cs` |
 | Large window split into partial classes by concern | adapt | `src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWindow.*.cs` (Delete, Inspection, Layout, Lifetime, Notifications, Replay, Search, Watch) |
 | Tray icon and toast-style notification window | adapt | `src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationTray.cs`; `WatchNotificationWindow.cs` |

@@ -45,6 +45,15 @@
  <SolidColorBrush x:Key="DarkButtonHoverBrush" Color="#344B63"/>
  <SolidColorBrush x:Key="DarkButtonPressedBrush" Color="#182432"/>
  <SolidColorBrush x:Key="DarkButtonDisabledTextBrush" Color="#99A9BB"/>
+ <DataTemplate x:Key="SearchSuggestionGroupHeaderTemplate">
+  <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Margin="10,5,10,0" Padding="2,9,2,3"><TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource ActionTextBrush}"/></Border>
+ </DataTemplate>
+ <Style x:Key="SearchSuggestionListItem" TargetType="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="10,6"/></Style>
+ <Style x:Key="SearchSuggestionCaption" TargetType="TextBlock"><Setter Property="FontSize" Value="11"/><Setter Property="Foreground" Value="{DynamicResource SecondaryBrush}"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}"/></Style>
+ <Style x:Key="SearchSuggestionDetail" TargetType="TextBlock" BasedOn="{StaticResource SearchSuggestionCaption}"><Setter Property="MaxWidth" Value="155"/><Setter Property="Margin" Value="8,0,0,0"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+ <Style x:Key="SearchSuggestionBadge" TargetType="TextBlock" BasedOn="{StaticResource SearchSuggestionCaption}"><Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/><Setter Property="Margin" Value="8,0,0,0"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+ <Style x:Key="WorkbenchSuggestionContext" TargetType="TextBlock" BasedOn="{StaticResource SearchSuggestionCaption}"/>
+ <Style x:Key="WorkbenchSuggestionType" TargetType="TextBlock" BasedOn="{StaticResource SearchSuggestionCaption}"><Setter Property="VerticalAlignment" Value="Center"/></Style>
  <Style x:Key="DialogHeading" TargetType="TextBlock">
   <Setter Property="FontSize" Value="24"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Margin" Value="0,0,0,16"/>
  </Style>

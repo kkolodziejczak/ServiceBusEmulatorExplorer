@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -16,6 +17,14 @@ internal static class WpfScreenshot
         SaveWindowContent(window, outputPath, CaptureWidth, CaptureHeight);
 
     public static void SaveWindowContent(Window window, string outputPath, int expectedWidth, int expectedHeight, int minimumBytes = 10_000)
+        => SaveWindowContent(window, outputPath, expectedWidth, expectedHeight, minimumBytes, popup: null);
+
+    public static void SaveWindowContentWithPopup(Window window, Popup popup, string outputPath,
+        int expectedWidth, int expectedHeight, int minimumBytes = 10_000)
+        => SaveWindowContent(window, outputPath, expectedWidth, expectedHeight, minimumBytes, popup);
+
+    private static void SaveWindowContent(Window window, string outputPath, int expectedWidth, int expectedHeight,
+        int minimumBytes, Popup? popup)
     {
         if (window.Content is not FrameworkElement content)
         {
@@ -49,6 +58,20 @@ internal static class WpfScreenshot
                 Viewport = new Rect(0, 0, width, height)
             };
             drawingContext.DrawRectangle(contentBrush, null, new Rect(0, 0, width, height));
+            if (popup?.IsOpen == true && popup.Child is FrameworkElement popupContent)
+            {
+                popupContent.UpdateLayout();
+                double popupWidth = popupContent.ActualWidth;
+                double popupHeight = popupContent.ActualHeight;
+                if (popupWidth > 0 && popupHeight > 0)
+                {
+                    var popupBitmap = new RenderTargetBitmap(
+                        (int)Math.Ceiling(popupWidth), (int)Math.Ceiling(popupHeight), 96, 96, PixelFormats.Pbgra32);
+                    popupBitmap.Render(popupContent);
+                    Point popupOrigin = content.PointFromScreen(popupContent.PointToScreen(new Point(0, 0)));
+                    drawingContext.DrawImage(popupBitmap, new Rect(popupOrigin.X, popupOrigin.Y, popupWidth, popupHeight));
+                }
+            }
         }
 
         bitmap.Render(captureVisual);
