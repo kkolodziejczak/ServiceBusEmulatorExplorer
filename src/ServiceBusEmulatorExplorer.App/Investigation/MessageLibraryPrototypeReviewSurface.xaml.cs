@@ -6,7 +6,6 @@ using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Threading;
 using Microsoft.Win32;
 
@@ -35,11 +34,24 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     public MessageLibraryPrototypeReviewSurface(string profile, string target, int count)
     {
         InitializeComponent();
+        InitializeScheduleInputs();
         dispatchTimer.Tick += DispatchTick;
         Unloaded += (_, _) => dispatchTimer.Stop();
         SizeChanged += (_, _) => UpdateReviewCardLayout();
         ReviewScroll.SizeChanged += (_, _) => UpdateReviewCardLayout();
         Configure(profile, target, count);
+    }
+
+    private void InitializeScheduleInputs()
+    {
+        ScheduleHourInput.ItemsSource = Enumerable.Range(0, 24)
+            .Select(hour => hour.ToString("D2", CultureInfo.InvariantCulture))
+            .ToArray();
+        ScheduleMinuteInput.ItemsSource = Enumerable.Range(0, 60)
+            .Select(minute => minute.ToString("D2", CultureInfo.InvariantCulture))
+            .ToArray();
+        ScheduleHourInput.SelectedIndex = 14;
+        ScheduleMinuteInput.SelectedIndex = 30;
     }
 
     private void UpdateReviewCardLayout()
@@ -70,6 +82,8 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         ReviewHeading.Text = $"Review {count} message{(count == 1 ? "" : "s")}";
         SetPreparedMessages(CreateSamplePreparedMessages(count));
         ScheduleDateInput.SelectedDate = DateTime.Today.AddDays(1);
+        ScheduleHourInput.SelectedIndex = 14;
+        ScheduleMinuteInput.SelectedIndex = 30;
         ReviewSurface.Visibility = Visibility.Visible;
         ReviewFooter.Visibility = Visibility.Visible;
         UpdateReviewTiming();
@@ -104,7 +118,8 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         [nameof(ReviewSchedule)] = ReviewSchedule,
         [nameof(ScheduleInputs)] = ScheduleInputs,
         [nameof(ScheduleDateInput)] = ScheduleDateInput,
-        [nameof(ScheduleTimeInput)] = ScheduleTimeInput,
+        [nameof(ScheduleHourInput)] = ScheduleHourInput,
+        [nameof(ScheduleMinuteInput)] = ScheduleMinuteInput,
         [nameof(ScheduleUtc)] = ScheduleUtc,
         [nameof(ScheduleLocal)] = ScheduleLocal,
         [nameof(ResolvedSchedule)] = ResolvedSchedule,
@@ -219,14 +234,6 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         if (ScheduleInputs is not null) UpdateReviewTiming();
     }
 
-    private void ScheduleDateInput_Loaded(object sender, RoutedEventArgs e)
-    {
-        if (sender is not DatePicker datePicker) return;
-        datePicker.ApplyTemplate();
-        if (datePicker.Template.FindName("PART_TextBox", datePicker) is DatePickerTextBox dateText)
-            dateText.VerticalContentAlignment = VerticalAlignment.Center;
-    }
-
     private void ScheduleInput_Changed(object sender, EventArgs e)
     {
         if (ScheduleInputs is not null) UpdateReviewTiming();
@@ -259,8 +266,13 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     {
         utc = default;
         if (ScheduleDateInput?.SelectedDate is not DateTime date ||
-            !TimeOnly.TryParseExact(ScheduleTimeInput?.Text, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out TimeOnly time))
+            ScheduleHourInput?.SelectedItem is not string hourText ||
+            ScheduleMinuteInput?.SelectedItem is not string minuteText ||
+            !int.TryParse(hourText, NumberStyles.None, CultureInfo.InvariantCulture, out int hour) ||
+            !int.TryParse(minuteText, NumberStyles.None, CultureInfo.InvariantCulture, out int minute) ||
+            hour is < 0 or > 23 || minute is < 0 or > 59)
             return false;
+        TimeOnly time = new(hour, minute);
         DateTime selected = DateTime.SpecifyKind(date.Date.Add(time.ToTimeSpan()), DateTimeKind.Unspecified);
         if (ScheduleLocal?.IsChecked == true)
         {

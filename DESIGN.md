@@ -182,6 +182,7 @@ result.
 | Message Workbench workspace | `MessageLibraryPrototypeView.xaml` (dummy data) | compose, prepare, review, results, cancelled | Prototype | Approved prototype; production pending |
 | Responsive Compose layout | [Layout controller](src/ServiceBusEmulatorExplorer.App/Investigation/MessageLibraryPrototypeView.Layout.cs), `ApplyEditorResponsiveLayout`; [visual contract](specs/message-library/responsive-layout.md) | wide: JSON plus inspector; medium: tabs and two property columns; small: tabs and one property column; Variables, editing, warning remedy | Message Workbench Compose | Approved 2026-10-02, DEC-022 |
 | Workbench contextual search | [Contract](specs/message-library/search-and-inspector-tabs.md); `SearchSuggestionGroupHeaderTemplate`, `SearchSuggestionListItem`, `SearchSuggestionCaption` in shared styles | typing, grouped results, hover, keyboard selection, empty, dismissed | Workbench namespace and template searches | Approved 2026-10-02, DEC-023 |
+| Scheduling inputs | [Contract](specs/message-library/scheduling-controls.md); ScheduleDatePicker, ScheduleCalendar and ScheduleChoiceRadioButton in shared SchedulingStyles.xaml | closed, expanded, selected day, today, hover, pressed, keyboard focus, disabled; constrained hour/minute and validation | Workbench Review | Approved 2026-10-02, DEC-024 |
 
 ### Operational tables
 

@@ -2,6 +2,7 @@
  <ResourceDictionary.MergedDictionaries>
   <ResourceDictionary Source="IconResources.xaml"/>
   <ResourceDictionary Source="DropdownStyles.xaml"/>
+  <ResourceDictionary Source="SchedulingStyles.xaml"/>
  </ResourceDictionary.MergedDictionaries>
  <SolidColorBrush x:Key="PrimaryBrush" Color="#0069FA"/>
  <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#005BD8"/>

@@ -110,3 +110,5 @@ Chrome-polish verification: zero-warning build and 347 routed checks pass. Actua
 ## Application identity (2026-09-21)
 
 Approved: cobalt bus spine, three cyan terminals, and a satin silver investigation lens. Use the shared [PNG](../src/ServiceBusEmulatorExplorer.App/Assets/AppIcon.png) and [multi-size ICO](../src/ServiceBusEmulatorExplorer.App/Assets/AppIcon.ico) for native windows, the taskbar, system tray and executable. The [README image](../docs/images/service-bus-emulator-explorer-icon.png) matches the PNG. The ICO contains transparent 16, 20, 24, 32, 40, 48, 64, 96, 128 and 256 pixel frames. This identity is static and independent of connection state or profile theme.
+
+Scheduling refinement approved 2026-10-02: [styled calendar, constrained time selectors and aligned radios](message-library/scheduling-controls.md). The namespace bottom legend is a separate proposal, not yet approved.

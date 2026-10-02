@@ -37,6 +37,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-021 | accepted | layout | No numeric navigation badges; native title bar carries the app name |
 | DEC-022 | accepted | Workbench layout | Responsive JSON/inspector with two property columns at medium width and one at small width |
 | DEC-023 | accepted | Workbench search and navigation | Contextual suggestions and adjacent inspector tabs |
+| DEC-024 | accepted | Workbench scheduling | Styled calendar and constrained hour/minute selectors |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -191,3 +192,10 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 - Decision: extend entity suggestions to Workbench namespace search and offer template/folder suggestions with folder context. In wide Compose, show adjacent Properties and Variables tabs using shared selected-tab styling, with JSON always visible.
 - Because: the user wanted more context about search possibilities and found the distant Variables link misleading and hard to discover.
 - Consequences: suggestion actions are specific to Workbench filtering or library selection; they do not retarget a draft destination or start broker message searches. Preserve narrow-layout tabs and responsive editing state. See the [approved contract](specs/message-library/search-and-inspector-tabs.md).
+
+## DEC-024 — Styled scheduling inputs with constrained time selection
+
+- Status: accepted · 2026-10-02 · Scope: Workbench scheduling
+- Decision: use an app-styled calendar and noneditable hour/minute selectors, with vertically aligned radio labels.
+- Because: the user found the native date picker visually inconsistent, free-text time error-prone, and radio labels misaligned.
+- Consequences: preserve UTC/Local and future-time validation; no additional time zones or broker behavior. See the [approved contract](specs/message-library/scheduling-controls.md).
