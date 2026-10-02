@@ -117,6 +117,59 @@ public sealed class MessageWorkbenchDestinationTests
             Assert.False(Get<Button>(view, "ReviewButton").IsEnabled);
         });
 
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void Warning_actions_reveal_destination_preserve_draft_and_gate_both_prepare_routes()
+        => Run((window, view) =>
+        {
+            TreeItems(Get<TreeView>(view, "LibraryTree")).Single(item => Equals(item.Tag, "template:Order created")).IsSelected = true;
+            var subject = Get<TextBox>(view, "PropertySubject");
+            subject.Text = "Keep this unsaved subject";
+            view.SetDestinationDiscovery("profile-a", 1, Snapshot(true));
+            Assert.False(Get<Button>(view, "ContinueToPrepareButton").IsEnabled);
+            Assert.False(Get<Button>(view, "PrepareStepButton").IsEnabled);
+            foreach (string route in new[] { "ContinueToPrepareButton", "PrepareStepButton" })
+            {
+                Get<Button>(view, route).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Assert.Equal(Visibility.Visible, Get<Grid>(view, "AuthorPane").Visibility);
+            }
+            Get<Button>(view, "ComposeDestinationAction").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            Assert.Equal(Visibility.Visible, Get<ScrollViewer>(view, "PropertiesEditorSurface").Visibility);
+            Assert.Equal("Keep this unsaved subject", subject.Text);
+            Assert.Equal(Visibility.Visible, Get<Border>(view, "ComposeDestinationWarning").Visibility);
+            Assert.True(Get<ScrollViewer>(view, "PropertiesEditorSurface").VerticalOffset > 0);
+
+            view.SetDestinationDiscovery("profile-a", 2, Snapshot(true,
+                new WorkbenchDestination("order-events", EntityKind.Topic)));
+            Assert.True(Get<Button>(view, "ContinueToPrepareButton").IsEnabled);
+            Assert.True(Get<Button>(view, "PrepareStepButton").IsEnabled);
+            Assert.Equal(Visibility.Collapsed, Get<Border>(view, "ComposeDestinationWarning").Visibility);
+            Get<Button>(view, "ContinueToPrepareButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(Visibility.Visible, Get<Grid>(view, "PreparePane").Visibility);
+            view.SetDestinationDiscovery("profile-a", 3, Snapshot(true));
+            Assert.Equal(Visibility.Visible, Get<Border>(view, "PrepareDestinationWarning").Visibility);
+            Assert.Equal(Warning(view).Text, Get<TextBlock>(view, "PrepareDestinationWarningText").Text);
+            Get<Button>(view, "PrepareDestinationAction").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            Assert.Equal(Visibility.Visible, Get<Grid>(view, "AuthorPane").Visibility);
+            Assert.Equal(Visibility.Visible, Get<ScrollViewer>(view, "PropertiesEditorSurface").Visibility);
+            Assert.Equal("Keep this unsaved subject", subject.Text);
+            Assert.Equal("order-events", Get<ComboBox>(view, "TemplateDestination").SelectedValue);
+
+            bool connectionRequested = false;
+            view.ConnectionRepairRequested += () => connectionRequested = true;
+            view.SetDestinationDiscovery("profile-a", 4, null);
+            Assert.Equal("Check connection", Get<Button>(view, "ComposeDestinationAction").Content);
+            Get<Button>(view, "ComposeDestinationAction").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.True(connectionRequested);
+            Assert.Equal("Keep this unsaved subject", subject.Text);
+            // Unset templates remain editable and saveable, but cannot advance.
+            Get<ComboBox>(view, "TemplateDestination").SelectedIndex = 0;
+            Assert.Contains("No destination selected", Warning(view).Text);
+            Assert.Equal("template:Order created", Assert.IsType<TreeViewItem>(Get<TreeView>(view, "LibraryTree").SelectedItem).Tag);
+            Assert.False(Get<Button>(view, "ContinueToPrepareButton").IsEnabled);
+        });
     private static EntityDiscoverySnapshot Snapshot(bool complete, params WorkbenchDestination[] destinations)
         => new(destinations.Select(destination => new EntityObservation(
                 new DiscoveredEntity(destination.Kind, destination.Name, null,

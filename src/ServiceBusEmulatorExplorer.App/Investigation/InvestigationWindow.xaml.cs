@@ -32,6 +32,7 @@ public partial class InvestigationWindow : Window
     {
         this.workspace = workspace;
         InitializeComponent();
+        MessageLibraryPrototype.ConnectionRepairRequested += () => ConnectionButton.Focus();
         lastNamespaceConnectionState = workspace.IsConnected;
         MessageLibraryPrototype.TemplateContextRequested += topic =>
         {
@@ -233,6 +234,7 @@ public partial class InvestigationWindow : Window
         if (NamespaceTree is null || MessageLibraryPrototype is null) return;
         bool library = MessageLibraryPrototype.Visibility == Visibility.Visible;
         bool disconnected = lastNamespaceConnectionState && !workspace.IsConnected;
+
         lastNamespaceConnectionState = workspace.IsConnected;
         IEnumerable<EntityNode> roots = library
             ? workspace.IsConnected ? workspace.Browse.Roots : sampleNamespaceRoots

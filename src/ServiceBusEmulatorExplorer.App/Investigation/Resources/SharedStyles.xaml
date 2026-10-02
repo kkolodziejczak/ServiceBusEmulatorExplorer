@@ -115,6 +115,17 @@
    <Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="{DynamicResource DisabledBackgroundBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource DisabledBorderBrush}"/><Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
   </Style.Triggers>
  </Style>
+ <Style x:Key="ValidationWarningFrame" TargetType="Border">
+  <Setter Property="Background" Value="#FFF5E3"/><Setter Property="BorderBrush" Value="#D9A441"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="3"/><Setter Property="Padding" Value="12,10"/>
+ </Style>
+ <Style x:Key="ValidationWarningAction" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+  <Setter Property="Background" Value="#FFF5E3"/><Setter Property="Foreground" Value="#714900"/><Setter Property="BorderBrush" Value="#B7790B"/>
+  <Style.Triggers>
+   <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#FFE7BB"/></Trigger>
+   <Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="#FFD995"/></Trigger>
+   <Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="{DynamicResource DisabledBackgroundBrush}"/><Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource DisabledBorderBrush}"/></Trigger>
+  </Style.Triggers>
+ </Style>
  <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
   <Setter Property="MinWidth" Value="28"/><Setter Property="MinHeight" Value="28"/><Setter Property="Padding" Value="6"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
  </Style>

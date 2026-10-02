@@ -10,6 +10,7 @@ public partial class MessageLibraryPrototypeView
 {
     private static readonly WorkbenchDestination[] SampleDestinations =
         [new("order-events", EntityKind.Topic), new("inventory-events", EntityKind.Topic), new("order-replies", EntityKind.Queue)];
+    public event Action? ConnectionRepairRequested;
     private bool syntheticDestinations = true;
     private string? destinationProfileId;
     private long destinationGeneration = -1;
@@ -80,26 +81,57 @@ public partial class MessageLibraryPrototypeView
                 ?? TemplateDestination.Items[0];
         }
         finally { loadingDestinationSelection = false; }
-        string warning = DestinationWarningText(currentAssociation, status);
-        if (DestinationWarning is not null)
+        string warning = status switch
         {
-            DestinationWarning.Text = warning.Length == 0 ? "" : "\u26A0 " + warning;
-            DestinationWarning.Visibility = warning.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
-        }
-        if (PrepareDestinationWarning is not null)
+            WorkbenchDestinationStatus.Missing => $"{currentDestinationKind} \"{currentAssociation}\" is unavailable.\nChoose an available destination to continue.",
+            WorkbenchDestinationStatus.Unverified => $"{currentDestinationKind} \"{currentAssociation}\" is not verified.\nCheck the connection and reconnect to refresh entity discovery.",
+            WorkbenchDestinationStatus.Unset => "No destination selected.\nChoose a queue or topic to continue.",
+            _ => ""
+        };
+        var visibility = status == WorkbenchDestinationStatus.Available ? Visibility.Collapsed : Visibility.Visible;
+        DestinationWarning.Text = PrepareDestinationWarningText.Text = warning;
+        DestinationWarning.Visibility = visibility;
+        ComposeDestinationWarning.Visibility = PrepareDestinationWarning.Visibility = visibility;
+        ContinueToPrepareButton.IsEnabled = PrepareStepButton.IsEnabled = status == WorkbenchDestinationStatus.Available;
+        foreach (var action in new[] { ComposeDestinationAction, PrepareDestinationAction })
         {
-            PrepareDestinationWarningText.Text = status switch
-            {
-                WorkbenchDestinationStatus.Missing => $"{currentDestinationKind} \"{currentAssociation}\" is unavailable.\nGo back to the template and select an available destination to continue.",
-                WorkbenchDestinationStatus.Unverified => $"{currentDestinationKind} \"{currentAssociation}\" could not be verified.\nConnect and refresh entity discovery to continue.",
-                WorkbenchDestinationStatus.Unset => "No destination selected.\nGo back to the template and choose a queue or topic to continue.",
-                _ => ""
-            };
-            PrepareDestinationWarning.Visibility = status == WorkbenchDestinationStatus.Available ? Visibility.Collapsed : Visibility.Visible;
+            bool needsConnection = status == WorkbenchDestinationStatus.Unverified;
+            action.Content = needsConnection ? "Check connection" : "Choose destination";
+            System.Windows.Automation.AutomationProperties.SetName(action, (string)action.Content);
+            action.Visibility = needsConnection && ConnectionRepairRequested is null ? Visibility.Collapsed : Visibility.Visible;
         }
         if (ReviewButton is not null) ReviewButton.IsEnabled = previewReady && selectedDestination is not null;
     }
 
+    private void ChooseDestination_Click(object sender, RoutedEventArgs e)
+    {
+        if (DestinationStatus(currentAssociation, currentDestinationKind) == WorkbenchDestinationStatus.Unverified)
+        {
+            ConnectionRepairRequested?.Invoke();
+            return;
+        }
+        ShowWizardStage(WizardStage.Compose);
+        EditorProperties_Click(sender, e);
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
+        {
+            TemplateDestination.BringIntoView();
+            TemplateDestination.Focus();
+        }));
+    }
+
+    private void DestinationNotice_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var grid = (Grid)sender;
+        var text = (TextBlock)grid.Children[1];
+        var action = (Button)grid.Children[2];
+        bool compact = e.NewSize.Width < 520;
+        Grid.SetColumnSpan(text, compact ? 2 : 1);
+        Grid.SetRow(action, compact ? 1 : 0);
+        Grid.SetColumn(action, compact ? 1 : 2);
+        Grid.SetColumnSpan(action, compact ? 2 : 1);
+        action.HorizontalAlignment = HorizontalAlignment.Right;
+        action.Margin = compact ? new Thickness(0, 8, 0, 0) : new Thickness(12, 0, 0, 0);
+    }
     private void AddDestinationWarning(TreeViewItem item, PrototypeTemplate template)
     {
         string warning = DestinationWarningText(template.Topic, DestinationStatus(template.Topic, template.DestinationKind));

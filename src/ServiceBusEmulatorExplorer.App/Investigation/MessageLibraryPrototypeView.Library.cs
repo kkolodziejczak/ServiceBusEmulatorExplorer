@@ -15,22 +15,7 @@ public partial class MessageLibraryPrototypeView
     private bool libraryInitialized;
     private string? revealedTemplateName;
     private TextBox? activeRenameInput;
-    private Window? selectionOwner;
     private readonly HashSet<string> createdFolders = new(StringComparer.OrdinalIgnoreCase);
-
-    private void AttachLibrarySelection()
-    {
-        DetachLibrarySelection();
-        selectionOwner = Window.GetWindow(this);
-        if (selectionOwner is not null) selectionOwner.PreviewMouseDown += WorkbenchRoot_PreviewMouseDown;
-        UpdateTreeHeaderWidths();
-    }
-
-    private void DetachLibrarySelection()
-    {
-        if (selectionOwner is not null) selectionOwner.PreviewMouseDown -= WorkbenchRoot_PreviewMouseDown;
-        selectionOwner = null;
-    }
 
     private bool IsFolderVisible(string path, IReadOnlyList<PrototypeTemplate> visible) =>
         (namespaceQuery.Length == 0 && TemplateSearch.Text.Trim().Length == 0) ||
@@ -291,17 +276,6 @@ public partial class MessageLibraryPrototypeView
     private void LibraryTree_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (e.OriginalSource is DependencyObject source && FindAncestor<TreeViewItem>(source) is not null) return;
-        ClearLibrarySelection();
-    }
-
-    private void WorkbenchRoot_PreviewMouseDown(object sender, MouseButtonEventArgs e)
-    {
-        if (!IsVisible) return;
-        if (e.OriginalSource is not DependencyObject source ||
-            ReferenceEquals(FindAncestor<TreeView>(source), LibraryTree)) return;
-        var button = FindAncestor<Button>(source);
-        if (button is not null && System.Windows.Automation.AutomationProperties.GetAutomationId(button) is
-            "LibraryNew" or "LibraryAddFolder" or "LibraryCollapseAll") return;
         ClearLibrarySelection();
     }
 

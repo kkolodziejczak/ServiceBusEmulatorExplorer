@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Threading;
 using Microsoft.Win32;
 
@@ -216,6 +217,14 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     private void ScheduleZone_Checked(object sender, RoutedEventArgs e)
     {
         if (ScheduleInputs is not null) UpdateReviewTiming();
+    }
+
+    private void ScheduleDateInput_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not DatePicker datePicker) return;
+        datePicker.ApplyTemplate();
+        if (datePicker.Template.FindName("PART_TextBox", datePicker) is DatePickerTextBox dateText)
+            dateText.VerticalContentAlignment = VerticalAlignment.Center;
     }
 
     private void ScheduleInput_Changed(object sender, EventArgs e)

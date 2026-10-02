@@ -112,14 +112,14 @@ public partial class MessageLibraryPrototypeView : UserControl
         libraryInitialized = true;
         Loaded += (_, _) =>
         {
-            AttachLibrarySelection();
+
             ShowEditorBody();
             ShowPrepare();
             CsvRowsGrid.SelectedIndex = 0;
             RefreshPreparedPreview();
             ShowWizardStage(WizardStage.Compose);
         };
-        Unloaded += (_, _) => DetachLibrarySelection();
+
         LibraryTree.SizeChanged += (_, _) => UpdateTreeHeaderWidths();
         SizeChanged += (_, _) => UpdateWizardLayout();
     }
@@ -190,7 +190,7 @@ public partial class MessageLibraryPrototypeView : UserControl
     private void ComposeStep_Click(object sender, RoutedEventArgs e) => ShowWizardStage(WizardStage.Compose);
     private void PrepareStep_Click(object sender, RoutedEventArgs e)
     {
-        if (!CommitApplicationPropertyEdit()) return;
+        if (selectedDestination is null || !CommitApplicationPropertyEdit()) return;
         RefreshPendingPreview();
         ShowWizardStage(WizardStage.Prepare);
     }
@@ -777,7 +777,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         currentAssociation = option.Tag?.ToString() ?? "";
         currentDestinationKind = (option.DataContext as WorkbenchDestination)?.Kind ?? EntityKind.Topic;
         UpdateDestinationControls();
-        ClearLibrarySelection();
+
         InvalidatePreview();
     }
 

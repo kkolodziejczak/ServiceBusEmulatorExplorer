@@ -40,11 +40,22 @@ public sealed class MessageWorkbenchTreeTests
 
             AddFolder(window, view, "Loose");
             Assert.True(HasTreeItem(view, "folder:Loose"));
-            GetTreeItem(view, "folder:Loose").IsSelected = true;
+            TreeViewItem selectedTemplate = GetTreeItem(view, "template:Order created");
+            selectedTemplate.IsSelected = true;
+            Drain(window);
+
+            Get<JsonEditor>(view, "EditorText").RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,
+                Environment.TickCount, MouseButton.Left) { RoutedEvent = Mouse.PreviewMouseDownEvent });
+            Get<TextBox>(view, "PropertySubject").RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,
+                Environment.TickCount, MouseButton.Left) { RoutedEvent = Mouse.PreviewMouseDownEvent });
             Get<TextBlock>(view, "AuthorTitle").RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,
                 Environment.TickCount, MouseButton.Left) { RoutedEvent = Mouse.PreviewMouseDownEvent });
+            FindAutomationId<Button>(view, "LibraryCollapseAll").RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,
+                Environment.TickCount, MouseButton.Left) { RoutedEvent = Mouse.PreviewMouseDownEvent });
             Drain(window);
-            Assert.Null(tree.SelectedItem);
+
+            Assert.Same(selectedTemplate, tree.SelectedItem);
+            Assert.True(selectedTemplate.IsSelected);
             Assert.Equal(draft, Get<JsonEditor>(view, "EditorText").Text);
         });
 
@@ -84,7 +95,7 @@ public sealed class MessageWorkbenchTreeTests
         });
 
     [Fact]
-    public void Clicking_an_unrelated_tree_clears_library_selection_and_preserves_the_draft()
+    public void Clicking_an_unrelated_tree_preserves_library_selection_and_the_draft()
         => RunWithAnotherTree((window, view, otherItem) =>
         {
             const string draft = "{\"customerId\":\"click outside the library tree\"}";
@@ -96,7 +107,7 @@ public sealed class MessageWorkbenchTreeTests
                 Environment.TickCount, MouseButton.Left) { RoutedEvent = Mouse.PreviewMouseDownEvent });
             Drain(window);
 
-            Assert.Null(Get<TreeView>(view, "LibraryTree").SelectedItem);
+            Assert.Equal("folder:Orders", ((TreeViewItem)Get<TreeView>(view, "LibraryTree").SelectedItem!).Tag);
             Assert.Equal(draft, Get<JsonEditor>(view, "EditorText").Text);
         });
 

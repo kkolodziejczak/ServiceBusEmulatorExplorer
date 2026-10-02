@@ -8,6 +8,7 @@ using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation;
+using ServiceBusEmulatorExplorer.App.Investigation.Inspection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
@@ -52,6 +53,9 @@ internal static class DestinationScreenshotScenario
                     Require(((FrameworkElement)window.Content).ActualWidth == width && ((FrameworkElement)window.Content).ActualHeight == height, "Requested viewport dimensions must match the rendered surface.");
                     ((ToggleButton)window.FindName("MessageLibraryTab")!).IsChecked = true;
                     var view = (MessageLibraryPrototypeView)window.FindName("MessageLibraryPrototype")!;
+                    var libraryTree = Get<TreeView>(view, "LibraryTree");
+                    var ordersFolder = libraryTree.Items.OfType<TreeViewItem>().Single(item => Equals(item.Tag, "folder:Orders"));
+                    ordersFolder.Items.OfType<TreeViewItem>().Single(item => Equals(item.Tag, "template:Order created")).IsSelected = true;
                     Click(view, "EditorPropertiesTab");
                     await Idle(window);
                     var selector = Get<ComboBox>(view, "TemplateDestination");
@@ -80,6 +84,25 @@ internal static class DestinationScreenshotScenario
                     Capture(window, outputDirectory, $"destination-{width}-long-queue-selected");
                     CapturePopup(window, selector, outputDirectory, $"destination-{width}-long-queue-popup");
 
+                    view.SetDestinationDiscovery("destination-proof", 2, Snapshot(true));
+                    await Idle(window);
+                    AssertComposeWarningState(window, view, "unavailable");
+                    var bodyBeforeWarningAction = Get<JsonEditor>(view, "EditorText").Text;
+                    var subjectBeforeWarningAction = Get<TextBox>(view, "PropertySubject").Text;
+                    Capture(window, outputDirectory, $"destination-{width}-compose-missing");
+                    Click(view, "ComposeDestinationAction");
+                    await Idle(window);
+                    AssertDestinationActionNavigation(view, bodyBeforeWarningAction, subjectBeforeWarningAction);
+                    Capture(window, outputDirectory, $"destination-{width}-compose-missing-action-focused");
+
+                    view.SetDestinationDiscovery("destination-proof", 3, Snapshot(true,
+                        new WorkbenchDestination("order-events", EntityKind.Topic),
+                        new WorkbenchDestination("order-replies", EntityKind.Queue),
+                        new WorkbenchDestination(LongTopic, EntityKind.Topic),
+                        new WorkbenchDestination(LongQueue, EntityKind.Queue)));
+                    await Idle(window);
+                    selector = Get<ComboBox>(view, "TemplateDestination");
+                    SelectDestination(selector, "order-events", EntityKind.Topic);
                     Click(view, "ContinueToPrepareButton");
                     await Idle(window);
                     WaitFor(window, () => Get<Button>(view, "ReviewButton").IsEnabled);
@@ -87,34 +110,40 @@ internal static class DestinationScreenshotScenario
                     AssertPrepareLayout(window, view);
                     Capture(window, outputDirectory, $"destination-{width}-prepare-available");
 
-                    view.SetDestinationDiscovery("destination-proof", 2, Snapshot(true));
+                    view.SetDestinationDiscovery("destination-proof", 4, Snapshot(true));
                     await Idle(window);
                     AssertWarningState(view, Visibility.Visible, "unavailable", reviewEnabled: false);
                     AssertPrepareLayout(window, view);
                     Capture(window, outputDirectory, $"destination-{width}-prepare-missing");
-
-                    view.SetDestinationDiscovery("destination-proof", 3, null);
+                    Click(view, "PrepareDestinationAction");
                     await Idle(window);
-                    AssertWarningState(view, Visibility.Visible, "could not be verified", reviewEnabled: false);
-                    AssertPrepareLayout(window, view);
-                    Capture(window, outputDirectory, $"destination-{width}-prepare-unverified");
+                    AssertDestinationActionNavigation(view, bodyBeforeWarningAction, subjectBeforeWarningAction);
+                    Capture(window, outputDirectory, $"destination-{width}-prepare-missing-action-return");
 
-                    Click(view, "BackToComposeButton");
+                    view.SetDestinationDiscovery("destination-proof", 5, Snapshot(true,
+                        new WorkbenchDestination("order-events", EntityKind.Topic),
+                        new WorkbenchDestination("order-replies", EntityKind.Queue)));
                     await Idle(window);
                     selector = Get<ComboBox>(view, "TemplateDestination");
-                    selector.SelectedIndex = 0;
-                    await Idle(window);
+                    SelectDestination(selector, "order-events", EntityKind.Topic);
                     Click(view, "ContinueToPrepareButton");
                     await Idle(window);
-                    AssertWarningState(view, Visibility.Visible, "No destination selected", reviewEnabled: false);
+                    WaitFor(window, () => Get<Button>(view, "ReviewButton").IsEnabled);
+                    view.SetDestinationDiscovery("destination-proof", 6, null);
+                    await Idle(window);
+                    AssertWarningState(view, Visibility.Visible, "not verified", reviewEnabled: false);
                     AssertPrepareLayout(window, view);
-                    Capture(window, outputDirectory, $"destination-{width}-prepare-unset");
+                    Capture(window, outputDirectory, $"destination-{width}-prepare-unverified");
+                    Click(view, "PrepareDestinationAction");
+                    await Idle(window);
+                    Require(((Button)window.FindName("ConnectionButton")!).IsKeyboardFocusWithin,
+                        "An unverified destination must direct focus to the connection control.");
 
                     Click(view, "BackToComposeButton");
                     await Idle(window);
-                    view.SetDestinationDiscovery("destination-proof", 4, Snapshot(true,
+                    view.SetDestinationDiscovery("destination-proof", 7, Snapshot(true,
                         new WorkbenchDestination("order-events", EntityKind.Topic),
-                        new WorkbenchDestination(LongQueue, EntityKind.Queue)));
+                        new WorkbenchDestination("order-replies", EntityKind.Queue)));
                     await Idle(window);
                     SelectDestination(Get<ComboBox>(view, "TemplateDestination"), "order-events", EntityKind.Topic);
                     Click(view, "ContinueToPrepareButton");
@@ -126,13 +155,46 @@ internal static class DestinationScreenshotScenario
                     await Idle(window);
                     Require(Get<ContentControl>(view, "ReviewHost").Visibility == Visibility.Visible,
                         "The available destination must route to Review.");
-                    view.SetDestinationDiscovery("destination-proof", 5, Snapshot(true));
+                    var reviewSurface = Get<ContentControl>(view, "ReviewHost").Content as MessageLibraryPrototypeReviewSurface
+                        ?? throw new InvalidOperationException("The embedded Review surface was not found.");
+                    var schedule = ReviewElement<RadioButton>(reviewSurface, "ReviewSchedule");
+                    schedule.IsChecked = true;
+                    await Idle(window);
+                    var scheduleInputs = ReviewElement<FrameworkElement>(reviewSurface, "ScheduleInputs");
+                    Require(scheduleInputs.Visibility == Visibility.Visible, "The embedded schedule inputs must appear when Schedule is selected.");
+                    foreach (string inputName in new[] { "ScheduleDateInput", "ScheduleTimeInput", "ScheduleUtc", "ScheduleLocal", "ResolvedSchedule" })
+                    {
+                        var input = ReviewElement<FrameworkElement>(reviewSurface, inputName);
+                        input.BringIntoView();
+                        await Idle(window);
+                        RequireInside(input, window, $"Embedded Review schedule {inputName} at {width}px");
+                    }
+                    Capture(window, outputDirectory, $"destination-{width}-review-schedule");
+                    var summaryCard = (FrameworkElement)reviewSurface.FindName("ReviewSummaryCard");
+                    var reviewScroll = (ScrollViewer)reviewSurface.FindName("ReviewScroll");
+                    reviewScroll.ScrollToVerticalOffset(reviewScroll.VerticalOffset + summaryCard.TransformToAncestor(reviewScroll).Transform(new Point()).Y);
+                    await Idle(window);
+                    Capture(window, outputDirectory, $"destination-{width}-review-schedule-summary-top");
+                    reviewScroll.ScrollToEnd();
+                    await Idle(window);
+                    var summaryBottom = summaryCard.TransformToAncestor(reviewScroll).Transform(new Point(0, summaryCard.ActualHeight));
+                    Require(summaryBottom.Y > 0 && summaryBottom.Y <= reviewScroll.ActualHeight, "The end of the Review summary must be reachable inside its scroll viewport.");
+                    Capture(window, outputDirectory, $"destination-{width}-review-schedule-summary");
+                    view.SetDestinationDiscovery("destination-proof", 8, Snapshot(true));
                     await Idle(window);
                     Require(Get<Grid>(view, "PreparePane").Visibility == Visibility.Visible,
                         "A destination that becomes missing in Review must return to Prepare.");
                     AssertWarningState(view, Visibility.Visible, "unavailable", reviewEnabled: false);
                     AssertPrepareLayout(window, view);
                     Capture(window, outputDirectory, $"destination-{width}-review-return-missing");
+
+                    Click(view, "BackToComposeButton");
+                    await Idle(window);
+                    selector = Get<ComboBox>(view, "TemplateDestination");
+                    selector.SelectedIndex = 0;
+                    await Idle(window);
+                    AssertComposeWarningState(window, view, "No destination selected");
+                    Capture(window, outputDirectory, $"destination-{width}-compose-unset");
                     window.Close();
                     sizeOverride?.Dispose();
                     window = null;
@@ -199,12 +261,48 @@ internal static class DestinationScreenshotScenario
             $"Review should be {(reviewEnabled ? "enabled" : "disabled")} for this destination state.");
         Require(Get<FrameworkElement>(view, "PreviewSurface").Visibility == Visibility.Visible,
             "The prepared message preview must remain visible while destination status changes.");
+        Require(Get<Button>(view, "PrepareDestinationAction").IsEnabled,
+            "The Prepare warning action must remain available so the destination can be repaired.");
     }
+
+    private static void AssertComposeWarningState(Window window, MessageLibraryPrototypeView view, string expectedText)
+    {
+        var warning = Get<Border>(view, "ComposeDestinationWarning");
+        Require(warning.Visibility == Visibility.Visible, "The Compose warning frame must be visible for an invalid destination.");
+        Require(Get<TextBlock>(view, "DestinationWarning").Text.Contains(expectedText, StringComparison.OrdinalIgnoreCase),
+            $"The Compose warning should contain '{expectedText}'.");
+        Require(Get<Button>(view, "ComposeDestinationAction").IsEnabled,
+            "The Compose warning action must remain available so the destination can be repaired.");
+        Require(!Get<Button>(view, "ContinueToPrepareButton").IsEnabled && !Get<Button>(view, "PrepareStepButton").IsEnabled,
+            "An invalid destination must block both ways to enter Prepare.");
+        RequireInside(warning, window, "Compose destination warning frame");
+        RequireInside(Get<Button>(view, "ComposeDestinationAction"), window, "Compose destination action");
+    }
+
+    private static void AssertDestinationActionNavigation(MessageLibraryPrototypeView view, string body, string subject)
+    {
+        Require(Get<Grid>(view, "AuthorPane").Visibility == Visibility.Visible
+            && Get<Grid>(view, "PreparePane").Visibility == Visibility.Collapsed,
+            "Choosing a destination from the warning must return to Compose.");
+        Require(Get<JsonEditor>(view, "EditorText").Text == body && Get<TextBox>(view, "PropertySubject").Text == subject,
+            "Choosing a destination must preserve the current message draft and properties.");
+        Require(Get<TreeView>(view, "LibraryTree").SelectedItem is TreeViewItem { IsSelected: true }, "Warning navigation must preserve visible library selection.");
+        var selector = Get<ComboBox>(view, "TemplateDestination");
+        Require(selector.IsKeyboardFocusWithin,
+            "Choosing a destination from the warning must focus the destination selector.");
+    }
+
+    private static T ReviewElement<T>(MessageLibraryPrototypeReviewSurface surface, string name) where T : FrameworkElement =>
+        surface.NamedElements.TryGetValue(name, out var element) && element is T typed
+            ? typed : throw new InvalidOperationException($"Could not find embedded Review element {name}.");
 
     private static void AssertPrepareLayout(Window window, MessageLibraryPrototypeView view)
     {
         if (Get<Border>(view, "PrepareDestinationWarning").Visibility == Visibility.Visible)
+        {
             RequireInside(Get<Border>(view, "PrepareDestinationWarning"), window, "Prepare destination warning");
+            RequireInside(Get<Button>(view, "PrepareDestinationAction"), window, "Prepare destination action");
+        }
         RequireInside(Get<FrameworkElement>(view, "PreviewSurface"), window, "Message preview");
         RequireInside(Get<Button>(view, "ReviewButton"), window, "Prepare footer Review action");
         Require(Get<TextBlock>(view, "PrepareDestinationWarningText").TextWrapping == TextWrapping.Wrap,
