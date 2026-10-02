@@ -1,5 +1,7 @@
 # Investigation UI language and final audit
 
+Authoritative tokens and the approved component registry now live in [DESIGN.md](../DESIGN.md); product decisions in [DECISIONS.md](../DECISIONS.md). This file keeps the audit history, the production integration notes and every **Proposed** component until the user approves it, at which point the component moves to `DESIGN.md`.
+
 Status: prototype approved as complete by the user on 2026-09-12, baseline `8575a2c`. The production application now uses the investigation workspace; final verification is tracked in the latest [handoff checkpoints](investigation-workspace-handoff.md). Preserve the approved UI and the explicit production decisions below. Broader physical keyboard, spoken screen-reader and Windows scaling proof remain separate from rendered-window evidence.
 
 Authority: the latest decisions in the “Audit and simplify Service Bus UI” conversation, then the current [prototype preview](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/preview.png). Earlier generated images are historical references. Preserve the approved compact connection toolbar, three panes, full-width console, and bottom time selector.
