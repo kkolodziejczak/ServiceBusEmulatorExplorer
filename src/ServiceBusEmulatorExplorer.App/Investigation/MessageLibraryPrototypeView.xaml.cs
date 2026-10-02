@@ -95,7 +95,8 @@ public partial class MessageLibraryPrototypeView : UserControl
         foreach (var field in new[] { PropertySessionId, PropertyReplyTo, PropertyReplySessionId,
                      PropertyPartitionKey, CustomMessageIdInput, TtlMinutes })
             field.TextChanged += (_, _) => InvalidatePreview();
-        ApplicationPropertiesGrid.CellEditEnding += (_, _) => InvalidatePreview();
+        ApplicationPropertiesGrid.CellEditEnding += (_, _) =>
+            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(InvalidatePreview));
         defaultSettings = CaptureSettings();
         foreach (var template in templates) savedSettings[template.Name] = defaultSettings;
         folders.Add("Inventory");
@@ -189,6 +190,7 @@ public partial class MessageLibraryPrototypeView : UserControl
     private void ComposeStep_Click(object sender, RoutedEventArgs e) => ShowWizardStage(WizardStage.Compose);
     private void PrepareStep_Click(object sender, RoutedEventArgs e)
     {
+        if (!CommitApplicationPropertyEdit()) return;
         RefreshPendingPreview();
         ShowWizardStage(WizardStage.Prepare);
     }
@@ -247,7 +249,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         PropertySessionId.Text, CustomMessageId.IsChecked == true, CustomMessageIdInput.Text,
         SpecifyTtl.IsChecked == true, TtlMinutes.Text, PropertyReplyTo.Text,
         PropertyReplySessionId.Text, PropertyPartitionKey.Text,
-        applicationProperties.Select(value => new PrototypePropertySetting(value.Name, value.Type, value.Value)).ToArray(),
+        applicationProperties.Where(property => !property.IsEmpty).Select(value => new PrototypePropertySetting(value.Name, value.Type, value.Value)).ToArray(),
         variables.Select(value => new PrototypeVariableSetting(value.Name, value.Type, value.Source,
             value.HasDefault, value.DefaultValue)).ToArray());
 
@@ -283,6 +285,7 @@ public partial class MessageLibraryPrototypeView : UserControl
     public void OpenCapturedDraft(string name, string body, string topic, string? collection = null,
         PrototypeCaptureProperties? properties = null, string? fileName = null)
     {
+        CancelRename();
         string folder = collection ?? selectedFolder ?? "";
         if (folder.Length > 0) AddFolderAndParents(folder);
         ExpandFolderPath(folder);
@@ -334,6 +337,7 @@ public partial class MessageLibraryPrototypeView : UserControl
     {
         string folder = GetCreationFolder();
         if (!TryLeaveCurrentDraft()) return;
+        CancelRename();
         ExpandFolderPath(folder);
         string name = UniqueTemplateName("Untitled message", folder);
         var template = new PrototypeTemplate(name, "", "New in-memory template.", "{}", folder, []);
@@ -361,6 +365,7 @@ public partial class MessageLibraryPrototypeView : UserControl
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
+        if (!CommitApplicationPropertyEdit()) return;
         int index = templates.FindIndex(value => value.Name == selectedTemplateName);
         if (index < 0) return;
         templates[index] = templates[index] with { Body = currentBody, Topic = currentAssociation,
@@ -372,8 +377,10 @@ public partial class MessageLibraryPrototypeView : UserControl
 
     private void SaveAs_Click(object sender, RoutedEventArgs e)
     {
+        if (!CommitApplicationPropertyEdit()) return;
         string? name = PromptForName("Save as", "Template name", selectedTemplateName + " copy");
         if (name is null) return;
+        CancelRename();
         ExpandFolderPath(editorFolder);
         name = UniqueTemplateName(name, editorFolder);
         templates.Add(new PrototypeTemplate(name, currentAssociation, "Saved in this prototype session.", currentBody, editorFolder ?? "",
@@ -833,54 +840,6 @@ public partial class MessageLibraryPrototypeView : UserControl
         InvalidatePreview();
     }
 
-    private void AddProperty_Click(object sender, RoutedEventArgs e)
-    {
-        var property = new PrototypeProperty("newProperty", "string", "");
-        applicationProperties.Add(property);
-        ApplicationPropertiesGrid.SelectedItems.Clear();
-        ApplicationPropertiesGrid.SelectedItem = property;
-        ApplicationPropertiesGrid.ScrollIntoView(property);
-        UpdateDeletePropertyState();
-        InvalidatePreview();
-    }
-
-    private void DeleteSelectedProperty_Click(object sender, RoutedEventArgs e)
-    {
-        var selected = ApplicationPropertiesGrid.SelectedItems.OfType<PrototypeProperty>().ToArray();
-        if (selected.Length == 0 || !CommitApplicationPropertyEdit()) return;
-
-        foreach (var property in selected) applicationProperties.Remove(property);
-        ApplicationPropertiesGrid.SelectedItems.Clear();
-        ApplicationPropertiesGrid.SelectedIndex = -1;
-        UpdateDeletePropertyState();
-        InvalidatePreview();
-    }
-
-    private void ApplicationPropertiesGrid_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
-        UpdateDeletePropertyState();
-
-    private void ApplicationPropertiesGrid_PreviewKeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key != Key.Delete || e.OriginalSource is TextBoxBase or ComboBox or CheckBox) return;
-        DeleteSelectedProperty_Click(sender, new RoutedEventArgs(Button.ClickEvent));
-        e.Handled = true;
-    }
-
-    private bool CommitApplicationPropertyEdit()
-    {
-        if (ApplicationPropertiesGrid.CommitEdit(DataGridEditingUnit.Cell, true) &&
-            ApplicationPropertiesGrid.CommitEdit(DataGridEditingUnit.Row, true)) return true;
-        ApplicationPropertiesGrid.CancelEdit(DataGridEditingUnit.Cell);
-        ApplicationPropertiesGrid.CancelEdit(DataGridEditingUnit.Row);
-        return false;
-    }
-
-    private void UpdateDeletePropertyState()
-    {
-        if (DeleteSelectedPropertyButton is not null)
-            DeleteSelectedPropertyButton.IsEnabled = ApplicationPropertiesGrid.SelectedItems.Count > 0;
-    }
-
     private string BuildPropertyDetails(string customerId, PrototypePreparedMessage? prepared = null, string? amount = null)
     {
         var values = prepared?.VariableValues is { } preparedValues
@@ -902,7 +861,7 @@ public partial class MessageLibraryPrototypeView : UserControl
             $"Reply to: {Resolve(PropertyReplyTo.Text)}",
             $"Reply session ID: {Resolve(PropertyReplySessionId.Text)}",
             $"Partition key: {(string.IsNullOrWhiteSpace(PropertyPartitionKey.Text) ? "none" : "unsupported by emulator")}",
-            "Application properties: " + string.Join(", ", applicationProperties.Select(property =>
+            "Application properties: " + string.Join(", ", applicationProperties.Where(property => !property.IsEmpty).Select(property =>
                 $"{property.Name} ({property.Type}) = {Resolve(property.Value)}"))
         };
         return string.Join("\n", lines);
@@ -929,21 +888,24 @@ public partial class MessageLibraryPrototypeView : UserControl
     private void VariableSelection_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (VariableDefaultEditor is null || VariablesGrid.SelectedItem is not PrototypeVariable variable) return;
-        VariableDefaultEditor.Visibility = variable.Source == "Input" ? Visibility.Visible : Visibility.Collapsed;
+        VariableDefaultEditor.Visibility = Visibility.Visible;
+        bool acceptsDefault = variable.Source == "Input";
+        UseVariableDefault.IsEnabled = acceptsDefault;
+        VariableDefaultHint.Visibility = acceptsDefault ? Visibility.Hidden : Visibility.Visible;
         loadingVariableDefault = true;
         try
         {
             SelectedVariableName.Text = $"{variable.Name} default";
             UseVariableDefault.IsChecked = variable.HasDefault;
             VariableDefaultValue.Text = variable.DefaultValue;
-            VariableDefaultValue.IsEnabled = variable.HasDefault;
+            VariableDefaultValue.IsEnabled = acceptsDefault && variable.HasDefault;
         }
         finally { loadingVariableDefault = false; }
     }
 
     private void VariableDefault_Changed(object sender, RoutedEventArgs e)
     {
-        if (loadingVariableDefault || VariablesGrid?.SelectedItem is not PrototypeVariable variable) return;
+        if (loadingVariableDefault || VariablesGrid?.SelectedItem is not PrototypeVariable variable || variable.Source != "Input") return;
         variable.HasDefault = UseVariableDefault.IsChecked == true;
         VariableDefaultValue.IsEnabled = variable.HasDefault;
         VariablesGrid.Items.Refresh();
@@ -952,7 +914,7 @@ public partial class MessageLibraryPrototypeView : UserControl
 
     private void VariableDefaultValue_Changed(object sender, TextChangedEventArgs e)
     {
-        if (loadingVariableDefault || VariablesGrid?.SelectedItem is not PrototypeVariable variable) return;
+        if (loadingVariableDefault || VariablesGrid?.SelectedItem is not PrototypeVariable variable || variable.Source != "Input") return;
         variable.DefaultValue = VariableDefaultValue.Text;
         VariablesGrid.Items.Refresh();
         InvalidatePreview();
@@ -990,6 +952,8 @@ public partial class MessageLibraryPrototypeView : UserControl
         string Folder = "Orders", IReadOnlyList<string>? Associations = null, string? FileName = null);
     private sealed class PrototypeProperty(string name, string type, string value)
     {
+        public PrototypeProperty() : this("", "string", "") { }
+        public bool IsEmpty => string.IsNullOrWhiteSpace(Name) && string.IsNullOrWhiteSpace(Value) && Type == "string";
         public string Name { get; set; } = name;
         public string Type { get; set; } = type;
         public string Value { get; set; } = value;

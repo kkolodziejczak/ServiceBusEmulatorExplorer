@@ -2,6 +2,7 @@ using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -152,6 +153,60 @@ public sealed class MessageWorkbenchLayoutTests
         }, width, height);
     }
 
+    [Theory]
+    [InlineData(1332, 843)]
+    [InlineData(725, 564)]
+    [Trait("TestCategory", "UiRender")]
+    public void Property_and_variable_tables_keep_long_values_and_compact_column_widths(int width, int height)
+    {
+        RunOnSta((dispatcher, view, _) =>
+        {
+            Button propertiesTab = ByName<Button>(view, "EditorPropertiesTab");
+            propertiesTab.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            WaitForLayout(dispatcher);
+            DataGrid properties = ByName<DataGrid>(view, "ApplicationPropertiesGrid");
+            object property = properties.Items[0];
+            string longName = new string('N', 64);
+            string longValue = new string('V', 120);
+            property.GetType().GetProperty("Name")!.SetValue(property, longName);
+            property.GetType().GetProperty("Value")!.SetValue(property, longValue);
+            properties.Items.Refresh();
+            WaitForLayout(dispatcher);
+
+            Assert.Equal(DataGridLengthUnitType.Auto, properties.Columns[0].Width.UnitType);
+            Assert.InRange(properties.Columns[0].MaxWidth, 1, 200);
+            Assert.True(properties.Columns[1].Width.IsAuto);
+            Assert.InRange(properties.Columns[1].ActualWidth, 80, 120);
+            Assert.Equal(DataGridLengthUnitType.Star, properties.Columns[2].Width.UnitType);
+            Assert.Contains(Descendants<TextBlock>(properties), text => text.Text == longName && Equals(text.ToolTip, longName));
+            Assert.Contains(Descendants<TextBlock>(properties), text => text.Text == longValue && Equals(text.ToolTip, longValue));
+            Assert.InRange(properties.Columns[0].ActualWidth, 1, 200);
+
+            ByName<Button>(view, "EditorVariablesTab").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            WaitForLayout(dispatcher);
+            DataGrid variables = ByName<DataGrid>(view, "VariablesGrid");
+            Assert.Equal(DataGridLengthUnitType.Auto, variables.Columns[0].Width.UnitType);
+            Assert.InRange(variables.Columns[0].MaxWidth, 1, 200);
+            Assert.True(variables.Columns[1].Width.IsAuto);
+            Assert.InRange(variables.Columns[1].ActualWidth, 65, 100);
+            Assert.True(variables.Columns[2].Width.IsAuto);
+            Assert.InRange(variables.Columns[2].ActualWidth, 85, 140);
+            Assert.Equal(DataGridLengthUnitType.Star, variables.Columns[3].Width.UnitType);
+            Assert.InRange(variables.Columns[0].ActualWidth, 1, 200);
+            Assert.InRange(variables.ActualHeight, 1, 240);
+            object generated = variables.Items.Cast<object>().Single(item =>
+                item.GetType().GetProperty("Name")?.GetValue(item)?.ToString() == "EventId");
+            variables.SelectedItem = generated;
+            WaitForLayout(dispatcher);
+            FrameworkElement detail = ByName<FrameworkElement>(view, "VariableDefaultEditor");
+            Assert.Equal(Visibility.Visible, detail.Visibility);
+            Rect gridBounds = Bounds(variables, view);
+            Rect detailBounds = Bounds(detail, view);
+            Assert.True(detailBounds.Top >= gridBounds.Bottom && detailBounds.Top - gridBounds.Bottom <= 24,
+                $"Variable details should follow the compact table without a blank stretch: grid={gridBounds}, details={detailBounds}.");
+        }, width, height);
+    }
+
     [Fact]
     [Trait("TestCategory", "UiRender")]
     public void Focused_wizard_and_action_buttons_do_not_leave_a_persistent_frame()
@@ -221,7 +276,8 @@ public sealed class MessageWorkbenchLayoutTests
             DataGrid applicationProperties = ByName<DataGrid>(view, "ApplicationPropertiesGrid");
             ComboBox destination = ByName<ComboBox>(view, "TemplateDestination");
 
-            Assert.Equal(3, applicationProperties.Items.Count);
+            Assert.Equal(3, applicationProperties.Items.Cast<object>().Count(item =>
+                !ReferenceEquals(item, CollectionView.NewItemPlaceholder)));
             Assert.Equal("order-events", destination.SelectedValue);
             Assert.True(propertiesSurface.ViewportHeight > 0);
             AssertFullyInside(applicationProperties, propertiesSurface, "application properties");

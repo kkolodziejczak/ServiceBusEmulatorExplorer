@@ -57,30 +57,32 @@
  <Style x:Key="DialogCaption" TargetType="TextBlock">
   <Setter Property="FontSize" Value="12"/><Setter Property="Foreground" Value="{DynamicResource SecondaryBrush}"/>
  </Style>
- <Style x:Key="CenteredDataGridColumnHeader" TargetType="DataGridColumnHeader">
-  <Setter Property="Background" Value="{DynamicResource ColumnHeaderBrush}"/><Setter Property="Foreground" Value="{DynamicResource ActionTextBrush}"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/><Setter Property="BorderThickness" Value="0,0,0,1"/><Setter Property="Padding" Value="8,7"/>
+ <Style x:Key="CompactDataGridColumnHeader" TargetType="DataGridColumnHeader">
+  <Setter Property="ToolTip" Value="{Binding Content, RelativeSource={RelativeSource Self}}"/>
+  <Setter Property="Background" Value="{DynamicResource ColumnHeaderBrush}"/><Setter Property="Foreground" Value="{DynamicResource ActionTextBrush}"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/><Setter Property="BorderThickness" Value="0,0,0,1"/><Setter Property="Padding" Value="8,7"/>
  </Style>
- <Style x:Key="CenteredDataGridRow" TargetType="DataGridRow">
+ <Style x:Key="CompactDataGridRow" TargetType="DataGridRow">
   <Setter Property="Background" Value="{DynamicResource RaisedBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/><Setter Property="BorderThickness" Value="0,0,0,1"/><Setter Property="VerticalContentAlignment" Value="Center"/>
   <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource NeutralHoverBrush}"/></Trigger><Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource SelectionBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Trigger></Style.Triggers>
  </Style>
- <Style x:Key="CenteredDataGridCell" TargetType="DataGridCell">
-  <Setter Property="Background" Value="{DynamicResource RaisedBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="8,0"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+ <Style x:Key="CompactDataGridCell" TargetType="DataGridCell">
+  <Setter Property="Background" Value="{DynamicResource RaisedBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="8,0"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True"><ContentPresenter VerticalAlignment="{TemplateBinding VerticalContentAlignment}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/></Border></ControlTemplate></Setter.Value></Setter>
   <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource NeutralHoverBrush}"/></Trigger><Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource SelectionBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Trigger><Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource InkBrush}"/><Setter Property="BorderThickness" Value="1"/></Trigger></Style.Triggers>
  </Style>
- <Style x:Key="CenteredDataGridText" TargetType="TextBlock">
-  <Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="TextAlignment" Value="Center"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+ <Style x:Key="CompactDataGridText" TargetType="TextBlock">
+  <Setter Property="HorizontalAlignment" Value="Left"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="TextAlignment" Value="Left"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="MaxWidth" Value="200"/><Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}"/>
  </Style>
- <Style x:Key="CenteredDataGridEditingText" TargetType="TextBox">
-  <Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="TextAlignment" Value="Center"/>
+ <Style x:Key="CompactDataGridEditingText" TargetType="TextBox">
+  <Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="TextAlignment" Value="Left"/>
  </Style>
- <Style x:Key="CenteredDataGridCombo" TargetType="ComboBox" BasedOn="{StaticResource AppComboBox}">
-  <Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+ <Style x:Key="CompactDataGridCombo" TargetType="ComboBox" BasedOn="{StaticResource AppComboBox}">
+  <Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/>
  </Style>
- <Style x:Key="CenteredDataGridComboDisplay" TargetType="ComboBox" BasedOn="{StaticResource {x:Static DataGridComboBoxColumn.TextBlockComboBoxStyleKey}}">
-  <Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="IsHitTestVisible" Value="False"/><Setter Property="IsTabStop" Value="False"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
+ <Style x:Key="CompactDataGridComboDisplay" TargetType="ComboBox" BasedOn="{StaticResource {x:Static DataGridComboBoxColumn.TextBlockComboBoxStyleKey}}">
+  <Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="IsHitTestVisible" Value="False"/><Setter Property="IsTabStop" Value="False"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
  </Style>
- <Style x:Key="CenteredDataGridCheckBox" TargetType="CheckBox">
+ <Style x:Key="CompactDataGridCheckBox" TargetType="CheckBox">
   <Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="VerticalAlignment" Value="Center"/>
  </Style>
  <Style TargetType="DataGrid">
@@ -88,9 +90,9 @@
   <Setter Property="Background" Value="{DynamicResource RaisedBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
   <Setter Property="HeadersVisibility" Value="Column"/><Setter Property="GridLinesVisibility" Value="Horizontal"/><Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource DividerBrush}"/>
  </Style>
- <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource CenteredDataGridColumnHeader}"/>
- <Style TargetType="DataGridRow" BasedOn="{StaticResource CenteredDataGridRow}"/>
- <Style TargetType="DataGridCell" BasedOn="{StaticResource CenteredDataGridCell}"/>
+ <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource CompactDataGridColumnHeader}"/>
+ <Style TargetType="DataGridRow" BasedOn="{StaticResource CompactDataGridRow}"/>
+ <Style TargetType="DataGridCell" BasedOn="{StaticResource CompactDataGridCell}"/>
  <Style x:Key="KeyboardActionFocusVisual" TargetType="Control">
   <Setter Property="Template"><Setter.Value><ControlTemplate><Border BorderBrush="{DynamicResource PrimaryBrush}" BorderThickness="0,0,0,2" Margin="2" IsHitTestVisible="False"/></ControlTemplate></Setter.Value></Setter>
  </Style>

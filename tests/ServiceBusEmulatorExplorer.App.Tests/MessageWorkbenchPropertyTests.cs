@@ -2,10 +2,12 @@ using System.Runtime.ExceptionServices;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation;
+using ServiceBusEmulatorExplorer.App.Investigation.Inspection;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -13,50 +15,135 @@ namespace ServiceBusEmulatorExplorer.App.Tests;
 public sealed class MessageWorkbenchPropertyTests
 {
     [Fact]
-    public void Add_selects_new_property_and_delete_invalidates_preview()
+    public void New_item_placeholder_stays_available_and_an_untouched_row_is_discarded()
         => Run((window, view) =>
         {
             var grid = Get<DataGrid>(view, "ApplicationPropertiesGrid");
-            var add = Descendants(view).OfType<Button>().Single(button =>
-                Equals(button.Content, "+ Add property"));
-            var delete = Get<Button>(view, "DeleteSelectedPropertyButton");
-
-            Assert.False(delete.IsEnabled);
-            Assert.Equal(3, grid.Items.Count);
-            add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            AssertNoLegacyPropertyActions(view);
+            Assert.Equal(3, PropertyRows(grid).Count());
+            Assert.Contains(grid.Items.Cast<object>(), item => ReferenceEquals(item, CollectionView.NewItemPlaceholder));
+            grid.ScrollIntoView(CollectionView.NewItemPlaceholder);
+            grid.UpdateLayout();
+            grid.CurrentCell = new DataGridCellInfo(CollectionView.NewItemPlaceholder, grid.Columns[0]);
+            Assert.True(grid.BeginEdit());
             Drain(window);
-
-            Assert.Equal(4, grid.Items.Count);
-            Assert.NotNull(grid.SelectedItem);
-            Assert.True(delete.IsEnabled);
-
+            TextBox subject = Get<TextBox>(view, "PropertySubject");
+            Assert.True(subject.Focus());
+            bool gridKeepsFocus = grid.IsKeyboardFocusWithin;
             Drain(window);
-            Assert.True(Get<Button>(view, "ReviewButton").IsEnabled);
-
-            delete.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Drain(window);
-            Assert.True(Get<Button>(view, "ReviewButton").IsEnabled);
-            Assert.Equal(3, grid.Items.Count);
-            Assert.False(delete.IsEnabled);
+            Assert.Contains(grid.Items.Cast<object>(), item => ReferenceEquals(item, CollectionView.NewItemPlaceholder));
+            Assert.True(PropertyRows(grid).Count() == 3,
+                $"An untouched placeholder row must be discarded on focus loss. " +
+                $"gridKeepsFocus={gridKeepsFocus}.");
         });
 
     [Fact]
-    public void Delete_key_removes_selected_properties()
+    public void New_property_name_type_and_value_are_real_edits_saved_reopened_and_previewed()
         => Run((window, view) =>
         {
             var grid = Get<DataGrid>(view, "ApplicationPropertiesGrid");
+            object property = StartNewProperty(window, grid, "shipmentCount");
+            EditComboCell(window, grid, property, 1, "int");
+            EditTextCell(window, grid, property, 2, "17");
+
+            Assert.Contains(PropertyRows(grid), item => ReferenceEquals(item, property));
+            Assert.Equal("shipmentCount", ReadProperty(property, "Name"));
+            Assert.Equal("int", ReadProperty(property, "Type"));
+            Assert.Equal("17", ReadProperty(property, "Value"));
+
+            Get<Button>(view, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GetTreeItem(view, "template:Order updated").IsSelected = true;
+            GetTreeItem(view, "template:Order created").IsSelected = true;
+            Drain(window);
+
+            object reopened = PropertyRows(grid).Single(item => ReadProperty(item, "Name") == "shipmentCount");
+            Assert.Equal("int", ReadProperty(reopened, "Type"));
+            Assert.Equal("17", ReadProperty(reopened, "Value"));
+
+            Get<Button>(view, "PropertiesTab").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Drain(window);
+            Assert.Contains("shipmentCount (int) = 17", Get<JsonEditor>(view, "PreviewText").Text);
+        });
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Value_only_or_type_only_new_property_is_retained_after_save_and_reopen(bool enterType)
+        => Run((window, view) =>
+        {
+            var grid = Get<DataGrid>(view, "ApplicationPropertiesGrid");
+            object property = StartNewProperty(window, grid, "pendingName");
+            if (enterType) EditComboCell(window, grid, property, 1, "int");
+            else EditTextCell(window, grid, property, 2, "value-only");
+            EditTextCell(window, grid, property, 0, "", "LibraryPropertyName");
+            Drain(window);
+
+            Assert.Equal(4, PropertyRows(grid).Count());
+            Assert.Equal("", ReadProperty(property, "Name"));
+            Assert.Equal(enterType ? "int" : "string", ReadProperty(property, "Type"));
+            Assert.Equal(enterType ? "" : "value-only", ReadProperty(property, "Value"));
+
+            Get<Button>(view, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GetTreeItem(view, "template:Order updated").IsSelected = true;
+            GetTreeItem(view, "template:Order created").IsSelected = true;
+            Drain(window);
+
+            object reopened = PropertyRows(grid).Single(item => ReadProperty(item, "Name") == "");
+            Assert.Equal(enterType ? "int" : "string", ReadProperty(reopened, "Type"));
+            Assert.Equal(enterType ? "" : "value-only", ReadProperty(reopened, "Value"));
+        });
+
+    [Fact]
+    public void Clearing_an_existing_property_name_value_and_type_prunes_the_row_on_exit()
+        => Run((window, view) =>
+        {
+            var grid = Get<DataGrid>(view, "ApplicationPropertiesGrid");
+            object amount = PropertyRows(grid).Single(item => ReadProperty(item, "Name") == "amount");
+            EditComboCell(window, grid, amount, 1, "string");
+            EditTextCell(window, grid, amount, 0, "", "LibraryPropertyName");
+            EditTextCell(window, grid, amount, 2, "", allowRowCancellation: true);
+            Drain(window);
+
+            Assert.Equal(2, PropertyRows(grid).Count());
+            Assert.DoesNotContain(PropertyRows(grid), item => ReadProperty(item, "Name") == "amount");
+            Assert.DoesNotContain(PropertyRows(grid), item => ReadProperty(item, "IsEmpty") == "True");
+        });
+
+    [Fact]
+    public void Row_delete_targets_its_bound_property_and_delete_key_still_removes_selected_rows()
+        => Run((window, view) =>
+        {
+            var grid = Get<DataGrid>(view, "ApplicationPropertiesGrid");
+            object amount = PropertyRows(grid).Single(item => ReadProperty(item, "Name") == "amount");
+            DataGridRow row = RowFor(grid, amount);
+            var delete = FindAutomationId<Button>(row, "LibraryDeleteProperty");
+            Assert.Same(amount, delete.DataContext);
+            row.IsSelected = true;
+            grid.UpdateLayout();
+            Assert.True(delete.IsVisible);
+            Assert.True(delete.Focus());
+            row.IsSelected = false;
+            grid.UpdateLayout();
+            Assert.False(row.IsSelected);
+            Assert.True(row.IsKeyboardFocusWithin);
+            Assert.True(delete.IsVisible);
+            row.IsSelected = true;
+            delete.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Drain(window);
+
+            Assert.DoesNotContain(PropertyRows(grid), item => ReadProperty(item, "Name") == "amount");
+            Assert.Equal(2, PropertyRows(grid).Count());
+
             grid.SelectionMode = DataGridSelectionMode.Extended;
             grid.SelectedItems.Clear();
             grid.SelectedItems.Add(grid.Items[0]);
-            grid.SelectedItems.Add(grid.Items[1]);
             var key = new KeyEventArgs(Keyboard.PrimaryDevice,
                 PresentationSource.FromVisual(grid)!, 0, Key.Delete)
             { RoutedEvent = Keyboard.PreviewKeyDownEvent };
-
             grid.RaiseEvent(key);
 
-            Assert.Single(grid.Items.Cast<object>());
-            Assert.Equal("occurredAt", PropertyName(grid.Items[0]));
+            Assert.Single(PropertyRows(grid));
+            Assert.Equal("occurredAt", ReadProperty(PropertyRows(grid).Single(), "Name"));
         });
 
     [Fact]
@@ -64,19 +151,17 @@ public sealed class MessageWorkbenchPropertyTests
         => Run((window, view) =>
         {
             var grid = Get<DataGrid>(view, "ApplicationPropertiesGrid");
-            grid.SelectedIndex = 0;
-            Get<Button>(view, "DeleteSelectedPropertyButton").RaiseEvent(
-                new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(2, grid.Items.Count);
+            object amount = PropertyRows(grid).Single(item => ReadProperty(item, "Name") == "amount");
+            FindAutomationId<Button>(RowFor(grid, amount), "LibraryDeleteProperty")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
             Get<Button>(view, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GetTreeItem(view, "template:Order updated").IsSelected = true;
             GetTreeItem(view, "template:Order created").IsSelected = true;
             Drain(window);
 
-            Assert.Equal(2, grid.Items.Count);
-            Assert.DoesNotContain(grid.Items.Cast<object>(), item =>
-                string.Equals(PropertyName(item), "amount", StringComparison.Ordinal));
+            Assert.Equal(2, PropertyRows(grid).Count());
+            Assert.DoesNotContain(PropertyRows(grid), item => ReadProperty(item, "Name") == "amount");
         });
 
     [Fact]
@@ -84,18 +169,19 @@ public sealed class MessageWorkbenchPropertyTests
         => Run((window, view) =>
         {
             var grid = Get<DataGrid>(view, "ApplicationPropertiesGrid");
-            grid.SelectedIndex = 0;
-            grid.CurrentCell = new DataGridCellInfo(grid.Items[0], grid.Columns[0]);
+            object amount = PropertyRows(grid).Single(item => ReadProperty(item, "Name") == "amount");
+            grid.CurrentCell = new DataGridCellInfo(amount, grid.Columns[0]);
             Assert.True(grid.BeginEdit());
             Drain(window);
             grid.UpdateLayout();
-            var editor = Descendants(grid).OfType<TextBox>().Single(control => control.IsVisible);
+            TextBox editor = FindAutomationId<TextBox>(RowFor(grid, amount), "LibraryPropertyName");
             var key = new KeyEventArgs(Keyboard.PrimaryDevice,
                 PresentationSource.FromVisual(editor)!, 0, Key.Delete)
             { RoutedEvent = Keyboard.PreviewKeyDownEvent };
             editor.RaiseEvent(key);
+
             Assert.False(key.Handled);
-            Assert.Equal(3, grid.Items.Count);
+            Assert.Equal(3, PropertyRows(grid).Count());
             grid.CancelEdit();
         });
 
@@ -103,6 +189,77 @@ public sealed class MessageWorkbenchPropertyTests
     public void Reply_and_routing_starts_collapsed()
         => Run((_, view) => Assert.False(Descendants(view).OfType<Expander>().Single(expander =>
             Equals(expander.Header, "Reply and routing")).IsExpanded));
+
+    private static object StartNewProperty(Window window, DataGrid grid, string name)
+    {
+        Assert.Contains(grid.Items.Cast<object>(), item => ReferenceEquals(item, CollectionView.NewItemPlaceholder));
+        grid.ScrollIntoView(CollectionView.NewItemPlaceholder);
+        grid.UpdateLayout();
+        grid.CurrentCell = new DataGridCellInfo(CollectionView.NewItemPlaceholder, grid.Columns[0]);
+        Assert.True(grid.BeginEdit());
+        Drain(window);
+        grid.UpdateLayout();
+        DataGridRow row = grid.ItemContainerGenerator.ContainerFromIndex(grid.Items.Count - 2) as DataGridRow
+            ?? throw new Xunit.Sdk.XunitException("The new application property row was not realized.");
+        FindAutomationId<TextBox>(row, "LibraryPropertyName").Text = name;
+        Assert.True(grid.CommitEdit(DataGridEditingUnit.Cell, true));
+        Assert.True(grid.CommitEdit(DataGridEditingUnit.Row, true));
+        Drain(window);
+        object property = PropertyRows(grid).Single(item => ReadProperty(item, "Name") == name);
+        Assert.Contains(grid.Items.Cast<object>(), item => ReferenceEquals(item, CollectionView.NewItemPlaceholder));
+        return property;
+    }
+
+    private static void EditTextCell(Window window, DataGrid grid, object item, int column,
+        string value, string? automationId = null, bool allowRowCancellation = false)
+    {
+        grid.CurrentCell = new DataGridCellInfo(item, grid.Columns[column]);
+        Assert.True(grid.BeginEdit());
+        Drain(window);
+        grid.UpdateLayout();
+        TextBox editor = automationId is null
+            ? Descendants(RowFor(grid, item)).OfType<TextBox>().Single(control => control.IsVisible)
+            : FindAutomationId<TextBox>(RowFor(grid, item), automationId);
+        editor.Text = value;
+        Assert.True(grid.CommitEdit(DataGridEditingUnit.Cell, true));
+        bool rowCommitted = grid.CommitEdit(DataGridEditingUnit.Row, true);
+        if (!allowRowCancellation) Assert.True(rowCommitted);
+        Drain(window);
+    }
+
+    private static void EditComboCell(Window window, DataGrid grid, object item, int column, string value)
+    {
+        grid.CurrentCell = new DataGridCellInfo(item, grid.Columns[column]);
+        Assert.True(grid.BeginEdit());
+        Drain(window);
+        grid.UpdateLayout();
+        ComboBox editor = Descendants(RowFor(grid, item)).OfType<ComboBox>()
+            .Single(control => control.IsVisible && control.IsHitTestVisible);
+        editor.SelectedItem = value;
+        Assert.True(grid.CommitEdit(DataGridEditingUnit.Cell, true));
+        Assert.True(grid.CommitEdit(DataGridEditingUnit.Row, true));
+        Drain(window);
+    }
+
+    private static void AssertNoLegacyPropertyActions(FrameworkElement view)
+    {
+        Assert.DoesNotContain(Descendants(view).OfType<Button>(), button =>
+            AutomationProperties.GetAutomationId(button) is "LibraryAddProperty" or "LibraryDeleteSelectedProperty");
+    }
+
+    private static IEnumerable<object> PropertyRows(DataGrid grid) => grid.Items.Cast<object>()
+        .Where(item => !ReferenceEquals(item, CollectionView.NewItemPlaceholder));
+
+    private static DataGridRow RowFor(DataGrid grid, object item)
+    {
+        grid.ScrollIntoView(item);
+        grid.UpdateLayout();
+        return grid.ItemContainerGenerator.ContainerFromItem(item) as DataGridRow
+            ?? throw new Xunit.Sdk.XunitException("The application property row was not realized.");
+    }
+
+    private static string ReadProperty(object item, string propertyName) =>
+        item.GetType().GetProperty(propertyName)?.GetValue(item)?.ToString() ?? "";
 
     private static void Run(Action<Window, MessageLibraryPrototypeView> proof)
     {
@@ -158,8 +315,9 @@ public sealed class MessageWorkbenchPropertyTests
         }
     }
 
-    private static string PropertyName(object item) =>
-        item.GetType().GetProperty("Name")?.GetValue(item)?.ToString() ?? "";
+    private static T FindAutomationId<T>(DependencyObject root, string automationId) where T : DependencyObject =>
+        Descendants(root).OfType<T>().Single(element =>
+            AutomationProperties.GetAutomationId(element) == automationId);
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
     {

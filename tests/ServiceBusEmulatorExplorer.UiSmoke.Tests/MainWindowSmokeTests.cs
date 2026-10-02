@@ -271,6 +271,9 @@ public sealed class MainWindowSmokeTests
                     .FirstOrDefault(element => !element.IsOffscreen));
             renameInput.Patterns.Value.Pattern.SetValue("Order created smoke renamed");
             WaitForAutomationId(window, "LibrarySave", TimeSpan.FromSeconds(5)).Focus();
+            Assert.NotNull(WaitForText(window, "Order created", TimeSpan.FromSeconds(5)));
+            Assert.Null(window.FindFirstDescendant(cf => cf.ByText("Order created smoke renamed")));
+            InvokeButton(window, "LibraryRenameSave", TimeSpan.FromSeconds(5));
             Assert.NotNull(WaitForText(window, "Order created smoke renamed", TimeSpan.FromSeconds(5)));
             Assert.Null(window.FindFirstDescendant(cf => cf.ByText("Order created")));
         }
@@ -391,15 +394,14 @@ public sealed class MainWindowSmokeTests
             var routing = WaitForAutomationId(window, "LibraryReplyRouting", TimeSpan.FromSeconds(5));
             Assert.Equal(ExpandCollapseState.Collapsed, routing.Patterns.ExpandCollapse.Pattern.ExpandCollapseState);
             var propertyGrid = WaitForAutomationId(window, "LibraryApplicationProperties", TimeSpan.FromSeconds(5));
-            int originalPropertyCount = propertyGrid.Patterns.Grid.Pattern.RowCount;
-            var deleteProperty = WaitForAutomationId(window, "LibraryDeleteSelectedProperty", TimeSpan.FromSeconds(5));
-            Assert.False(deleteProperty.IsEnabled);
-            InvokeButton(window, "LibraryAddProperty", TimeSpan.FromSeconds(5));
-            Assert.Equal(originalPropertyCount + 1, propertyGrid.Patterns.Grid.Pattern.RowCount);
-            Assert.True(deleteProperty.IsEnabled);
-            InvokeButton(window, "LibraryDeleteSelectedProperty", TimeSpan.FromSeconds(5));
-            Assert.Equal(originalPropertyCount, propertyGrid.Patterns.Grid.Pattern.RowCount);
-            Assert.False(deleteProperty.IsEnabled);
+            Assert.True(propertyGrid.Patterns.Grid.Pattern.RowCount >= 3);
+            Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("LibraryAddProperty")));
+            Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("LibraryDeleteSelectedProperty")));
+            AutomationElement amountRow = FindAncestor(WaitForText(window, "amount", TimeSpan.FromSeconds(5)), ControlType.DataItem);
+            amountRow.Patterns.SelectionItem.Pattern.Select();
+            AutomationElement? rowDelete = amountRow.FindFirstDescendant(cf => cf.ByAutomationId("LibraryDeleteProperty"));
+            Assert.NotNull(rowDelete);
+            Assert.False(rowDelete.IsOffscreen);
             SetText(window, "LibrarySubject", "OrderCreatedEdited");
             InvokeButton(window, "LibrarySave", TimeSpan.FromSeconds(5));
 

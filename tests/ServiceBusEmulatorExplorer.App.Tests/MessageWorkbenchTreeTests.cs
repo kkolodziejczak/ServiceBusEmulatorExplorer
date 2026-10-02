@@ -205,11 +205,32 @@ public sealed class MessageWorkbenchTreeTests
             TextBox input = VisibleRenameInput(view);
             Assert.Equal("Order created", input.Text);
             input.Text = "Title renamed";
-            Press(input, Key.Enter);
+            FindVisibleAutomationId<Button>(view, "LibraryRenameSave").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Drain(window);
 
             Assert.Equal("Title renamed", Get<TextBlock>(view, "AuthorTitle").Text);
             Assert.True(HasTreeItem(view, "template:Title renamed"));
+        });
+
+    [Fact]
+    public void Rename_focus_loss_does_not_commit_and_explicit_cancel_restores_the_original_name()
+        => Run((window, view) =>
+        {
+            FindAutomationId<Button>(view, "LibraryRename").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            TextBox input = VisibleRenameInput(view);
+            input.Text = "Uncommitted title";
+            Get<Button>(view, "EditorBodyTab").Focus();
+            Drain(window);
+
+            Assert.True(input.IsVisible);
+            Assert.Equal("Order created", Get<TextBlock>(view, "AuthorTitle").Text);
+            Assert.True(HasTreeItem(view, "template:Order created"));
+            Assert.False(HasTreeItem(view, "template:Uncommitted title"));
+
+            FindVisibleAutomationId<Button>(view, "LibraryRenameCancel").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Drain(window);
+            Assert.False(input.IsVisible);
+            Assert.Equal("Order created", Get<TextBlock>(view, "AuthorTitle").Text);
         });
 
     private static void BeginRenameWithF2(FrameworkElement view)
@@ -261,6 +282,10 @@ public sealed class MessageWorkbenchTreeTests
     private static T FindAutomationId<T>(DependencyObject root, string automationId) where T : DependencyObject =>
         Descendants(root).OfType<T>().Single(element =>
             AutomationProperties.GetAutomationId(element) == automationId);
+
+    private static T FindVisibleAutomationId<T>(DependencyObject root, string automationId) where T : FrameworkElement =>
+        Descendants(root).OfType<T>().Single(element =>
+            AutomationProperties.GetAutomationId(element) == automationId && element.IsVisible);
 
     private static void AddFolder(Window window, FrameworkElement view, string name)
     {

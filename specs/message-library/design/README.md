@@ -1,8 +1,21 @@
 # Message Workbench — approved visual contract
 
-The user approved the revised **Message Workbench** workspace mockup on 2026-09-21 as a prototype/mockup plan, not authorization to implement it. It replaces the earlier Board A workspace image; Boards B–E remain the approved state references. The old `approved/01-workspace.png` is historical and must not be used as the workspace layout baseline. No compact mockup is approved.
+The user approved the revised **Message Workbench** workspace mockup on 2026-09-21 as a prototype/mockup plan, not authorization to implement it. It replaces the earlier Board A workspace image; Boards B–E remain the approved state references. The old `approved/01-workspace.png` is historical and must not be used as the workspace layout baseline. Later approved refinements and compact-table behavior are recorded below.
 
 Read with the [main plan](../../message-library-implementation-plan.md), [topic context contract](../topic-context.md), [properties/cancellation](../message-properties-and-cancellation.md), and existing [app UI language](../../ui-language.md).
+
+## Approved compact tables and explicit rename (2026-10-02)
+
+[Approved mockup](approved/12-compact-tables-and-explicit-rename.png). The user's subsequent "do it" approved implementation. This supersedes the centered table layout, external property action buttons, disappearing variable-default area, and implicit rename confirmation below.
+
+- Show Save name and Cancel beside a pending template rename; retain Enter/Escape. Tree rename has equivalent compact confirm/cancel actions. Leaving the text box does not silently save the name.
+- All active tables use left-aligned text and compact content-sized leading data columns, capped near 200 DIPs (roughly 25 ordinary characters). Short type, checkbox and action columns stay appropriately small. The final data column absorbs spare width. Ellipses/tooltips limit display only; editing and copying preserve full values.
+- Property tables show one permanent insertion row. Clicking starts entry; entered content is retained, while an untouched/cleared blank row resets on leaving it. Delete is a row-local trash action exposed on hover, selection or keyboard focus, with a keyboard equivalent. Remove external Add property and Delete selected controls.
+- Variable tables size to their rows with bounded scrolling. Their detail area stays in place for input and generated variables. Generated variables display an explanatory status and disable controls that do not apply, without changing stored input defaults.
+- Apply shared compact sizing to the active Investigation message table and Workbench Properties, Variables, CSV, validation, dispatch results, scheduled results and cancellation history. Send/replay key=value text editors are not converted into tables.
+- Preserve the shared palette, row density, focus cues, semantic badges, window chrome and in-memory prototype scope. The generated crop is a composition reference; exact WPF styling remains authoritative.
+
+Verification (2026-10-02): 403 app tests and 188 core tests passed. After the final property-name display repair, all 71 focused Workbench/table tests and seven Workbench UI Automation flows passed against the isolated fresh build. The [compact-table capture harness](../../../tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/CompactTablesScreenshotScenario.cs), invoked with an output directory and `--compact-tables`, renders the real app and exercises rename, insertion, properties, generated-variable details, CSV validation, simulated dispatch, scheduling and cancellation. It produced 72 captures at 1642x958, 1500x1000, 1100x800 and 980x640, including scroll endpoints at the minimum size. It asserts the entered property name, exactly one insertion prompt, header alignment and visible primary actions. Proof artifacts are local under `artifacts/compact-tables-proof`; physical mouse/keyboard input, screen-reader output and multi-monitor/DPI behavior are not established by these captures.
 
 ## Approved library tree refinement (2026-10-02)
 

@@ -13,6 +13,8 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.Length == 2 && args[1] == "--compact-tables")
+            return CompactTablesScreenshotScenario.Run(args[0]);
         if (args.Length == 2 && args[1].StartsWith("--workbench-tree", StringComparison.Ordinal))
             return WorkbenchTreeScreenshotScenario.Run(args[0], args[1]);
         if (args.Length == 2 && args[1].StartsWith("--selector-", StringComparison.Ordinal))

@@ -64,6 +64,7 @@ public partial class MessageLibraryPrototypeView
     private void RefreshLibraryTree()
     {
         if (LibraryTree is null || TemplateSearch is null) return;
+        if (activeRenameInput != LibraryRenameInput) CancelRename();
         refreshingTemplates = true;
         try
         {
@@ -164,18 +165,39 @@ public partial class MessageLibraryPrototypeView
         System.Windows.Automation.AutomationProperties.SetName(input, "Rename " + name);
         System.Windows.Automation.AutomationProperties.SetAutomationId(input, "LibraryRenameInput");
         input.KeyDown += LibraryRenameInput_KeyDown;
-        input.LostKeyboardFocus += LibraryRenameInput_LostKeyboardFocus;
-        Grid.SetColumnSpan(input, 2);
+        editor.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        editor.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        editor.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         editor.Children.Add(input);
+        var saveName = CreateRenameAction("Save name", "LibraryRenameSave", "M1,6 L5,10 L13,1", SaveRename_Click);
+        Grid.SetColumn(saveName, 1);
+        editor.Children.Add(saveName);
+        var cancelName = CreateRenameAction("Cancel rename", "LibraryRenameCancel", "M1,1 L11,11 M11,1 L1,11", CancelRename_Click);
+        Grid.SetColumn(cancelName, 2);
+        editor.Children.Add(cancelName);
         var error = new TextBlock { Foreground = (Brush)FindResource("DestructiveBrush"), FontSize = 11,
             TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed, Margin = new Thickness(4, 1, 0, 0) };
         Grid.SetRow(error, 1);
-        Grid.SetColumnSpan(error, 2);
+        Grid.SetColumnSpan(error, 3);
         editor.Children.Add(error);
         Grid.SetColumn(editor, 1);
         row.Children.Add(editor);
         treeRenameControls[tag] = (input, label, error, editor);
         return row;
+    }
+
+    private Button CreateRenameAction(string label, string automationId, string geometry, RoutedEventHandler action)
+    {
+        var button = new Button
+        {
+            Style = (Style)FindResource("IconButton"), Width = 28, Height = 28, Padding = new Thickness(5),
+            ToolTip = label, Content = new Path { Data = Geometry.Parse(geometry),
+                Stroke = (Brush)FindResource("PrimaryBrush"), StrokeThickness = 1.5, Stretch = Stretch.Uniform }
+        };
+        System.Windows.Automation.AutomationProperties.SetName(button, label);
+        System.Windows.Automation.AutomationProperties.SetAutomationId(button, automationId);
+        button.Click += action;
+        return button;
     }
 
     private void AddRenameMenu(TreeViewItem item)
@@ -314,6 +336,7 @@ public partial class MessageLibraryPrototypeView
             RefreshLibraryTree();
             return;
         }
+        CancelRename();
         selectedTemplateName = name;
         editorFolder = template.Folder;
         selectedFolder = template.Folder;
@@ -374,13 +397,14 @@ public partial class MessageLibraryPrototypeView
     private void BeginRenameCurrentTemplate_Click(object sender, RoutedEventArgs e)
     {
         if (selectedTemplateName.Length == 0) return;
+        CancelRename();
         renamingTag = $"template:{selectedTemplateName}";
         AuthorTitle.Visibility = Visibility.Collapsed;
         LibraryRenameButton.Visibility = Visibility.Collapsed;
         LibraryRenameInput.Text = selectedTemplateName;
         LibraryRenameError.Visibility = Visibility.Collapsed;
         activeRenameInput = LibraryRenameInput;
-        LibraryRenameInput.Visibility = Visibility.Visible;
+        LibraryRenameEditor.Visibility = Visibility.Visible;
         LibraryRenameInput.Focus();
         LibraryRenameInput.SelectAll();
     }
@@ -388,7 +412,9 @@ public partial class MessageLibraryPrototypeView
     private void BeginRenameTreeItem(string? tag)
     {
         if (tag is null || !treeRenameControls.TryGetValue(tag, out var controls)) return;
+        CancelRename();
         renamingTag = tag;
+        controls.Input.Text = controls.Label.Text;
         controls.Label.Visibility = Visibility.Collapsed;
         controls.Editor.Visibility = Visibility.Visible;
         controls.Error.Visibility = Visibility.Collapsed;
@@ -412,10 +438,9 @@ public partial class MessageLibraryPrototypeView
         }
     }
 
-    private void LibraryRenameInput_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
-    {
-        if (sender is TextBox input && input == activeRenameInput) CommitRename();
-    }
+    private void SaveRename_Click(object sender, RoutedEventArgs e) => CommitRename();
+
+    private void CancelRename_Click(object sender, RoutedEventArgs e) => CancelRename();
 
     private void CommitRename()
     {
@@ -433,7 +458,7 @@ public partial class MessageLibraryPrototypeView
         {
             input = LibraryRenameInput;
             error = LibraryRenameError;
-            close = () => { LibraryRenameInput.Visibility = Visibility.Collapsed; LibraryRenameButton.Visibility = Visibility.Visible; AuthorTitle.Visibility = Visibility.Visible; LibraryRenameError.Visibility = Visibility.Collapsed; };
+            close = () => { LibraryRenameEditor.Visibility = Visibility.Collapsed; LibraryRenameButton.Visibility = Visibility.Visible; AuthorTitle.Visibility = Visibility.Visible; LibraryRenameError.Visibility = Visibility.Collapsed; };
         }
         else return;
         if (activeRenameInput != input) return;
@@ -477,7 +502,7 @@ public partial class MessageLibraryPrototypeView
         }
         else
         {
-            LibraryRenameInput.Visibility = Visibility.Collapsed;
+            LibraryRenameEditor.Visibility = Visibility.Collapsed;
             LibraryRenameButton.Visibility = Visibility.Visible;
             LibraryRenameError.Visibility = Visibility.Collapsed;
             AuthorTitle.Visibility = Visibility.Visible;
