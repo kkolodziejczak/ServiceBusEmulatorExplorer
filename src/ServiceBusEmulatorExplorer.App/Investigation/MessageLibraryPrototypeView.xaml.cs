@@ -126,7 +126,7 @@ public partial class MessageLibraryPrototypeView : UserControl
 
     public void SetProfileName(string profileName)
     {
-        if (DestinationProfileText is null) return;
+        if (ViewRunResultsButton is null) return;
         if (currentProfileName != profileName)
         {
             lastRun = null;
@@ -137,7 +137,6 @@ public partial class MessageLibraryPrototypeView : UserControl
             UpdateDestinationControls();
         }
         currentProfileName = profileName;
-        DestinationProfileText.Text = profileName;
     }
 
     private void UpdateWizardLayout()
@@ -163,8 +162,8 @@ public partial class MessageLibraryPrototypeView : UserControl
         {
             PrepareBody.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
             PrepareBody.ColumnDefinitions[1].Width = new GridLength(0);
-            PrepareBody.RowDefinitions[0].Height = new GridLength(320);
-            PrepareBody.RowDefinitions[1].Height = new GridLength(1, GridUnitType.Star);
+            PrepareBody.RowDefinitions[0].Height = new GridLength(0.65, GridUnitType.Star);
+            PrepareBody.RowDefinitions[1].Height = new GridLength(1.35, GridUnitType.Star);
             Grid.SetColumn(PreviewSurface, 0);
             Grid.SetRow(PreviewSurface, 1);
             PrepareInputsScroll.Margin = new Thickness(0);
@@ -483,7 +482,6 @@ public partial class MessageLibraryPrototypeView : UserControl
         ReviewButton.IsEnabled = previewReady && selectedDestination is not null;
         UpdateDestinationControls();
         PageTitle.Text = "Prepare messages";
-        PageSubtitle.Text = "Generate and preview messages using sample data.";
         AuthorTitle.Text = selectedTemplateName;
     }
 

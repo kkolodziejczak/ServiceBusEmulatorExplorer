@@ -1,4 +1,4 @@
-﻿using System.Runtime.ExceptionServices;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows;
 using System.Windows.Automation;
@@ -87,7 +87,8 @@ public sealed class MessageWorkbenchDestinationTests
             Assert.Contains("unavailable", Warning(view).Text, StringComparison.OrdinalIgnoreCase);
             Assert.False(Get<Button>(view, "ReviewButton").IsEnabled);
             Assert.Equal("order-events", Get<ComboBox>(view, "TemplateDestination").SelectedValue);
-            Assert.StartsWith("Send to: order-events (Topic)", Get<TextBlock>(view, "DestinationText").Text,
+            Assert.Equal(Visibility.Visible, Get<Border>(view, "PrepareDestinationWarning").Visibility);
+            Assert.Contains("Topic \"order-events\" is unavailable", Get<TextBlock>(view, "PrepareDestinationWarningText").Text,
                 StringComparison.Ordinal);
         });
 

@@ -1,8 +1,20 @@
 # Message Workbench — approved visual contract
 
+## Approved destination selector and Prepare warning (2026-10-02)
+
+[Approved mockup](approved/14-destinations-and-prepare-warning.png). The user's response "1" approved implementation.
+
+- Destination choices and the selected value reuse distinct queue/topic icons, the destination name, and a small right-aligned type label; remove parenthesized type suffixes from the selector. Preserve typed identity, one destination per template, keyboard selection and accessible names.
+- Remove the Prepare subtitle and repeated destination/profile footer labels. Keep the footer actions.
+- When the destination is missing, unverified or unset, show a wrapping amber warning above the footer explaining the reason and next action. Keep Review disabled until the destination is available and preparation is valid; hide the warning when available.
+- Preserve the editor preview and actions at compact/minimum window sizes; stacked inputs and preview share available height instead of allowing a fixed input row to push the preview away.
+
+
 The user approved the revised **Message Workbench** workspace mockup on 2026-09-21 as a prototype/mockup plan, not authorization to implement it. It replaces the earlier Board A workspace image; Boards B–E remain the approved state references. The old `approved/01-workspace.png` is historical and must not be used as the workspace layout baseline. Later approved refinements and compact-table behavior are recorded below.
 
 Read with the [main plan](../../message-library-implementation-plan.md), [topic context contract](../topic-context.md), [properties/cancellation](../message-properties-and-cancellation.md), and existing [app UI language](../../ui-language.md).
+
+Verification: zero-warning build and all 10 focused destination/auto-refresh tests passed. The [destination harness](../../../tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/DestinationScreenshotScenario.cs), invoked with an output directory and `--destinations`, asserts actual 1500x1000, 1100x800 and 980x640 dimensions and exercises queue/topic selection, long names, open popups, Available/Missing/Unverified/Unset warnings, recovery to Review and forced return when a destination disappears. Rendered checks passed after bringing the selector into view and preserving compact preview height. Proof is under `artifacts/destination-proof/states`. Accessible option names and polite warning announcements are declared; physical keyboard and screen-reader output, Windows scaling and multi-monitor behavior remain unverified.
 
 ## Approved organization, destination validation and capture (2026-10-02)
 

@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -15,6 +15,8 @@ internal static class Program
     {
         if (args.Length == 2 && args[1] == "--organization")
             return OrganizationScreenshotScenario.Run(args[0]);
+        if (args.Length == 2 && args[1] == "--destinations")
+            return DestinationScreenshotScenario.Run(args[0]);
         if (args.Length == 2 && args[1] == "--message-capture-live")
             return LiveMessageCaptureScenario.Run(args[0]);
         if (args.Length == 2 && args[1] == "--compact-tables")

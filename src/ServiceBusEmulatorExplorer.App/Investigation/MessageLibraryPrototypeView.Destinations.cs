@@ -70,7 +70,11 @@ public partial class MessageLibraryPrototypeView
             TemplateDestination.Items.Clear();
             TemplateDestination.Items.Add(new ComboBoxItem { Content = "Choose destination", Tag = "" });
             foreach (var item in choices)
-                TemplateDestination.Items.Add(new ComboBoxItem { Content = $"{item.Name} ({item.Kind})", Tag = item.Name, DataContext = item });
+                {
+                var option = new ComboBoxItem { Content = item, ContentTemplate = (DataTemplate)FindResource("DestinationChoiceTemplate"), Tag = item.Name, DataContext = item };
+                System.Windows.Automation.AutomationProperties.SetName(option, $"{item.Name}, {item.Kind}");
+                TemplateDestination.Items.Add(option);
+            }
             TemplateDestination.SelectedItem = TemplateDestination.Items.OfType<ComboBoxItem>().FirstOrDefault(item =>
                 item.DataContext is WorkbenchDestination choice && choice.Name.Equals(currentAssociation, StringComparison.OrdinalIgnoreCase) && choice.Kind == currentDestinationKind)
                 ?? TemplateDestination.Items[0];
@@ -82,9 +86,17 @@ public partial class MessageLibraryPrototypeView
             DestinationWarning.Text = warning.Length == 0 ? "" : "\u26A0 " + warning;
             DestinationWarning.Visibility = warning.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         }
-        if (DestinationText is not null)
-            DestinationText.Text = currentAssociation.Length == 0 ? "Send to: Choose destination" :
-                $"Send to: {currentAssociation} ({currentDestinationKind})" + (warning.Length == 0 ? "" : " \u2014 " + warning);
+        if (PrepareDestinationWarning is not null)
+        {
+            PrepareDestinationWarningText.Text = status switch
+            {
+                WorkbenchDestinationStatus.Missing => $"{currentDestinationKind} \"{currentAssociation}\" is unavailable.\nGo back to the template and select an available destination to continue.",
+                WorkbenchDestinationStatus.Unverified => $"{currentDestinationKind} \"{currentAssociation}\" could not be verified.\nConnect and refresh entity discovery to continue.",
+                WorkbenchDestinationStatus.Unset => "No destination selected.\nGo back to the template and choose a queue or topic to continue.",
+                _ => ""
+            };
+            PrepareDestinationWarning.Visibility = status == WorkbenchDestinationStatus.Available ? Visibility.Collapsed : Visibility.Visible;
+        }
         if (ReviewButton is not null) ReviewButton.IsEnabled = previewReady && selectedDestination is not null;
     }
 

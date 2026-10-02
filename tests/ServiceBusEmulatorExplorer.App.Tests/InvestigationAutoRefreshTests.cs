@@ -178,9 +178,9 @@ public sealed class InvestigationAutoRefreshTests
 
         var view = (MessageLibraryPrototypeView)fixture.Window.FindName("MessageLibraryPrototype");
         Assert.Equal("orders", ((TextBox)fixture.Window.FindName("SearchBox")).Text);
-        string unavailableDestination = ((TextBlock)view.FindName("DestinationText")).Text;
-        Assert.StartsWith("Send to: order-events (Topic)", unavailableDestination, StringComparison.Ordinal);
-        Assert.Contains("Destination unavailable: order-events", unavailableDestination, StringComparison.Ordinal);
+        Assert.Equal(Visibility.Visible, ((Border)view.FindName("PrepareDestinationWarning")).Visibility);
+        Assert.Contains("Topic \"order-events\" is unavailable",
+            ((TextBlock)view.FindName("PrepareDestinationWarningText")).Text, StringComparison.Ordinal);
         Assert.Equal("order-events", ((System.Windows.Controls.ComboBox)view.FindName("TemplateDestination")).SelectedValue);
         Assert.False(((System.Windows.Controls.Button)view.FindName("ReviewButton")).IsEnabled);
 
@@ -188,8 +188,9 @@ public sealed class InvestigationAutoRefreshTests
         Assert.Contains("Sample entities", ((TextBlock)fixture.Window.FindName("NamespaceModeLabel")).Text);
         Assert.Equal(2, tree.Items.Count);
         Assert.True(((EntityNode)tree.Items[0]).IsVisible);
-        Assert.Contains("Destination not verified: order-events",
-            ((TextBlock)view.FindName("DestinationText")).Text, StringComparison.Ordinal);
+        Assert.Equal(Visibility.Visible, ((Border)view.FindName("PrepareDestinationWarning")).Visibility);
+        Assert.Contains("Topic \"order-events\" could not be verified",
+            ((TextBlock)view.FindName("PrepareDestinationWarningText")).Text, StringComparison.Ordinal);
     });
 
     private sealed class Fixture : IDisposable
