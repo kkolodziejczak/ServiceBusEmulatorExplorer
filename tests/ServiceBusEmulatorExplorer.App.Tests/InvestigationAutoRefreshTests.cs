@@ -135,7 +135,7 @@ public sealed class InvestigationAutoRefreshTests
 
     [Fact]
     [Trait("TestCategory", "UiRender")]
-    public void DisconnectedWorkbenchUsesLabeledSampleNodesOutsideLiveBrowseRoots() => OnSta(() =>
+    public void SelectingSingleDestinationTemplateFiltersDisconnectedNamespaceSample() => OnSta(() =>
     {
         using var fixture = new Fixture();
         Complete(fixture.Workspace.DisconnectAsync());
@@ -150,8 +150,12 @@ public sealed class InvestigationAutoRefreshTests
         Assert.Equal("order-replies", sampleQueue.Name);
         Assert.Equal("", sampleQueue.DisplayMessageCount);
         Assert.Empty(fixture.Workspace.Browse.Roots);
-        typeof(InvestigationWindow).GetMethod("ApplyWorkbenchTemplateAssociations", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .Invoke(fixture.Window, [new[] { "inventory-events" }]);
+        var workbench = (MessageLibraryPrototypeView)fixture.Window.FindName("MessageLibraryPrototype");
+        var libraryTree = (TreeView)workbench.FindName("LibraryTree");
+        var template = TreeItems(libraryTree)
+            .Single(item => Equals(item.Tag, "template:Stock reserved"));
+        template.IsSelected = true;
+        Assert.Equal("inventory-events", ((TextBox)fixture.Window.FindName("SearchBox")).Text);
         var sampleTopic = ((EntityNode)tree.Items[1]).Children.Single(node => node.Name == "inventory-events");
         Assert.False(((EntityNode)tree.Items[0]).IsVisible);
         Assert.True(sampleTopic.IsVisible);
@@ -174,7 +178,7 @@ public sealed class InvestigationAutoRefreshTests
 
         var view = (MessageLibraryPrototypeView)fixture.Window.FindName("MessageLibraryPrototype");
         Assert.Equal("orders", ((TextBox)fixture.Window.FindName("SearchBox")).Text);
-        Assert.Equal("Send to: Choose destination", ((TextBlock)view.FindName("DestinationText")).Text);
+        Assert.Equal("Send to: order-events (Topic)", ((TextBlock)view.FindName("DestinationText")).Text);
 
         Complete(fixture.Workspace.DisconnectAsync());
         Assert.Contains("Sample entities", ((TextBlock)fixture.Window.FindName("NamespaceModeLabel")).Text);
@@ -238,6 +242,24 @@ public sealed class InvestigationAutoRefreshTests
 
     private static void OpenWorkbench(InvestigationWindow window) =>
         ((System.Windows.Controls.Primitives.ToggleButton)window.FindName("MessageLibraryTab")).IsChecked = true;
+
+    private static IEnumerable<TreeViewItem> TreeItems(TreeView tree)
+    {
+        foreach (TreeViewItem root in tree.Items.OfType<TreeViewItem>())
+        {
+            yield return root;
+            foreach (var child in TreeItems(root)) yield return child;
+        }
+    }
+
+    private static IEnumerable<TreeViewItem> TreeItems(TreeViewItem parent)
+    {
+        foreach (TreeViewItem child in parent.Items.OfType<TreeViewItem>())
+        {
+            yield return child;
+            foreach (var descendant in TreeItems(child)) yield return descendant;
+        }
+    }
 
     private sealed class Store : IWorkspacePreferencesStore
     {

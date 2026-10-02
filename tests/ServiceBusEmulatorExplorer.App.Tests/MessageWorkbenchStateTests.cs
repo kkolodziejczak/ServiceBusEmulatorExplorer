@@ -29,27 +29,21 @@ public sealed class MessageWorkbenchStateTests
         Button create = Descendants(view).OfType<Button>().Single(button =>
             AutomationProperties.GetAutomationId(button) == "LibraryNew");
         Assert.Null(create.ContextMenu);
-        Assert.Contains(Descendants((DependencyObject)create.Content).OfType<TextBlock>(),
-            text => text.Text == "+ New template");
+        Assert.Equal("New template", AutomationProperties.GetName(create));
     });
 
     [Fact]
-    public void New_template_starts_with_empty_json_and_no_inherited_properties() => Run((window, view) =>
+    public void New_template_starts_in_memory_with_empty_json_and_no_inherited_properties() => Run((_, view) =>
     {
-        window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
-        {
-            Window dialog = window.OwnedWindows.OfType<Window>().Single(child => child.Title == "New template");
-            Descendants(dialog).OfType<TextBox>().Single().Text = "Empty example";
-            Descendants(dialog).OfType<Button>().Single(button => Equals(button.Content, "Save"))
-                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        }));
         Descendants(view).OfType<Button>().Single(button =>
             AutomationProperties.GetAutomationId(button) == "LibraryNew")
             .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        Assert.Equal("Empty example", Get<TextBlock>(view, "AuthorTitle").Text);
+        Assert.Equal("Untitled message", Get<TextBlock>(view, "AuthorTitle").Text);
         Assert.Equal("{}", Get<JsonEditor>(view, "EditorText").Text);
         Assert.Empty((System.Collections.IEnumerable)Get<DataGrid>(view, "ApplicationPropertiesGrid").ItemsSource);
         Assert.Empty((System.Collections.IEnumerable)Get<DataGrid>(view, "VariablesGrid").ItemsSource);
+        Assert.Contains(TreeItems(Get<TreeView>(view, "LibraryTree")), item =>
+            Equals(item.Tag, "template:Untitled message"));
     });
 
     [Fact]
@@ -66,9 +60,10 @@ public sealed class MessageWorkbenchStateTests
         Descendants(view).OfType<Button>().Single(button =>
             AutomationProperties.GetAutomationId(button) == "LibraryAddFolder")
             .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        Panel folders = Get<Panel>(view, "AddedFolders");
-        Assert.Contains(Descendants(folders).OfType<Button>(), button =>
-            AutomationProperties.GetName(button) == "Folder New folder");
+        TreeView tree = Get<TreeView>(view, "LibraryTree");
+        Assert.Contains(TreeItems(tree), item =>
+            Equals(item.Tag, "folder:Orders/New folder")
+            && AutomationProperties.GetName(item) == "New folder");
     });
 
     [Fact]
@@ -132,83 +127,6 @@ public sealed class MessageWorkbenchStateTests
         Assert.Equal(ids[0], selectedAgain.RootElement.GetProperty("eventId").GetString());
     });
 
-    [Theory]
-    [InlineData("PrototypeConflictKeepEditing", false)]
-    [InlineData("PrototypeConflictReload", true)]
-    public void External_change_sample_refresh_reaches_conflict_and_preserves_or_reloads_draft(
-        string choice, bool reload) => Run((window, view) =>
-    {
-        var templates = Get<ListBox>(view, "TemplateList");
-        var sample = templates.Items.OfType<ListBoxItem>().SingleOrDefault(item =>
-            AutomationProperties.GetName(item) == "External change sample");
-        Assert.NotNull(sample);
-        templates.SelectedItem = sample;
-        const string draft = "{\"customerId\":\"my unsaved customer\"}";
-        Get<JsonEditor>(view, "EditorText").Text = draft;
-        Exception? dialogFailure = null;
-        window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
-        {
-            var dialog = window.OwnedWindows.OfType<MessageLibraryPrototypeDialog>().Single();
-            try
-            {
-                Assert.Equal(Visibility.Visible, Get<StackPanel>(dialog, "ConflictSurface").Visibility);
-                var button = Descendants(dialog).OfType<Button>().Single(control =>
-                    AutomationProperties.GetAutomationId(control) == choice);
-                button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            }
-            catch (Exception exception) { dialogFailure = exception; dialog.Close(); }
-        }));
-        var refresh = Descendants(view).OfType<Button>().Single(control =>
-            AutomationProperties.GetAutomationId(control) == "LibraryRefresh");
-        refresh.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        if (dialogFailure is not null) ExceptionDispatchInfo.Capture(dialogFailure).Throw();
-        string actual = Get<JsonEditor>(view, "EditorText").Text;
-        if (reload) Assert.Contains("externalRevision", actual);
-        else Assert.Equal(draft, actual);
-    });
-
-    [Fact]
-    public void Conflict_save_as_keeps_both_external_revision_and_edited_copy() => Run((window, view) =>
-    {
-        var templates = Get<ListBox>(view, "TemplateList");
-        templates.SelectedItem = templates.Items.OfType<ListBoxItem>().Single(item =>
-            AutomationProperties.GetName(item) == "External change sample");
-        const string draft = "{\"customerId\":\"preserve this copy\"}";
-        Get<JsonEditor>(view, "EditorText").Text = draft;
-        Exception? dialogFailure = null;
-        window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
-        {
-            var conflict = window.OwnedWindows.OfType<MessageLibraryPrototypeDialog>().Single();
-            try
-            {
-                window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
-                {
-                    var prompt = window.OwnedWindows.Cast<Window>().Single(dialog => dialog.Title == "Save as");
-                    try
-                    {
-                        Descendants(prompt).OfType<TextBox>().Single().Text = "Preserved conflict copy";
-                        Descendants(prompt).OfType<Button>().Single(button => Equals(button.Content, "Save"))
-                            .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                    }
-                    catch (Exception exception) { dialogFailure = exception; prompt.Close(); }
-                }));
-                Descendants(conflict).OfType<Button>().Single(button =>
-                    AutomationProperties.GetAutomationId(button) == "PrototypeConflictSaveAs")
-                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            }
-            catch (Exception exception) { dialogFailure = exception; conflict.Close(); }
-        }));
-        Descendants(view).OfType<Button>().Single(button =>
-            AutomationProperties.GetAutomationId(button) == "LibraryRefresh")
-            .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        if (dialogFailure is not null) ExceptionDispatchInfo.Capture(dialogFailure).Throw();
-        Assert.Equal("Preserved conflict copy", Get<TextBlock>(view, "AuthorTitle").Text);
-        Assert.Equal(draft, Get<JsonEditor>(view, "EditorText").Text);
-        templates.SelectedItem = templates.Items.OfType<ListBoxItem>().Single(item =>
-            AutomationProperties.GetName(item) == "External change sample");
-        Assert.Contains("\"externalRevision\": 2", Get<JsonEditor>(view, "EditorText").Text);
-    });
-
     [Fact]
     public void Custom_message_id_is_frozen_in_review_and_invalid_json_disables_review() => Run((window, view) =>
     {
@@ -254,6 +172,24 @@ public sealed class MessageWorkbenchStateTests
 
     private static T Get<T>(FrameworkElement root, string name) where T : class =>
         Assert.IsAssignableFrom<T>(root.FindName(name));
+
+    private static IEnumerable<TreeViewItem> TreeItems(TreeView tree)
+    {
+        foreach (TreeViewItem root in tree.Items.OfType<TreeViewItem>())
+        {
+            yield return root;
+            foreach (var child in TreeItems(root)) yield return child;
+        }
+    }
+
+    private static IEnumerable<TreeViewItem> TreeItems(TreeViewItem parent)
+    {
+        foreach (TreeViewItem child in parent.Items.OfType<TreeViewItem>())
+        {
+            yield return child;
+            foreach (var descendant in TreeItems(child)) yield return descendant;
+        }
+    }
 
     private static void Click(FrameworkElement root, string name) =>
         Get<Button>(root, name).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

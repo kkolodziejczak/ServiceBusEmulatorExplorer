@@ -178,7 +178,7 @@ public sealed class MainWindowSmokeTests
 
     [UiSmokeFact]
     [Trait("TestCategory", "UiSmoke")]
-    public async Task Message_library_prototype_filters_topics_and_requires_an_explicit_unassociated_destination()
+    public async Task Message_library_prototype_filters_topics_and_sets_unassociated_destination_inline()
     {
         string executablePath = WpfAppPath.Resolve();
         string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
@@ -196,13 +196,14 @@ public sealed class MainWindowSmokeTests
             WaitForAutomationId(window, "LibraryTree", TimeSpan.FromSeconds(5));
 
             AutomationElement unassociated = WaitForText(window, "Unassociated sample", TimeSpan.FromSeconds(5));
-            FindAncestor(unassociated, ControlType.ListItem).Patterns.SelectionItem.Pattern.Select();
+            SelectTreeItem(unassociated);
             InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
             Assert.False(WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled);
-            InvokeButton(window, "LibraryChooseDestination", TimeSpan.FromSeconds(5));
-            Window picker = WaitForWindowWithAutomationId(application, automation,
-                "PrototypeApplyDestination", TimeSpan.FromSeconds(5));
-            InvokeButton(picker, "PrototypeApplyDestination", TimeSpan.FromSeconds(5));
+            InvokeButton(window, "LibraryBackToCompose", TimeSpan.FromSeconds(5));
+            InvokeButton(window, "LibraryEditorProperties", TimeSpan.FromSeconds(5));
+            WaitForAutomationId(window, "TemplateDestination", TimeSpan.FromSeconds(5))
+                .AsComboBox().Select("inventory-events (Topic)");
+            InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
             Assert.True(SpinWait.SpinUntil(() => WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled,
                 TimeSpan.FromSeconds(5)));
 
@@ -225,6 +226,63 @@ public sealed class MainWindowSmokeTests
             if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
                 Directory.Delete(directory);
         }
+        await Task.CompletedTask;
+    }
+
+    [UiSmokeFact]
+    [Trait("TestCategory", "UiSmoke")]
+    public async Task Message_library_prototype_adds_folders_and_renames_templates_in_memory()
+    {
+        string executablePath = WpfAppPath.Resolve();
+        string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
+            Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        using Application application = Application.Launch(executablePath,
+            $"--profile-store-path {QuoteProcessArgument(profilePath)} --message-workbench-prototype");
+        using var automation = new UIA3Automation();
+
+        try
+        {
+            Window window = WaitForMainWindowWithAutomationId(application, automation,
+                "ConnectionButton", TimeSpan.FromSeconds(15));
+            AutomationElement libraryTab = WaitForAutomationId(window, "MessageLibraryTab", TimeSpan.FromSeconds(5));
+            if (libraryTab.Patterns.Toggle.Pattern.ToggleState != ToggleState.On)
+                libraryTab.Patterns.Toggle.Pattern.Toggle();
+
+            InvokeButton(window, "LibraryAddFolder", TimeSpan.FromSeconds(5));
+            Window addFolder = WaitForWindowWithAutomationId(application, automation,
+                "LibraryNameInput", TimeSpan.FromSeconds(5));
+            AutomationElement folderName = WaitForAutomationId(addFolder, "LibraryNameInput", TimeSpan.FromSeconds(5));
+            folderName.Patterns.Value.Pattern.SetValue(string.Empty);
+            InvokeButton(addFolder, "LibraryNameSave", TimeSpan.FromSeconds(5));
+            Assert.NotNull(WaitForText(addFolder, "Use a unique folder name without path separators.", TimeSpan.FromSeconds(5)));
+
+            folderName.Patterns.Value.Pattern.SetValue("UI Smoke Folder");
+            InvokeButton(addFolder, "LibraryNameSave", TimeSpan.FromSeconds(5));
+            AutomationElement createdFolder = WaitForText(window, "UI Smoke Folder", TimeSpan.FromSeconds(5));
+            Assert.Equal(ControlType.TreeItem, FindAncestor(createdFolder, ControlType.TreeItem).ControlType);
+
+            AutomationElement orderCreated = WaitForElement(TimeSpan.FromSeconds(5), () =>
+                window.FindAllDescendants().FirstOrDefault(element =>
+                    element.ControlType == ControlType.TreeItem && element.Name == "Order created"));
+            SelectTreeItem(orderCreated);
+            InvokeButton(window, "LibraryRename", TimeSpan.FromSeconds(5));
+            AutomationElement renameInput = WaitForElement(TimeSpan.FromSeconds(5), () =>
+                window.FindAllDescendants(cf => cf.ByAutomationId("LibraryRenameInput"))
+                    .FirstOrDefault(element => !element.IsOffscreen));
+            renameInput.Patterns.Value.Pattern.SetValue("Order created smoke renamed");
+            WaitForAutomationId(window, "LibrarySave", TimeSpan.FromSeconds(5)).Focus();
+            Assert.NotNull(WaitForText(window, "Order created smoke renamed", TimeSpan.FromSeconds(5)));
+            Assert.Null(window.FindFirstDescendant(cf => cf.ByText("Order created")));
+        }
+        finally
+        {
+            CloseApplication(application);
+            if (File.Exists(profilePath)) File.Delete(profilePath);
+            string directory = Path.GetDirectoryName(profilePath)!;
+            if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                Directory.Delete(directory);
+        }
+
         await Task.CompletedTask;
     }
 
@@ -345,14 +403,12 @@ public sealed class MainWindowSmokeTests
             SetText(window, "LibrarySubject", "OrderCreatedEdited");
             InvokeButton(window, "LibrarySave", TimeSpan.FromSeconds(5));
 
-            FindAncestor(WaitForText(window, "Order updated", TimeSpan.FromSeconds(5)),
-                ControlType.ListItem).Patterns.SelectionItem.Pattern.Select();
+            SelectTreeItem(WaitForText(window, "Order updated", TimeSpan.FromSeconds(5)));
             InvokeButton(window, "LibraryEditorProperties", TimeSpan.FromSeconds(5));
             Assert.Equal("OrderCreated", WaitForAutomationId(window, "LibrarySubject",
                 TimeSpan.FromSeconds(5)).Patterns.Value.Pattern.Value);
 
-            FindAncestor(WaitForText(window, "Order created", TimeSpan.FromSeconds(5)),
-                ControlType.ListItem).Patterns.SelectionItem.Pattern.Select();
+            SelectTreeItem(WaitForText(window, "Order created", TimeSpan.FromSeconds(5)));
             InvokeButton(window, "LibraryEditorProperties", TimeSpan.FromSeconds(5));
             Assert.Equal("OrderCreatedEdited", WaitForAutomationId(window, "LibrarySubject",
                 TimeSpan.FromSeconds(5)).Patterns.Value.Pattern.Value);

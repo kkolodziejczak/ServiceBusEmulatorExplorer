@@ -33,12 +33,14 @@ public partial class MessageLibraryPrototypeView : UserControl
     private string currentProfileName = "Local emulator";
     private string selectedTemplateName = "Order created";
     private string currentAssociation = "order-events";
-    private readonly List<string> currentAssociations = ["order-events"];
     private string namespaceQuery = "";
-    private IReadOnlyList<string>? associationScope;
+    private string? editorFolder = "Orders";
+    private string? selectedLibraryTag;
+    private readonly HashSet<string> collapsedFolders = new(StringComparer.OrdinalIgnoreCase);
+    private string? renamingTag;
     private string? selectedDestination = "order-events";
-    private bool explicitDestination;
-    private string selectedFolder = "Orders";
+
+    private string? selectedFolder = "Orders";
     private readonly List<string> folders = ["Orders"];
     private readonly Dictionary<string, PrototypeAuthorSettings> savedSettings = [];
     private PrototypeAuthorSettings defaultSettings = null!;
@@ -50,9 +52,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         new("Order dispatched", "order-events", "Emitted when an order leaves the warehouse.", "{\n  \"eventId\": \"$(EventId)\",\n  \"customerId\": \"$(CustomerId)\",\n  \"state\": \"Dispatched\"\n}"),
         new("Stock reserved", "inventory-events", "Emitted when stock is reserved.", "{\n  \"eventId\": \"$(EventId)\",\n  \"sku\": \"$(CustomerId)\",\n  \"quantity\": \"$(Amount)\"\n}"),
         new("Order reply", "order-replies", "Sample queue reply.", "{\n  \"customerId\": \"$(CustomerId)\",\n  \"accepted\": true\n}"),
-        new("Unassociated sample", "", "Local draft without a discovered destination.", "{\n  \"customerId\": \"$(CustomerId)\",\n  \"amount\": \"$(Amount)\"\n}"),
-        new(ExternalChangeSample, "", "Edit this sample, then Refresh to simulate an external file change.",
-            "{\n  \"customerId\": \"$(CustomerId)\",\n  \"externalRevision\": 1\n}")
+        new("Unassociated sample", "", "Local draft without a discovered destination.", "{\n  \"customerId\": \"$(CustomerId)\",\n  \"amount\": \"$(Amount)\"\n}")
     ];
     private readonly ObservableCollection<PrototypeProperty> applicationProperties =
     [
@@ -68,7 +68,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         new("OccurredAt", "string", "Current UTC", "not applicable")
     ];
     public event Action<string?>? TemplateContextRequested;
-    public event Action<IReadOnlyList<string>>? TemplateAssociationsRequested;
+
 
     public MessageLibraryPrototypeView()
     {
@@ -98,16 +98,27 @@ public partial class MessageLibraryPrototypeView : UserControl
         ApplicationPropertiesGrid.CellEditEnding += (_, _) => InvalidatePreview();
         defaultSettings = CaptureSettings();
         foreach (var template in templates) savedSettings[template.Name] = defaultSettings;
-        RefreshTemplateList();
-        UpdateAssociations();
+        folders.Add("Inventory");
+        for (int index = 0; index < templates.Count; index++)
+        {
+            string folder = templates[index].Topic == "inventory-events" ? "Inventory" : "Orders";
+            templates[index] = templates[index] with { Folder = folder };
+        }
+        selectedLibraryTag = $"template:{selectedTemplateName}";
+        RefreshLibraryTree();
+        UpdateDestinationControls();
+        libraryInitialized = true;
         Loaded += (_, _) =>
         {
+            AttachLibrarySelection();
             ShowEditorBody();
             ShowPrepare();
             CsvRowsGrid.SelectedIndex = 0;
             RefreshPreparedPreview();
             ShowWizardStage(WizardStage.Compose);
         };
+        Unloaded += (_, _) => DetachLibrarySelection();
+        LibraryTree.SizeChanged += (_, _) => UpdateTreeHeaderWidths();
         SizeChanged += (_, _) => UpdateWizardLayout();
     }
 
@@ -116,8 +127,6 @@ public partial class MessageLibraryPrototypeView : UserControl
         if (DestinationProfileText is null) return;
         if (currentProfileName != profileName)
         {
-            selectedDestination = null;
-            explicitDestination = false;
             lastRun = null;
             ViewRunResultsButton.Visibility = Visibility.Collapsed;
             ValidationDetailsButton.IsEnabled = false;
@@ -161,7 +170,6 @@ public partial class MessageLibraryPrototypeView : UserControl
         }
         FooterActions.Orientation = stageWidth < 650 ? Orientation.Vertical : Orientation.Horizontal;
         FooterActions.HorizontalAlignment = HorizontalAlignment.Right;
-        FooterDestination.Visibility = stageWidth < 650 ? Visibility.Collapsed : Visibility.Visible;
         ComposeConnector.Width = PrepareConnector.Width = stageWidth < 620 ? 20 : 64;
         ReviewStepButton.Content = stageWidth < 620 ? "Review" : "Review & send";
     }
@@ -203,7 +211,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         if (ClearTemplateSearchButton is not null)
             ClearTemplateSearchButton.Visibility = string.IsNullOrEmpty(TemplateSearch.Text)
                 ? Visibility.Collapsed : Visibility.Visible;
-        if (TemplateList is not null) RefreshTemplateList();
+        if (LibraryTree is not null) RefreshLibraryTree();
     }
 
     private void ClearTemplateSearch_Click(object sender, RoutedEventArgs e)
@@ -212,221 +220,26 @@ public partial class MessageLibraryPrototypeView : UserControl
         TemplateSearch.Focus();
     }
 
-    private void TemplateList_Changed(object sender, SelectionChangedEventArgs e)
-    {
-        if (refreshingTemplates || AuthorTitle is null || sender is not ListBox { SelectedItem: ListBoxItem item }) return;
-        if ((string)item.Tag != selectedTemplateName && HasUnsavedDraft())
-        {
-            var guard = new MessageLibraryPrototypeDialog(PrototypeDialogMode.DraftGuard,
-                currentProfileName, selectedDestination ?? "order-events", 1) { Owner = Window.GetWindow(this) };
-            guard.DraftGuardText.Text = $"You have unsaved changes to {selectedTemplateName}. What do you want to do?";
-            guard.ShowDialog();
-            if (guard.DraftChoice == PrototypeDraftChoice.Cancel)
-            {
-                refreshingTemplates = true;
-                try { RefreshTemplateList(); }
-                finally { refreshingTemplates = false; }
-                return;
-            }
-            if (guard.DraftChoice == PrototypeDraftChoice.Save)
-            {
-                Save_Click(this, new RoutedEventArgs());
-                if (HasUnsavedDraft())
-                {
-                    RefreshTemplateList();
-                    return;
-                }
-            }
-        }
-        selectedTemplateName = item.Tag?.ToString() ?? "Order created";
-        var template = templates.First(value => value.Name == selectedTemplateName);
-        if (selectedTemplateName == ExternalChangeSample) externalConflictPending = false;
-        RestoreSettings(savedSettings[selectedTemplateName]);
-        selectedFolder = template.Folder;
-        currentBody = template.Body;
-        currentAssociation = template.Topic;
-        currentAssociations.Clear();
-        currentAssociations.AddRange(TemplateAssociations(template));
-        draftIsNew = false;
-        selectedDestination = currentAssociations.Count == 1 && IsSampleDestination(currentAssociations[0])
-            ? currentAssociations[0] : null;
-        explicitDestination = false;
-        previewReady = false;
-        AuthorTitle.Text = selectedTemplateName;
-        AuthorSubtitle.Text = template.Description;
-        UpdateAssociations();
-        FilterWarning.Visibility = Visibility.Collapsed;
-        UpdateDestinationControls();
-        ShowEditorBody();
-        ShowPrepare();
-        InvalidatePreview();
-        ShowWizardStage(WizardStage.Compose);
-        if (currentAssociations.Count > 1)
-            TemplateAssociationsRequested?.Invoke(currentAssociations.ToArray());
-        else TemplateContextRequested?.Invoke(currentAssociations.FirstOrDefault());
-    }
-
     public void SelectEntityContext(string identity)
     {
-        selectedDestination = identity.StartsWith("subscription:", StringComparison.Ordinal)
-            ? identity[(identity.IndexOf(':') + 1)..].Split('/')[0]
-            : identity[(identity.IndexOf(':') + 1)..];
-        explicitDestination = true;
-        FilterByNamespaceQuery(selectedDestination);
+        string path = identity[(identity.IndexOf(':') + 1)..];
+        FilterByNamespaceQuery(identity.StartsWith("subscription:", StringComparison.Ordinal)
+            ? path.Split('/')[0] : path);
     }
 
     public void FilterByNamespaceQuery(string query)
     {
-        if (TemplateList is null) return;
         namespaceQuery = query;
-        associationScope = null;
-        if (query.Length == 0 && !explicitDestination)
-        {
-            string? associated = currentAssociation;
-            selectedDestination = IsSampleDestination(associated) ? associated : null;
-        }
-        RefreshTemplateList();
+        RefreshLibraryTree();
         bool outside = query.Length > 0 && templates.FirstOrDefault(value => value.Name == selectedTemplateName) is { } current
-            && !currentAssociations.Any(path => path.Contains(query, StringComparison.OrdinalIgnoreCase));
+            && !TemplateAssociations(current).Any(path => path.Contains(query, StringComparison.OrdinalIgnoreCase));
         FilterWarning.Visibility = outside ? Visibility.Visible : Visibility.Collapsed;
-        if (outside)
-        {
-            selectedDestination = null;
-            explicitDestination = false;
-        }
-        UpdateDestinationControls();
-        ReviewButton.IsEnabled = previewReady && !outside && selectedDestination is not null;
-    }
-
-    public void FilterByTemplateAssociations(IReadOnlyList<string> paths)
-    {
-        namespaceQuery = "";
-        associationScope = paths;
-        RefreshTemplateList();
-        FilterWarning.Visibility = Visibility.Collapsed;
-        selectedDestination = null;
-        explicitDestination = false;
-        UpdateDestinationControls();
-        ReviewButton.IsEnabled = false;
-    }
-
-    private void RefreshTemplateList()
-    {
-        if (TemplateList is null || TemplateSearch is null) return;
-        refreshingTemplates = true;
-        try
-        {
-            TemplateList.Items.Clear();
-            var visible = templates.Where(value =>
-                (draftIsNew && value.Name == selectedTemplateName) ||
-                ((namespaceQuery.Length == 0 || TemplateAssociations(value).Any(path => path.Contains(namespaceQuery, StringComparison.OrdinalIgnoreCase))) &&
-                 (associationScope is null || TemplateAssociations(value).Any(path => associationScope.Contains(path, StringComparer.OrdinalIgnoreCase))) &&
-                 (TemplateSearch.Text.Length == 0 || value.Name.Contains(TemplateSearch.Text, StringComparison.OrdinalIgnoreCase)
-                     || value.Description.Contains(TemplateSearch.Text, StringComparison.OrdinalIgnoreCase)))).ToList();
-            foreach (var template in visible.Where(value => value.Folder == "Orders"))
-            {
-                TemplateList.Items.Add(CreateTemplateItem(template));
-            }
-            OrdersFolderLabel.Visibility = visible.Any(value => value.Folder == "Orders") ? Visibility.Visible : Visibility.Collapsed;
-            AddedFolders.Children.Clear();
-            foreach (string folder in folders.Where(value => value != "Orders"))
-            {
-                var folderTemplates = visible.Where(value => value.Folder == folder).ToList();
-                if (namespaceQuery.Length > 0 && folderTemplates.Count == 0 && folder != selectedFolder) continue;
-                var folderContent = new StackPanel { Orientation = Orientation.Horizontal };
-                folderContent.Children.Add(new System.Windows.Shapes.Path
-                {
-                    Data = System.Windows.Media.Geometry.Parse("M1,4 H7 L9,6 H17 V16 H1 Z"),
-                    Stroke = (System.Windows.Media.Brush)FindResource("PrimaryBrush"), StrokeThickness = 1.5,
-                    Width = 18, Height = 16, Stretch = System.Windows.Media.Stretch.Uniform,
-                    Margin = new Thickness(0, 0, 7, 0)
-                });
-                folderContent.Children.Add(new TextBlock { Text = folder, Foreground = (System.Windows.Media.Brush)FindResource("ActionTextBrush") });
-                var folderRow = new Button
-                {
-                    Tag = folder, HorizontalAlignment = HorizontalAlignment.Stretch,
-                    HorizontalContentAlignment = HorizontalAlignment.Left,
-                    Background = folder == selectedFolder ? (System.Windows.Media.Brush)FindResource("SelectionBrush") : System.Windows.Media.Brushes.Transparent,
-                    BorderThickness = new Thickness(0), Margin = new Thickness(16, 10, 0, 4), Padding = new Thickness(6, 5, 6, 5),
-                    Content = folderContent
-                };
-                System.Windows.Automation.AutomationProperties.SetName(folderRow, $"Folder {folder}");
-                folderRow.Click += (_, _) => { selectedFolder = folder; RefreshTemplateList(); };
-                AddedFolders.Children.Add(folderRow);
-                var list = new ListBox { Margin = new Thickness(37, 0, 0, 0), BorderThickness = new Thickness(0), Background = System.Windows.Media.Brushes.Transparent,
-                    ItemContainerStyle = (Style)FindResource("PrototypeTemplateItem") };
-                list.SelectionChanged += TemplateList_Changed;
-                foreach (var template in folderTemplates) list.Items.Add(CreateTemplateItem(template));
-                AddedFolders.Children.Add(list);
-                var folderSelection = list.Items.OfType<ListBoxItem>().FirstOrDefault(item => (string)item.Tag == selectedTemplateName);
-                if (folderSelection is not null) folderSelection.IsSelected = true;
-            }
-            EmptyTemplates.Visibility = visible.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-            var selected = TemplateList.Items.OfType<ListBoxItem>().FirstOrDefault(item => (string)item.Tag == selectedTemplateName);
-            if (selected is not null) selected.IsSelected = true;
-        }
-        finally { refreshingTemplates = false; }
-    }
-
-    private static ListBoxItem CreateTemplateItem(PrototypeTemplate template)
-    {
-        var row = new StackPanel { Orientation = Orientation.Horizontal };
-        row.Children.Add(new System.Windows.Shapes.Path
-        {
-            Data = System.Windows.Media.Geometry.Parse("M3,1 H13 L17,5 V19 H3 Z M6,8 H14 M6,11 H14 M6,14 H12"),
-            Stroke = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 105, 250)),
-            StrokeThickness = 1.5, Width = 15, Height = 17, Stretch = System.Windows.Media.Stretch.Uniform,
-            Margin = new Thickness(0, 0, 8, 0)
-        });
-        row.Children.Add(new TextBlock { Text = template.Name, VerticalAlignment = VerticalAlignment.Center });
-        var item = new ListBoxItem { Content = row, Tag = template.Name,
-            ToolTip = template.FileName is null ? template.Name : $"{template.Name} · {template.FileName}" };
-        System.Windows.Automation.AutomationProperties.SetName(item, template.Name);
-        return item;
-    }
-
-    private void AddFolder_Click(object sender, RoutedEventArgs e)
-    {
-        string? folder = PromptForName("Add folder", "Folder name", "New collection");
-        if (folder is null) return;
-        if (!folders.Contains(folder, StringComparer.OrdinalIgnoreCase)) folders.Add(folder);
-        selectedFolder = folder;
-        RefreshTemplateList();
-    }
-
-    private void RefreshLibrary_Click(object sender, RoutedEventArgs e)
-    {
-        if (RefreshExternalChangeSample()) return;
-        if (HasUnsavedDraft())
-        {
-            var guard = new MessageLibraryPrototypeDialog(PrototypeDialogMode.DraftGuard,
-                currentProfileName, selectedDestination ?? "order-events", 1) { Owner = Window.GetWindow(this) };
-            guard.DraftGuardText.Text = $"You have unsaved changes to {selectedTemplateName}. Save before refreshing?";
-            guard.ShowDialog();
-            if (guard.DraftChoice == PrototypeDraftChoice.Cancel) return;
-            if (guard.DraftChoice == PrototypeDraftChoice.Save) Save_Click(this, new RoutedEventArgs());
-            else if (guard.DraftChoice == PrototypeDraftChoice.Discard)
-            {
-                var saved = templates.First(value => value.Name == selectedTemplateName);
-                currentBody = saved.Body;
-                currentAssociation = saved.Topic;
-                currentAssociations.Clear();
-                currentAssociations.AddRange(TemplateAssociations(saved));
-                selectedDestination = IsSampleDestination(currentAssociation) ? currentAssociation : null;
-                explicitDestination = false;
-                UpdateAssociations();
-                UpdateDestinationControls();
-                draftIsNew = false;
-                RestoreSettings(savedSettings[selectedTemplateName]);
-                ShowEditorBody();
-            }
-        }
-        RefreshTemplateList();
+        ReviewButton.IsEnabled = previewReady && selectedDestination is not null;
     }
 
     private bool HasUnsavedDraft() => draftIsNew ||
         templates.FirstOrDefault(value => value.Name == selectedTemplateName) is { } template &&
-        (template.Body != currentBody || !TemplateAssociations(template).SequenceEqual(currentAssociations) ||
+        (template.Body != currentBody || template.Topic != currentAssociation ||
             JsonSerializer.Serialize(savedSettings[selectedTemplateName]) != JsonSerializer.Serialize(CaptureSettings()));
 
     private PrototypeAuthorSettings CaptureSettings() => new(
@@ -465,34 +278,31 @@ public partial class MessageLibraryPrototypeView : UserControl
     }
 
     public void ConfigureCaptureCollections(MessageLibraryPrototypeDialog dialog) =>
-        dialog.SetCaptureCollections(folders, selectedFolder);
+        dialog.SetCaptureCollections(folders, selectedFolder ?? "");
 
     public void OpenCapturedDraft(string name, string body, string topic, string? collection = null,
         PrototypeCaptureProperties? properties = null, string? fileName = null)
     {
-        if (!string.IsNullOrWhiteSpace(collection))
-        {
-            if (!folders.Contains(collection, StringComparer.OrdinalIgnoreCase)) folders.Add(collection);
-            selectedFolder = collection;
-        }
-        name = UniqueTemplateName(name);
-        templates.Add(new PrototypeTemplate(name, topic, "Captured message draft · review properties before saving.",
-            body, selectedFolder, [topic], fileName));
+        string folder = collection ?? selectedFolder ?? "";
+        if (folder.Length > 0) AddFolderAndParents(folder);
+        ExpandFolderPath(folder);
+        name = UniqueTemplateName(name, folder);
+        templates.Add(new PrototypeTemplate(name, topic, "Captured message draft ? review properties before saving.",
+            body, folder, topic.Length == 0 ? [] : [topic], fileName));
         savedSettings[name] = defaultSettings;
         RestoreSettings(defaultSettings);
         selectedTemplateName = name;
+        editorFolder = folder;
+        selectedFolder = folder.Length == 0 ? null : folder;
+        selectedLibraryTag = $"template:{name}";
         currentAssociation = topic;
-        currentAssociations.Clear();
-        if (topic.Length > 0) currentAssociations.Add(topic);
         selectedDestination = IsSampleDestination(topic) ? topic : null;
-        explicitDestination = false;
         currentBody = body;
         draftIsNew = true;
         namespaceQuery = "";
-        RefreshTemplateList();
+        RefreshLibraryTree();
         AuthorTitle.Text = name;
-        AuthorSubtitle.Text = "Captured message draft · review properties before saving.";
-        UpdateAssociations();
+        AuthorTitle.ToolTip = name;
         if (properties is not null)
         {
             PropertySubject.Text = properties.Subject ?? "";
@@ -522,26 +332,28 @@ public partial class MessageLibraryPrototypeView : UserControl
 
     private void NewTemplate_Click(object sender, RoutedEventArgs e)
     {
-        string? name = PromptForName("New template", "Template name", "Untitled message");
-        if (name is null) return;
-        name = UniqueTemplateName(name);
-        templates.Add(new PrototypeTemplate(name, "", "New in-memory template.", "{}", selectedFolder, []));
+        string folder = GetCreationFolder();
+        if (!TryLeaveCurrentDraft()) return;
+        ExpandFolderPath(folder);
+        string name = UniqueTemplateName("Untitled message", folder);
+        var template = new PrototypeTemplate(name, "", "New in-memory template.", "{}", folder, []);
+        templates.Add(template);
         var emptySettings = new PrototypeAuthorSettings("", 0, "", "", false, "", false, "", "", "", "", [], []);
         savedSettings[name] = emptySettings;
         RestoreSettings(emptySettings);
         selectedTemplateName = name;
+        selectedLibraryTag = $"template:{name}";
+        selectedFolder = folder.Length == 0 ? null : folder;
+        editorFolder = folder;
         currentAssociation = "";
-        currentAssociations.Clear();
         selectedDestination = null;
-        explicitDestination = false;
-        currentBody = templates[^1].Body;
+        currentBody = template.Body;
         draftIsNew = true;
-        RefreshTemplateList();
+        RefreshLibraryTree();
         AuthorTitle.Text = name;
-        AuthorSubtitle.Text = "New in-memory template.";
-        UpdateAssociations();
+        AuthorTitle.ToolTip = name;
         UpdateDestinationControls();
-        FilterWarning.Visibility = namespaceQuery.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        FilterWarning.Visibility = Visibility.Collapsed;
         ShowEditorBody();
         InvalidatePreview();
         ShowWizardStage(WizardStage.Compose);
@@ -549,36 +361,33 @@ public partial class MessageLibraryPrototypeView : UserControl
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
-        if (selectedTemplateName == ExternalChangeSample && externalConflictPending)
-        {
-            ResolveExternalChangeConflict();
-            return;
-        }
         int index = templates.FindIndex(value => value.Name == selectedTemplateName);
         if (index < 0) return;
         templates[index] = templates[index] with { Body = currentBody, Topic = currentAssociation,
-            Associations = currentAssociations.ToArray() };
+            Associations = currentAssociation.Length == 0 ? [] : [currentAssociation] };
         savedSettings[selectedTemplateName] = CaptureSettings();
         draftIsNew = false;
-        AuthorSubtitle.Text = "Saved in this prototype session.";
+        RefreshLibraryTree();
     }
 
     private void SaveAs_Click(object sender, RoutedEventArgs e)
     {
         string? name = PromptForName("Save as", "Template name", selectedTemplateName + " copy");
         if (name is null) return;
-        name = UniqueTemplateName(name);
-        templates.Add(new PrototypeTemplate(name, currentAssociation, "Saved in this prototype session.", currentBody, selectedFolder,
-            currentAssociations.ToArray()));
+        ExpandFolderPath(editorFolder);
+        name = UniqueTemplateName(name, editorFolder);
+        templates.Add(new PrototypeTemplate(name, currentAssociation, "Saved in this prototype session.", currentBody, editorFolder ?? "",
+            currentAssociation.Length == 0 ? [] : [currentAssociation]));
         savedSettings[name] = CaptureSettings();
         selectedTemplateName = name;
         draftIsNew = false;
-        RefreshTemplateList();
+        selectedLibraryTag = $"template:{name}";
+        RefreshLibraryTree();
         AuthorTitle.Text = name;
-        AuthorSubtitle.Text = "Saved in this prototype session.";
+        AuthorTitle.ToolTip = name;
     }
 
-    private string UniqueTemplateName(string requested)
+    private string UniqueTemplateName(string requested, string? folder = null)
     {
         string candidate = requested;
         int suffix = 2;
@@ -592,7 +401,7 @@ public partial class MessageLibraryPrototypeView : UserControl
     {
         var dialog = new Window
         {
-            Title = title, Width = 420, Height = isValid is null ? 190 : 220,
+            Title = title, Width = 420, SizeToContent = SizeToContent.Height,
             MinWidth = 360, ResizeMode = ResizeMode.NoResize,
             WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = Window.GetWindow(this),
             Background = (System.Windows.Media.Brush)FindResource("CanvasBrush"),
@@ -607,18 +416,25 @@ public partial class MessageLibraryPrototypeView : UserControl
         panel.Children.Add(new TextBlock { Text = label, FontWeight = FontWeights.SemiBold,
             Margin = new Thickness(0, 0, 0, 8) });
         var input = new TextBox { Text = initial, MinHeight = 32, Padding = new Thickness(9, 6, 9, 6),
+            Name = "LibraryNameInput",
             BorderBrush = (System.Windows.Media.Brush)dialog.FindResource("ControlBorderBrush"),
             Margin = new Thickness(0, 0, 0, 18) };
+        System.Windows.Automation.AutomationProperties.SetName(input, label);
+        System.Windows.Automation.AutomationProperties.SetAutomationId(input, "LibraryNameInput");
         panel.Children.Add(input);
-        var error = new TextBlock { Text = validationMessage ?? "Enter a valid name.",
+        var error = new TextBlock { Text = validationMessage ?? "Enter a valid name.", TextWrapping = TextWrapping.Wrap,
             Foreground = (System.Windows.Media.Brush)dialog.FindResource("DestructiveBrush"),
             Margin = new Thickness(0, -10, 0, 12), Visibility = Visibility.Collapsed };
         panel.Children.Add(error);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-        var cancel = new Button { Content = "Cancel", Margin = new Thickness(0, 0, 8, 0) };
+        var cancel = new Button { Content = "Cancel", IsCancel = true, Margin = new Thickness(0, 0, 8, 0) };
+        System.Windows.Automation.AutomationProperties.SetName(cancel, "Cancel");
+        System.Windows.Automation.AutomationProperties.SetAutomationId(cancel, "LibraryNameCancel");
         cancel.Click += (_, _) => dialog.DialogResult = false;
-        var save = new Button { Content = "Save", MinWidth = 80,
+        var save = new Button { Content = "Save", MinWidth = 80, IsDefault = true,
             Style = (Style)dialog.FindResource("PrimaryButton") };
+        System.Windows.Automation.AutomationProperties.SetName(save, "Save");
+        System.Windows.Automation.AutomationProperties.SetAutomationId(save, "LibraryNameSave");
         save.Click += (_, _) =>
         {
             if (string.IsNullOrWhiteSpace(input.Text) ||
@@ -909,8 +725,6 @@ public partial class MessageLibraryPrototypeView : UserControl
         review.RunCompleted += run => RememberRun(run);
         review.ViewDestinationRequested += topic =>
         {
-            selectedDestination = topic;
-            DestinationText.Text = $"Send to: {topic} ({(topic == "order-replies" ? "Queue" : "Topic")})";
             TemplateContextRequested?.Invoke(topic);
             RememberRun(review);
             ShowWizardStage(WizardStage.Prepare);
@@ -934,27 +748,33 @@ public partial class MessageLibraryPrototypeView : UserControl
         ReviewStepButton.IsEnabled = true;
     }
 
-    private void ChooseDestination_Click(object sender, RoutedEventArgs e)
-    {
-        var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Destination, currentProfileName,
-            selectedDestination ?? "", 1) { Owner = Window.GetWindow(this) };
-        if (dialog.ShowDialog() != true) return;
-        selectedDestination = dialog.ChosenDestination;
-        explicitDestination = true;
-        FilterWarning.Visibility = Visibility.Collapsed;
-        UpdateDestinationControls();
-        ReviewButton.IsEnabled = previewReady;
-    }
-
     private static bool IsSampleDestination(string? path) =>
         path is "order-events" or "inventory-events" or "order-replies";
 
+    private void TemplateDestination_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!libraryInitialized || loadingDestinationSelection) return;
+        if (TemplateDestination?.SelectedValue is not string destination) return;
+        currentAssociation = destination;
+        selectedDestination = destination.Length == 0 ? null : destination;
+        UpdateDestinationControls();
+        ClearLibrarySelection();
+        ReviewButton.IsEnabled = previewReady && selectedDestination is not null;
+        InvalidatePreview();
+    }
+
     private void UpdateDestinationControls()
     {
-        if (DestinationText is null || ChooseDestinationButton is null) return;
-        DestinationText.Text = selectedDestination is null ? "Send to: Choose destination" :
-            $"Send to: {selectedDestination} ({(selectedDestination == "order-replies" ? "Queue" : "Topic")})";
-        ChooseDestinationButton.Visibility = selectedDestination is null ? Visibility.Visible : Visibility.Collapsed;
+        if (TemplateDestination is null) return;
+        string destination = selectedDestination ?? "";
+        var option = TemplateDestination.Items.OfType<ComboBoxItem>()
+            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), destination, StringComparison.OrdinalIgnoreCase));
+        loadingDestinationSelection = true;
+        try { TemplateDestination.SelectedItem = option ?? TemplateDestination.Items[0]; }
+        finally { loadingDestinationSelection = false; }
+        if (DestinationText is not null)
+            DestinationText.Text = destination.Length == 0 ? "Send to: Choose destination" :
+                $"Send to: {destination} ({(destination == "order-replies" ? "Queue" : "Topic")})";
     }
 
     private void ViewRunResults_Click(object sender, RoutedEventArgs e)
@@ -1154,62 +974,8 @@ public partial class MessageLibraryPrototypeView : UserControl
         VariablesGrid.SelectedItem = variable;
     }
 
-    private void AddAssociation_Click(object sender, RoutedEventArgs e)
-    {
-        string? destination = ChooseAssociationDestination(selectedDestination ?? currentAssociations.FirstOrDefault(), false);
-        if (destination is null || currentAssociations.Contains(destination, StringComparer.OrdinalIgnoreCase)) return;
-        currentAssociations.Add(destination);
-        UpdateAssociations();
-    }
-
-    private string? ChooseAssociationDestination(string? current, bool editing)
-    {
-        var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Destination,
-            currentProfileName, current ?? "", 1) { Owner = Window.GetWindow(this) };
-        dialog.ConfigureAssociationPicker(current, editing);
-        return dialog.ShowDialog() == true ? dialog.ChosenDestination : null;
-    }
-
-    private void UpdateAssociations()
-    {
-        if (AssociationChips is null) return;
-        currentAssociation = currentAssociations.FirstOrDefault() ?? "";
-        AssociationChips.Children.Clear();
-        if (currentAssociations.Count == 0)
-            AssociationChips.Children.Add(new TextBlock { Text = "No association", Margin = new Thickness(0, 5, 0, 0) });
-        foreach (string path in currentAssociations)
-        {
-            var chip = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 8, 7) };
-            chip.Children.Add(new TextBlock { Text = path, VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(8, 0, 5, 0) });
-            var edit = new Button { Content = "Edit", Padding = new Thickness(5, 2, 5, 2),
-                ToolTip = $"Edit {path} association" };
-            edit.Click += (_, _) =>
-            {
-                string? changed = ChooseAssociationDestination(path, true);
-                if (changed is null || currentAssociations.Any(value => value != path &&
-                    value.Equals(changed, StringComparison.OrdinalIgnoreCase))) return;
-                if (changed.Equals(path, StringComparison.OrdinalIgnoreCase)) return;
-                currentAssociations[currentAssociations.IndexOf(path)] = changed;
-                UpdateAssociations();
-            };
-            chip.Children.Add(edit);
-            var remove = new Button { Content = "×", Padding = new Thickness(5, 2, 5, 2),
-                ToolTip = $"Remove {path} association" };
-            remove.Click += (_, _) => { currentAssociations.Remove(path); UpdateAssociations(); };
-            chip.Children.Add(remove);
-            AssociationChips.Children.Add(chip);
-        }
-        if (!explicitDestination)
-            selectedDestination = currentAssociations.Count == 1 && IsSampleDestination(currentAssociations[0])
-                ? currentAssociations[0] : null;
-        FilterWarning.Visibility = Visibility.Collapsed;
-        UpdateDestinationControls();
-        ReviewButton.IsEnabled = previewReady && selectedDestination is not null;
-    }
-
     private static IReadOnlyList<string> TemplateAssociations(PrototypeTemplate template) =>
-        template.Associations ?? (template.Topic.Length == 0 ? [] : [template.Topic]);
+        template.Topic.Length == 0 ? [] : [template.Topic];
 
     private sealed record CsvPreviewRow(int Row, string CustomerId, decimal? Amount, string Status);
     private sealed record PrototypeAuthorSettings(string Subject, int ContentType, string CorrelationId,

@@ -29,7 +29,7 @@ internal static class SelectorScreenshotScenario
                 bool settings = mode.StartsWith("--selector-settings", StringComparison.Ordinal);
                 window = settings ? new SettingsWindow(new WorkspacePreferences(), _ => Task.CompletedTask) : mode switch
                 {
-                    "--selector-association" => new MessageLibraryPrototypeDialog(PrototypeDialogMode.Destination, "Sample workspace", "order-events", 3),
+                    "--selector-template-destination" => new Window { Content = new MessageLibraryPrototypeView() },
                     _ => throw new ArgumentException($"Unknown selector capture: {mode}")
                 };
                 string? accent = mode.Split('-').Last() switch
@@ -46,9 +46,13 @@ internal static class SelectorScreenshotScenario
                 window.Show();
                 await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
                 window.UpdateLayout();
+                var prototype = window.Content as MessageLibraryPrototypeView;
+                if (prototype is not null)
+                    ((Button)prototype.FindName("EditorPropertiesTab")!).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                window.UpdateLayout();
                 var content = (FrameworkElement)window.Content;
                 WpfScreenshot.SaveWindowContent(window, output, (int)content.ActualWidth, (int)content.ActualHeight);
-                var selector = (ComboBox)window.FindName(settings ? "QueuePageSizeSelector" : "DestinationPicker");
+                var selector = settings ? (ComboBox)window.FindName("QueuePageSizeSelector")! : (ComboBox)prototype!.FindName("TemplateDestination")!;
                 selector.IsDropDownOpen = true;
                 await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
                 var popup = (Popup)selector.Template.FindName("PART_Popup", selector);

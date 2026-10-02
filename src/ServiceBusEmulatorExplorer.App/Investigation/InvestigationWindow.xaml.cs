@@ -25,7 +25,6 @@ public partial class InvestigationWindow : Window
     private bool resizedDuringInitialize;
     private string investigationSearchText = "";
     private readonly EntityNode[] sampleNamespaceRoots = CreateSampleNamespaceRoots();
-    private IReadOnlyList<string>? workbenchAssociationPaths;
     private bool lastNamespaceConnectionState;
 
     public InvestigationWindow(InvestigationWorkspace workspace)
@@ -38,7 +37,6 @@ public partial class InvestigationWindow : Window
             if (MessageLibraryPrototype.Visibility == Visibility.Visible)
                 SearchBox.Text = topic ?? "";
         };
-        MessageLibraryPrototype.TemplateAssociationsRequested += ApplyWorkbenchTemplateAssociations;
         DataContext = workspace.Surface;
         workspace.ConfirmWarning = profile => Task.FromResult(new ProfileWarningWindow(profile.Connection.Name,
             profile.WarningMessage, profile.ColorHex) { Owner = this }.ShowDialog() == true);
@@ -185,7 +183,6 @@ public partial class InvestigationWindow : Window
             NamespaceModeLabel.Text = library && !workspace.IsConnected
                 ? "Sample entities · offline; live counts are unavailable"
                 : "";
-            workbenchAssociationPaths = null;
             UpdateNamespaceTreeSource();
             UpdateWorkspaceColumns();
             NamespaceEmpty.Visibility = library ? Visibility.Collapsed : NamespaceEmpty.Visibility;
@@ -215,7 +212,6 @@ public partial class InvestigationWindow : Window
         if (!ReferenceEquals(NamespaceTree.ItemsSource, source)) NamespaceTree.ItemsSource = roots;
         if (library && disconnected)
         {
-            workbenchAssociationPaths = null;
             SearchBox.Clear();
             MessageLibraryPrototype.SelectEntityContext("topic:order-events");
         }
@@ -223,15 +219,6 @@ public partial class InvestigationWindow : Window
         NamespaceModeLabel.Text = library && !workspace.IsConnected
             ? "Sample entities · offline; live counts are unavailable"
             : "";
-    }
-
-    internal void ApplyWorkbenchTemplateAssociations(IReadOnlyList<string> paths)
-    {
-        if (MessageLibraryPrototype.Visibility != Visibility.Visible) return;
-        SearchBox.Text = "";
-        workbenchAssociationPaths = paths;
-        FilterWorkbenchNamespaces("");
-        MessageLibraryPrototype.FilterByTemplateAssociations(paths);
     }
 
     private void FilterWorkbenchNamespaces(string query)
@@ -246,18 +233,14 @@ public partial class InvestigationWindow : Window
             {
                 string entityPath = WorkbenchPath(entity, roots);
                 bool queryMatchesEntity = query.Length == 0 || entityPath.Contains(query, StringComparison.OrdinalIgnoreCase);
-                bool associationMatchesEntity = workbenchAssociationPaths is null ||
-                    workbenchAssociationPaths.Any(path => path.Equals(entityPath, StringComparison.OrdinalIgnoreCase)
-                        || path.StartsWith(entityPath + "/", StringComparison.OrdinalIgnoreCase));
-                bool directMatch = queryMatchesEntity && associationMatchesEntity;
                 bool childMatch = false;
                 foreach (var child in entity.Children)
                 {
                     bool queryMatchesChild = query.Length == 0 || queryMatchesEntity || WorkbenchPath(child, roots).Contains(query, StringComparison.OrdinalIgnoreCase);
-                    child.IsVisible = associationMatchesEntity && queryMatchesChild;
+                    child.IsVisible = queryMatchesChild;
                     childMatch |= child.IsVisible;
                 }
-                entity.IsVisible = directMatch || childMatch;
+                entity.IsVisible = queryMatchesEntity || childMatch;
                 any |= entity.IsVisible;
             }
             group.IsVisible = any;
@@ -309,7 +292,6 @@ public partial class InvestigationWindow : Window
         {
             if (e.NewValue is EntityNode { IsGroup: false } workbenchEntity)
             {
-                workbenchAssociationPaths = null;
                 IEnumerable<EntityNode> roots = workspace.IsConnected ? workspace.Browse.Roots : sampleNamespaceRoots;
                 string identity = WorkbenchIdentity(workbenchEntity, roots);
                 SearchBox.Text = WorkbenchPath(workbenchEntity, roots);

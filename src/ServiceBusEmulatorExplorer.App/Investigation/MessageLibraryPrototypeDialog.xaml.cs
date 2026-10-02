@@ -4,8 +4,8 @@ using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
-public enum PrototypeDialogMode { SampleCsv, Mapping, Capture, Validation, Conflict, DraftGuard, Destination, Review, Results, CancellationConfirmation }
-public enum PrototypeDraftChoice { Cancel, Save, Discard, Reload, SaveAs, KeepEditing }
+public enum PrototypeDialogMode { SampleCsv, Mapping, Capture, Validation, DraftGuard, Review, Results, CancellationConfirmation }
+public enum PrototypeDraftChoice { Cancel, Save, Discard }
 public sealed record PrototypeRunSnapshot(string Profile, string Target, bool Scheduled,
     IReadOnlyList<(int Row, string MessageId, string Outcome, string Details)> Results,
     IReadOnlyList<(int Row, string Receipt, string Payload, string Outcome, string DueTime, bool Selected, string CancellationStatus, string AttemptTime)> ScheduledResults)
@@ -38,11 +38,8 @@ public partial class MessageLibraryPrototypeDialog : Window
         MappingSurface.Visibility = mode == PrototypeDialogMode.Mapping ? Visibility.Visible : Visibility.Collapsed;
         CaptureSurface.Visibility = mode == PrototypeDialogMode.Capture ? Visibility.Visible : Visibility.Collapsed;
         ValidationSurface.Visibility = mode == PrototypeDialogMode.Validation ? Visibility.Visible : Visibility.Collapsed;
-        ConflictSurface.Visibility = mode == PrototypeDialogMode.Conflict ? Visibility.Visible : Visibility.Collapsed;
         DraftGuardSurface.Visibility = mode == PrototypeDialogMode.DraftGuard ? Visibility.Visible : Visibility.Collapsed;
-        DestinationSurface.Visibility = mode == PrototypeDialogMode.Destination ? Visibility.Visible : Visibility.Collapsed;
         CancellationConfirmationSurface.Visibility = mode == PrototypeDialogMode.CancellationConfirmation ? Visibility.Visible : Visibility.Collapsed;
-        DestinationProfile.Text = profile;
         ReviewSurfaceControl.Configure(profile, target, count);
         ReviewSurfaceControl.SetPreparedMessages(CreateSamplePreparedMessages(count));
         if (mode == PrototypeDialogMode.Review)
@@ -76,21 +73,13 @@ public partial class MessageLibraryPrototypeDialog : Window
             Title = "CSV validation results";
             Height = 520;
         }
-        else if (mode == PrototypeDialogMode.Conflict)
-        {
-            Title = "File conflict";
-            Height = 425;
-        }
+
         else if (mode == PrototypeDialogMode.DraftGuard)
         {
             Title = "Save changes?";
             Height = 245;
         }
-        else if (mode == PrototypeDialogMode.Destination)
-        {
-            Title = "Choose destination";
-            Height = 350;
-        }
+
         else if (mode == PrototypeDialogMode.Results)
         {
             Title = "Run results";
@@ -137,15 +126,13 @@ public partial class MessageLibraryPrototypeDialog : Window
     public void SetCaptureCollections(IEnumerable<string> collections, string? selected)
     {
         CaptureCollection.Items.Clear();
+        CaptureCollection.Items.Add(new ComboBoxItem { Content = "(Top level)", Tag = "" });
         foreach (string name in collections.Where(name => !string.IsNullOrWhiteSpace(name)).Distinct(StringComparer.OrdinalIgnoreCase))
-            CaptureCollection.Items.Add(new ComboBoxItem { Content = $"Team messages/{name}", Tag = name });
-        if (CaptureCollection.Items.Count == 0)
-            CaptureCollection.Items.Add(new ComboBoxItem { Content = "Team messages/Orders", Tag = "Orders" });
+            CaptureCollection.Items.Add(new ComboBoxItem { Content = name, Tag = name });
         CaptureCollection.SelectedItem = CaptureCollection.Items.OfType<ComboBoxItem>()
             .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), selected, StringComparison.OrdinalIgnoreCase))
             ?? CaptureCollection.Items[0];
     }
-    public string ChosenDestination => (string)((ComboBoxItem)DestinationPicker.SelectedItem).Tag;
     public event Action<string>? ViewDestinationRequested;
     public event Action? EditMappingRequested;
     public event Action? ValidateAgainRequested;
@@ -157,21 +144,6 @@ public partial class MessageLibraryPrototypeDialog : Window
             ? element
             : base.FindName(name);
 
-    private void ApplyDestination_Click(object sender, RoutedEventArgs e) => DialogResult = true;
-
-    public void ConfigureAssociationPicker(string? current, bool editing)
-    {
-        Title = editing ? "Edit association" : "Add association";
-        DestinationHeading.Text = editing ? "Edit association" : "Add association";
-        DestinationDescription.Text = editing
-            ? "Choose the dummy queue or topic for this association."
-            : "Choose a dummy queue or topic to associate with this template.";
-        ApplyDestinationButton.Content = editing ? "Save association" : "Add association";
-        DestinationPicker.SelectedItem = DestinationPicker.Items.OfType<ComboBoxItem>()
-            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), current,
-                StringComparison.OrdinalIgnoreCase))
-            ?? DestinationPicker.Items.OfType<ComboBoxItem>().FirstOrDefault();
-    }
     private void UseSampleCsv_Click(object sender, RoutedEventArgs e) => DialogResult = true;
 
     public PrototypeRunSnapshot? CaptureRun() => ReviewSurfaceControl.CaptureRun();
@@ -215,11 +187,6 @@ public partial class MessageLibraryPrototypeDialog : Window
 
     private sealed record ValidationRow(int Row, string CustomerId, string Status);
 
-    public void SetConflictVersions(string savedFingerprint, string draftFingerprint)
-    {
-        ConflictSavedFingerprint.Text = $"Saved fingerprint: {savedFingerprint}";
-        ConflictDraftFingerprint.Text = $"Draft fingerprint: {draftFingerprint}";
-    }
 
     private void EditMapping_Click(object sender, RoutedEventArgs e)
     {
@@ -288,9 +255,6 @@ public partial class MessageLibraryPrototypeDialog : Window
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
-    private void ConflictReload_Click(object sender, RoutedEventArgs e) => CompleteDraftChoice(PrototypeDraftChoice.Reload);
-    private void ConflictSaveAs_Click(object sender, RoutedEventArgs e) => CompleteDraftChoice(PrototypeDraftChoice.SaveAs);
-    private void ConflictKeep_Click(object sender, RoutedEventArgs e) => CompleteDraftChoice(PrototypeDraftChoice.KeepEditing);
     private void DraftSave_Click(object sender, RoutedEventArgs e) => CompleteDraftChoice(PrototypeDraftChoice.Save);
     private void DraftDiscard_Click(object sender, RoutedEventArgs e) => CompleteDraftChoice(PrototypeDraftChoice.Discard);
 

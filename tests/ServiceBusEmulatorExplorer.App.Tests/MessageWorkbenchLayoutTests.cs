@@ -2,6 +2,7 @@ using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation;
@@ -109,31 +110,45 @@ public sealed class MessageWorkbenchLayoutTests
     [InlineData(1332, 843)]
     [InlineData(725, 564)]
     [Trait("TestCategory", "UiRender")]
-    public void Workbench_footer_dividers_align_across_saved_templates_prepare_and_review(int width, int height)
+    public void Library_tree_toolbar_actions_fit_in_the_tree_pane_at_supported_widths(int width, int height)
     {
         RunOnSta((dispatcher, view, _) =>
         {
-            var root = ByName<Grid>(view, "WorkbenchRoot");
-            var savedFooter = NearestBorder(ByAutomationId<Button>(view, "LibraryAddFolder"));
-            ByName<Button>(view, "ContinueToPrepareButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             WaitForLayout(dispatcher);
-            var prepareFooter = NearestBorder(ByName<Button>(view, "BackToComposeButton"));
-            double savedTop = Bounds(savedFooter, root).Top;
-            Assert.True(Math.Abs(savedTop - Bounds(prepareFooter, root).Top) <= 1,
-                $"Saved and Prepare footer lines differ: saved height={savedFooter.ActualHeight}, prepare height={prepareFooter.ActualHeight}, saved top={savedTop}, prepare top={Bounds(prepareFooter, root).Top}.");
+            var tree = ByName<TreeView>(view, "LibraryTree");
+            foreach (string id in new[] { "LibraryNew", "LibraryAddFolder", "LibraryCollapseAll" })
+            {
+                Button action = ByAutomationId<Button>(view, id);
+                Assert.True(action.IsVisible, $"{id} should remain visible at {width}x{height}.");
+                AssertFullyInside(action, view, id);
+            }
+            Assert.True(tree.ActualWidth > 0);
+        }, width, height);
+    }
 
-            ByName<Button>(view, "ReviewButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+    [Theory]
+    [InlineData(1332, 843)]
+    [InlineData(725, 564)]
+    [Trait("TestCategory", "UiRender")]
+    public void Long_tree_names_trim_inside_the_library_pane_at_supported_widths(int width, int height)
+    {
+        RunOnSta((dispatcher, view, _) =>
+        {
+            const string longName = "Long template name that must remain readable without widening the navigation pane 0123456789";
+            ByAutomationId<Button>(view, "LibraryRename").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            TextBox input = Descendants<TextBox>(view).Single(control =>
+                System.Windows.Automation.AutomationProperties.GetAutomationId(control) == "LibraryRenameInput" && control.IsVisible);
+            input.Text = longName;
+            var enter = new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(input)!, 0, Key.Enter)
+            { RoutedEvent = Keyboard.KeyDownEvent };
+            input.RaiseEvent(enter);
             WaitForLayout(dispatcher);
-            var review = Assert.IsType<MessageLibraryPrototypeReviewSurface>(ByName<ContentControl>(view, "ReviewHost").Content);
-            var reviewFooter = ByName<Border>(review, "ReviewFooter");
-            var notice = ByName<TextBlock>(review, "ReviewNotice");
-            double reviewTop = Bounds(reviewFooter, root).Top;
-            Assert.InRange(Math.Abs(savedTop - reviewTop), 0, 1);
-            Assert.True(Bounds(notice, root).Bottom <= reviewTop,
-                "The review notice should sit above the aligned action footer.");
-            review.ShowResults();
-            WaitForLayout(dispatcher);
-            Assert.False(notice.IsVisible, "The review-only notice should disappear on results.");
+
+            TreeView tree = ByName<TreeView>(view, "LibraryTree");
+            TreeViewItem item = TreeItems(tree).Single(control => Equals(control.Tag, "template:" + longName));
+            TextBlock label = Descendants<TextBlock>(item).Single(control => control.Text == longName);
+            Assert.Equal(TextTrimming.CharacterEllipsis, label.TextTrimming);
+            AssertFullyInside(label, tree, "long template name");
         }, width, height);
     }
 
@@ -204,18 +219,13 @@ public sealed class MessageWorkbenchLayoutTests
             AssertAlignedRow(view, propertiesSurface, "Session ID", ByName<TextBox>(view, "PropertySessionId"));
 
             DataGrid applicationProperties = ByName<DataGrid>(view, "ApplicationPropertiesGrid");
-            Panel associations = ByName<Panel>(view, "AssociationChips");
-            Button addAssociation = Descendants<Button>(propertiesSurface)
-                .Single(button => string.Equals(button.Content?.ToString(), "+ Add association", StringComparison.Ordinal));
+            ComboBox destination = ByName<ComboBox>(view, "TemplateDestination");
 
             Assert.Equal(3, applicationProperties.Items.Count);
-            Assert.NotEmpty(associations.Children);
+            Assert.Equal("order-events", destination.SelectedValue);
             Assert.True(propertiesSurface.ViewportHeight > 0);
             AssertFullyInside(applicationProperties, propertiesSurface, "application properties");
-            AssertFullyInside(associations, propertiesSurface, "topic associations");
-            AssertFullyInside(addAssociation, propertiesSurface, "add association action");
-            foreach (Button action in Descendants<Button>(associations))
-                AssertFullyInside(action, associations, "association " + action.Content);
+            AssertFullyInside(destination, propertiesSurface, "template destination");
 
             RadioButton customMessageId = ByName<RadioButton>(view, "CustomMessageId");
             RadioButton specifyTtl = ByName<RadioButton>(view, "SpecifyTtl");
@@ -378,16 +388,20 @@ public sealed class MessageWorkbenchLayoutTests
         }
     }
 
+    private static IEnumerable<TreeViewItem> TreeItems(TreeView tree) =>
+        TreeDescendants(tree.Items.OfType<TreeViewItem>());
+
+    private static IEnumerable<TreeViewItem> TreeDescendants(IEnumerable<TreeViewItem> roots)
+    {
+        foreach (TreeViewItem root in roots)
+        {
+            yield return root;
+            foreach (TreeViewItem child in root.Items.OfType<TreeViewItem>())
+                foreach (TreeViewItem descendant in TreeDescendants([child])) yield return descendant;
+        }
+    }
     private static Rect Bounds(FrameworkElement element, Visual ancestor) =>
         element.TransformToAncestor(ancestor).TransformBounds(new Rect(element.RenderSize));
-
-    private static Border NearestBorder(Visual element)
-    {
-        for (Visual? current = VisualTreeHelper.GetParent(element) as Visual; current is not null;
-             current = VisualTreeHelper.GetParent(current) as Visual)
-            if (current is Border border) return border;
-        throw new Xunit.Sdk.XunitException("Button has no containing footer border.");
-    }
 
     private static Visual FindCommonAncestor(Visual first, Visual second)
     {

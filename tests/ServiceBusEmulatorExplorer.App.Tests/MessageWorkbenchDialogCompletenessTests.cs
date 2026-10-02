@@ -33,8 +33,9 @@ public sealed class MessageWorkbenchDialogCompletenessTests
                 Assert.Equal("Order captured", ((TextBox)view.FindName("PropertySubject")!).Text);
                 Assert.Equal("correlation-17", ((TextBox)view.FindName("PropertyCorrelationId")!).Text);
                 Assert.Equal("session-4", ((TextBox)view.FindName("PropertySessionId")!).Text);
-                Assert.Contains(Descendants(view).OfType<ListBoxItem>(), item =>
-                    item.ToolTip?.ToString()?.Contains("captured-order.sbetemplate.json", StringComparison.Ordinal) == true);
+                var captured = TreeItems((TreeView)view.FindName("LibraryTree")!)
+                    .Single(item => Equals(item.Tag, "template:Captured order"));
+                Assert.Contains("captured-order.sbetemplate.json", captured.ToolTip?.ToString() ?? "", StringComparison.Ordinal);
             }
             finally { window.Close(); }
         });
@@ -95,7 +96,12 @@ public sealed class MessageWorkbenchDialogCompletenessTests
             {
                 dialog.SetCaptureCollections(["Orders", "Archive", "My samples"], "My samples");
                 Assert.Equal("My samples", dialog.CaptureCollectionName);
-                Assert.Equal(3, ((ComboBox)dialog.FindName("CaptureCollection")!).Items.Count);
+                var picker = (ComboBox)dialog.FindName("CaptureCollection")!;
+                Assert.Equal(4, picker.Items.Count);
+                Assert.Contains(picker.Items.OfType<ComboBoxItem>(), item =>
+                    Equals(item.Tag, "") && Equals(item.Content, "(Top level)"));
+                foreach (string folder in new[] { "Orders", "Archive", "My samples" })
+                    Assert.Contains(picker.Items.OfType<ComboBoxItem>(), item => Equals(item.Tag, folder));
             }
             finally { dialog.Close(); }
         });
@@ -190,5 +196,23 @@ public sealed class MessageWorkbenchDialogCompletenessTests
         for (int index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
             foreach (var child in Descendants(VisualTreeHelper.GetChild(root, index)))
                 yield return child;
+    }
+
+    private static IEnumerable<TreeViewItem> TreeItems(TreeView tree)
+    {
+        foreach (TreeViewItem root in tree.Items.OfType<TreeViewItem>())
+        {
+            yield return root;
+            foreach (var child in TreeItems(root)) yield return child;
+        }
+    }
+
+    private static IEnumerable<TreeViewItem> TreeItems(TreeViewItem parent)
+    {
+        foreach (TreeViewItem child in parent.Items.OfType<TreeViewItem>())
+        {
+            yield return child;
+            foreach (var descendant in TreeItems(child)) yield return descendant;
+        }
     }
 }

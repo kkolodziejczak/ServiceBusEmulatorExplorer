@@ -62,7 +62,6 @@ public partial class InvestigationWindow
         if (!ready) return;
         if (MessageLibraryPrototype.Visibility == Visibility.Visible)
         {
-            workbenchAssociationPaths = null;
             FilterWorkbenchNamespaces(SearchBox.Text);
             ClearSearchButton.Visibility = SearchBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             SuggestionsPopup.IsOpen = false;

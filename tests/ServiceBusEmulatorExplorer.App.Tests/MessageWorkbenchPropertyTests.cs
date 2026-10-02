@@ -60,7 +60,7 @@ public sealed class MessageWorkbenchPropertyTests
         });
 
     [Fact]
-    public void Saved_property_removal_survives_switching_templates_and_reload()
+    public void Saved_property_removal_survives_switching_templates_and_reopening_in_memory()
         => Run((window, view) =>
         {
             var grid = Get<DataGrid>(view, "ApplicationPropertiesGrid");
@@ -70,12 +70,8 @@ public sealed class MessageWorkbenchPropertyTests
             Assert.Equal(2, grid.Items.Count);
 
             Get<Button>(view, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            var templates = Get<ListBox>(view, "TemplateList");
-            templates.SelectedIndex = 1;
-            templates.SelectedIndex = 0;
-            Descendants(view).OfType<Button>().Single(button =>
-                AutomationProperties.GetAutomationId(button) == "LibraryRefresh")
-                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GetTreeItem(view, "template:Order updated").IsSelected = true;
+            GetTreeItem(view, "template:Order created").IsSelected = true;
             Drain(window);
 
             Assert.Equal(2, grid.Items.Count);
@@ -140,6 +136,27 @@ public sealed class MessageWorkbenchPropertyTests
 
     private static T Get<T>(FrameworkElement root, string name) where T : class =>
         Assert.IsAssignableFrom<T>(root.FindName(name));
+
+    private static TreeViewItem GetTreeItem(FrameworkElement root, string tag) =>
+        TreeItems(Get<TreeView>(root, "LibraryTree")).Single(item => Equals(item.Tag, tag));
+
+    private static IEnumerable<TreeViewItem> TreeItems(TreeView tree)
+    {
+        foreach (TreeViewItem root in tree.Items.OfType<TreeViewItem>())
+        {
+            yield return root;
+            foreach (var child in TreeItems(root)) yield return child;
+        }
+    }
+
+    private static IEnumerable<TreeViewItem> TreeItems(TreeViewItem parent)
+    {
+        foreach (TreeViewItem child in parent.Items.OfType<TreeViewItem>())
+        {
+            yield return child;
+            foreach (var descendant in TreeItems(child)) yield return descendant;
+        }
+    }
 
     private static string PropertyName(object item) =>
         item.GetType().GetProperty("Name")?.GetValue(item)?.ToString() ?? "";

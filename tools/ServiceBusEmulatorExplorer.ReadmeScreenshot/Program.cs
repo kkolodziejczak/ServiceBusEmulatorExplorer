@@ -13,6 +13,8 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.Length == 2 && args[1].StartsWith("--workbench-tree", StringComparison.Ordinal))
+            return WorkbenchTreeScreenshotScenario.Run(args[0], args[1]);
         if (args.Length == 2 && args[1].StartsWith("--selector-", StringComparison.Ordinal))
             return SelectorScreenshotScenario.Run(args[0], args[1]);
         bool prototypeCapture = args.Length == 2 && args[1] is
@@ -22,17 +24,16 @@ internal static class Program
             or "--message-library-single-minimum" or "--message-library-prepare-log";
         bool dialogCapture = args.Length == 2 && args[1] is
             "--message-library-map" or "--message-library-capture" or "--message-library-review" or "--message-library-results"
-            or "--message-library-schedule" or "--message-library-conflict" or "--message-library-validation"
-            or "--message-library-scheduled-results" or "--message-library-cancellation-history"
-            or "--message-library-association" or "--message-library-association-edit";
+            or "--message-library-schedule" or "--message-library-validation"
+            or "--message-library-scheduled-results" or "--message-library-cancellation-history";
         int captureWidth = dialogCapture ? 760 :
             args.Length == 2 && args[1] is "--message-library-prepare" or "--message-library-properties" or "--message-library-properties-bottom" or "--message-library-properties-selected" or "--message-library-variables" or "--message-library-single" or "--message-library-prepare-log" or "--message-library-wizard-review" or "--message-library-wizard-review-queue" or "--message-library-wizard-review-large-batch" ? 1642 :
             args.Length == 2 && args[1] == "--message-library-prepare-1500" ? 1500 :
             args.Length == 2 && args[1] == "--message-library-prepare-compact" ? 1100 :
             args.Length == 2 && args[1] is "--message-library-prepare-minimum" or "--message-library-author-minimum" or "--message-library-properties-minimum" or "--message-library-single-minimum" or "--message-library-wizard-review-minimum" ? 980 : WpfScreenshot.CaptureWidth;
-        int captureHeight = dialogCapture ? args[1] is "--message-library-association" or "--message-library-association-edit" ? 500 :
+        int captureHeight = dialogCapture ?
             args[1] == "--message-library-capture" ? 925 :
-            args[1] == "--message-library-map" ? 590 : args[1] == "--message-library-conflict" ? 500 : 620 :
+            args[1] == "--message-library-map" ? 590 : 620 :
             captureWidth == 1642 ? 958 : captureWidth == 1500 ? 1000 : captureWidth == 1100 ? 800 : captureWidth == 980 ? 640 : WpfScreenshot.CaptureHeight;
         if ((args.Length != 1 && !prototypeCapture && !dialogCapture) || string.IsNullOrWhiteSpace(args[0]))
         {
@@ -51,28 +52,24 @@ internal static class Program
             {
                 if (dialogCapture)
                 {
-                    var mode = args[1] is "--message-library-association" or "--message-library-association-edit" ? PrototypeDialogMode.Destination :
+                    var mode =
                         args[1] == "--message-library-map" ? PrototypeDialogMode.Mapping :
                         args[1] == "--message-library-capture" ? PrototypeDialogMode.Capture :
                         args[1] is "--message-library-results" or "--message-library-scheduled-results" or "--message-library-cancellation-history" ? PrototypeDialogMode.Results :
                         args[1] == "--message-library-validation" ? PrototypeDialogMode.Validation :
-                        args[1] == "--message-library-conflict" ? PrototypeDialogMode.Conflict : PrototypeDialogMode.Review;
+                        PrototypeDialogMode.Review;
                     var dialog = new MessageLibraryPrototypeDialog(mode, "Local emulator", "order-events", 3)
                     {
                         ShowActivated = false, ShowInTaskbar = false, WindowStyle = WindowStyle.None,
                         ResizeMode = ResizeMode.NoResize, Width = captureWidth, Height = captureHeight,
                         WindowStartupLocation = WindowStartupLocation.Manual, Left = 0, Top = 0
                     };
-                    if (mode == PrototypeDialogMode.Destination)
-                        dialog.ConfigureAssociationPicker("order-events", args[1] == "--message-library-association-edit");
                     if (mode == PrototypeDialogMode.Capture)
                         dialog.SetCaptureSource("order-events / billing · Active",
                             "{\n  \"customerId\": \"C1001\",\n  \"amount\": 149.90\n}",
                             "{\n  \"customerId\": \"C1001\",\n  \"amount\": 149.90,\n  \"reviewed\": true\n}", "order-events");
                     if (args[1] == "--message-library-schedule")
                         ((RadioButton)dialog.FindName("ReviewSchedule")!).IsChecked = true;
-                    if (mode == PrototypeDialogMode.Conflict)
-                        dialog.SetConflictVersions(new string('A', 64), new string('B', 64));
                     if (mode == PrototypeDialogMode.Validation)
                         dialog.SetValidationRows([(1, "C1001", "Ready"), (2, "C1002", "Amount must be a number"), (3, "C1003", "Ready")]);
                     if (mode == PrototypeDialogMode.Results)
@@ -153,8 +150,8 @@ internal static class Program
                     if (args[1] == "--message-library-wizard-review-queue")
                     {
                         prototype.SelectEntityContext("queue:order-replies");
-                        var library = (ListBox)prototype.FindName("TemplateList")!;
-                        library.SelectedItem = library.Items.OfType<ListBoxItem>().Single(item => (string)item.Tag == "Order reply");
+                        var library = (TreeView)prototype.FindName("LibraryTree")!;
+                        WorkbenchTreeScreenshotScenario.TreeItems(library).Single(item => System.Windows.Automation.AutomationProperties.GetName(item) == "Order reply").IsSelected = true;
                         ((RadioButton)prototype.FindName("SingleMode")!).IsChecked = true;
                     }
                     if (args[1] is "--message-library-properties" or "--message-library-properties-bottom" or "--message-library-properties-selected" or "--message-library-properties-minimum")
