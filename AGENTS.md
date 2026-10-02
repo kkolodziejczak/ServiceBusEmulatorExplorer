@@ -133,6 +133,12 @@ dotnet tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/bin/Debug/net10.0-windo
 - For this desktop operations tool, compact split-pane layouts clarify scope better than high-fidelity hero-style mockups.
 - For dense action strips, prefer compact icon-plus-label buttons with clear tooltips and automation names. The visible label should explain the operation; automation names should remain stable for tests.
 
+## Actionable validation
+
+- Apply this convention to all new or changed app validation, across properties, settings, dialogs, and workflow steps. Show a concise cause and remedy in the shared severity-colored frame; place an action button on its right using the same color family, with keyboard focus and readable contrast. Let the layout wrap at narrow widths.
+- When a remedy exists in the app, use a specific label such as `Choose destination` or `Open connection settings`. The action must navigate to the relevant screen/tab, expand and scroll the target into view, and focus the exact field while preserving draft values and selection. For an unavailable destination, open Compose > Properties and focus Destination.
+- Keep validation visible until revalidation succeeds; navigation alone does not resolve it. For conditions without an in-app remedy, explain the concrete next step instead of showing a dead-end button. Verify navigation, focus, preserved input, and clearing after correction for each affected validation path.
+
 ## WPF Architecture Lessons
 
 - Clean up UI styling incrementally whenever a task touches a component. Put its approved common appearance and interaction states in the application-level [shared resources](src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SharedStyles.xaml), use implicit defaults for standard controls and named `BasedOn` variants for intentional differences, and remove duplicated local templates/setters from the affected surfaces. Preserve bindings, automation names, keyboard behavior, and profile themes. Do not restyle untouched screens or expand the task into a whole-app rewrite. Verify the touched component's normal, hover/open, selected, focused, disabled, and editing states as applicable, including a regression check that new instances inherit the shared style.
