@@ -49,15 +49,16 @@ public sealed class MessageWorkbenchReviewTests
         try
         {
             SetPreparedMessages(dialog, prepared);
-            dialog.SetReviewProperties("generic placeholder", "Time to live: inherit entity default", "Subject: sample");
+            dialog.SetReviewProperties("inherit entity default", "Subject: sample");
             dialog.Show();
             dialog.UpdateLayout();
 
-            var ids = (TextBlock)dialog.FindName("ReviewMessageIds")!;
+            Assert.Null(dialog.FindName("ReviewMessageIds"));
+            Assert.Equal("2 valid messages", ((TextBlock)dialog.FindName("ReviewMessageCount")!).Text);
+            Assert.IsType<TextBlock>(dialog.FindName("ReviewProfile"));
+            Assert.IsType<TextBlock>(dialog.FindName("ReviewEndpoint"));
+            Assert.IsType<TextBlock>(dialog.FindName("ReviewTarget"));
             var totalSize = (TextBlock)dialog.FindName("ReviewTotalSize")!;
-            Assert.Contains("11111111-1111-1111-1111-111111111111", ids.Text);
-            Assert.Contains("22222222-2222-2222-2222-222222222222", ids.Text);
-            Assert.DoesNotContain("generic placeholder", ids.Text);
             Assert.Contains("bytes UTF-8", totalSize.Text, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("18 bytes", totalSize.Text, StringComparison.OrdinalIgnoreCase);
 
@@ -125,7 +126,7 @@ public sealed class MessageWorkbenchReviewTests
         };
         try
         {
-            dialog.SetReviewProperties("ignored", "Time to live: 30 minutes", longPropertyDetails);
+            dialog.SetReviewProperties("30 minutes", longPropertyDetails);
             SetPreparedMessages(dialog, prepared);
             dialog.Show();
             dialog.UpdateLayout();

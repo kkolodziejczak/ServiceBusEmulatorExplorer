@@ -13,6 +13,7 @@ public partial class MessageLibraryPrototypeView
 
     private bool loadingDestinationSelection;
     private bool libraryInitialized;
+    private string? revealedTemplateName;
     private TextBox? activeRenameInput;
     private Window? selectionOwner;
     private readonly HashSet<string> createdFolders = new(StringComparer.OrdinalIgnoreCase);
@@ -76,7 +77,7 @@ public partial class MessageLibraryPrototypeView
                 (search.Length == 0 || template.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                  template.Description.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                  matchingFolders.Any(path => template.Folder.Equals(path, StringComparison.OrdinalIgnoreCase) || template.Folder.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase))) ||
-                (draftIsNew && template.Name == selectedTemplateName)).ToList();
+                ((draftIsNew && template.Name == selectedTemplateName) || template.Name == revealedTemplateName)).ToList();
             LibraryTree.Items.Clear();
             treeRenameControls.Clear();
             foreach (var folder in folders.Where(path => !HasParentFolder(path) && IsFolderVisible(path, visible)).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
@@ -128,6 +129,7 @@ public partial class MessageLibraryPrototypeView
         SetTreeItemName(item, template.Name);
         item.Header = CreateTreeHeader(item.Tag.ToString()!, template.Name, false);
         item.ToolTip = string.IsNullOrEmpty(template.FileName) ? template.Name : $"{template.Name}\n{template.FileName}";
+        AddDestinationWarning(item, template);
         AddRenameMenu(item);
         item.PreviewMouseRightButtonDown += (_, _) => item.IsSelected = true;
         return item;
@@ -208,6 +210,10 @@ public partial class MessageLibraryPrototypeView
         System.Windows.Automation.AutomationProperties.SetAutomationId(rename, "LibraryContextRename");
         rename.Click += (_, _) => BeginRenameTreeItem(item.Tag?.ToString());
         menu.Items.Add(rename);
+        var move = new MenuItem { Header = "Move to..." };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(move, "LibraryMoveTo");
+        move.Click += (_, _) => MoveLibraryItem_Click(item.Tag?.ToString());
+        menu.Items.Add(move);
         item.ContextMenu = menu;
     }
 
@@ -260,7 +266,11 @@ public partial class MessageLibraryPrototypeView
         selectedFolder = path;
         selectedLibraryTag = $"folder:{path}";
         RefreshLibraryTree();
+        RevealLibraryItem(selectedLibraryTag);
     }
+
+    private void RevealLibraryItem(string tag) =>
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => FindTreeItem(tag)?.BringIntoView()));
 
     private void AddFolderAndParents(string path)
     {
@@ -337,12 +347,13 @@ public partial class MessageLibraryPrototypeView
             return;
         }
         CancelRename();
+        revealedTemplateName = null;
         selectedTemplateName = name;
         editorFolder = template.Folder;
         selectedFolder = template.Folder;
         currentBody = template.Body;
         currentAssociation = template.Topic.Length > 0 ? template.Topic : TemplateAssociations(template).FirstOrDefault() ?? "";
-        selectedDestination = IsSampleDestination(currentAssociation) ? currentAssociation : null;
+        currentDestinationKind = template.DestinationKind;
         draftIsNew = false;
         previewReady = false;
         RestoreSettings(savedSettings[name]);
@@ -354,6 +365,7 @@ public partial class MessageLibraryPrototypeView
         ShowPrepare();
         InvalidatePreview();
         ShowWizardStage(WizardStage.Compose);
+        RefreshLibraryTree();
         TemplateContextRequested?.Invoke(currentAssociation.Length == 0 ? null : currentAssociation);
     }
 
@@ -379,7 +391,7 @@ public partial class MessageLibraryPrototypeView
         {
             currentBody = saved.Body;
             currentAssociation = saved.Topic;
-            selectedDestination = IsSampleDestination(currentAssociation) ? currentAssociation : null;
+            currentDestinationKind = saved.DestinationKind;
             RestoreSettings(savedSettings[selectedTemplateName]);
             UpdateDestinationControls();
         }
@@ -518,6 +530,7 @@ public partial class MessageLibraryPrototypeView
         var template = templates[index] with { Name = newName };
         templates[index] = template;
         if (savedSettings.Remove(oldName, out var settings)) savedSettings[newName] = settings;
+        if (revealedTemplateName == oldName) revealedTemplateName = newName;
         if (selectedTemplateName == oldName)
         {
             selectedTemplateName = newName;
@@ -526,9 +539,10 @@ public partial class MessageLibraryPrototypeView
         }
     }
 
-    private void RenameFolder(string path, string newName)
+    private void RenameFolder(string path, string newName) => RelocateFolder(path, ReplaceFolderSegment(path, newName));
+
+    private void RelocateFolder(string path, string replacement)
     {
-        string replacement = ReplaceFolderSegment(path, newName);
         foreach (var set in new[] { collapsedFolders, createdFolders })
             foreach (string entry in set.Where(entry => entry.Equals(path, StringComparison.OrdinalIgnoreCase) ||
                          entry.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase)).ToArray())

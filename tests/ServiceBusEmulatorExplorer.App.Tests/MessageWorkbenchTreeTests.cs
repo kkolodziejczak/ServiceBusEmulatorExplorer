@@ -112,6 +112,55 @@ public sealed class MessageWorkbenchTreeTests
         });
 
     [Fact]
+    public void Saving_a_renamed_new_root_template_keeps_it_visible_under_an_active_namespace_filter()
+        => Run((window, view) =>
+        {
+            view.FilterByNamespaceQuery("inventory-events");
+            Get<Button>(view, "LibraryNewButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Drain(window);
+
+            FindAutomationId<Button>(view, "LibraryRename").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            TextBox input = VisibleRenameInput(view);
+            input.Text = "New root event";
+            FindVisibleAutomationId<Button>(view, "LibraryRenameSave").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Drain(window);
+
+            Get<Button>(view, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Drain(window);
+
+            Assert.Equal("New root event", Get<TextBlock>(view, "AuthorTitle").Text);
+            Assert.True(HasTreeItem(view, "template:New root event"));
+            Assert.Equal("template:New root event", ((TreeViewItem)Get<TreeView>(view, "LibraryTree").SelectedItem!).Tag);
+        });
+
+    [Fact]
+    public void Saving_a_renamed_new_root_template_stays_pinned_under_text_filter_until_navigating_away()
+        => Run((window, view) =>
+        {
+            Get<TextBox>(view, "TemplateSearch").Text = "Stock reserved";
+            Get<Button>(view, "LibraryNewButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Drain(window);
+
+            FindAutomationId<Button>(view, "LibraryRename").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            TextBox input = VisibleRenameInput(view);
+            input.Text = "New root event";
+            FindVisibleAutomationId<Button>(view, "LibraryRenameSave").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Drain(window);
+
+            Get<Button>(view, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Drain(window);
+
+            Assert.True(HasTreeItem(view, "template:New root event"));
+            Assert.True(HasTreeItem(view, "template:Stock reserved"));
+
+            GetTreeItem(view, "template:Stock reserved").IsSelected = true;
+            Drain(window);
+
+            Assert.Equal("Stock reserved", Get<TextBlock>(view, "AuthorTitle").Text);
+            Assert.False(HasTreeItem(view, "template:New root event"));
+        });
+
+    [Fact]
     public void Renaming_folder_keeps_its_template_descendants_in_the_renamed_folder()
         => Run((window, view) =>
         {

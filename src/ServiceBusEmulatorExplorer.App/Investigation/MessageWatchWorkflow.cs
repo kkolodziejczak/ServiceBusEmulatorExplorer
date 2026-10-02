@@ -56,11 +56,13 @@ public sealed class MessageWatchWorkflow(TimeProvider? timeProvider = null)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30), clock);
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
+        bool discoveryCompleted = false;
         try
         {
             var snapshot = await run.Session.Browser.DiscoverAsync(operation.Token);
             operation.Token.ThrowIfCancellationRequested();
             if (!ReferenceEquals(current, run)) return;
+            discoveryCompleted = true;
             // Missing entities in a partial discovery are not evidence of removal.
             run.Snapshot = MergeDiscovery(run.Snapshot, snapshot);
             lastSnapshot = run.Snapshot;
@@ -87,12 +89,20 @@ public sealed class MessageWatchWorkflow(TimeProvider? timeProvider = null)
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (OperationCanceledException)
         {
-            if (ReferenceEquals(current, run)) Warning?.Invoke("Watch inspection timed out. The scan will be retried.");
+            ReportPollFailure(run, discoveryCompleted, "Watch inspection timed out. The scan will be retried.");
         }
         catch (Exception)
         {
-            if (ReferenceEquals(current, run)) Warning?.Invoke("Watch could not refresh or inspect the namespace. The scan will be retried.");
+            ReportPollFailure(run, discoveryCompleted, "Watch could not refresh or inspect the namespace. The scan will be retried.");
         }
+    }
+
+    private void ReportPollFailure(Run run, bool discoveryCompleted, string warning)
+    {
+        if (!ReferenceEquals(current, run)) return;
+        if (!discoveryCompleted)
+            DiscoveryUpdated?.Invoke(new EntityDiscoverySnapshot([], clock.GetUtcNow(), false, [warning]));
+        Warning?.Invoke(warning);
     }
 
     private static EntityDiscoverySnapshot MergeDiscovery(EntityDiscoverySnapshot previous, EntityDiscoverySnapshot latest)

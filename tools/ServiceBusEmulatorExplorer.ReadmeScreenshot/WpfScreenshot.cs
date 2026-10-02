@@ -15,7 +15,7 @@ internal static class WpfScreenshot
     public static void SaveWindowContent(Window window, string outputPath) =>
         SaveWindowContent(window, outputPath, CaptureWidth, CaptureHeight);
 
-    public static void SaveWindowContent(Window window, string outputPath, int expectedWidth, int expectedHeight)
+    public static void SaveWindowContent(Window window, string outputPath, int expectedWidth, int expectedHeight, int minimumBytes = 10_000)
     {
         if (window.Content is not FrameworkElement content)
         {
@@ -65,7 +65,7 @@ internal static class WpfScreenshot
         encoder.Save(output);
 
         long fileSize = new FileInfo(outputPath).Length;
-        if (fileSize < 10_000)
+        if (fileSize < minimumBytes)
             throw new InvalidOperationException($"The rendered README screenshot is unexpectedly small: {fileSize} bytes.");
 
         Console.WriteLine($"Captured {width}x{height} README screenshot ({fileSize} bytes) at {outputPath}");

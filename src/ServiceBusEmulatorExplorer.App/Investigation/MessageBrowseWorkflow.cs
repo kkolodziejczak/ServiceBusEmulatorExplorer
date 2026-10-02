@@ -23,6 +23,8 @@ public sealed class MessageBrowseWorkflow : ObservableObject
     public ObservableCollection<EntityNode> Roots { get; } = [];
     public ObservableCollection<MessageRow> Messages { get; } = [];
     public EntityNode? SelectedEntity => selectedEntity;
+    public EntityDiscoverySnapshot? DiscoverySnapshot { get; private set; }
+    public long DiscoveryGeneration => generation;
     public bool IsConnected => session is not null;
     public MessageRow? FocusedMessage
     {
@@ -57,9 +59,11 @@ public sealed class MessageBrowseWorkflow : ObservableObject
     public void SetSession(BrokerSession? value, long connectionGeneration)
     {
         Cancel();
-        session = value;
-        OnPropertyChanged(nameof(IsConnected));
         generation = connectionGeneration;
+        DiscoverySnapshot = null;
+        session = value;
+        OnPropertyChanged(nameof(DiscoverySnapshot));
+        OnPropertyChanged(nameof(IsConnected));
         deleted.Clear();
         selectedEntity = null;
         pager = null;
@@ -112,6 +116,8 @@ public sealed class MessageBrowseWorkflow : ObservableObject
         selectedEntity = AllEntities().FirstOrDefault(node => node.Address == previousAddress);
         if (UsesObservedCounts) ObservedDeliveryCounts.AggregateTopics(AllEntities());
         ApplyEntityFilter();
+        DiscoverySnapshot = snapshot;
+        OnPropertyChanged(nameof(DiscoverySnapshot));
         NotifyScope();
     }
 
@@ -271,6 +277,8 @@ public sealed class MessageBrowseWorkflow : ObservableObject
     public async Task RefreshAsync()
     {
         if (session is null || busy) return;
+        DiscoverySnapshot = null;
+        OnPropertyChanged(nameof(DiscoverySnapshot));
         var operationVersion = ++version;
         using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         readCancellation = cancellation;

@@ -50,6 +50,7 @@ public sealed class MessageWorkbenchAssociationTests
             Drain(window);
 
             GetTreeItem(view, "template:Order updated").IsSelected = true;
+            Drain(window);
             GetTreeItem(view, "template:Order created").IsSelected = true;
             Drain(window);
 

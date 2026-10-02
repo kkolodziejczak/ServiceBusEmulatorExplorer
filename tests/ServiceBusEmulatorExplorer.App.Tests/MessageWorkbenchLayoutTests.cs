@@ -46,7 +46,7 @@ public sealed class MessageWorkbenchLayoutTests
 
     [Fact]
     [Trait("TestCategory", "UiRender")]
-    public void Review_summary_fits_short_details_and_scrolls_a_thousand_message_ids()
+    public void Review_summary_keeps_target_read_only_and_message_count_bounded_for_large_batches()
     {
         RunOnSta((dispatcher, view, _) =>
         {
@@ -55,23 +55,23 @@ public sealed class MessageWorkbenchLayoutTests
             WaitForLayout(dispatcher);
 
             var review = Assert.IsType<MessageLibraryPrototypeReviewSurface>(ByName<ContentControl>(view, "ReviewHost").Content);
-            var ids = ByName<TextBlock>(review, "ReviewMessageIds");
             var details = ByName<TextBlock>(review, "ReviewPropertyDetails");
-            var idsScroll = Descendants<ScrollViewer>(review).Single(scroll => ReferenceEquals(scroll.Content, ids));
             var detailsScroll = Descendants<ScrollViewer>(review).Single(scroll => ReferenceEquals(scroll.Content, details));
-            Assert.True(idsScroll.ScrollableHeight <= 1, "Three message IDs should fit without a scrollbar.");
+            Assert.IsType<TextBlock>(review.FindName("ReviewProfile"));
+            Assert.IsType<TextBlock>(review.FindName("ReviewEndpoint"));
+            Assert.IsType<TextBlock>(review.FindName("ReviewTarget"));
+            Assert.DoesNotContain(Descendants<TextBox>(review), input => input.Name is "ReviewProfile" or "ReviewEndpoint" or "ReviewTarget");
+            Assert.Null(review.FindName("ReviewMessageIds"));
             Assert.True(detailsScroll.ScrollableHeight <= 1,
                 $"Default properties should fit without a scrollbar: extent={detailsScroll.ExtentHeight}, viewport={detailsScroll.ViewportHeight}, scrollable={detailsScroll.ScrollableHeight}, details={details.Text}.");
 
             review.Configure("Local emulator", "order-events", 1000);
             WaitForLayout(dispatcher);
-            Assert.True(idsScroll.ScrollableHeight > 0, "A thousand message IDs should scroll inside the summary.");
-            Assert.True(idsScroll.ActualHeight <= 161, "The message ID list must remain bounded.");
-            idsScroll.ScrollToEnd();
-            WaitForLayout(dispatcher);
-            Assert.True(idsScroll.VerticalOffset > 0, "The large ID list should actually scroll.");
+            Assert.Equal("1000 valid messages", ByName<TextBlock>(review, "ReviewMessageCount").Text);
+            Assert.Null(review.FindName("ReviewMessageIds"));
+            Assert.DoesNotContain(Descendants<TextBlock>(review), text => text.Text.Contains("message-", StringComparison.Ordinal));
 
-            review.SetReviewProperties("ignored", "inherit entity default",
+            review.SetReviewProperties("inherit entity default",
                 string.Join("\n", Enumerable.Repeat("Application property: a long value to review", 30)));
             WaitForLayout(dispatcher);
             Assert.True(detailsScroll.ScrollableHeight > 0, "Long properties should scroll inside the summary.");

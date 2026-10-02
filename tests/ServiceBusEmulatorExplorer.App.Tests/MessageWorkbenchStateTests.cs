@@ -118,8 +118,8 @@ public sealed class MessageWorkbenchStateTests
         Assert.Equal(3, ids.Distinct().Count());
         Click(view, "ReviewButton");
         var review = Assert.IsType<MessageLibraryPrototypeReviewSurface>(Get<ContentControl>(view, "ReviewHost").Content);
-        string summary = Get<TextBlock>(review, "ReviewMessageIds").Text;
-        foreach (string id in ids) Assert.Contains(id, summary);
+        Assert.Null(review.FindName("ReviewMessageIds"));
+        Assert.Equal("3 valid messages", Get<TextBlock>(review, "ReviewMessageCount").Text);
         Assert.NotNull(review.FindName("ReviewTotalSize"));
         Click(view, "PrepareStepButton");
         rows.SelectedIndex = 0;
@@ -128,7 +128,7 @@ public sealed class MessageWorkbenchStateTests
     });
 
     [Fact]
-    public void Custom_message_id_is_frozen_in_review_and_invalid_json_disables_review() => Run((window, view) =>
+    public void Custom_message_id_is_not_listed_in_review_and_invalid_json_disables_review() => Run((window, view) =>
     {
         Get<RadioButton>(view, "SingleMode").IsChecked = true;
         Get<RadioButton>(view, "CustomMessageId").IsChecked = true;
@@ -136,7 +136,12 @@ public sealed class MessageWorkbenchStateTests
         window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
         Click(view, "ReviewButton");
         var review = Assert.IsType<MessageLibraryPrototypeReviewSurface>(Get<ContentControl>(view, "ReviewHost").Content);
-        Assert.Contains("my-dummy-id", Get<TextBlock>(review, "ReviewMessageIds").Text);
+        Assert.Null(review.FindName("ReviewMessageIds"));
+        Assert.Equal("1 valid message", Get<TextBlock>(review, "ReviewMessageCount").Text);
+        Click(review, "ConfirmDispatch");
+        PumpUntil(window.Dispatcher, () => Get<DataGrid>(review, "ResultsGrid").Items.Count == 1, TimeSpan.FromSeconds(5));
+        object sent = Assert.Single(Get<DataGrid>(review, "ResultsGrid").Items.Cast<object>());
+        Assert.Equal("my-dummy-id", sent.GetType().GetProperty("MessageId")!.GetValue(sent));
         Click(view, "ComposeStepButton");
         Get<JsonEditor>(view, "EditorText").Text = "{ invalid json";
         Click(view, "ContinueToPrepareButton");
@@ -193,6 +198,21 @@ public sealed class MessageWorkbenchStateTests
 
     private static void Click(FrameworkElement root, string name) =>
         Get<Button>(root, name).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+    private static void PumpUntil(Dispatcher dispatcher, Func<bool> condition, TimeSpan timeout)
+    {
+        DateTime deadline = DateTime.UtcNow + timeout;
+        while (!condition())
+        {
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException("Message Workbench did not reach the expected state.");
+
+            var frame = new DispatcherFrame();
+            dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() => frame.Continue = false));
+            Dispatcher.PushFrame(frame);
+            Thread.Sleep(5);
+        }
+    }
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
     {

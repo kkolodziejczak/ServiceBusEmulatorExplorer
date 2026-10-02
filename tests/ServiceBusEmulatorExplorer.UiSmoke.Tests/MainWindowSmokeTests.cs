@@ -109,8 +109,10 @@ public sealed class MainWindowSmokeTests
 
         string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
             Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        await new ServiceBusEmulatorExplorer.App.Investigation.Settings.ProtectedWorkspacePreferencesStore(profilePath)
+            .SaveAsync(new ServiceBusEmulatorExplorer.Core.Investigation.WorkspacePreferences { WasConnected = false }, CancellationToken.None);
         using Application application = Application.Launch(executablePath,
-            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+            $"--profile-store-path {QuoteProcessArgument(profilePath)} --message-workbench-prototype");
         using var automation = new UIA3Automation();
 
         try
@@ -183,8 +185,10 @@ public sealed class MainWindowSmokeTests
         string executablePath = WpfAppPath.Resolve();
         string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
             Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        await new ServiceBusEmulatorExplorer.App.Investigation.Settings.ProtectedWorkspacePreferencesStore(profilePath)
+            .SaveAsync(new ServiceBusEmulatorExplorer.Core.Investigation.WorkspacePreferences { WasConnected = false }, CancellationToken.None);
         using Application application = Application.Launch(executablePath,
-            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+            $"--profile-store-path {QuoteProcessArgument(profilePath)} --message-workbench-prototype");
         using var automation = new UIA3Automation();
         try
         {
@@ -236,6 +240,8 @@ public sealed class MainWindowSmokeTests
         string executablePath = WpfAppPath.Resolve();
         string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
             Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        await new ServiceBusEmulatorExplorer.App.Investigation.Settings.ProtectedWorkspacePreferencesStore(profilePath)
+            .SaveAsync(new ServiceBusEmulatorExplorer.Core.Investigation.WorkspacePreferences { WasConnected = false }, CancellationToken.None);
         using Application application = Application.Launch(executablePath,
             $"--profile-store-path {QuoteProcessArgument(profilePath)} --message-workbench-prototype");
         using var automation = new UIA3Automation();
@@ -296,8 +302,10 @@ public sealed class MainWindowSmokeTests
         string executablePath = WpfAppPath.Resolve();
         string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
             Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        await new ServiceBusEmulatorExplorer.App.Investigation.Settings.ProtectedWorkspacePreferencesStore(profilePath)
+            .SaveAsync(new ServiceBusEmulatorExplorer.Core.Investigation.WorkspacePreferences { WasConnected = false }, CancellationToken.None);
         using Application application = Application.Launch(executablePath,
-            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+            $"--profile-store-path {QuoteProcessArgument(profilePath)} --message-workbench-prototype");
         using var automation = new UIA3Automation();
         try
         {
@@ -338,8 +346,10 @@ public sealed class MainWindowSmokeTests
         string executablePath = WpfAppPath.Resolve();
         string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
             Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        await new ServiceBusEmulatorExplorer.App.Investigation.Settings.ProtectedWorkspacePreferencesStore(profilePath)
+            .SaveAsync(new ServiceBusEmulatorExplorer.Core.Investigation.WorkspacePreferences { WasConnected = false }, CancellationToken.None);
         using Application application = Application.Launch(executablePath,
-            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+            $"--profile-store-path {QuoteProcessArgument(profilePath)} --message-workbench-prototype");
         using var automation = new UIA3Automation();
         try
         {
@@ -380,8 +390,10 @@ public sealed class MainWindowSmokeTests
         string executablePath = WpfAppPath.Resolve();
         string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
             Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        await new ServiceBusEmulatorExplorer.App.Investigation.Settings.ProtectedWorkspacePreferencesStore(profilePath)
+            .SaveAsync(new ServiceBusEmulatorExplorer.Core.Investigation.WorkspacePreferences { WasConnected = false }, CancellationToken.None);
         using Application application = Application.Launch(executablePath,
-            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+            $"--profile-store-path {QuoteProcessArgument(profilePath)} --message-workbench-prototype");
         using var automation = new UIA3Automation();
         try
         {
@@ -433,8 +445,10 @@ public sealed class MainWindowSmokeTests
         string executablePath = WpfAppPath.Resolve();
         string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
             Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        await new ServiceBusEmulatorExplorer.App.Investigation.Settings.ProtectedWorkspacePreferencesStore(profilePath)
+            .SaveAsync(new ServiceBusEmulatorExplorer.Core.Investigation.WorkspacePreferences { WasConnected = false }, CancellationToken.None);
         using Application application = Application.Launch(executablePath,
-            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+            $"--profile-store-path {QuoteProcessArgument(profilePath)} --message-workbench-prototype");
         using var automation = new UIA3Automation();
         try
         {

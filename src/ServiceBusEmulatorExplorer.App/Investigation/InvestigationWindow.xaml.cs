@@ -26,6 +26,7 @@ public partial class InvestigationWindow : Window
     private string investigationSearchText = "";
     private readonly EntityNode[] sampleNamespaceRoots = CreateSampleNamespaceRoots();
     private bool lastNamespaceConnectionState;
+    private bool sampleWorkbenchDestinations;
 
     public InvestigationWindow(InvestigationWorkspace workspace)
     {
@@ -45,6 +46,7 @@ public partial class InvestigationWindow : Window
             workspace.SelectedProfile.ColorHex, "Unsaved message drafts", "Discard") { Owner = this }.ShowDialog() == true);
         workspace.PropertyChanged += WorkspaceChanged;
         workspace.Surface.PropertyChanged += SurfaceChanged;
+        workspace.Browse.PropertyChanged += WorkbenchDiscoveryChanged;
         workspace.Inspector.PropertyChanged += InspectorChanged;
         workspace.Activity.CollectionChanged += ActivityChanged;
         workspace.Watch.PendingArrivals.CollectionChanged += WatchArrivalsChanged;
@@ -89,6 +91,7 @@ public partial class InvestigationWindow : Window
             ConnectionSelector.ItemsSource = workspace.Preferences.Profiles;
             ConnectionSelector.SelectedItem = workspace.SelectedProfile;
             MessageLibraryPrototype.SetProfileName(workspace.SelectedProfile.Connection.Name);
+            UpdateWorkbenchDiscovery();
             ConnectionHealthText.Text = workspace.HealthText;
             ConnectionButton.ToolTip = workspace.HealthDetail;
             ConnectionHealthDot.SetResourceReference(System.Windows.Shapes.Shape.FillProperty,
@@ -158,7 +161,33 @@ public partial class InvestigationWindow : Window
     private void InvestigationWorkspace_Checked(object sender, RoutedEventArgs e) => SelectWorkspaceTab(false);
     private void MessageLibrary_Checked(object sender, RoutedEventArgs e) => SelectWorkspaceTab(true);
 
-    internal void OpenMessageWorkbenchPrototype() => SelectWorkspaceTab(true);
+    internal void OpenMessageWorkbenchPrototype()
+    {
+        sampleWorkbenchDestinations = true;
+        SelectWorkspaceTab(true);
+    }
+
+    private void WorkbenchDiscoveryChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MessageBrowseWorkflow.DiscoverySnapshot)) UpdateWorkbenchDiscovery();
+    }
+
+    private void UpdateWorkbenchDiscovery()
+    {
+        if (workspace.IsConnected) sampleWorkbenchDestinations = false;
+        if (sampleWorkbenchDestinations) return;
+        var profile = workspace.SelectedProfile;
+        string endpoint = profile.Connection.FullyQualifiedNamespace;
+        if (endpoint.Length == 0)
+        {
+            string? endpointPart = profile.Connection.RuntimeConnectionString.Split(';')
+                .FirstOrDefault(part => part.StartsWith("Endpoint=", StringComparison.OrdinalIgnoreCase));
+            if (endpointPart is not null && Uri.TryCreate(endpointPart[9..], UriKind.Absolute, out var address)) endpoint = address.Host;
+        }
+        var snapshot = workspace.IsConnected && workspace.Browse.DiscoveryGeneration == workspace.ConnectionGeneration
+            ? workspace.Browse.DiscoverySnapshot : null;
+        MessageLibraryPrototype.SetDestinationDiscovery(profile.Id, workspace.ConnectionGeneration, snapshot, endpoint);
+    }
 
     private void SelectWorkspaceTab(bool library)
     {

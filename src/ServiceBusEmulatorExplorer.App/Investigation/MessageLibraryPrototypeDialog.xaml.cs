@@ -23,6 +23,8 @@ public partial class MessageLibraryPrototypeDialog : Window
     private string originalCaptureBody = "{\n  \"customerId\": \"C1001\",\n  \"amount\": 149.90\n}";
     private string editedCaptureBody = "{\n  \"customerId\": \"C1001\",\n  \"amount\": 149.90\n}";
     private ExplorerMessage? capturedMessage;
+    private string captureTopic = "order-events";
+    public EntityKind CaptureDestinationKind { get; private set; } = EntityKind.Topic;
 
     public MessageLibraryPrototypeDialog(PrototypeDialogMode mode, string profile, string target, int count)
     {
@@ -63,8 +65,14 @@ public partial class MessageLibraryPrototypeDialog : Window
         }
         else if (mode == PrototypeDialogMode.Capture)
         {
-            Title = "Save as template";
-            Height = 925;
+            Title = "Create template";
+            Width = 480;
+            MinWidth = 360;
+            MinHeight = 0;
+            SizeToContent = SizeToContent.Height;
+            captureTopic = target;
+            CaptureDestinationKind = target == "order-replies" ? EntityKind.Queue : EntityKind.Topic;
+            CaptureAssociation.Text = $"{target} ({CaptureDestinationKind})";
             MaxHeight = Math.Max(500, SystemParameters.WorkArea.Height - 30);
             CapturePreview.Text = originalCaptureBody;
         }
@@ -113,7 +121,7 @@ public partial class MessageLibraryPrototypeDialog : Window
     public PrototypeDraftChoice DraftChoice { get; private set; } = PrototypeDraftChoice.Cancel;
     public string CaptureTemplateName => CaptureName.Text.Trim();
     public string CaptureTemplateBody => CaptureEdited.IsChecked == true ? editedCaptureBody : originalCaptureBody;
-    public string CaptureTopic => (CaptureAssociation.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? string.Empty;
+    public string CaptureTopic => captureTopic;
     public string CaptureCollectionName => ((ComboBoxItem)CaptureCollection.SelectedItem).Tag?.ToString()
         ?? ((ComboBoxItem)CaptureCollection.SelectedItem).Content.ToString()!.Split('/').Last();
     public PrototypeCaptureProperties? CaptureProperties => capturedMessage is { } message
@@ -126,7 +134,7 @@ public partial class MessageLibraryPrototypeDialog : Window
     public void SetCaptureCollections(IEnumerable<string> collections, string? selected)
     {
         CaptureCollection.Items.Clear();
-        CaptureCollection.Items.Add(new ComboBoxItem { Content = "(Top level)", Tag = "" });
+        CaptureCollection.Items.Add(new ComboBoxItem { Content = "Root", Tag = "" });
         foreach (string name in collections.Where(name => !string.IsNullOrWhiteSpace(name)).Distinct(StringComparer.OrdinalIgnoreCase))
             CaptureCollection.Items.Add(new ComboBoxItem { Content = name, Tag = name });
         CaptureCollection.SelectedItem = CaptureCollection.Items.OfType<ComboBoxItem>()
@@ -165,9 +173,9 @@ public partial class MessageLibraryPrototypeDialog : Window
         ValidationBanner.BorderBrush = (System.Windows.Media.Brush)FindResource(invalid == 0 ? "ControlBorderBrush" : "DestructiveBrush");
     }
 
-    public void SetReviewProperties(string messageIds, string ttl, string details)
+    public void SetReviewProperties(string ttl, string details)
     {
-        ReviewSurfaceControl.SetReviewProperties(messageIds, ttl, details);
+        ReviewSurfaceControl.SetReviewProperties(ttl, details);
     }
 
     public void SetPreparedMessages(IReadOnlyList<PrototypePreparedMessage> messages)
@@ -201,21 +209,15 @@ public partial class MessageLibraryPrototypeDialog : Window
     }
 
     public void SetCaptureSource(string source, string originalBody, string editedBody, string topic,
-        ExplorerMessage? message = null)
+        ExplorerMessage? message = null, EntityKind destinationKind = EntityKind.Topic)
     {
         capturedMessage = message;
         CaptureSource.Text = source;
         originalCaptureBody = originalBody;
         editedCaptureBody = editedBody;
-        var association = CaptureAssociation.Items.OfType<ComboBoxItem>()
-            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), topic,
-                StringComparison.OrdinalIgnoreCase));
-        if (association is null && message is not null && !string.IsNullOrWhiteSpace(topic))
-        {
-            association = new ComboBoxItem { Content = $"{topic} (Source)", Tag = topic };
-            CaptureAssociation.Items.Add(association);
-        }
-        CaptureAssociation.SelectedItem = association ?? CaptureAssociation.Items.OfType<ComboBoxItem>().FirstOrDefault();
+        captureTopic = topic;
+        CaptureDestinationKind = destinationKind;
+        CaptureAssociation.Text = $"{topic} ({destinationKind})";
         CaptureEdited.IsEnabled = editedBody != originalBody;
         CapturePreview.Text = originalBody;
         if (message is not null)
@@ -238,15 +240,9 @@ public partial class MessageLibraryPrototypeDialog : Window
 
     private void OpenDraft_Click(object sender, RoutedEventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(CaptureName.Text) || string.IsNullOrWhiteSpace(CaptureFileName.Text))
+        if (string.IsNullOrWhiteSpace(CaptureName.Text))
         {
-            CaptureError.Text = "Enter a template name and filename.";
-            CaptureError.Visibility = Visibility.Visible;
-            return;
-        }
-        if (capturedMessage is not null && CaptureAcknowledge.IsChecked != true)
-        {
-            CaptureError.Text = "Review and acknowledge the copied and excluded properties.";
+            CaptureError.Text = "Enter a template name.";
             CaptureError.Visibility = Visibility.Visible;
             return;
         }

@@ -1,3 +1,4 @@
+using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using System.Globalization;
 using System.Text.Json;
 using System.Windows;
@@ -51,7 +52,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         new("Order updated", "order-events", "Emitted when the amount on an order changes.", "{\n  \"eventId\": \"$(EventId)\",\n  \"customerId\": \"$(CustomerId)\",\n  \"amount\": \"$(Amount)\",\n  \"state\": \"Updated\"\n}"),
         new("Order dispatched", "order-events", "Emitted when an order leaves the warehouse.", "{\n  \"eventId\": \"$(EventId)\",\n  \"customerId\": \"$(CustomerId)\",\n  \"state\": \"Dispatched\"\n}"),
         new("Stock reserved", "inventory-events", "Emitted when stock is reserved.", "{\n  \"eventId\": \"$(EventId)\",\n  \"sku\": \"$(CustomerId)\",\n  \"quantity\": \"$(Amount)\"\n}"),
-        new("Order reply", "order-replies", "Sample queue reply.", "{\n  \"customerId\": \"$(CustomerId)\",\n  \"accepted\": true\n}"),
+        new("Order reply", "order-replies", "Sample queue reply.", "{\n  \"customerId\": \"$(CustomerId)\",\n  \"accepted\": true\n}", DestinationKind: EntityKind.Queue),
         new("Unassociated sample", "", "Local draft without a discovered destination.", "{\n  \"customerId\": \"$(CustomerId)\",\n  \"amount\": \"$(Amount)\"\n}")
     ];
     private readonly ObservableCollection<PrototypeProperty> applicationProperties =
@@ -241,7 +242,7 @@ public partial class MessageLibraryPrototypeView : UserControl
 
     private bool HasUnsavedDraft() => draftIsNew ||
         templates.FirstOrDefault(value => value.Name == selectedTemplateName) is { } template &&
-        (template.Body != currentBody || template.Topic != currentAssociation ||
+        (template.Body != currentBody || template.Topic != currentAssociation || template.DestinationKind != currentDestinationKind ||
             JsonSerializer.Serialize(savedSettings[selectedTemplateName]) != JsonSerializer.Serialize(CaptureSettings()));
 
     private PrototypeAuthorSettings CaptureSettings() => new(
@@ -283,7 +284,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         dialog.SetCaptureCollections(folders, selectedFolder ?? "");
 
     public void OpenCapturedDraft(string name, string body, string topic, string? collection = null,
-        PrototypeCaptureProperties? properties = null, string? fileName = null)
+        PrototypeCaptureProperties? properties = null, string? fileName = null, EntityKind destinationKind = EntityKind.Topic)
     {
         CancelRename();
         string folder = collection ?? selectedFolder ?? "";
@@ -291,19 +292,21 @@ public partial class MessageLibraryPrototypeView : UserControl
         ExpandFolderPath(folder);
         name = UniqueTemplateName(name, folder);
         templates.Add(new PrototypeTemplate(name, topic, "Captured message draft ? review properties before saving.",
-            body, folder, topic.Length == 0 ? [] : [topic], fileName));
+            body, folder, topic.Length == 0 ? [] : [topic], fileName, destinationKind));
         savedSettings[name] = defaultSettings;
         RestoreSettings(defaultSettings);
         selectedTemplateName = name;
+        revealedTemplateName = name;
         editorFolder = folder;
         selectedFolder = folder.Length == 0 ? null : folder;
         selectedLibraryTag = $"template:{name}";
         currentAssociation = topic;
-        selectedDestination = IsSampleDestination(topic) ? topic : null;
+        currentDestinationKind = destinationKind;
         currentBody = body;
         draftIsNew = true;
         namespaceQuery = "";
         RefreshLibraryTree();
+        RevealLibraryItem("template:" + selectedTemplateName);
         AuthorTitle.Text = name;
         AuthorTitle.ToolTip = name;
         if (properties is not null)
@@ -346,6 +349,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         savedSettings[name] = emptySettings;
         RestoreSettings(emptySettings);
         selectedTemplateName = name;
+        revealedTemplateName = name;
         selectedLibraryTag = $"template:{name}";
         selectedFolder = folder.Length == 0 ? null : folder;
         editorFolder = folder;
@@ -354,6 +358,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         currentBody = template.Body;
         draftIsNew = true;
         RefreshLibraryTree();
+        RevealLibraryItem("template:" + selectedTemplateName);
         AuthorTitle.Text = name;
         AuthorTitle.ToolTip = name;
         UpdateDestinationControls();
@@ -369,27 +374,35 @@ public partial class MessageLibraryPrototypeView : UserControl
         int index = templates.FindIndex(value => value.Name == selectedTemplateName);
         if (index < 0) return;
         templates[index] = templates[index] with { Body = currentBody, Topic = currentAssociation,
-            Associations = currentAssociation.Length == 0 ? [] : [currentAssociation] };
+            Associations = currentAssociation.Length == 0 ? [] : [currentAssociation], DestinationKind = currentDestinationKind };
         savedSettings[selectedTemplateName] = CaptureSettings();
+        revealedTemplateName = selectedTemplateName;
         draftIsNew = false;
         RefreshLibraryTree();
+        RevealLibraryItem("template:" + selectedTemplateName);
     }
 
     private void SaveAs_Click(object sender, RoutedEventArgs e)
     {
         if (!CommitApplicationPropertyEdit()) return;
-        string? name = PromptForName("Save as", "Template name", selectedTemplateName + " copy");
-        if (name is null) return;
+        var dialog = new TemplateLocationDialog("Save as", UniqueTemplateName(selectedTemplateName + " copy"),
+            folders, editorFolder ?? "", (name, _) => templates.Any(template => template.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                ? "A template with that name already exists." : null) { Owner = Window.GetWindow(this) };
+        if (dialog.ShowDialog() != true) return;
+        string name = dialog.TemplateName;
         CancelRename();
+        editorFolder = dialog.FolderPath;
+        selectedFolder = editorFolder.Length == 0 ? null : editorFolder;
         ExpandFolderPath(editorFolder);
-        name = UniqueTemplateName(name, editorFolder);
         templates.Add(new PrototypeTemplate(name, currentAssociation, "Saved in this prototype session.", currentBody, editorFolder ?? "",
-            currentAssociation.Length == 0 ? [] : [currentAssociation]));
+            currentAssociation.Length == 0 ? [] : [currentAssociation], DestinationKind: currentDestinationKind));
         savedSettings[name] = CaptureSettings();
         selectedTemplateName = name;
+        revealedTemplateName = name;
         draftIsNew = false;
         selectedLibraryTag = $"template:{name}";
         RefreshLibraryTree();
+        RevealLibraryItem("template:" + selectedTemplateName);
         AuthorTitle.Text = name;
         AuthorTitle.ToolTip = name;
     }
@@ -715,9 +728,13 @@ public partial class MessageLibraryPrototypeView : UserControl
         var review = new MessageLibraryPrototypeReviewSurface(currentProfileName,
             selectedDestination, CsvMode.IsChecked == true ? 3 : 1);
         review.SetReviewProperties(
-            string.Join("\n", preparedMessages.Select(message => message.MessageId)),
             SpecifyTtl.IsChecked == true ? $"Time to live: {TtlMinutes.Text} minutes" : "Time to live: inherit entity default",
             BuildPropertyDetails(CustomerInput.Text, preparedMessages[0]));
+        string? reviewedProfile = destinationProfileId;
+        string reviewedTarget = currentAssociation;
+        EntityKind reviewedKind = currentDestinationKind;
+        review.SetTargetDetails(reviewedKind, destinationEndpoint, () => reviewedProfile == destinationProfileId &&
+            DestinationStatus(reviewedTarget, reviewedKind) == WorkbenchDestinationStatus.Available);
         review.SetPreparedMessages(preparedMessages);
         PresentReview(review);
     }
@@ -755,33 +772,15 @@ public partial class MessageLibraryPrototypeView : UserControl
         ReviewStepButton.IsEnabled = true;
     }
 
-    private static bool IsSampleDestination(string? path) =>
-        path is "order-events" or "inventory-events" or "order-replies";
-
     private void TemplateDestination_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!libraryInitialized || loadingDestinationSelection) return;
-        if (TemplateDestination?.SelectedValue is not string destination) return;
-        currentAssociation = destination;
-        selectedDestination = destination.Length == 0 ? null : destination;
+        if (TemplateDestination.SelectedItem is not ComboBoxItem option) return;
+        currentAssociation = option.Tag?.ToString() ?? "";
+        currentDestinationKind = (option.DataContext as WorkbenchDestination)?.Kind ?? EntityKind.Topic;
         UpdateDestinationControls();
         ClearLibrarySelection();
-        ReviewButton.IsEnabled = previewReady && selectedDestination is not null;
         InvalidatePreview();
-    }
-
-    private void UpdateDestinationControls()
-    {
-        if (TemplateDestination is null) return;
-        string destination = selectedDestination ?? "";
-        var option = TemplateDestination.Items.OfType<ComboBoxItem>()
-            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), destination, StringComparison.OrdinalIgnoreCase));
-        loadingDestinationSelection = true;
-        try { TemplateDestination.SelectedItem = option ?? TemplateDestination.Items[0]; }
-        finally { loadingDestinationSelection = false; }
-        if (DestinationText is not null)
-            DestinationText.Text = destination.Length == 0 ? "Send to: Choose destination" :
-                $"Send to: {destination} ({(destination == "order-replies" ? "Queue" : "Topic")})";
     }
 
     private void ViewRunResults_Click(object sender, RoutedEventArgs e)
@@ -949,7 +948,7 @@ public partial class MessageLibraryPrototypeView : UserControl
     private sealed record PrototypeVariableSetting(string Name, string Type, string Source,
         bool HasDefault, string DefaultValue);
     private sealed record PrototypeTemplate(string Name, string Topic, string Description, string Body,
-        string Folder = "Orders", IReadOnlyList<string>? Associations = null, string? FileName = null);
+        string Folder = "Orders", IReadOnlyList<string>? Associations = null, string? FileName = null, EntityKind DestinationKind = EntityKind.Topic);
     private sealed class PrototypeProperty(string name, string type, string value)
     {
         public PrototypeProperty() : this("", "string", "") { }

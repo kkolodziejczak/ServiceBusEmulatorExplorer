@@ -1,3 +1,4 @@
+using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -247,11 +248,12 @@ public partial class InvestigationWindow
             workspace.SelectedProfile.Connection.Name, topic, 1) { Owner = this };
         MessageLibraryPrototype.ConfigureCaptureCollections(dialog);
         dialog.SetCaptureSource(sourceLabel, workspace.Inspector.RawText,
-            workspace.Inspector.Document.Text, topic, current.Message);
+            workspace.Inspector.Document.Text, topic, current.Message,
+            source.TopicName is null ? EntityKind.Queue : EntityKind.Topic);
         if (dialog.ShowDialog() != true) return;
         MessageLibraryPrototype.OpenCapturedDraft(dialog.CaptureTemplateName,
             dialog.CaptureTemplateBody, dialog.CaptureTopic, dialog.CaptureCollectionName, dialog.CaptureProperties,
-            dialog.CaptureFileName.Text.Trim());
+            destinationKind: dialog.CaptureDestinationKind);
         SelectWorkspaceTab(true);
     }
 

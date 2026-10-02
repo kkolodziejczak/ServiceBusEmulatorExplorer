@@ -1,3 +1,4 @@
+using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
@@ -73,6 +74,16 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         UpdateReviewTiming();
     }
 
+    private Func<bool>? destinationAvailable;
+
+    public void SetTargetDetails(EntityKind kind, string endpoint, Func<bool>? isAvailable = null)
+    {
+        ReviewTargetKind.Text = kind.ToString();
+        ReviewEndpoint.Text = endpoint;
+        destinationAvailable = isAvailable;
+        UpdateReviewTiming();
+    }
+
     public event Action? BackRequested;
     public event Action<PrototypeRunSnapshot>? RunCompleted;
     public event Action<string>? ViewDestinationRequested;
@@ -85,6 +96,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         [nameof(ReviewFooter)] = ReviewFooter,
         [nameof(ReviewHeading)] = ReviewHeading,
         [nameof(ReviewProfile)] = ReviewProfile,
+        [nameof(ReviewEndpoint)] = ReviewEndpoint,
         [nameof(ReviewTargetKind)] = ReviewTargetKind,
         [nameof(ReviewTarget)] = ReviewTarget,
         [nameof(ReviewSendNow)] = ReviewSendNow,
@@ -97,7 +109,6 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         [nameof(ResolvedSchedule)] = ResolvedSchedule,
         [nameof(ReviewMessageCount)] = ReviewMessageCount,
         [nameof(ReviewTotalSize)] = ReviewTotalSize,
-        [nameof(ReviewMessageIds)] = ReviewMessageIds,
         [nameof(ReviewTtl)] = ReviewTtl,
         [nameof(ReviewPropertyDetails)] = ReviewPropertyDetails,
         [nameof(ReviewError)] = ReviewError,
@@ -143,10 +154,8 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         ShowResults();
     }
 
-    public void SetReviewProperties(string messageIds, string ttl, string details)
+    public void SetReviewProperties(string ttl, string details)
     {
-        if (preparedMessages.Count == 0)
-            ReviewMessageIds.Text = messageIds;
         ReviewTtl.Text = ttl.StartsWith("Time to live: ", StringComparison.OrdinalIgnoreCase)
             ? ttl["Time to live: ".Length..] : ttl;
         ReviewPropertyDetails.Text = details;
@@ -159,9 +168,6 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
             throw new ArgumentException($"Expected {messageCount} prepared messages, received {messages.Count}.", nameof(messages));
 
         preparedMessages = messages.ToArray();
-        ReviewMessageIds.Text = preparedMessages.Count == 0
-            ? "Message IDs: none"
-            : string.Join("\n", preparedMessages.Select(message => $"{message.Row}. {message.MessageId}"));
         long totalBytes = preparedMessages.Sum(message => (long)Encoding.UTF8.GetByteCount(message.Body));
         ReviewTotalSize.Text = $"{totalBytes:N0} bytes UTF-8 across prepared messages";
     }
@@ -225,7 +231,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         ConfirmDispatch.Content = $"{(schedule ? "Schedule" : "Send")} {messageCount} message{(messageCount == 1 ? "" : "s")}";
         ReviewNotice.Text = schedule
             ? $"{messageCount} sample message{(messageCount == 1 ? "" : "s")} will be scheduled for the same instant."
-            : ReviewTarget.Text == "order-replies" ? messageCount == 1
+            : ReviewTargetKind.Text == "Queue" ? messageCount == 1
                 ? "This message will be sent to the queue."
                 : $"{messageCount} messages will be sent to the queue."
                 : "Subscriptions receive messages according to their rules.";
@@ -258,6 +264,13 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
 
     private void Dispatch_Click(object sender, RoutedEventArgs e)
     {
+        if (destinationAvailable?.Invoke() == false)
+        {
+            ReviewError.Text = "Destination is unavailable or not verified. Return to preparation and refresh discovery.";
+            ReviewError.Visibility = Visibility.Visible;
+            ConfirmDispatch.IsEnabled = false;
+            return;
+        }
         dispatchScheduled = ReviewSchedule.IsChecked == true;
         if (dispatchScheduled && (!TryResolveSchedule(out DateTime utc) || utc <= DateTime.UtcNow))
         {
@@ -269,7 +282,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         SetSurface(ProgressSurface);
         ReviewFooter.Visibility = Visibility.Collapsed;
         ProgressHeading.Text = $"{(dispatchScheduled ? "Scheduling" : "Sending")} {messageCount} messages";
-        ProgressTarget.Text = $"Target: {ReviewProfile.Text} / localhost / {ReviewTarget.Text}";
+        ProgressTarget.Text = $"Target: {ReviewProfile.Text} / {ReviewEndpoint.Text} / {ReviewTarget.Text}";
         DispatchProgress.Maximum = messageCount;
         dispatchIndex = 0;
         results.Clear();
