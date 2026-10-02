@@ -2,6 +2,8 @@ using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation;
@@ -44,7 +46,7 @@ public sealed class MessageWorkbenchLayoutTests
 
     [Fact]
     [Trait("TestCategory", "UiRender")]
-    public void Review_summary_fits_short_details_and_scrolls_a_thousand_message_ids()
+    public void Review_summary_keeps_target_read_only_and_message_count_bounded_for_large_batches()
     {
         RunOnSta((dispatcher, view, _) =>
         {
@@ -53,23 +55,23 @@ public sealed class MessageWorkbenchLayoutTests
             WaitForLayout(dispatcher);
 
             var review = Assert.IsType<MessageLibraryPrototypeReviewSurface>(ByName<ContentControl>(view, "ReviewHost").Content);
-            var ids = ByName<TextBlock>(review, "ReviewMessageIds");
             var details = ByName<TextBlock>(review, "ReviewPropertyDetails");
-            var idsScroll = Descendants<ScrollViewer>(review).Single(scroll => ReferenceEquals(scroll.Content, ids));
             var detailsScroll = Descendants<ScrollViewer>(review).Single(scroll => ReferenceEquals(scroll.Content, details));
-            Assert.True(idsScroll.ScrollableHeight <= 1, "Three message IDs should fit without a scrollbar.");
+            Assert.IsType<TextBlock>(review.FindName("ReviewProfile"));
+            Assert.IsType<TextBlock>(review.FindName("ReviewEndpoint"));
+            Assert.IsType<TextBlock>(review.FindName("ReviewTarget"));
+            Assert.DoesNotContain(Descendants<TextBox>(review), input => input.Name is "ReviewProfile" or "ReviewEndpoint" or "ReviewTarget");
+            Assert.Null(review.FindName("ReviewMessageIds"));
             Assert.True(detailsScroll.ScrollableHeight <= 1,
                 $"Default properties should fit without a scrollbar: extent={detailsScroll.ExtentHeight}, viewport={detailsScroll.ViewportHeight}, scrollable={detailsScroll.ScrollableHeight}, details={details.Text}.");
 
             review.Configure("Local emulator", "order-events", 1000);
             WaitForLayout(dispatcher);
-            Assert.True(idsScroll.ScrollableHeight > 0, "A thousand message IDs should scroll inside the summary.");
-            Assert.True(idsScroll.ActualHeight <= 161, "The message ID list must remain bounded.");
-            idsScroll.ScrollToEnd();
-            WaitForLayout(dispatcher);
-            Assert.True(idsScroll.VerticalOffset > 0, "The large ID list should actually scroll.");
+            Assert.Equal("1000 valid messages", ByName<TextBlock>(review, "ReviewMessageCount").Text);
+            Assert.Null(review.FindName("ReviewMessageIds"));
+            Assert.DoesNotContain(Descendants<TextBlock>(review), text => text.Text.Contains("message-", StringComparison.Ordinal));
 
-            review.SetReviewProperties("ignored", "inherit entity default",
+            review.SetReviewProperties("inherit entity default",
                 string.Join("\n", Enumerable.Repeat("Application property: a long value to review", 30)));
             WaitForLayout(dispatcher);
             Assert.True(detailsScroll.ScrollableHeight > 0, "Long properties should scroll inside the summary.");
@@ -109,31 +111,99 @@ public sealed class MessageWorkbenchLayoutTests
     [InlineData(1332, 843)]
     [InlineData(725, 564)]
     [Trait("TestCategory", "UiRender")]
-    public void Workbench_footer_dividers_align_across_saved_templates_prepare_and_review(int width, int height)
+    public void Library_tree_toolbar_actions_fit_in_the_tree_pane_at_supported_widths(int width, int height)
     {
         RunOnSta((dispatcher, view, _) =>
         {
-            var root = ByName<Grid>(view, "WorkbenchRoot");
-            var savedFooter = NearestBorder(ByAutomationId<Button>(view, "LibraryAddFolder"));
-            ByName<Button>(view, "ContinueToPrepareButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             WaitForLayout(dispatcher);
-            var prepareFooter = NearestBorder(ByName<Button>(view, "BackToComposeButton"));
-            double savedTop = Bounds(savedFooter, root).Top;
-            Assert.True(Math.Abs(savedTop - Bounds(prepareFooter, root).Top) <= 1,
-                $"Saved and Prepare footer lines differ: saved height={savedFooter.ActualHeight}, prepare height={prepareFooter.ActualHeight}, saved top={savedTop}, prepare top={Bounds(prepareFooter, root).Top}.");
+            var tree = ByName<TreeView>(view, "LibraryTree");
+            foreach (string id in new[] { "LibraryNew", "LibraryAddFolder", "LibraryCollapseAll" })
+            {
+                Button action = ByAutomationId<Button>(view, id);
+                Assert.True(action.IsVisible, $"{id} should remain visible at {width}x{height}.");
+                AssertFullyInside(action, view, id);
+            }
+            Assert.True(tree.ActualWidth > 0);
+        }, width, height);
+    }
 
-            ByName<Button>(view, "ReviewButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+    [Theory]
+    [InlineData(1332, 843)]
+    [InlineData(725, 564)]
+    [Trait("TestCategory", "UiRender")]
+    public void Long_tree_names_trim_inside_the_library_pane_at_supported_widths(int width, int height)
+    {
+        RunOnSta((dispatcher, view, _) =>
+        {
+            const string longName = "Long template name that must remain readable without widening the navigation pane 0123456789";
+            ByAutomationId<Button>(view, "LibraryRename").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            TextBox input = Descendants<TextBox>(view).Single(control =>
+                System.Windows.Automation.AutomationProperties.GetAutomationId(control) == "LibraryRenameInput" && control.IsVisible);
+            input.Text = longName;
+            var enter = new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(input)!, 0, Key.Enter)
+            { RoutedEvent = Keyboard.KeyDownEvent };
+            input.RaiseEvent(enter);
             WaitForLayout(dispatcher);
-            var review = Assert.IsType<MessageLibraryPrototypeReviewSurface>(ByName<ContentControl>(view, "ReviewHost").Content);
-            var reviewFooter = ByName<Border>(review, "ReviewFooter");
-            var notice = ByName<TextBlock>(review, "ReviewNotice");
-            double reviewTop = Bounds(reviewFooter, root).Top;
-            Assert.InRange(Math.Abs(savedTop - reviewTop), 0, 1);
-            Assert.True(Bounds(notice, root).Bottom <= reviewTop,
-                "The review notice should sit above the aligned action footer.");
-            review.ShowResults();
+
+            TreeView tree = ByName<TreeView>(view, "LibraryTree");
+            TreeViewItem item = TreeItems(tree).Single(control => Equals(control.Tag, "template:" + longName));
+            TextBlock label = Descendants<TextBlock>(item).Single(control => control.Text == longName);
+            Assert.Equal(TextTrimming.CharacterEllipsis, label.TextTrimming);
+            AssertFullyInside(label, tree, "long template name");
+        }, width, height);
+    }
+
+    [Theory]
+    [InlineData(1332, 843)]
+    [InlineData(725, 564)]
+    [Trait("TestCategory", "UiRender")]
+    public void Property_and_variable_tables_keep_long_values_and_compact_column_widths(int width, int height)
+    {
+        RunOnSta((dispatcher, view, _) =>
+        {
+            Button propertiesTab = ByName<Button>(view, "EditorPropertiesTab");
+            propertiesTab.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             WaitForLayout(dispatcher);
-            Assert.False(notice.IsVisible, "The review-only notice should disappear on results.");
+            DataGrid properties = ByName<DataGrid>(view, "ApplicationPropertiesGrid");
+            object property = properties.Items[0];
+            string longName = new string('N', 64);
+            string longValue = new string('V', 120);
+            property.GetType().GetProperty("Name")!.SetValue(property, longName);
+            property.GetType().GetProperty("Value")!.SetValue(property, longValue);
+            properties.Items.Refresh();
+            WaitForLayout(dispatcher);
+
+            Assert.Equal(DataGridLengthUnitType.Auto, properties.Columns[0].Width.UnitType);
+            Assert.InRange(properties.Columns[0].MaxWidth, 1, 200);
+            Assert.True(properties.Columns[1].Width.IsAuto);
+            Assert.InRange(properties.Columns[1].ActualWidth, 80, 120);
+            Assert.Equal(DataGridLengthUnitType.Star, properties.Columns[2].Width.UnitType);
+            Assert.Contains(Descendants<TextBlock>(properties), text => text.Text == longName && Equals(text.ToolTip, longName));
+            Assert.Contains(Descendants<TextBlock>(properties), text => text.Text == longValue && Equals(text.ToolTip, longValue));
+            Assert.InRange(properties.Columns[0].ActualWidth, 1, 200);
+
+            ByName<Button>(view, "EditorVariablesTab").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            WaitForLayout(dispatcher);
+            DataGrid variables = ByName<DataGrid>(view, "VariablesGrid");
+            Assert.Equal(DataGridLengthUnitType.Auto, variables.Columns[0].Width.UnitType);
+            Assert.InRange(variables.Columns[0].MaxWidth, 1, 200);
+            Assert.True(variables.Columns[1].Width.IsAuto);
+            Assert.InRange(variables.Columns[1].ActualWidth, 65, 100);
+            Assert.True(variables.Columns[2].Width.IsAuto);
+            Assert.InRange(variables.Columns[2].ActualWidth, 85, 140);
+            Assert.Equal(DataGridLengthUnitType.Star, variables.Columns[3].Width.UnitType);
+            Assert.InRange(variables.Columns[0].ActualWidth, 1, 200);
+            Assert.InRange(variables.ActualHeight, 1, 240);
+            object generated = variables.Items.Cast<object>().Single(item =>
+                item.GetType().GetProperty("Name")?.GetValue(item)?.ToString() == "EventId");
+            variables.SelectedItem = generated;
+            WaitForLayout(dispatcher);
+            FrameworkElement detail = ByName<FrameworkElement>(view, "VariableDefaultEditor");
+            Assert.Equal(Visibility.Visible, detail.Visibility);
+            Rect gridBounds = Bounds(variables, view);
+            Rect detailBounds = Bounds(detail, view);
+            Assert.True(detailBounds.Top >= gridBounds.Bottom && detailBounds.Top - gridBounds.Bottom <= 24,
+                $"Variable details should follow the compact table without a blank stretch: grid={gridBounds}, details={detailBounds}.");
         }, width, height);
     }
 
@@ -198,24 +268,20 @@ public sealed class MessageWorkbenchLayoutTests
             ScrollViewer propertiesSurface = ByName<ScrollViewer>(view, "PropertiesEditorSurface");
             Assert.Equal(Visibility.Visible, propertiesSurface.Visibility);
 
-            AssertAlignedRow(view, propertiesSurface, "Subject", ByName<TextBox>(view, "PropertySubject"));
-            AssertAlignedRow(view, propertiesSurface, "Content type", ByName<ComboBox>(view, "PropertyContentType"));
-            AssertAlignedRow(view, propertiesSurface, "Correlation ID", ByName<TextBox>(view, "PropertyCorrelationId"));
-            AssertAlignedRow(view, propertiesSurface, "Session ID", ByName<TextBox>(view, "PropertySessionId"));
+            AssertLabelAboveValue(propertiesSurface, "Subject", ByName<TextBox>(view, "PropertySubject"));
+            AssertLabelAboveValue(propertiesSurface, "Content type", ByName<ComboBox>(view, "PropertyContentType"));
+            AssertLabelAboveValue(propertiesSurface, "Correlation ID", ByName<TextBox>(view, "PropertyCorrelationId"));
+            AssertLabelAboveValue(propertiesSurface, "Session ID", ByName<TextBox>(view, "PropertySessionId"));
 
             DataGrid applicationProperties = ByName<DataGrid>(view, "ApplicationPropertiesGrid");
-            Panel associations = ByName<Panel>(view, "AssociationChips");
-            Button addAssociation = Descendants<Button>(propertiesSurface)
-                .Single(button => string.Equals(button.Content?.ToString(), "+ Add association", StringComparison.Ordinal));
+            ComboBox destination = ByName<ComboBox>(view, "TemplateDestination");
 
-            Assert.Equal(3, applicationProperties.Items.Count);
-            Assert.NotEmpty(associations.Children);
+            Assert.Equal(3, applicationProperties.Items.Cast<object>().Count(item =>
+                !ReferenceEquals(item, CollectionView.NewItemPlaceholder)));
+            Assert.Equal("order-events", destination.SelectedValue);
             Assert.True(propertiesSurface.ViewportHeight > 0);
             AssertFullyInside(applicationProperties, propertiesSurface, "application properties");
-            AssertFullyInside(associations, propertiesSurface, "topic associations");
-            AssertFullyInside(addAssociation, propertiesSurface, "add association action");
-            foreach (Button action in Descendants<Button>(associations))
-                AssertFullyInside(action, associations, "association " + action.Content);
+            AssertFullyInside(destination, propertiesSurface, "template destination");
 
             RadioButton customMessageId = ByName<RadioButton>(view, "CustomMessageId");
             RadioButton specifyTtl = ByName<RadioButton>(view, "SpecifyTtl");
@@ -338,6 +404,20 @@ public sealed class MessageWorkbenchLayoutTests
         AssertFullyInside(value, surface, labelText + " value");
     }
 
+    private static void AssertLabelAboveValue(FrameworkElement surface, string labelText, FrameworkElement value)
+    {
+        TextBlock label = VisibleLabel(surface, labelText);
+        Visual ancestor = FindCommonAncestor(label, value);
+        Rect labelBounds = Bounds(label, ancestor);
+        Rect valueBounds = Bounds(value, ancestor);
+        Assert.InRange(Math.Abs(labelBounds.Left - valueBounds.Left), 0, 8);
+        Assert.True(valueBounds.Top >= labelBounds.Bottom,
+            $"{labelText} value should appear below its label: label={labelBounds}, value={valueBounds}.");
+        Assert.True(valueBounds.Top - labelBounds.Bottom <= 16,
+            $"{labelText} value should remain close to its label: label={labelBounds}, value={valueBounds}.");
+        AssertFullyInside(value, surface, labelText + " value");
+    }
+
     private static void AssertAlignedRow(TextBlock label, FrameworkElement value, string name)
     {
         Visual ancestor = FindCommonAncestor(label, value);
@@ -378,16 +458,20 @@ public sealed class MessageWorkbenchLayoutTests
         }
     }
 
+    private static IEnumerable<TreeViewItem> TreeItems(TreeView tree) =>
+        TreeDescendants(tree.Items.OfType<TreeViewItem>());
+
+    private static IEnumerable<TreeViewItem> TreeDescendants(IEnumerable<TreeViewItem> roots)
+    {
+        foreach (TreeViewItem root in roots)
+        {
+            yield return root;
+            foreach (TreeViewItem child in root.Items.OfType<TreeViewItem>())
+                foreach (TreeViewItem descendant in TreeDescendants([child])) yield return descendant;
+        }
+    }
     private static Rect Bounds(FrameworkElement element, Visual ancestor) =>
         element.TransformToAncestor(ancestor).TransformBounds(new Rect(element.RenderSize));
-
-    private static Border NearestBorder(Visual element)
-    {
-        for (Visual? current = VisualTreeHelper.GetParent(element) as Visual; current is not null;
-             current = VisualTreeHelper.GetParent(current) as Visual)
-            if (current is Border border) return border;
-        throw new Xunit.Sdk.XunitException("Button has no containing footer border.");
-    }
 
     private static Visual FindCommonAncestor(Visual first, Visual second)
     {

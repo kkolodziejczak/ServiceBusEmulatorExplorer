@@ -60,6 +60,7 @@ public partial class InvestigationWindow
             await workspace.DisposeAsync();
             workspace.PropertyChanged -= WorkspaceChanged;
             workspace.Surface.PropertyChanged -= SurfaceChanged;
+            workspace.Browse.PropertyChanged -= WorkbenchDiscoveryChanged;
             workspace.Inspector.PropertyChanged -= InspectorChanged;
             workspace.Activity.CollectionChanged -= ActivityChanged;
             workspace.Watch.PendingArrivals.CollectionChanged -= WatchArrivalsChanged;

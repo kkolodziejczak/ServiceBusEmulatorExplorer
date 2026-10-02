@@ -16,6 +16,7 @@ public sealed class MessageWorkbenchVariableResolutionTests
     public void Invalid_variable_name_stays_in_the_prompt_until_corrected()
         => Run((window, view) =>
         {
+            Button addVariable = PrepareAddVariableButton(window, view);
             Exception? dialogFailure = null;
             window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
             {
@@ -34,9 +35,7 @@ public sealed class MessageWorkbenchVariableResolutionTests
                 }
                 catch (Exception exception) { dialogFailure = exception; dialog.Close(); }
             }));
-            Get<Button>(view, "EditorVariablesTab").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Descendants(view).OfType<Button>().Single(button => Equals(button.Content, "Add variable"))
-                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            addVariable.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Drain(window);
             if (dialogFailure is not null) ExceptionDispatchInfo.Capture(dialogFailure).Throw();
             Assert.Equal("Order_ID default", Get<TextBlock>(view, "SelectedVariableName").Text);
@@ -86,8 +85,37 @@ public sealed class MessageWorkbenchVariableResolutionTests
             Assert.True(Get<Button>(view, "ReviewButton").IsEnabled);
         });
 
+    [Fact]
+    public void Generated_variable_keeps_its_detail_row_visible_and_does_not_erase_input_defaults()
+        => Run((window, view) =>
+        {
+            Get<Button>(view, "EditorVariablesTab").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            DataGrid grid = Get<DataGrid>(view, "VariablesGrid");
+            CheckBox useDefault = Get<CheckBox>(view, "UseVariableDefault");
+            TextBox defaultValue = Get<TextBox>(view, "VariableDefaultValue");
+            grid.SelectedItem = grid.Items.Cast<object>().Single(item => ReadProperty(item, "Name") == "CustomerId");
+            useDefault.IsChecked = true;
+            defaultValue.Text = "C-DEFAULT";
+
+            grid.SelectedItem = grid.Items.Cast<object>().Single(item => ReadProperty(item, "Name") == "EventId");
+            Drain(window);
+            Assert.Equal(Visibility.Visible, Get<FrameworkElement>(view, "VariableDefaultEditor").Visibility);
+            Assert.False(useDefault.IsEnabled);
+            Assert.False(defaultValue.IsEnabled);
+            Assert.Contains(Descendants(view).OfType<TextBlock>(), block => block.IsVisible
+                && block.Text.StartsWith("Generated automatically", StringComparison.Ordinal));
+
+            grid.SelectedItem = grid.Items.Cast<object>().Single(item => ReadProperty(item, "Name") == "CustomerId");
+            Drain(window);
+            Assert.True(useDefault.IsEnabled);
+            Assert.True(useDefault.IsChecked);
+            Assert.True(defaultValue.IsEnabled);
+            Assert.Equal("C-DEFAULT", defaultValue.Text);
+        });
+
     private static void AddVariable(Window window, MessageLibraryPrototypeView view, string name)
     {
+        Button addVariable = PrepareAddVariableButton(window, view);
         Exception? dialogFailure = null;
         window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
         {
@@ -104,12 +132,21 @@ public sealed class MessageWorkbenchVariableResolutionTests
             }
             catch (Exception exception) { dialogFailure = exception; dialog.Close(); }
         }));
-        Get<Button>(view, "EditorVariablesTab").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        Descendants(view).OfType<Button>().Single(button => Equals(button.Content, "Add variable"))
-            .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        addVariable.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Drain(window);
         if (dialogFailure is not null) ExceptionDispatchInfo.Capture(dialogFailure).Throw();
         Assert.Equal(name, Get<TextBlock>(view, "SelectedVariableName").Text.Replace(" default", ""));
+    }
+
+    private static Button PrepareAddVariableButton(Window window, MessageLibraryPrototypeView view)
+    {
+        Get<Button>(view, "EditorVariablesTab").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Drain(window);
+        Get<ScrollViewer>(view, "VariablesEditorSurface").ScrollToEnd();
+        Drain(window);
+        Button addVariable = Descendants(view).OfType<Button>().Single(button => Equals(button.Content, "Add variable"));
+        Assert.True(addVariable.IsVisible);
+        return addVariable;
     }
 
     private static void SetPropertyValue(MessageLibraryPrototypeView view, string name, string value)
@@ -119,6 +156,9 @@ public sealed class MessageWorkbenchVariableResolutionTests
             candidate.GetType().GetProperty("Name")?.GetValue(candidate)?.ToString() == name);
         item.GetType().GetProperty("Value")!.SetValue(item, value);
     }
+
+    private static string ReadProperty(object item, string name) =>
+        item.GetType().GetProperty(name)?.GetValue(item)?.ToString() ?? "";
 
     private static void Run(Action<Window, MessageLibraryPrototypeView> proof)
     {

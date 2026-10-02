@@ -4,11 +4,15 @@ using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
-public enum PrototypeDialogMode { SampleCsv, Mapping, Capture, Validation, Conflict, DraftGuard, Destination, Review, Results }
-public enum PrototypeDraftChoice { Cancel, Save, Discard, Reload, SaveAs, KeepEditing }
+public enum PrototypeDialogMode { SampleCsv, Mapping, Capture, Validation, DraftGuard, Review, Results, CancellationConfirmation }
+public enum PrototypeDraftChoice { Cancel, Save, Discard }
 public sealed record PrototypeRunSnapshot(string Profile, string Target, bool Scheduled,
     IReadOnlyList<(int Row, string MessageId, string Outcome, string Details)> Results,
-    IReadOnlyList<(int Row, string Receipt, string Payload, string Outcome, string DueTime, bool Selected, string CancellationStatus, string AttemptTime)> ScheduledResults);
+    IReadOnlyList<(int Row, string Receipt, string Payload, string Outcome, string DueTime, bool Selected, string CancellationStatus, string AttemptTime)> ScheduledResults)
+{
+    public IReadOnlyList<PrototypeCancellationAttempt> CancellationAttempts { get; init; } = [];
+}
+public sealed record PrototypeCancellationAttempt(int Row, string Receipt, string Payload, string Outcome, DateTimeOffset RequestedAtUtc);
 public sealed record PrototypeCaptureProperties(string? Subject, string? ContentType, string? CorrelationId,
     string? SessionId, int? TtlMinutes, IReadOnlyDictionary<string, object?> ApplicationProperties);
 
@@ -19,6 +23,8 @@ public partial class MessageLibraryPrototypeDialog : Window
     private string originalCaptureBody = "{\n  \"customerId\": \"C1001\",\n  \"amount\": 149.90\n}";
     private string editedCaptureBody = "{\n  \"customerId\": \"C1001\",\n  \"amount\": 149.90\n}";
     private ExplorerMessage? capturedMessage;
+    private string captureTopic = "order-events";
+    public EntityKind CaptureDestinationKind { get; private set; } = EntityKind.Topic;
 
     public MessageLibraryPrototypeDialog(PrototypeDialogMode mode, string profile, string target, int count)
     {
@@ -33,18 +39,22 @@ public partial class MessageLibraryPrototypeDialog : Window
         SampleCsvSurface.Visibility = mode == PrototypeDialogMode.SampleCsv ? Visibility.Visible : Visibility.Collapsed;
         MappingSurface.Visibility = mode == PrototypeDialogMode.Mapping ? Visibility.Visible : Visibility.Collapsed;
         CaptureSurface.Visibility = mode == PrototypeDialogMode.Capture ? Visibility.Visible : Visibility.Collapsed;
+        CaptureFooter.Visibility = CaptureSurface.Visibility;
         ValidationSurface.Visibility = mode == PrototypeDialogMode.Validation ? Visibility.Visible : Visibility.Collapsed;
-        ConflictSurface.Visibility = mode == PrototypeDialogMode.Conflict ? Visibility.Visible : Visibility.Collapsed;
         DraftGuardSurface.Visibility = mode == PrototypeDialogMode.DraftGuard ? Visibility.Visible : Visibility.Collapsed;
-        DestinationSurface.Visibility = mode == PrototypeDialogMode.Destination ? Visibility.Visible : Visibility.Collapsed;
-        DestinationProfile.Text = profile;
+        CancellationConfirmationSurface.Visibility = mode == PrototypeDialogMode.CancellationConfirmation ? Visibility.Visible : Visibility.Collapsed;
         ReviewSurfaceControl.Configure(profile, target, count);
         ReviewSurfaceControl.SetPreparedMessages(CreateSamplePreparedMessages(count));
         if (mode == PrototypeDialogMode.Review)
             ReviewSurfaceControl.ShowReview();
         else if (mode == PrototypeDialogMode.Results)
             ReviewSurfaceControl.ShowResults();
-        if (mode == PrototypeDialogMode.SampleCsv)
+        if (mode == PrototypeDialogMode.CancellationConfirmation)
+        {
+            Title = "Confirm cancellation";
+            Height = 540;
+        }
+        else if (mode == PrototypeDialogMode.SampleCsv)
         {
             Title = "Choose sample CSV";
             Height = 300;
@@ -56,8 +66,14 @@ public partial class MessageLibraryPrototypeDialog : Window
         }
         else if (mode == PrototypeDialogMode.Capture)
         {
-            Title = "Save as template";
-            Height = 925;
+            Title = "Create template";
+            Width = 480;
+            MinWidth = 360;
+            MinHeight = 0;
+            SizeToContent = SizeToContent.Height;
+            captureTopic = target;
+            CaptureDestinationKind = target == "order-replies" ? EntityKind.Queue : EntityKind.Topic;
+            CaptureAssociation.Text = $"{target} ({CaptureDestinationKind})";
             MaxHeight = Math.Max(500, SystemParameters.WorkArea.Height - 30);
             CapturePreview.Text = originalCaptureBody;
         }
@@ -66,21 +82,13 @@ public partial class MessageLibraryPrototypeDialog : Window
             Title = "CSV validation results";
             Height = 520;
         }
-        else if (mode == PrototypeDialogMode.Conflict)
-        {
-            Title = "File conflict";
-            Height = 425;
-        }
+
         else if (mode == PrototypeDialogMode.DraftGuard)
         {
             Title = "Save changes?";
             Height = 245;
         }
-        else if (mode == PrototypeDialogMode.Destination)
-        {
-            Title = "Choose destination";
-            Height = 350;
-        }
+
         else if (mode == PrototypeDialogMode.Results)
         {
             Title = "Run results";
@@ -94,6 +102,15 @@ public partial class MessageLibraryPrototypeDialog : Window
     }
 
     public string SampleFile { get; set; } = "orders.csv";
+    public bool CancellationConfirmed { get; private set; }
+
+    public void ConfigureCancellationConfirmation(string summary) => CancellationConfirmationSummary.Text = summary;
+
+    private void ConfirmCancellation_Click(object sender, RoutedEventArgs e)
+    {
+        CancellationConfirmed = true;
+        DialogResult = true;
+    }
     public string SelectedSampleCsv => (string)((ComboBoxItem)SampleCsvPicker.SelectedItem).Tag;
     public string? CustomerDeclaredDefault { get; set; }
     public string? AmountDeclaredDefault { get; set; }
@@ -105,7 +122,7 @@ public partial class MessageLibraryPrototypeDialog : Window
     public PrototypeDraftChoice DraftChoice { get; private set; } = PrototypeDraftChoice.Cancel;
     public string CaptureTemplateName => CaptureName.Text.Trim();
     public string CaptureTemplateBody => CaptureEdited.IsChecked == true ? editedCaptureBody : originalCaptureBody;
-    public string CaptureTopic => (CaptureAssociation.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? string.Empty;
+    public string CaptureTopic => captureTopic;
     public string CaptureCollectionName => ((ComboBoxItem)CaptureCollection.SelectedItem).Tag?.ToString()
         ?? ((ComboBoxItem)CaptureCollection.SelectedItem).Content.ToString()!.Split('/').Last();
     public PrototypeCaptureProperties? CaptureProperties => capturedMessage is { } message
@@ -118,15 +135,13 @@ public partial class MessageLibraryPrototypeDialog : Window
     public void SetCaptureCollections(IEnumerable<string> collections, string? selected)
     {
         CaptureCollection.Items.Clear();
+        CaptureCollection.Items.Add(new ComboBoxItem { Content = "Root", Tag = "" });
         foreach (string name in collections.Where(name => !string.IsNullOrWhiteSpace(name)).Distinct(StringComparer.OrdinalIgnoreCase))
-            CaptureCollection.Items.Add(new ComboBoxItem { Content = $"Team messages/{name}", Tag = name });
-        if (CaptureCollection.Items.Count == 0)
-            CaptureCollection.Items.Add(new ComboBoxItem { Content = "Team messages/Orders", Tag = "Orders" });
+            CaptureCollection.Items.Add(new ComboBoxItem { Content = name, Tag = name });
         CaptureCollection.SelectedItem = CaptureCollection.Items.OfType<ComboBoxItem>()
             .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), selected, StringComparison.OrdinalIgnoreCase))
             ?? CaptureCollection.Items[0];
     }
-    public string ChosenDestination => (string)((ComboBoxItem)DestinationPicker.SelectedItem).Tag;
     public event Action<string>? ViewDestinationRequested;
     public event Action? EditMappingRequested;
     public event Action? ValidateAgainRequested;
@@ -138,21 +153,6 @@ public partial class MessageLibraryPrototypeDialog : Window
             ? element
             : base.FindName(name);
 
-    private void ApplyDestination_Click(object sender, RoutedEventArgs e) => DialogResult = true;
-
-    public void ConfigureAssociationPicker(string? current, bool editing)
-    {
-        Title = editing ? "Edit association" : "Add association";
-        DestinationHeading.Text = editing ? "Edit association" : "Add association";
-        DestinationDescription.Text = editing
-            ? "Choose the dummy queue or topic for this association."
-            : "Choose a dummy queue or topic to associate with this template.";
-        ApplyDestinationButton.Content = editing ? "Save association" : "Add association";
-        DestinationPicker.SelectedItem = DestinationPicker.Items.OfType<ComboBoxItem>()
-            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), current,
-                StringComparison.OrdinalIgnoreCase))
-            ?? DestinationPicker.Items.OfType<ComboBoxItem>().FirstOrDefault();
-    }
     private void UseSampleCsv_Click(object sender, RoutedEventArgs e) => DialogResult = true;
 
     public PrototypeRunSnapshot? CaptureRun() => ReviewSurfaceControl.CaptureRun();
@@ -174,9 +174,9 @@ public partial class MessageLibraryPrototypeDialog : Window
         ValidationBanner.BorderBrush = (System.Windows.Media.Brush)FindResource(invalid == 0 ? "ControlBorderBrush" : "DestructiveBrush");
     }
 
-    public void SetReviewProperties(string messageIds, string ttl, string details)
+    public void SetReviewProperties(string ttl, string details)
     {
-        ReviewSurfaceControl.SetReviewProperties(messageIds, ttl, details);
+        ReviewSurfaceControl.SetReviewProperties(ttl, details);
     }
 
     public void SetPreparedMessages(IReadOnlyList<PrototypePreparedMessage> messages)
@@ -196,11 +196,6 @@ public partial class MessageLibraryPrototypeDialog : Window
 
     private sealed record ValidationRow(int Row, string CustomerId, string Status);
 
-    public void SetConflictVersions(string savedFingerprint, string draftFingerprint)
-    {
-        ConflictSavedFingerprint.Text = $"Saved fingerprint: {savedFingerprint}";
-        ConflictDraftFingerprint.Text = $"Draft fingerprint: {draftFingerprint}";
-    }
 
     private void EditMapping_Click(object sender, RoutedEventArgs e)
     {
@@ -215,31 +210,19 @@ public partial class MessageLibraryPrototypeDialog : Window
     }
 
     public void SetCaptureSource(string source, string originalBody, string editedBody, string topic,
-        ExplorerMessage? message = null)
+        ExplorerMessage? message = null, EntityKind destinationKind = EntityKind.Topic)
     {
         capturedMessage = message;
         CaptureSource.Text = source;
         originalCaptureBody = originalBody;
         editedCaptureBody = editedBody;
-        var association = CaptureAssociation.Items.OfType<ComboBoxItem>()
-            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), topic,
-                StringComparison.OrdinalIgnoreCase));
-        if (association is null && message is not null && !string.IsNullOrWhiteSpace(topic))
-        {
-            association = new ComboBoxItem { Content = $"{topic} (Source)", Tag = topic };
-            CaptureAssociation.Items.Add(association);
-        }
-        CaptureAssociation.SelectedItem = association ?? CaptureAssociation.Items.OfType<ComboBoxItem>().FirstOrDefault();
+        captureTopic = topic;
+        CaptureDestinationKind = destinationKind;
+        CaptureAssociation.Text = $"{topic} ({destinationKind})";
         CaptureEdited.IsEnabled = editedBody != originalBody;
         CapturePreview.Text = originalBody;
         if (message is not null)
         {
-            string excluded = string.Join(", ", message.SystemProperties.Keys.OrderBy(value => value));
-            CaptureExclusions.Text = $"Observed Message ID ({message.MessageId}) becomes Generate new. " +
-                $"Sequence number ({message.SequenceNumber}) and delivery count ({message.DeliveryCount}) are excluded. " +
-                (excluded.Length == 0 ? "No other system properties were observed. " :
-                    $"System properties excluded: {excluded}. ") +
-                "Subject, content type, correlation/session IDs and application properties are copied. Source message is unchanged.";
             CaptureCopyTtl.IsEnabled = message.ExpiresAt is not null && message.EnqueuedTime is not null;
         }
     }
@@ -252,15 +235,9 @@ public partial class MessageLibraryPrototypeDialog : Window
 
     private void OpenDraft_Click(object sender, RoutedEventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(CaptureName.Text) || string.IsNullOrWhiteSpace(CaptureFileName.Text))
+        if (string.IsNullOrWhiteSpace(CaptureName.Text))
         {
-            CaptureError.Text = "Enter a template name and filename.";
-            CaptureError.Visibility = Visibility.Visible;
-            return;
-        }
-        if (capturedMessage is not null && CaptureAcknowledge.IsChecked != true)
-        {
-            CaptureError.Text = "Review and acknowledge the copied and excluded properties.";
+            CaptureError.Text = "Enter a template name.";
             CaptureError.Visibility = Visibility.Visible;
             return;
         }
@@ -269,9 +246,6 @@ public partial class MessageLibraryPrototypeDialog : Window
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
-    private void ConflictReload_Click(object sender, RoutedEventArgs e) => CompleteDraftChoice(PrototypeDraftChoice.Reload);
-    private void ConflictSaveAs_Click(object sender, RoutedEventArgs e) => CompleteDraftChoice(PrototypeDraftChoice.SaveAs);
-    private void ConflictKeep_Click(object sender, RoutedEventArgs e) => CompleteDraftChoice(PrototypeDraftChoice.KeepEditing);
     private void DraftSave_Click(object sender, RoutedEventArgs e) => CompleteDraftChoice(PrototypeDraftChoice.Save);
     private void DraftDiscard_Click(object sender, RoutedEventArgs e) => CompleteDraftChoice(PrototypeDraftChoice.Discard);
 
