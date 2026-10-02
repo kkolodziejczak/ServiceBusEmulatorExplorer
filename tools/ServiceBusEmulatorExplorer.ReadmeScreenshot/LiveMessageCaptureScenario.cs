@@ -236,11 +236,34 @@ internal static class LiveMessageCaptureScenario
                     $"The {modeName} capture preview must exactly preserve the original JSON body.");
                 Require(dialog.CaptureTopic == topicName && dialog.CaptureDestinationKind == EntityKind.Topic,
                     $"The captured {modeName} message must keep its originating topic destination.");
-                var exclusions = dialog.FindName("CaptureExclusions") as TextBlock
-                    ?? throw new InvalidOperationException("Capture dialog must summarize copied and regenerated message metadata.");
-                Require(exclusions.Text.Contains(fixture.MessageId, StringComparison.Ordinal)
-                    && exclusions.Text.Contains("Generate new", StringComparison.Ordinal),
-                    "The observed message ID must be shown as replaced by a newly generated ID.");
+                var messageIdPolicy = dialog.FindName("CaptureMessageIdPolicy") as TextBlock
+                    ?? throw new InvalidOperationException("Capture summary must state the generated message ID policy.");
+                Require(messageIdPolicy.Text.Contains("Generate new", StringComparison.Ordinal),
+                    "Captured templates must generate a new message ID.");
+                var copiedProperties = dialog.FindName("CaptureCopiedProperties") as Expander
+                    ?? throw new InvalidOperationException("Capture dialog must disclose the copied message properties.");
+                Require(!copiedProperties.IsExpanded, "The copied properties list must start collapsed.");
+                copiedProperties.IsExpanded = true;
+                dialog.UpdateLayout();
+                copiedProperties.UpdateLayout();
+                var copiedPropertyLabels = Descendants(copiedProperties).OfType<TextBlock>()
+                    .Select(text => text.Text)
+                    .ToArray();
+                Require(copiedPropertyLabels.Count(text => text is "Subject" or "Content type" or "Correlation ID"
+                        or "Session ID" or "Application properties" or "Time to live (TTL)") == 6,
+                    "The disclosure must show the six supported copied-property rows.");
+                Require(copiedPropertyLabels.Contains("Application properties", StringComparer.Ordinal)
+                    && copiedPropertyLabels.Contains("Supported types copied", StringComparer.Ordinal),
+                    "The disclosure must state that application properties are copied.");
+                TextBlock contentTypePolicy = Descendants(copiedProperties).OfType<TextBlock>()
+                    .Single(text => text.Text == "JSON or plain text");
+                TextBlock applicationPropertyPolicy = Descendants(copiedProperties).OfType<TextBlock>()
+                    .Single(text => text.Text == "Supported types copied");
+                Require(contentTypePolicy.ToolTip?.ToString()?.Contains(
+                        "other content types currently default to application/json", StringComparison.Ordinal) == true
+                    && applicationPropertyPolicy.ToolTip?.ToString()?.Contains(
+                        "Other values are converted to text in this prototype", StringComparison.Ordinal) == true,
+                    "The disclosure must state the actual content type and application property copy limits.");
                 string dialogPath = Path.Combine(outputDirectory, $"{modeName}-capture-dialog.png");
                 dialog.UpdateLayout();
                 var dialogContent = (FrameworkElement)dialog.Content;

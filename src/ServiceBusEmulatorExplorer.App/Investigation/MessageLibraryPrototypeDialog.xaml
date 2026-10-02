@@ -23,13 +23,27 @@
      <Expander x:Name="CaptureDetails" Header="Capture details" IsExpanded="False" Margin="0,0,0,14"><StackPanel Margin="0,10,0,0">
       <TextBlock x:Name="CaptureSource" TextWrapping="Wrap" Margin="0,0,0,10"/>
       <StackPanel Orientation="Horizontal" Margin="0,0,0,10"><RadioButton x:Name="CaptureOriginal" Content="Original body" IsChecked="True" GroupName="CaptureBody" Checked="CaptureBody_Checked" Margin="0,0,18,0"/><RadioButton x:Name="CaptureEdited" Content="Edited body" GroupName="CaptureBody" Checked="CaptureBody_Checked"/></StackPanel>
-      <TextBox x:Name="CapturePreview" Height="140" AcceptsReturn="True" TextWrapping="Wrap" IsReadOnly="True" FontFamily="Consolas" FontSize="13" Foreground="{DynamicResource EditorForegroundBrush}" Background="{DynamicResource EditorBackgroundBrush}" VerticalScrollBarVisibility="Auto" Margin="0,0,0,12"/>
+      <TextBox x:Name="CapturePreview" Height="100" AcceptsReturn="True" TextWrapping="Wrap" IsReadOnly="True" FontFamily="Consolas" FontSize="13" Foreground="{DynamicResource EditorForegroundBrush}" Background="{DynamicResource EditorBackgroundBrush}" VerticalScrollBarVisibility="Auto" Margin="0,0,0,12"/>
       <CheckBox x:Name="CaptureCopyTtl" Content="Copy observed TTL (if present)" Margin="0,0,0,12"/>
-      <TextBlock x:Name="CaptureExclusions" Text="Body and reusable properties are copied. A new message ID is generated; sequence, lock and delivery metadata are excluded." TextWrapping="Wrap"/>
+      <Border BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="3" Margin="0,0,0,12"><Grid x:Name="CaptureSummary" Margin="10,4">
+       <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+       <TextBlock Text="Copied" FontWeight="SemiBold" Margin="0,6,18,6"/><TextBlock Grid.Column="1" Text="Body and reusable properties" TextWrapping="Wrap" Margin="0,6"/>
+       <TextBlock Grid.Row="1" Text="Message ID" FontWeight="SemiBold" Margin="0,6,18,6"/><TextBlock x:Name="CaptureMessageIdPolicy" Grid.Row="1" Grid.Column="1" Text="Generate new" Margin="0,6"/>
+       <TextBlock Grid.Row="2" Text="Broker metadata" FontWeight="SemiBold" Margin="0,6,18,6"/><TextBlock Grid.Row="2" Grid.Column="1" Text="Not copied" Margin="0,6"/>
+      </Grid></Border>
+      <Expander x:Name="CaptureCopiedProperties" Header="Which properties are copied?" IsExpanded="False" AutomationProperties.AutomationId="CaptureCopiedProperties">
+       <UniformGrid Columns="2" Margin="8,8,0,0"><UniformGrid.Resources><Style TargetType="TextBlock"><Setter Property="Margin" Value="0,4,8,4"/><Setter Property="TextWrapping" Value="Wrap"/></Style></UniformGrid.Resources>
+        <TextBlock Text="Subject"/><TextBlock Text="Copied"/>
+        <TextBlock Text="Content type"/><TextBlock Text="JSON or plain text" ToolTip="This prototype captures text/plain; other content types currently default to application/json."/>
+        <TextBlock Text="Correlation ID"/><TextBlock Text="Copied"/>
+        <TextBlock Text="Session ID"/><TextBlock Text="Copied"/>
+        <TextBlock Text="Application properties"/><TextBlock Text="Supported types copied" ToolTip="String, boolean, integer, long, decimal, double, GUID and date/time values are supported. Other values are converted to text in this prototype."/>
+        <TextBlock Text="Time to live (TTL)"/><TextBlock Text="Only when selected above"/>
+       </UniformGrid>
+      </Expander>
      </StackPanel></Expander>
-     <TextBlock Text="The original message stays unchanged." Style="{StaticResource DialogCaption}" Margin="0,0,0,16"/>
      <TextBlock x:Name="CaptureError" Foreground="{DynamicResource DestructiveBrush}" Visibility="Collapsed" TextWrapping="Wrap" Margin="0,0,0,10"/>
-     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="Cancel" Click="Close_Click" IsCancel="True"/><Button Content="Create template" Click="OpenDraft_Click" IsDefault="True" Style="{StaticResource PrimaryButton}" AutomationProperties.AutomationId="PrototypeOpenDraft"/></StackPanel>
+
     </StackPanel>
     <StackPanel x:Name="ValidationSurface" Visibility="Collapsed"><TextBlock x:Name="ValidationHeading" Text="Validation errors" Style="{StaticResource DialogHeading}"/><Border x:Name="ValidationBanner" Background="{DynamicResource DestructiveHoverBrush}" BorderBrush="{DynamicResource DestructiveBrush}" BorderThickness="1" CornerRadius="3" Padding="12" Margin="0,0,0,16"><TextBlock x:Name="ValidationBannerText" Text="1 invalid row · Nothing can be sent" FontWeight="SemiBold" TextWrapping="Wrap"/></Border><DataGrid x:Name="ValidationGrid" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" RowHeight="36" MaxHeight="220" VerticalAlignment="Top" AutomationProperties.AutomationId="PrototypeValidationResults"><DataGrid.Columns><DataGridTextColumn Header="Row" Binding="{Binding Row}" Width="80" ElementStyle="{StaticResource CompactDataGridText}"/><DataGridTextColumn Header="CustomerId" Binding="{Binding CustomerId}" Width="Auto" MaxWidth="200" ElementStyle="{StaticResource CompactDataGridText}"/><DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*" ElementStyle="{StaticResource CompactDataGridText}"/></DataGrid.Columns></DataGrid><StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0"><Button Content="Close" Click="Close_Click"/><Button Content="Edit mapping" Click="EditMapping_Click"/><Button Content="Validate again" Click="ValidateAgain_Click" Style="{StaticResource PrimaryButton}"/></StackPanel><Border x:Name="ValidationWarning" Background="#FFF8EB" BorderBrush="#F3C166" BorderThickness="1" CornerRadius="3" Padding="12" Margin="0,18,0,0" Visibility="Collapsed"><TextBlock Text="Duplicate CSV header: CustomerId. Validation incomplete." TextWrapping="Wrap"/></Border></StackPanel>
     <StackPanel x:Name="DraftGuardSurface" Visibility="Collapsed"><TextBlock Text="Save changes?" Style="{StaticResource DialogHeading}"/><TextBlock x:Name="DraftGuardText" Text="You have unsaved changes to this template. What do you want to do?" TextWrapping="Wrap" Margin="0,0,0,22"/><StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="Save" Click="DraftSave_Click" Style="{StaticResource PrimaryButton}"/><Button Content="Discard" Click="DraftDiscard_Click"/><Button Content="Cancel" Click="Close_Click"/></StackPanel></StackPanel>
@@ -44,6 +58,7 @@
     </StackPanel>
    </Grid>
   </ScrollViewer>
+     <StackPanel x:Name="CaptureFooter" Grid.Row="1" Visibility="Collapsed" Margin="0,12,0,0" Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="Cancel" Click="Close_Click" IsCancel="True"/><Button Content="Create template" Click="OpenDraft_Click" IsDefault="True" Style="{StaticResource PrimaryButton}" AutomationProperties.AutomationId="PrototypeOpenDraft"/></StackPanel>
   <local:MessageLibraryPrototypeReviewSurface x:Name="ReviewSurfaceControl" Grid.RowSpan="2" Visibility="Collapsed"/>
   </Grid>
  </Border>

@@ -12,7 +12,6 @@ namespace ServiceBusEmulatorExplorer.App.Investigation;
 public partial class InvestigationWindow
 {
     private string inspectorMode = "JSON";
-    private int inspectorFindOffset;
     private bool inspectorSynchronizingSelection;
     private bool inspectorRendering;
     private string? inspectorRenderedText;
@@ -89,13 +88,6 @@ public partial class InvestigationWindow
         }
     }
 
-    private void Find_Click(object sender, RoutedEventArgs e)
-    {
-        FindPanel.Visibility = Visibility.Visible;
-        inspectorFindOffset = 0;
-        FindBox.Focus();
-    }
-
     private void Json_Checked(object sender, RoutedEventArgs e)
     {
         if (ready && !inspectorRendering) SetInspectorMode("JSON");
@@ -114,24 +106,6 @@ public partial class InvestigationWindow
     private void InspectorTab_Unchecked(object sender, RoutedEventArgs e)
     {
         if (ready && !inspectorRendering) UpdateInspector();
-    }
-
-    private void CloseFind_Click(object sender, RoutedEventArgs e)
-    {
-        FindPanel.Visibility = Visibility.Collapsed;
-        if (inspectorMode == "JSON") BodyEditor.Focus();
-        else BodyViewer.Focus();
-    }
-
-    private void FindNext_Click(object sender, RoutedEventArgs e) => FindNextInspectorMatch();
-
-    private void Find_KeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Enter)
-        {
-            FindNextInspectorMatch();
-            e.Handled = true;
-        }
     }
 
     private void BodyEditor_Changed(object? sender, EventArgs e)
@@ -180,7 +154,6 @@ public partial class InvestigationWindow
             || !string.Equals(inspectorRenderedMode, inspectorMode, StringComparison.Ordinal);
         if (inspectorContentChanged)
         {
-            inspectorFindOffset = 0;
             inspectorRenderedText = null;
         }
 
@@ -197,7 +170,7 @@ public partial class InvestigationWindow
         ApplyInspectorStateBadge(focused);
         if (!hasMessage)
         {
-            FindPanel.Visibility = Visibility.Collapsed;
+            CloseInspectorFind(restoreFocus: false);
         }
 
         inspectorRendering = true;
@@ -235,6 +208,7 @@ public partial class InvestigationWindow
         {
             inspectorRendering = false;
         }
+        RefreshInspectorFind();
         UpdateReplaySurface();
     }
 
@@ -343,74 +317,6 @@ public partial class InvestigationWindow
         if (position < text.Length)
         {
             paragraph.Inlines.Add(new Run(text[position..]));
-        }
-    }
-
-    private void FindNextInspectorMatch()
-    {
-        string query = FindBox.Text;
-        if (string.IsNullOrEmpty(query) || workspace.Inspector.Current is null)
-        {
-            return;
-        }
-
-        string full = inspectorMode == "JSON"
-            ? BodyEditor.Text
-            : new TextRange(BodyViewer.Document.ContentStart, BodyViewer.Document.ContentEnd).Text;
-        int startOffset = Math.Min(inspectorFindOffset, full.Length);
-        int index = full.IndexOf(query, startOffset, StringComparison.OrdinalIgnoreCase);
-        if (index < 0)
-        {
-            index = full.IndexOf(query, StringComparison.OrdinalIgnoreCase);
-        }
-
-        if (index < 0)
-        {
-            workspace.Log("No matches in the displayed message.");
-            return;
-        }
-
-        if (inspectorMode == "JSON")
-        {
-            BodyEditor.Select(index, query.Length);
-            BodyEditor.ScrollToLine(BodyEditor.Document.GetLineByOffset(index).LineNumber);
-            BodyEditor.Focus();
-        }
-        else
-        {
-            TextPointer start = TextPosition(index);
-            TextPointer end = TextPosition(index + query.Length);
-            BodyViewer.Selection.Select(start, end);
-            BodyViewer.Focus();
-            start.Paragraph?.BringIntoView();
-        }
-
-        inspectorFindOffset = index + query.Length;
-    }
-
-    private TextPointer TextPosition(int offset)
-    {
-        TextPointer pointer = BodyViewer.Document.ContentStart;
-        while (true)
-        {
-            if (pointer.GetPointerContext(LogicalDirection.Forward) == TextPointerContext.Text)
-            {
-                string run = pointer.GetTextInRun(LogicalDirection.Forward);
-                if (offset <= run.Length)
-                {
-                    return pointer.GetPositionAtOffset(offset) ?? BodyViewer.Document.ContentEnd;
-                }
-
-                offset -= run.Length;
-            }
-
-            TextPointer? next = pointer.GetNextContextPosition(LogicalDirection.Forward);
-            if (next is null)
-            {
-                return BodyViewer.Document.ContentEnd;
-            }
-
-            pointer = next;
         }
     }
 

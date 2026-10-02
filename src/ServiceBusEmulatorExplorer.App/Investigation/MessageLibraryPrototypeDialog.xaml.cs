@@ -39,6 +39,7 @@ public partial class MessageLibraryPrototypeDialog : Window
         SampleCsvSurface.Visibility = mode == PrototypeDialogMode.SampleCsv ? Visibility.Visible : Visibility.Collapsed;
         MappingSurface.Visibility = mode == PrototypeDialogMode.Mapping ? Visibility.Visible : Visibility.Collapsed;
         CaptureSurface.Visibility = mode == PrototypeDialogMode.Capture ? Visibility.Visible : Visibility.Collapsed;
+        CaptureFooter.Visibility = CaptureSurface.Visibility;
         ValidationSurface.Visibility = mode == PrototypeDialogMode.Validation ? Visibility.Visible : Visibility.Collapsed;
         DraftGuardSurface.Visibility = mode == PrototypeDialogMode.DraftGuard ? Visibility.Visible : Visibility.Collapsed;
         CancellationConfirmationSurface.Visibility = mode == PrototypeDialogMode.CancellationConfirmation ? Visibility.Visible : Visibility.Collapsed;
@@ -222,12 +223,6 @@ public partial class MessageLibraryPrototypeDialog : Window
         CapturePreview.Text = originalBody;
         if (message is not null)
         {
-            string excluded = string.Join(", ", message.SystemProperties.Keys.OrderBy(value => value));
-            CaptureExclusions.Text = $"Observed Message ID ({message.MessageId}) becomes Generate new. " +
-                $"Sequence number ({message.SequenceNumber}) and delivery count ({message.DeliveryCount}) are excluded. " +
-                (excluded.Length == 0 ? "No other system properties were observed. " :
-                    $"System properties excluded: {excluded}. ") +
-                "Subject, content type, correlation/session IDs and application properties are copied. Source message is unchanged.";
             CaptureCopyTtl.IsEnabled = message.ExpiresAt is not null && message.EnqueuedTime is not null;
         }
     }

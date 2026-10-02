@@ -1,5 +1,17 @@
 # Message Workbench — approved visual contract
 
+## Approved capture summary and inspector search (2026-10-02)
+
+The user approved the [revised capture summary](approved/15-capture-summary-expanded.png) together with the [inspector search proposal](approved/16-inspector-search.png), responding "1". The revised capture image supersedes the earlier capture pane; there is no search highlight in the capture preview and no original-message footer label. Existing Find related remains even though image generation omitted it from the inspector crop.
+
+- Capture details retain original/edited body selection and optional observed TTL. Replace the paragraph with three summary rows: copied body/reusable properties; generated Message ID; broker metadata not copied. The collapsed Which properties are copied disclosure lists Subject, Content type, Correlation ID, Session ID, Application properties and TTL only when selected. Review clarified two existing prototype limits: content type supports JSON/plain text (other values default to JSON), and unsupported application-property types convert to text. The disclosure labels/tooltips state those limits rather than claiming all values are preserved. This describes existing capture behavior; source messages remain untouched. Keep dialog actions reachable when details scroll.
+- Inspector Create template and Replay actions share 32-DIP height for Active/DLQ states. Remove the explicit Find button. Keep Find related.
+- Ctrl+F scoped to the inspector opens a dark search panel at the upper right and seeds the selected text. Show current/total matches, previous/next controls, and X. Enter/Shift+Enter navigate with wrapping; Escape closes and restores editor focus. Query editing retains focus and recalculates matches. Changes of message, displayed tab or body refresh stale results. No matches is an inline state, not a log entry.
+- Copy and the Modified badge stay beneath the search panel without overlap. Search is local to displayed JSON/Raw/Properties, independent of namespace search and capture dialogs. Preserve existing shared palette, syntax colors and compact/minimum layouts.
+
+
+Verification: final build passed with zero warnings; 11 focused inspector-search, capture-dialog and replay-render tests passed. The [real-window search proof](../../../tests/ServiceBusEmulatorExplorer.App.Tests/InvestigationInspectorSearchTests.cs) exercises selected-text Find, counts and wraparound, no matches, mode/message changes, Escape, consecutive DLQ body edits with Find open (caret retained), and equal action heights. Fresh captures in `artifacts/capture-search-proof` cover 1500x1000, 1100x800, 980x640, natural capture size, and 480/360-wide constrained dialogs with both disclosure scroll endpoints. Independent review and direct image inspection confirmed pinned capture actions and readable search/disclosure states. Routed WPF/command/render proof passed; physical Ctrl+F input, screen-reader output and multi-monitor/DPI proof remain unverified. Capture conversion limits are pre-existing and now stated by the UI; live broker capture was not rerun for this UI-only refinement.
+
 ## Approved destination selector and Prepare warning (2026-10-02)
 
 [Approved mockup](approved/14-destinations-and-prepare-warning.png). The user's response "1" approved implementation.
