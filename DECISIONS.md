@@ -42,6 +42,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-026 | accepted | Workbench scheduling | Content-sized date field with calendar-only selection |
 | DEC-027 | accepted | Namespace tree | Independent Watch count underlines and current-view refresh/pause indicators |
 | DEC-028 | accepted | Background refresh | Watched scopes refresh independently of selection using one shared interval |
+| DEC-029 | accepted | Date display | App-wide Windows default with five selectable formats |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -231,3 +232,10 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 - Decision: refresh watched topic/subscription message views in the background using one shared interval; retain visible indicators after changing selection or workspace.
 - Because: the user wants both arrival monitoring and refreshed message lists for watched locations while browsing elsewhere, and chose one shared interval.
 - Consequences: supersedes DEC-027's current-view-only refresh scope. Reuse its existing glyphs, underlines, colors and legend. Topic Watch expands to subscriptions and respects bucket choices/exclusions. Cache one page or previously loaded depth using non-consuming peeks, clear caches on disconnect/profile change, and retain last successful results on refresh failure. Pause/Off stop refresh but leave Watch notifications independent. The current un-watched Investigation view continues its existing automatic refresh behavior.
+
+## DEC-029 ? App-wide date display preference
+
+- Status: accepted ? 2026-10-03 ? Scope: displayed dates
+- Decision: Settings offers Follow Windows (default), yyyy-MM-dd, dd/MM/yyyy, MM/dd/yyyy and dd MMM yyyy; month names use the Windows language. Apply the choice throughout the app and remove the lingering date-text highlight after calendar selection.
+- Because: the user wants Windows conventions by default and alternatives for individual preferences.
+- Consequences: formatting never changes instants, UTC/Local selection, payload JSON or machine exports. See the [approved Settings proposal](specs/message-library/design/approved/26-date-format-settings.png) and [date-display contract](specs/date-display.md).

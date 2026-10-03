@@ -73,14 +73,14 @@ public sealed class MessageWorkbenchReviewTests
             SelectComboItem(hour, "23");
             SelectComboItem(minute, "59");
             Assert.True(confirm.IsEnabled);
-            Assert.Contains(futureDate.ToString("dd MMM yyyy 23:59", System.Globalization.CultureInfo.CurrentCulture), resolved.Text);
+            Assert.Contains(futureDate.ToString("d", System.Globalization.CultureInfo.CurrentCulture) + " 23:59", resolved.Text);
             Assert.Contains("UTC", resolved.Text);
 
             Select(local);
             DateTime localWallTime = DateTime.SpecifyKind(futureDate.AddHours(23).AddMinutes(59), DateTimeKind.Unspecified);
             DateTime localUtc = TimeZoneInfo.ConvertTimeToUtc(localWallTime, TimeZoneInfo.Local);
             Assert.True(confirm.IsEnabled);
-            Assert.Contains(localUtc.ToString("dd MMM yyyy HH:mm", System.Globalization.CultureInfo.CurrentCulture), resolved.Text);
+            Assert.Contains(localUtc.ToString("d", System.Globalization.CultureInfo.CurrentCulture) + " " + localUtc.ToString("HH:mm"), resolved.Text);
 
             Select(utc);
             date.SelectedDate = DateTime.Today.AddDays(-1);
@@ -178,7 +178,7 @@ public sealed class MessageWorkbenchReviewTests
             Assert.Equal(targetDate, date.SelectedDate?.Date);
             Assert.False(date.IsDropDownOpen);
             Assert.True(((Button)dialog.FindName("ConfirmDispatch")!).IsEnabled);
-            Assert.Contains(targetDate.ToString("dd MMM yyyy 14:30", System.Globalization.CultureInfo.CurrentCulture),
+            Assert.Contains(targetDate.ToString("d", System.Globalization.CultureInfo.CurrentCulture) + " 14:30",
                 ((TextBlock)dialog.FindName("ResolvedSchedule")!).Text);
 
             Invoke(openButton);

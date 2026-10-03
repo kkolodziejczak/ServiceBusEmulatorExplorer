@@ -53,7 +53,8 @@ public sealed partial class MessageBrowseWorkflow : ObservableObject
     public void SetPreferences(WorkspacePreferences value)
     {
         preferences = value;
-        foreach (var row in Messages) row.SetTimeDisplay(value.TimestampDisplay);
+        foreach (var row in Messages) row.SetTimeDisplay(value.TimestampDisplay, value.DateFormat);
+        foreach (var node in AllEntities()) node.SetDateFormat(value.DateFormat);
     }
 
     public void SetSession(BrokerSession? value, long connectionGeneration)
@@ -166,10 +167,13 @@ public sealed partial class MessageBrowseWorkflow : ObservableObject
         if (existingNodes.TryGetValue(address, out EntityNode? existing))
         {
             existing.UpdateObservation(observation);
+            existing.SetDateFormat(preferences.DateFormat);
             return existing;
         }
 
-        return new EntityNode(observation.Entity.Name, observation.Entity.Kind.ToString(), observation);
+        var node = new EntityNode(observation.Entity.Name, observation.Entity.Kind.ToString(), observation);
+        node.SetDateFormat(preferences.DateFormat);
+        return node;
     }
 
     private EntityNode ReuseGroup(string name)
@@ -222,7 +226,7 @@ public sealed partial class MessageBrowseWorkflow : ObservableObject
         MessageRow? observed = Messages.FirstOrDefault(row => row.Key == known.Key);
         if (observed is null)
         {
-            observed = new MessageRow(known.Delivery, preferences.TimestampDisplay);
+            observed = new MessageRow(known.Delivery, preferences.TimestampDisplay, preferences.DateFormat);
             observed.MarkRetainedAsUnobserved();
             AddRow(observed);
             NotifyScope();
@@ -259,7 +263,7 @@ public sealed partial class MessageBrowseWorkflow : ObservableObject
                 if (rowsByKey.TryGetValue(delivery.Identity, out var existing)) existing.UpdateDelivery(delivery);
                 else
                 {
-                    var row = new MessageRow(delivery, preferences.TimestampDisplay);
+                    var row = new MessageRow(delivery, preferences.TimestampDisplay, preferences.DateFormat);
                     rowsByKey.Add(delivery.Identity, row);
                     AddRow(row);
                 }
@@ -353,7 +357,7 @@ public sealed partial class MessageBrowseWorkflow : ObservableObject
             }
             else
             {
-                rows.Add(new MessageRow(delivery, preferences.TimestampDisplay));
+                rows.Add(new MessageRow(delivery, preferences.TimestampDisplay, preferences.DateFormat));
             }
         }
 

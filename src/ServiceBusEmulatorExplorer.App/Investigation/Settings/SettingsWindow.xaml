@@ -209,6 +209,16 @@
                             <StackPanel Margin="0,0,16,0"><TextBlock Text="Automatically connect when switching profiles" TextWrapping="Wrap" FontWeight="SemiBold" /><TextBlock Text="Connect after choosing a profile in the toolbar." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryBrush}" FontSize="12" Margin="0,5,0,0" /></StackPanel>
                             <ToggleButton x:Name="AutoConnectToggle" Grid.Column="1" Style="{StaticResource Switch}" VerticalAlignment="Top" Checked="AutoConnect_Changed" Unchecked="AutoConnect_Changed" AutomationProperties.AutomationId="AutoConnectToggle" AutomationProperties.Name="Automatically connect when switching profiles" />
                         </Grid>
+                        <Grid Margin="0,24,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Text="Date format" FontWeight="SemiBold"/>
+                                <TextBlock Text="Used for dates throughout the app." Style="{StaticResource DialogCaption}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                            </StackPanel>
+                            <ComboBox x:Name="DateFormatSelector" Grid.Column="1" MaxWidth="300" VerticalAlignment="Top"
+                                      DisplayMemberPath="Label" SelectedValuePath="Format" SelectionChanged="DateFormat_Changed"
+                                      AutomationProperties.AutomationId="DateFormatSelector" AutomationProperties.Name="Date format"/>
+                        </Grid>
                         <TextBlock Text="Message page sizes" FontSize="16" FontWeight="SemiBold" Margin="0,28,0,14" />
                         <Grid>
                             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>

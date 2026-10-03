@@ -9,6 +9,8 @@ using ServiceBusEmulatorExplorer.Core.Investigation;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation.Settings;
 
+public sealed record DateFormatChoice(DateDisplayFormat Format, string Label);
+
 public sealed record ProfileAccent(string Name, string ColorHex);
 
 public partial class SettingsWindow : Window
@@ -50,6 +52,16 @@ public partial class SettingsWindow : Window
         CloseToTrayToggle.IsChecked = preferences.CloseToTray;
         NotificationsToggle.IsChecked = preferences.NotificationsEnabled;
         AutoConnectToggle.IsChecked = preferences.AutoConnectOnSwitch;
+        DateFormatSelector.ItemsSource = Enum.GetValues<DateDisplayFormat>().Select(format => new DateFormatChoice(format,
+            (format switch
+            {
+                DateDisplayFormat.Windows => "Follow Windows",
+                DateDisplayFormat.Iso => "yyyy-MM-dd",
+                DateDisplayFormat.DayFirst => "dd/MM/yyyy",
+                DateDisplayFormat.MonthFirst => "MM/dd/yyyy",
+                _ => "dd MMM yyyy"
+            }) + " - " + DateDisplay.Date(new DateTime(2026, 10, 4), format))).ToArray();
+        DateFormatSelector.SelectedValue = preferences.DateFormat;
         QueuePageSizeSelector.SelectedItem = NormalizePageSize(preferences.QueuePageSize);
         TopicPageSizeSelector.SelectedItem = NormalizePageSize(preferences.TopicPageSize);
         SubscriptionPageSizeSelector.SelectedItem = NormalizePageSize(preferences.SubscriptionPageSize);
@@ -91,6 +103,12 @@ public partial class SettingsWindow : Window
     private async void AutoConnect_Changed(object sender, RoutedEventArgs e)
     {
         if (_ready) await SaveGeneralAsync(current => current with { AutoConnectOnSwitch = AutoConnectToggle.IsChecked == true });
+    }
+
+    private async void DateFormat_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_ready && DateFormatSelector.SelectedValue is DateDisplayFormat format)
+            await SaveGeneralAsync(current => current with { DateFormat = format });
     }
 
     private async void PageSize_Changed(object sender, SelectionChangedEventArgs e)
@@ -347,6 +365,7 @@ public partial class SettingsWindow : Window
         CloseToTrayToggle.IsEnabled = enabled && _trayAvailable;
         NotificationsToggle.IsEnabled = enabled;
         AutoConnectToggle.IsEnabled = enabled;
+        DateFormatSelector.IsEnabled = enabled;
         QueuePageSizeSelector.IsEnabled = enabled;
         TopicPageSizeSelector.IsEnabled = enabled;
         SubscriptionPageSizeSelector.IsEnabled = enabled;
@@ -359,6 +378,7 @@ public partial class SettingsWindow : Window
         CloseToTrayToggle.IsChecked = preferences.CloseToTray;
         NotificationsToggle.IsChecked = preferences.NotificationsEnabled;
         AutoConnectToggle.IsChecked = preferences.AutoConnectOnSwitch;
+        DateFormatSelector.SelectedValue = preferences.DateFormat;
         QueuePageSizeSelector.SelectedItem = NormalizePageSize(preferences.QueuePageSize);
         TopicPageSizeSelector.SelectedItem = NormalizePageSize(preferences.TopicPageSize);
         SubscriptionPageSizeSelector.SelectedItem = NormalizePageSize(preferences.SubscriptionPageSize);

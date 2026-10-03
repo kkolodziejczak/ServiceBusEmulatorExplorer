@@ -7,6 +7,8 @@ namespace ServiceBusEmulatorExplorer.App.Investigation;
 
 public sealed partial class EntityNode : ObservableObject
 {
+    private DateDisplayFormat dateFormat;
+    internal void SetDateFormat(DateDisplayFormat format) { dateFormat = format; NotifyCounts(); }
     private bool expanded = true;
     private bool visible = true;
     private ObservedDeliveryCount? observedMain;
@@ -32,12 +34,12 @@ public sealed partial class EntityNode : ObservableObject
     public string DisplayDlqCount => observedDlq?.Display ?? Format(Observation?.Counts.DeadLetter);
     public string DisplayScheduledCount => Format(Observation?.Counts.Scheduled);
     public string ActiveCountDetail => CountDetail("Messages", DisplayMessageCount,
-        observedMain?.Detail(MessageBucket.Active) ?? Detail(Observation?.Counts.Active,
+        observedMain?.Detail(MessageBucket.Active, dateFormat) ?? Detail(Observation?.Counts.Active,
             "Active messages reported by the broker.\nEmulator counts may be inaccurate.")) + WatchDetail(IsActiveWatched, "Active");
     public string ScheduledCountDetail => CountDetail("Scheduled", DisplayScheduledCount,
         Detail(Observation?.Counts.Scheduled, "Scheduled messages reported by the broker."));
     public string DlqCountDetail => CountDetail("DLQ", DisplayDlqCount,
-        observedDlq?.Detail(MessageBucket.DeadLetter) ?? Detail(Observation?.Counts.DeadLetter,
+        observedDlq?.Detail(MessageBucket.DeadLetter, dateFormat) ?? Detail(Observation?.Counts.DeadLetter,
             "Dead-letter messages reported by the broker.\nEmulator counts may be inaccurate.")) + WatchDetail(IsDlqWatched, "Dead letter");
     private string CountDetail(string label, string value, string detail)
     {
@@ -85,11 +87,13 @@ public sealed class MessageRow : ObservableObject
 {
     private bool selected;
     private TimestampDisplay timeDisplay;
+    private DateDisplayFormat dateFormat;
     private string observationDetail = string.Empty;
-    public MessageRow(MessageDelivery delivery, TimestampDisplay display)
+    public MessageRow(MessageDelivery delivery, TimestampDisplay display, DateDisplayFormat dateFormat = DateDisplayFormat.Windows)
     {
         Delivery = delivery;
         timeDisplay = display;
+        this.dateFormat = dateFormat;
     }
     public MessageDelivery Delivery { get; private set; }
     public DeliveryIdentity Key => Delivery.Identity;
@@ -108,6 +112,7 @@ public sealed class MessageRow : ObservableObject
     public string DeadLetterReason => Delivery.Message.SystemProperties.TryGetValue("DeadLetterReason", out var reason) ? reason?.ToString() ?? "" : "";
     public DateTimeOffset? Enqueued => timeDisplay == TimestampDisplay.Local
         ? Delivery.Message.EnqueuedTime?.ToLocalTime() : Delivery.Message.EnqueuedTime?.ToUniversalTime();
+    public string EnqueuedDisplay => Enqueued is { } instant ? DateDisplay.Timestamp(instant, dateFormat) : string.Empty;
     public bool IsSelected { get => selected; set => SetProperty(ref selected, value); }
     public void UpdateDelivery(MessageDelivery delivery)
     {
@@ -127,16 +132,19 @@ public sealed class MessageRow : ObservableObject
         OnPropertyChanged(nameof(StateLabel));
         OnPropertyChanged(nameof(DeadLetterReason));
         OnPropertyChanged(nameof(Enqueued));
+        OnPropertyChanged(nameof(EnqueuedDisplay));
     }
 
     public void MarkRetainedAsUnobserved()
     {
         ObservationDetail = "Retained from the previous refresh; this delivery was not returned by the broker.";
     }
-    public void SetTimeDisplay(TimestampDisplay display)
+    public void SetTimeDisplay(TimestampDisplay display, DateDisplayFormat dateFormat = DateDisplayFormat.Windows)
     {
         timeDisplay = display;
+        this.dateFormat = dateFormat;
         OnPropertyChanged(nameof(Enqueued));
+        OnPropertyChanged(nameof(EnqueuedDisplay));
     }
 }
 

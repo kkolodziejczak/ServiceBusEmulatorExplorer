@@ -26,6 +26,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     private int messageCount;
     private int dispatchIndex;
     private bool dispatchScheduled;
+    private DateTimeOffset? dispatchDueUtc;
 
     public MessageLibraryPrototypeReviewSurface() : this("Local emulator", "order-events", 3)
     {
@@ -35,6 +36,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     {
         InitializeComponent();
         InitializeScheduleInputs();
+        RefreshDatePresentation();
         dispatchTimer.Tick += DispatchTick;
         Unloaded += (_, _) => dispatchTimer.Stop();
         SizeChanged += (_, _) => UpdateReviewCardLayout();
@@ -207,7 +209,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         scheduledResults.Clear();
         foreach (var row in run.ScheduledResults)
             scheduledResults.Add(new PrototypeScheduledResult(row.Row, row.Receipt, row.Payload, row.Outcome, row.DueTime)
-            { Selected = row.Selected, CancellationStatus = row.CancellationStatus, AttemptTime = row.AttemptTime });
+            { Selected = row.Selected, CancellationStatus = row.CancellationStatus, AttemptTime = row.AttemptTime, DateFormat = DatePresentation.GetFormat(this) });
         cancellationAttempts.Clear();
         foreach (var attempt in run.CancellationAttempts) cancellationAttempts.Add(attempt);
         UpdateCancellationActions();
@@ -259,7 +261,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
             return;
         }
         ConfirmDispatch.IsEnabled = true;
-        ResolvedSchedule.Text = $"Resolved time: {utc:dd MMM yyyy HH:mm} UTC · one time for all messages";
+        ResolvedSchedule.Text = $"Resolved time: {DateDisplay.Timestamp(new DateTimeOffset(utc), DatePresentation.GetFormat(this), seconds: false)} UTC · one time for all messages";
     }
 
     private bool TryResolveSchedule(out DateTime utc)
@@ -293,12 +295,14 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
             return;
         }
         dispatchScheduled = ReviewSchedule.IsChecked == true;
-        if (dispatchScheduled && (!TryResolveSchedule(out DateTime utc) || utc <= DateTime.UtcNow))
+        DateTime utc = default;
+        if (dispatchScheduled && (!TryResolveSchedule(out utc) || utc <= DateTime.UtcNow))
         {
             ReviewError.Text = "Choose a future date and a valid time before scheduling.";
             ReviewError.Visibility = Visibility.Visible;
             return;
         }
+        dispatchDueUtc = dispatchScheduled ? new DateTimeOffset(utc) : null;
         ReviewError.Visibility = Visibility.Collapsed;
         SetSurface(ProgressSurface);
         ReviewFooter.Visibility = Visibility.Collapsed;
@@ -319,7 +323,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         string outcome = dispatchScheduled ? "Confirmed scheduled" : "Confirmed sent";
         results.Add(new PrototypeResult(dispatchIndex, id, outcome, dispatchScheduled ? "Sample receipt retained" : "Sample acknowledgement"));
         if (dispatchScheduled)
-            scheduledResults.Add(new PrototypeScheduledResult(dispatchIndex, (700 + dispatchIndex).ToString(CultureInfo.InvariantCulture), $"{ReviewTarget.Text}-{dispatchIndex}.json", outcome, ResolvedSchedule.Text.Replace("Resolved time: ", "")) { Selected = true });
+            scheduledResults.Add(new PrototypeScheduledResult(dispatchIndex, (700 + dispatchIndex).ToString(CultureInfo.InvariantCulture), $"{ReviewTarget.Text}-{dispatchIndex}.json", outcome, dispatchDueUtc!.Value.ToString("O", CultureInfo.InvariantCulture)) { Selected = true, DateFormat = DatePresentation.GetFormat(this) });
         DispatchProgress.Value = dispatchIndex;
         ProgressStatus.Text = $"{dispatchIndex} of {messageCount} acknowledged";
         if (dispatchIndex == messageCount) FinishDispatch();
@@ -396,15 +400,4 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
 
     private sealed record PrototypeResult(int Row, string MessageId, string Outcome, string Details);
 
-    private sealed class PrototypeScheduledResult(int row, string receipt, string payload, string outcome, string dueTime)
-    {
-        public int Row { get; } = row;
-        public string Receipt { get; } = receipt;
-        public string Payload { get; } = payload;
-        public string Outcome { get; } = outcome;
-        public string DueTime { get; } = dueTime;
-        public bool Selected { get; set; }
-        public string CancellationStatus { get; set; } = "Eligible";
-        public string AttemptTime { get; set; } = "—";
-    }
 }

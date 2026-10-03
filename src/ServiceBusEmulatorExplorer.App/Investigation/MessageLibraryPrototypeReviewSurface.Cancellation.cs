@@ -13,7 +13,7 @@ public partial class MessageLibraryPrototypeReviewSurface
         SetSurface(CancellationSurface);
         CancellationError.Visibility = Visibility.Collapsed;
         CancellationTarget.Text = $"{ReviewProfile.Text} · localhost · {ReviewTarget.Text} · " +
-            string.Join("; ", scheduledResults.Select(row => row.DueTime).Distinct());
+            string.Join("; ", scheduledResults.Select(row => row.DueTimeDisplay).Distinct());
         UpdateCancellationActions();
         SetWindowTitle("Scheduled results");
     }
@@ -39,10 +39,8 @@ public partial class MessageLibraryPrototypeReviewSurface
 
     private static bool TryGetDueUtc(PrototypeScheduledResult row, out DateTime dueUtc)
     {
-        string value = row.DueTime.Split('·')[0].Replace("UTC", "", StringComparison.Ordinal).Trim();
-        const DateTimeStyles styles = DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal;
-        return DateTime.TryParse(value, CultureInfo.InvariantCulture, styles, out dueUtc) ||
-            DateTime.TryParse(value, CultureInfo.CurrentCulture, styles, out dueUtc);
+        dueUtc = row.DueAtUtc?.UtcDateTime ?? default;
+        return row.DueAtUtc.HasValue;
     }
 
     private void BackToResults_Click(object sender, RoutedEventArgs e)
@@ -91,9 +89,9 @@ public partial class MessageLibraryPrototypeReviewSurface
         if (CaptureRun() is { } run) RunCompleted?.Invoke(run);
     }
 
-    private static string CancellationReceiptSummary(PrototypeScheduledResult row)
+    private string CancellationReceiptSummary(PrototypeScheduledResult row)
     {
         TryGetDueUtc(row, out DateTime utc);
-        return $"Receipt {row.Receipt} · {row.DueTime}\nLocal: {utc.ToLocalTime():yyyy-MM-dd HH:mm zzz}";
+        return $"Receipt {row.Receipt} · {row.DueTimeDisplay}\nLocal: {DateDisplay.Timestamp(new DateTimeOffset(utc).ToLocalTime(), DatePresentation.GetFormat(this), seconds: false)} {new DateTimeOffset(utc).ToLocalTime():zzz}";
     }
 }

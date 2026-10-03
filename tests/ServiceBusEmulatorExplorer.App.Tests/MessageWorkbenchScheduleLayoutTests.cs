@@ -87,15 +87,12 @@ public sealed class MessageWorkbenchScheduleLayoutTests
             var dateText = Descendants(date).OfType<DatePickerTextBox>().Single();
             Assert.True(dateText.VerticalContentAlignment == VerticalAlignment.Center && dateText.ActualHeight >= 28,
                 $"DatePicker template text part needs centered text inside a 32-DIP control: alignment={dateText.VerticalContentAlignment}, height={dateText.ActualHeight}, minHeight={dateText.MinHeight}.");
-            double editableTextHeight = Descendants(dateText).OfType<ScrollContentPresenter>().Single().ActualHeight;
-            Assert.True(editableTextHeight >= 16,
-                $"Date text viewport should leave room for the date at {width} DIPs; inner text viewport was {editableTextHeight} DIPs.");
+            var dateLabel = Descendants(dateText).OfType<TextBlock>().Single(label => label.Name == "DateDisplayLabel");
+            Assert.True(dateLabel.ActualHeight >= 16, "The displayed date must have a full-height text line.");
 
             Rect dateBounds = Bounds(date, dialog);
             Rect hourBounds = Bounds(hour, dialog);
-
-            Rect dateTextLine = dateText.TransformToAncestor(dialog).TransformBounds(
-                dateText.GetRectFromCharacterIndex(0));
+            Rect dateTextLine = Bounds(dateLabel, dialog);
             double dateCenter = dateBounds.Top + dateBounds.Height / 2;
             double textCenter = dateTextLine.Top + dateTextLine.Height / 2;
             Assert.True(Math.Abs(textCenter - dateCenter) <= 0.5,
@@ -172,7 +169,8 @@ public sealed class MessageWorkbenchScheduleLayoutTests
             RaiseRoutedCalendarMouseClick(nextDay);
             dialog.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
             Assert.NotEqual(previousAccessibleValue, dateValueProvider.Value);
-            Assert.Equal(dateText.Text, dateValueProvider.Value);
+            Assert.Equal(((CalendarOnlyDatePicker)date).DisplayDateText, dateValueProvider.Value);
+            Assert.Equal(0, dateText.SelectionLength);
             Assert.Equal(nextDate, date.SelectedDate!.Value.Date);
             Assert.False(date.IsDropDownOpen);
             Assert.Equal(ExpandCollapseState.Collapsed, expandCollapse.ExpandCollapseState);
@@ -226,7 +224,7 @@ public sealed class MessageWorkbenchScheduleLayoutTests
     {
         Assert.False(string.IsNullOrWhiteSpace(dateText.Text), "Date text should be populated before measuring its intrinsic width.");
         var text = new FormattedText(
-            dateText.Text,
+            ((CalendarOnlyDatePicker)date).DisplayDateText,
             System.Globalization.CultureInfo.CurrentCulture,
             dateText.FlowDirection,
             new Typeface(dateText.FontFamily, dateText.FontStyle, dateText.FontWeight, dateText.FontStretch),

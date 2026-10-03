@@ -100,6 +100,7 @@ public partial class InvestigationWindow : Window
                 workspace.IsConnected ? "ConnectedHealthBrush" : "DisconnectedHealthBrush");
             ProfileTheme.Apply(this, workspace.SelectedProfile.ColorHex);
             LastOperation.Text = workspace.Status;
+            DatePresentation.SetFormat(this, workspace.Preferences.DateFormat);
             TimeDisplaySelector.SelectedIndex = workspace.Preferences.TimestampDisplay == TimestampDisplay.Utc ? 0 : 1;
             AutoInterval.SelectedIndex = Array.IndexOf(new[] { 0, 5, 10, 30 }, workspace.Preferences.AutoRefreshSeconds);
             LogPanel.Visibility = workspace.Preferences.LogExpanded ? Visibility.Visible : Visibility.Collapsed;
@@ -463,7 +464,7 @@ public partial class InvestigationWindow : Window
             paragraph.Inlines.Add(new Run(ActivityTime(entry.TimestampUtc) + "   ")
             {
                 Foreground = new SolidColorBrush(Color.FromRgb(135, 167, 191)),
-                ToolTip = entry.TimestampUtc.ToString("O")
+                ToolTip = ActivityDate(entry.TimestampUtc)
             });
             paragraph.Inlines.Add(new Run(entry.Warning ? "WARN    " : entry.Watch ? "WATCH   " : "INFO    ")
             {
@@ -474,8 +475,15 @@ public partial class InvestigationWindow : Window
         }
         var last = workspace.Activity.LastOrDefault();
         LastOperationTime.Text = last is null ? "" : ActivityTime(last.TimestampUtc);
-        LastOperationTime.ToolTip = last?.TimestampUtc.ToString("O");
+        LastOperationTime.ToolTip = last is null ? null : ActivityDate(last.TimestampUtc);
         LogText.ScrollToEnd();
+    }
+
+    private string ActivityDate(DateTimeOffset instant)
+    {
+        bool local = workspace.Preferences.TimestampDisplay == TimestampDisplay.Local;
+        return DateDisplay.Timestamp(local ? instant.ToLocalTime() : instant.ToUniversalTime(), workspace.Preferences.DateFormat)
+            + (local ? " Local" : " UTC");
     }
 
     private string ActivityTime(DateTimeOffset instant) => workspace.Preferences.TimestampDisplay == TimestampDisplay.Utc

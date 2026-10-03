@@ -10,6 +10,14 @@ namespace ServiceBusEmulatorExplorer.App.Investigation;
 
 public sealed class CalendarOnlyDatePicker : DatePicker
 {
+    private static readonly DependencyPropertyKey DisplayDateTextPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(DisplayDateText), typeof(string), typeof(CalendarOnlyDatePicker), new PropertyMetadata(string.Empty));
+    public static readonly DependencyProperty DisplayDateTextProperty = DisplayDateTextPropertyKey.DependencyProperty;
+    public string DisplayDateText => (string)GetValue(DisplayDateTextProperty);
+
+    internal void RefreshDateDisplay() => SetValue(DisplayDateTextPropertyKey,
+        SelectedDate is { } date ? DateDisplay.Date(date, DatePresentation.GetFormat(this)) : string.Empty);
+
     public override void OnApplyTemplate()
     {
         base.OnApplyTemplate();
@@ -18,7 +26,19 @@ public sealed class CalendarOnlyDatePicker : DatePicker
             text.IsReadOnly = true;
             text.IsReadOnlyCaretVisible = false;
             text.IsHitTestVisible = false;
+            text.SelectionChanged -= ClearTextSelection;
+            text.SelectionChanged += ClearTextSelection;
+            text.Select(0, 0);
         }
+        RefreshDateDisplay();
+    }
+
+    private static void ClearTextSelection(object sender, RoutedEventArgs e)
+    {
+        // DatePicker selects all text when restoring focus after calendar selection.
+        // Keep keyboard focus, but this calendar-only field has no editable selection.
+        if (sender is DatePickerTextBox { SelectionLength: > 0 } text)
+            text.Select(text.CaretIndex, 0);
     }
 
     protected override void OnPreviewMouseLeftButtonDown(MouseButtonEventArgs e)
@@ -58,8 +78,9 @@ public sealed class CalendarOnlyDatePicker : DatePicker
     protected override void OnPropertyChanged(DependencyPropertyChangedEventArgs e)
     {
         base.OnPropertyChanged(e);
+        if (e.Property == SelectedDateProperty) RefreshDateDisplay();
         if (UIElementAutomationPeer.FromElement(this) is not CalendarOnlyDatePickerPeer peer) return;
-        if (e.Property == TextProperty)
+        if (e.Property == DisplayDateTextProperty)
             peer.RaisePropertyChangedEvent(ValuePatternIdentifiers.ValueProperty, e.OldValue, e.NewValue);
         else if (e.Property == IsDropDownOpenProperty)
         {
@@ -83,6 +104,7 @@ public sealed class CalendarOnlyDatePicker : DatePicker
         protected override List<AutomationPeer>? GetChildrenCore()
         {
             var children = base.GetChildrenCore() ?? [];
+            children.RemoveAll(peer => peer.GetAutomationControlType() == AutomationControlType.Edit);
             if (owner.IsDropDownOpen && owner.GetTemplateChild("PART_Popup") is Popup { Child: Calendar calendar }
                 && CreatePeerForElement(calendar) is { } calendarPeer && !children.Contains(calendarPeer))
                 children.Add(calendarPeer);
@@ -90,7 +112,7 @@ public sealed class CalendarOnlyDatePicker : DatePicker
         }
 
         bool IValueProvider.IsReadOnly => true;
-        string IValueProvider.Value => owner.Text;
+        string IValueProvider.Value => owner.DisplayDateText;
         void IValueProvider.SetValue(string value) =>
             throw new InvalidOperationException("Choose a date from the calendar.");
 

@@ -9,9 +9,9 @@ internal sealed record ObservedDeliveryCount(
     DateTimeOffset CheckedAtUtc)
 {
     public string Display => $"{Deliveries.Count:N0}*";
-    public string Detail(MessageBucket bucket) =>
+    public string Detail(MessageBucket bucket, DateDisplayFormat format = DateDisplayFormat.Windows) =>
         $"Observed {Deliveries.Count:N0} {(bucket == MessageBucket.DeadLetter ? "dead-letter" : "main-queue")} deliveries\n" +
-        $"{(IsComplete ? "scan complete" : "partial scan")}\nChecked: {CheckedAtUtc:yyyy-MM-dd HH:mm:ss} UTC\n\n" +
+        $"{(IsComplete ? "scan complete" : "partial scan")}\nChecked: {DateDisplay.Timestamp(CheckedAtUtc, format)} UTC\n\n" +
         "This is a browsing observation, not a live broker total.\n" +
         (bucket == MessageBucket.Active ? "Main-queue peeks can include scheduled, deferred and expired messages.\n" : "") +
         "Topic observations count deliveries across subscriptions.";

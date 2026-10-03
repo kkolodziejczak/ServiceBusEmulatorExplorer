@@ -9,6 +9,7 @@ public sealed record InvestigationProfile(
     string WarningMessage = "");
 
 public enum TimestampDisplay { Utc, Local }
+public enum DateDisplayFormat { Windows, Iso, DayFirst, MonthFirst, NamedMonth }
 
 public sealed record WatchPreference(string ScopeKey, bool? Active, bool? DeadLetter, bool? Included = null);
 
@@ -23,6 +24,7 @@ public sealed record WorkspacePreferences
     public bool WasConnected { get; init; }
     public bool LogExpanded { get; init; } = false;
     public TimestampDisplay TimestampDisplay { get; init; }
+    public DateDisplayFormat DateFormat { get; init; }
     public int QueuePageSize { get; init; } = 50;
     public int TopicPageSize { get; init; } = 50;
     public int SubscriptionPageSize { get; init; } = 50;

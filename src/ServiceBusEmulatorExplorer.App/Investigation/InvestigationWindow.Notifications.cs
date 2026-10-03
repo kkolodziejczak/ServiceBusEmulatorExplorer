@@ -40,7 +40,7 @@ public partial class InvestigationWindow
             };
         }
         ProfileTheme.Apply(watchNotification, workspace.SelectedProfile.ColorHex);
-        watchNotification.Update(new MessageRow(groups[0][^1], workspace.Preferences.TimestampDisplay),
+        watchNotification.Update(new MessageRow(groups[0][^1], workspace.Preferences.TimestampDisplay, workspace.Preferences.DateFormat),
             groups[0].Length, groups.Length - 1, workspace.SelectedProfile.Connection.Name);
         watchNotification.IsEnabled = !investigatingNotification;
         if (!watchNotification.IsVisible) watchNotification.Show();

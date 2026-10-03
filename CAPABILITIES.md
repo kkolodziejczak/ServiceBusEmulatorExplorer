@@ -71,3 +71,5 @@ dead paths.
 | Convention check with ratchet baseline | shared | `tools/check-docs.ps1`; config `.agent-kit.json` |
 
 Scheduling controls: reuse [SchedulingStyles.xaml](src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SchedulingStyles.xaml) for the date picker, calendar and aligned radio choices. [Scheduling contract](specs/message-library/scheduling-controls.md).
+
+App-wide date display: shared `DateDisplay` and inheritable `DatePresentation` in [DateDisplay.cs](src/ServiceBusEmulatorExplorer.App/Investigation/DateDisplay.cs) format UI values without changing payloads or instants. [Contract](specs/date-display.md).

@@ -274,6 +274,7 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
             WasConnected = settings.WasConnected,
             LogExpanded = settings.LogExpanded,
             TimestampDisplay = ValidTimestamp(settings.TimestampDisplay) ? settings.TimestampDisplay : TimestampDisplay.Utc,
+            DateFormat = Enum.IsDefined(settings.DateFormat) ? settings.DateFormat : DateDisplayFormat.Windows,
             QueuePageSize = ValidPageSize(settings.QueuePageSize) ? settings.QueuePageSize : DefaultPageSize,
             TopicPageSize = ValidPageSize(settings.TopicPageSize) ? settings.TopicPageSize : DefaultPageSize,
             SubscriptionPageSize = ValidPageSize(settings.SubscriptionPageSize) ? settings.SubscriptionPageSize : DefaultPageSize,
@@ -358,7 +359,8 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
                 ValidWindowSize(preferences.WindowWidth, 980) ? preferences.WindowWidth : DefaultWindowWidth,
                 ValidWindowSize(preferences.WindowHeight, 640) ? preferences.WindowHeight : DefaultWindowHeight,
                 WriteWatches(preferences.Watches, profileIds),
-                WriteReplayFamilies(preferences.ReplayFamilies, profileIds)));
+                WriteReplayFamilies(preferences.ReplayFamilies, profileIds),
+                Enum.IsDefined(preferences.DateFormat) ? preferences.DateFormat : DateDisplayFormat.Windows));
     }
 
     private static Dictionary<string, IReadOnlyList<ReplayFamilyState>> ReadReplayFamilies(string? protectedValue, HashSet<string> profileIds)
@@ -504,7 +506,8 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
         double WindowWidth,
         double WindowHeight,
         Dictionary<string, List<StoredWatch>> Watches,
-        string? ReplayFamilies = null);
+        string? ReplayFamilies = null,
+        DateDisplayFormat DateFormat = DateDisplayFormat.Windows);
 
     private sealed record StoredWatch(string ScopeKey, bool? Active, bool? DeadLetter, bool? Included = null);
 
