@@ -4,6 +4,8 @@
  <StreamGeometry x:Key="QueueGeometry">M2,2 H18 V6 H2 Z M2,9 H18 V13 H2 Z M2,16 H18 V20 H2 Z</StreamGeometry>
  <StreamGeometry x:Key="TopicGeometry">M7,1 H13 V6 H7 Z M10,6 V10 M3,10 H17 M3,10 V14 M17,10 V14 M0,14 H6 V19 H0 Z M14,14 H20 V19 H14 Z</StreamGeometry>
  <StreamGeometry x:Key="SubscriptionGeometry">M10,0 V12 M6,8 L10,12 14,8 M3,10 L0,19 H20 L17,10 M0,15 H6 L8,18 H12 L14,15 H20</StreamGeometry>
+ <StreamGeometry x:Key="FilterGeometry">M0,0 H14 L9,6 V13 L5,11 V6 Z</StreamGeometry>
+ <StreamGeometry x:Key="ClearLogGeometry">M8,8 L15,1 M6,6 L10,10 7,16 0,9 Z M2,11 L5,8 M4,13 L7,10 M10,16 H16</StreamGeometry>
  <StreamGeometry x:Key="SearchGeometry">M10,5 A5,5 0 1 1 0,5 A5,5 0 1 1 10,5 M9,9 L14,14</StreamGeometry>
  <StreamGeometry x:Key="ClearGeometry">M0,0 L10,10 M10,0 L0,10</StreamGeometry>
  <StreamGeometry x:Key="CloseGeometry">M0,0 L16,16 M16,0 L0,16</StreamGeometry>

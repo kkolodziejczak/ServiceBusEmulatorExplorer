@@ -131,8 +131,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         {
             lastRun = null;
             ViewRunResultsButton.Visibility = Visibility.Collapsed;
-            ValidationDetailsButton.IsEnabled = false;
-            ValidationDetailsButton.Opacity = 0.45;
+            ValidationDetailsButton.Visibility = Visibility.Collapsed;
             InvalidatePreview();
             UpdateDestinationControls();
         }
@@ -583,13 +582,7 @@ public partial class MessageLibraryPrototypeView : UserControl
 
     private void ViewValidationResults_Click(object sender, RoutedEventArgs e)
     {
-        if (lastRun is not null && CsvRowsGrid.ItemsSource is IEnumerable<CsvPreviewRow> validRows &&
-            validRows.All(row => row.Status == "Ready"))
-        {
-            ViewRunResults_Click(sender, e);
-            return;
-        }
-        if (CsvRowsGrid.ItemsSource is not IEnumerable<CsvPreviewRow> rows) return;
+        if (CsvRowsGrid.ItemsSource is not IEnumerable<CsvPreviewRow> rows || rows.All(row => row.Status == "Ready")) return;
         var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Validation, currentProfileName,
             selectedDestination ?? "order-events", 3) { Owner = Window.GetWindow(this) };
         dialog.SetValidationRows(rows.Select(row => (row.Row, row.CustomerId, row.Status)));
@@ -660,9 +653,8 @@ public partial class MessageLibraryPrototypeView : UserControl
             ValidationStatusText.Foreground = new System.Windows.Media.SolidColorBrush(
                 (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(valid == 3 ? "#197442" : "#A52436")!);
             previewReady = valid == 3 && PrepareMessages(rows);
-            ValidationDetailsButton.Content = valid == 3 ? "View results" : "View errors";
-            ValidationDetailsButton.IsEnabled = valid != 3 || lastRun is not null;
-            ValidationDetailsButton.Opacity = ValidationDetailsButton.IsEnabled ? 1 : 0.45;
+            ValidationDetailsButton.Visibility = valid != 3 ? Visibility.Visible : Visibility.Collapsed;
+            ValidationDetailsButton.IsEnabled = valid != 3;
             ReviewButton.IsEnabled = previewReady && selectedDestination is not null;
             ReviewStepButton.IsEnabled = ReviewButton.IsEnabled || lastRun is not null;
             PreviewHint.Text = previewReady ? "3 of 3 rows valid · Row 1 preview" :
@@ -770,9 +762,6 @@ public partial class MessageLibraryPrototypeView : UserControl
     {
         lastRun = run;
         ViewRunResultsButton.Visibility = Visibility.Visible;
-        ValidationDetailsButton.Content = "View results";
-        ValidationDetailsButton.IsEnabled = true;
-        ValidationDetailsButton.Opacity = 1;
         ReviewStepButton.IsEnabled = true;
     }
 

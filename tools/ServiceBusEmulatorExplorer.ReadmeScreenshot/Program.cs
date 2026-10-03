@@ -35,22 +35,23 @@ internal static class Program
         bool namespaceTreeProof = args.Length == 2 && args[1] == "--namespace-tree";
         bool sideBySideProof = args.Length == 2 && args[1] == "--investigation-side-by-side";
         bool footerStatusProof = args.Length == 2 && args[1] == "--footer-status";
+        bool cleanupProposalProof = args.Length == 2 && args[1] == "--cleanup-proposals";
         bool dialogCapture = args.Length == 2 && args[1] is
             "--message-library-map" or "--message-library-capture" or "--message-library-review" or "--message-library-results"
             or "--message-library-schedule" or "--message-library-validation"
             or "--message-library-scheduled-results" or "--message-library-cancellation-history";
-        int captureWidth = dialogCapture ? 760 :
+        int captureWidth = cleanupProposalProof ? 1500 : dialogCapture ? 760 :
             args.Length == 2 && args[1] is "--message-library-prepare" or "--message-library-properties" or "--message-library-properties-bottom" or "--message-library-properties-selected" or "--message-library-variables" or "--message-library-single" or "--message-library-prepare-log" or "--message-library-wizard-review" or "--message-library-wizard-review-queue" or "--message-library-wizard-review-large-batch" ? 1642 :
             args.Length == 2 && args[1] == "--message-library-prepare-1500" ? 1500 :
             args.Length == 2 && args[1] == "--message-library-prepare-compact" ? 1100 :
             args.Length == 2 && args[1] is "--message-library-prepare-minimum" or "--message-library-author-minimum" or "--message-library-properties-minimum" or "--message-library-single-minimum" or "--message-library-wizard-review-minimum" ? 980 : WpfScreenshot.CaptureWidth;
-        int captureHeight = dialogCapture ?
+        int captureHeight = cleanupProposalProof ? 1000 : dialogCapture ?
             args[1] == "--message-library-capture" ? 925 :
             args[1] == "--message-library-map" ? 590 : 620 :
             captureWidth == 1642 ? 958 : captureWidth == 1500 ? 1000 : captureWidth == 1100 ? 800 : captureWidth == 980 ? 640 : WpfScreenshot.CaptureHeight;
-        if ((args.Length != 1 && !prototypeCapture && !dialogCapture && !namespaceTreeProof && !sideBySideProof && !footerStatusProof) || string.IsNullOrWhiteSpace(args[0]))
+        if ((args.Length != 1 && !prototypeCapture && !dialogCapture && !namespaceTreeProof && !sideBySideProof && !footerStatusProof && !cleanupProposalProof) || string.IsNullOrWhiteSpace(args[0]))
         {
-            Console.Error.WriteLine("Usage: ServiceBusEmulatorExplorer.ReadmeScreenshot <output-png-or-directory> [--footer-status|--investigation-side-by-side|--namespace-tree|--message-library-prepare|--message-library-prepare-1500|--message-library-prepare-compact|--message-library-prepare-minimum|--message-library-properties|--message-library-variables|--message-library-single|--message-library-wizard-review|--message-library-wizard-review-minimum]");
+            Console.Error.WriteLine("Usage: ServiceBusEmulatorExplorer.ReadmeScreenshot <output-png-or-directory> [--cleanup-proposals|--footer-status|--investigation-side-by-side|--namespace-tree|--message-library-prepare|--message-library-prepare-1500|--message-library-prepare-compact|--message-library-prepare-minimum|--message-library-properties|--message-library-variables|--message-library-single|--message-library-wizard-review|--message-library-wizard-review-minimum]");
             return 2;
         }
 
@@ -168,6 +169,12 @@ internal static class Program
                 if (footerStatusProof)
                 {
                     await FooterStatusProof.RunAsync(window, workspace, args[0]);
+                    exitCode = 0;
+                    return;
+                }
+                if (cleanupProposalProof)
+                {
+                    await CleanupProposalProof.RunAsync(window, workspace, args[0]);
                     exitCode = 0;
                     return;
                 }

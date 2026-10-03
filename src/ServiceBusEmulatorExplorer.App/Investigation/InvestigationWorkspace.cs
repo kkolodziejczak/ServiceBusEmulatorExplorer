@@ -100,7 +100,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
         try
         {
             if (Volatile.Read(ref disposeStarted) != 0) return;
-            preferences = result.Preferences;
+            preferences = result.Preferences with { LogExpanded = false };
             Browse.SetPreferences(preferences);
             Search.SetPreferences(preferences);
             initialized = true;

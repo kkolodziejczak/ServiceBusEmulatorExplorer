@@ -103,6 +103,8 @@ public partial class InvestigationWindow : Window
             TimeDisplaySelector.SelectedIndex = workspace.Preferences.TimestampDisplay == TimestampDisplay.Utc ? 0 : 1;
             AutoInterval.SelectedIndex = Array.IndexOf(new[] { 0, 5, 10, 30 }, workspace.Preferences.AutoRefreshSeconds);
             LogPanel.Visibility = workspace.Preferences.LogExpanded ? Visibility.Visible : Visibility.Collapsed;
+            LogToggle.ToolTip = workspace.Preferences.LogExpanded ? "Collapse activity log" : "Expand activity log";
+            System.Windows.Automation.AutomationProperties.SetName(LogToggle, (string)LogToggle.ToolTip);
             LogHeading.Text = workspace.Preferences.LogExpanded ? "Activity log · Expanded" : "Activity log · Collapsed";
             LogChevron.Data = Geometry.Parse(workspace.Preferences.LogExpanded ? "M1,8 L7,2 L13,8" : "M1,2 L7,8 L13,2");
             EnqueuedColumn.Header = workspace.Preferences.TimestampDisplay == TimestampDisplay.Utc ? "Enqueued (UTC)" : "Enqueued (Local)";
@@ -439,6 +441,8 @@ public partial class InvestigationWindow : Window
     private void RenderActivity()
     {
         if (!ready) return;
+        ClearLogButton.IsEnabled = workspace.Activity.Count > 0;
+        LogEmpty.Visibility = workspace.Activity.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         LogText.Document.Blocks.Clear();
         foreach (var entry in workspace.Activity)
         {

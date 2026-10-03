@@ -62,12 +62,14 @@ public partial class InvestigationWindow
             EmptyClearButton.Visibility = Visibility.Visible;
         }
         ClearSearchButton.Visibility = search.IsActive || SearchBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        UpdateNamespaceFilterIndicator();
         ConfigureRefresh();
     }
 
     private void Search_Changed(object sender, TextChangedEventArgs e)
     {
         if (!ready) return;
+        UpdateNamespaceFilterIndicator();
         if (MessageLibraryPrototype.Visibility == Visibility.Visible)
         {
             SuggestionsPopup.IsOpen = false;
@@ -85,6 +87,17 @@ public partial class InvestigationWindow
         }
         ClearSearchButton.Visibility = workspace.Search.IsActive || SearchBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         UpdateSuggestions();
+    }
+
+    private void UpdateNamespaceFilterIndicator()
+    {
+        bool applied = MessageLibraryPrototype.Visibility == Visibility.Visible && !string.IsNullOrWhiteSpace(SearchBox.Text);
+        SearchIcon.SetResourceReference(System.Windows.Shapes.Path.DataProperty, applied ? "FilterGeometry" : "SearchGeometry");
+        SearchIcon.SetResourceReference(System.Windows.Shapes.Path.StrokeProperty, applied ? "PrimaryBrush" : "IconBrush");
+        if (applied) SearchBox.SetResourceReference(Control.BorderBrushProperty, "PrimaryBrush");
+        else SearchBox.ClearValue(Control.BorderBrushProperty);
+        System.Windows.Automation.AutomationProperties.SetHelpText(SearchBox,
+            applied ? $"Namespace filter applied: {SearchBox.Text}" : "");
     }
 
     private void ClearSearch_Click(object sender, RoutedEventArgs e)

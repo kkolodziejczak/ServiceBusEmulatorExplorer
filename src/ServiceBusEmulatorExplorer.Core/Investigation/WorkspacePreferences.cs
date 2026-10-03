@@ -21,7 +21,7 @@ public sealed record WorkspacePreferences
     public bool NotificationsEnabled { get; init; } = true;
     public bool AutoConnectOnSwitch { get; init; }
     public bool WasConnected { get; init; }
-    public bool LogExpanded { get; init; } = true;
+    public bool LogExpanded { get; init; } = false;
     public TimestampDisplay TimestampDisplay { get; init; }
     public int QueuePageSize { get; init; } = 50;
     public int TopicPageSize { get; init; } = 50;

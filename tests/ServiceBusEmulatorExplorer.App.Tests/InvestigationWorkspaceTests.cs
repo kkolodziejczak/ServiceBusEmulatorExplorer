@@ -9,6 +9,28 @@ namespace ServiceBusEmulatorExplorer.App.Tests;
 
 public sealed class InvestigationWorkspaceTests
 {
+    [Fact]
+    public async Task Initialize_collapses_activity_log_even_when_saved_preference_is_expanded()
+    {
+        var profile = Profile("saved-profile", "Saved");
+        var preferences = new WorkspacePreferences
+        {
+            Profiles = [profile],
+            SelectedProfileId = profile.Id,
+            LogExpanded = true
+        };
+        var factory = new FakeFactory();
+        var workspace = new InvestigationWorkspace(new FakeStore(preferences), new BrokerConnectionWorkflow(
+            () => factory, _ => new FakeBrowser(Snapshot()), _ => new FakeMessages()));
+        await using (workspace)
+        {
+            await workspace.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.False(new WorkspacePreferences().LogExpanded);
+            Assert.False(workspace.Preferences.LogExpanded);
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
