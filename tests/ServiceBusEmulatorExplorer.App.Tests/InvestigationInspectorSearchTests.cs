@@ -4,6 +4,8 @@ using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -280,11 +282,53 @@ public sealed class InvestigationInspectorSearchTests
         if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
-    private static InvestigationWorkspace CreateWorkspace()
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void Connection_selector_exposes_only_profile_names_to_ui_automation() => OnSta(() =>
+    {
+        Dispatcher dispatcher = Dispatcher.CurrentDispatcher;
+        SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(dispatcher));
+        const string runtime = "Endpoint=sb://secret-host;SharedAccessKey=RUNTIME-SECRET";
+        const string admin = "Endpoint=sb://secret-host:5300;SharedAccessKey=ADMIN-SECRET";
+        var window = new InvestigationWindow(CreateWorkspace(runtime, admin))
+        {
+            Width = 1500,
+            Height = 1000,
+            WindowStyle = WindowStyle.None,
+            ShowActivated = false,
+            ShowInTaskbar = false
+        };
+        try
+        {
+            window.Show();
+            var selector = (ComboBox)window.FindName("ConnectionSelector")!;
+            PumpUntil(dispatcher, () => selector.SelectedItem is not null, "the connection selector to load profiles");
+            selector.IsDropDownOpen = true;
+            PumpUntil(dispatcher, () => selector.ItemContainerGenerator.Status == GeneratorStatus.ContainersGenerated,
+                "the profile items to be generated");
+
+            var peer = (ComboBoxAutomationPeer)UIElementAutomationPeer.CreatePeerForElement(selector);
+            ListBoxItemAutomationPeer[] items = peer.GetChildren().OfType<ListBoxItemAutomationPeer>().ToArray();
+            string[] itemNames = items.Select(item => item.GetName()).ToArray();
+            string[] selectedNames = items
+                .Where(item => ((ISelectionItemProvider)item.GetPattern(PatternInterface.SelectionItem)).IsSelected)
+                .Select(item => item.GetName()).ToArray();
+
+            Assert.Equal(["Inspector search"], itemNames);
+            Assert.Equal(["Inspector search"], selectedNames);
+            selector.IsDropDownOpen = false;
+        }
+        finally
+        {
+            window.Close();
+        }
+    });
+
+    private static InvestigationWorkspace CreateWorkspace(string runtime = "runtime", string admin = "admin")
     {
         var preferences = new WorkspacePreferences
         {
-            Profiles = [new InvestigationProfile("inspector-search", new ConnectionProfile("Inspector search", "runtime", "admin"))],
+            Profiles = [new InvestigationProfile("inspector-search", new ConnectionProfile("Inspector search", runtime, admin))],
             SelectedProfileId = "inspector-search",
             LogExpanded = false
         };
