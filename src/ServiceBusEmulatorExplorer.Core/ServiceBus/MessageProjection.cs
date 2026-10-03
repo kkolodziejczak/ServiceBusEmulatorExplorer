@@ -50,6 +50,12 @@ public static class MessageProjection
             ["DeadLetterErrorDescription"] = message.DeadLetterErrorDescription
         };
 
+        // Forwarded dead letters name the entity where dead-lettering happened.
+        if (!string.IsNullOrEmpty(message.DeadLetterSource))
+        {
+            properties["DeadLetterSource"] = message.DeadLetterSource;
+        }
+
         if (message.ScheduledEnqueueTime != default)
         {
             properties["ScheduledEnqueueTimeUtc"] = message.ScheduledEnqueueTime.ToUniversalTime();

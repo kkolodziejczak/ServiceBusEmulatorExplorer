@@ -5,6 +5,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using ServiceBusEmulatorExplorer.App.Agent;
 using ServiceBusEmulatorExplorer.App.Investigation.Resources;
 using ServiceBusEmulatorExplorer.App.Investigation.Settings;
 using ServiceBusEmulatorExplorer.Core.Investigation;
@@ -14,6 +15,7 @@ namespace ServiceBusEmulatorExplorer.App.Investigation;
 public partial class InvestigationWindow : Window
 {
     private readonly InvestigationWorkspace workspace;
+    private readonly AgentAccessHost agentHost;
     private readonly DispatcherTimer refreshTimer = new();
     private bool ready;
     private bool updating;
@@ -31,6 +33,7 @@ public partial class InvestigationWindow : Window
     public InvestigationWindow(InvestigationWorkspace workspace)
     {
         this.workspace = workspace;
+        agentHost = new AgentAccessHost(new WorkspaceAgentStateSource(workspace, Dispatcher), () => workspace.Preferences.AgentAccessToken);
         InitializeComponent();
         MessageLibraryPrototype.ConnectionRepairRequested += () => ConnectionButton.Focus();
         lastNamespaceConnectionState = workspace.IsConnected;
@@ -71,6 +74,18 @@ public partial class InvestigationWindow : Window
         UpdateWorkspace();
         UpdateLayoutMode();
         UpdateInspector();
+        await ApplyAgentAccessAsync();
+    }
+
+    private async Task ApplyAgentAccessAsync()
+    {
+        if (initializingWindow || closing || closePending) return;
+        var preferences = workspace.Preferences;
+        var before = agentHost.Status;
+        await agentHost.ApplyAsync(preferences.AgentAccessEnabled, preferences.AgentAccessPort);
+        var after = agentHost.Status;
+        if (after.State == AgentAccessState.Failed && (before.State != AgentAccessState.Failed || before.Port != after.Port))
+            workspace.Log($"Agent access is not available. {after.Detail} Change the port in Settings › Agents.", true);
     }
 
     private void WorkspaceChanged(object? sender, PropertyChangedEventArgs e)
@@ -80,6 +95,7 @@ public partial class InvestigationWindow : Window
             LastOperation.Text = workspace.Status;
             return;
         }
+        if (e.PropertyName == nameof(InvestigationWorkspace.Preferences) && ready) _ = ApplyAgentAccessAsync();
         UpdateWorkspace();
     }
 
@@ -157,7 +173,7 @@ public partial class InvestigationWindow : Window
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e) =>
-        new SettingsWindow(workspace.Preferences, workspace.ApplyPreferencesAsync, tray is not null) { Owner = this }.ShowDialog();
+        new SettingsWindow(workspace.Preferences, workspace.ApplyPreferencesAsync, tray is not null, agentHost) { Owner = this }.ShowDialog();
 
     private void InvestigationWorkspace_Checked(object sender, RoutedEventArgs e) => SelectWorkspaceTab(false);
     private void MessageLibrary_Checked(object sender, RoutedEventArgs e) => SelectWorkspaceTab(true);

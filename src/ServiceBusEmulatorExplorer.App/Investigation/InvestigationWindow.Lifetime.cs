@@ -57,6 +57,7 @@ public partial class InvestigationWindow
             refreshTimer.Stop();
             var bounds = WindowState == WindowState.Normal ? new Rect(0, 0, ActualWidth, ActualHeight) : RestoreBounds;
             await workspace.UpdateWindowBoundsAsync(bounds.Width, bounds.Height);
+            await agentHost.DisposeAsync();
             await workspace.DisposeAsync();
             workspace.PropertyChanged -= WorkspaceChanged;
             workspace.Surface.PropertyChanged -= SurfaceChanged;

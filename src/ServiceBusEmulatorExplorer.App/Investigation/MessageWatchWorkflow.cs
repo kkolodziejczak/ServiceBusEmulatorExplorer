@@ -13,6 +13,8 @@ public sealed class MessageWatchWorkflow(TimeProvider? timeProvider = null)
     private readonly HashSet<DeliveryIdentity> deleted = [];
     public ObservableCollection<MessageDelivery> PendingArrivals { get; } = [];
     public event Action<WatchPollResult>? Polled;
+    /// <summary>Raised once for each arrival accepted into <see cref="PendingArrivals"/>.</summary>
+    public event Action<MessageDelivery>? ArrivalAccepted;
     public event Action<string>? Warning;
     public event Action<EntityDiscoverySnapshot>? DiscoveryUpdated;
     public long? ConnectionGeneration => current?.Generation;
@@ -80,7 +82,11 @@ public sealed class MessageWatchWorkflow(TimeProvider? timeProvider = null)
                 var targets = resolver.Resolve(run.Rules, run.Snapshot).ToHashSet();
                 foreach (var arrival in result.Arrivals)
                     if (!deleted.Contains(arrival.Identity) && targets.Contains(new(arrival.Identity.Source, arrival.Identity.Bucket))
-                        && !PendingArrivals.Any(existing => existing.Identity == arrival.Identity)) PendingArrivals.Add(arrival);
+                        && !PendingArrivals.Any(existing => existing.Identity == arrival.Identity))
+                    {
+                        PendingArrivals.Add(arrival);
+                        ArrivalAccepted?.Invoke(arrival);
+                    }
                 Polled?.Invoke(result);
                 remaining -= result.ScannedDeliveries;
                 if (!result.HasPendingScans || result.Failures.Count > 0 || result.ScannedDeliveries == 0) break;

@@ -61,37 +61,6 @@
                 <Setter Property="Foreground" Value="{DynamicResource InkBrush}" />
             </Style>
 
-            <Style x:Key="Switch" TargetType="ToggleButton">
-                <Setter Property="Width" Value="42" />
-                <Setter Property="Height" Value="24" />
-                <Setter Property="Cursor" Value="Hand" />
-                <Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardActionFocusVisual}" />
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="ToggleButton">
-                            <Border x:Name="Track" CornerRadius="12" Background="{DynamicResource IconBrush}" BorderBrush="Transparent" BorderThickness="2">
-                                <Ellipse x:Name="Thumb" Fill="White" Width="16" Height="16" Margin="2,0" HorizontalAlignment="Left" />
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsChecked" Value="True">
-                                    <Setter TargetName="Track" Property="Background" Value="{DynamicResource PrimaryBrush}" />
-                                    <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right" />
-                                </Trigger>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource ActionTextBrush}" />
-                                </Trigger>
-                                <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="Track" Property="Background" Value="{DynamicResource PrimaryPressedBrush}" />
-                                </Trigger>
-                                <Trigger Property="IsEnabled" Value="False">
-                                    <Setter TargetName="Track" Property="Background" Value="{DynamicResource ControlBorderBrush}" />
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-            </Style>
-
             <Style x:Key="ProfileItem" TargetType="ListBoxItem">
                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                 <Setter Property="Foreground" Value="{DynamicResource ActionTextBrush}" />
@@ -272,7 +241,64 @@
                         <Label Content="Connection warning (optional)" Target="{Binding ElementName=ConnectionWarning}" Padding="0" Margin="0,14,0,6" />
                         <TextBox x:Name="ConnectionWarning" MinHeight="72" MaxHeight="144" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="ConnectionWarning" AutomationProperties.Name="Connection warning" />
                         <TextBlock Text="Shown before connecting. Leave empty to connect without a warning." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryBrush}" FontSize="12" Margin="0,6,0,0" />
+                        <Grid Margin="0,24,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0"><TextBlock Text="Allow agent access" Style="{StaticResource DialogLabel}" /><TextBlock Text="Agents can read this connection's messages and entities while agent access is on in Settings › Agents. Turn this off for live or production data." TextWrapping="Wrap" Style="{StaticResource DialogCaption}" Margin="0,4,0,0" /></StackPanel>
+                            <ToggleButton x:Name="ProfileAgentAccessToggle" Grid.Column="1" Style="{StaticResource Switch}" VerticalAlignment="Top" AutomationProperties.AutomationId="ProfileAgentAccessToggle" AutomationProperties.Name="Allow agent access for this connection" />
+                        </Grid>
                         <TextBlock x:Name="ProfileStatus" TextWrapping="Wrap" Foreground="{DynamicResource ActionTextBrush}" FontSize="12" Margin="0,10,0,0" AutomationProperties.LiveSetting="Polite" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem x:Name="AgentsTab" Header="Agents" AutomationProperties.AutomationId="AgentsTab">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Foreground="{DynamicResource InkBrush}" FontWeight="Normal">
+                    <StackPanel Margin="4,24,4,12">
+                        <TextBlock Text="Agent access" Style="{StaticResource SettingsSectionHeading}" Margin="0,0,0,16" />
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0"><TextBlock Text="Allow agent access" Style="{StaticResource DialogLabel}" /><TextBlock Text="Let AI agents such as Claude Code, Codex and GitHub Copilot read what this app sees through a local MCP server. Message contents are sent to the agent's model provider." TextWrapping="Wrap" Style="{StaticResource DialogCaption}" Margin="0,4,0,0" /></StackPanel>
+                            <ToggleButton x:Name="AgentAccessToggle" Grid.Column="1" Style="{StaticResource Switch}" VerticalAlignment="Top" Checked="AgentAccess_Changed" Unchecked="AgentAccess_Changed" AutomationProperties.AutomationId="AgentAccessToggle" AutomationProperties.Name="Allow agent access" />
+                        </Grid>
+
+                        <TextBlock Text="Connection" Style="{StaticResource SettingsSectionHeading}" />
+                        <Grid>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="Address" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <TextBox x:Name="AgentEndpoint" Width="248" IsReadOnly="True" AutomationProperties.AutomationId="AgentEndpoint" AutomationProperties.Name="Agent access address" />
+                                <Button x:Name="CopyAgentEndpointButton" Width="36" Margin="8,0,0,0" Padding="8" Click="CopyAgentEndpoint_Click" ToolTip="Copy address" AutomationProperties.AutomationId="CopyAgentEndpointButton" AutomationProperties.Name="Copy agent access address"><Path Style="{StaticResource CopyIcon}" /></Button>
+                            </StackPanel>
+                            <TextBlock Grid.Row="1" Text="Port" VerticalAlignment="Center" Margin="0,12,0,0" />
+                            <TextBox x:Name="AgentPort" Grid.Row="1" Grid.Column="1" Width="112" HorizontalAlignment="Right" Margin="0,12,0,0" MaxLength="5" LostKeyboardFocus="AgentPort_LostFocus" KeyDown="AgentPort_KeyDown" AutomationProperties.AutomationId="AgentPort" AutomationProperties.Name="Agent access port" />
+                            <TextBlock Grid.Row="2" Text="Access token" VerticalAlignment="Center" Margin="0,12,0,0" />
+                            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,12,0,0">
+                                <TextBox x:Name="AgentToken" Width="160" IsReadOnly="True" AutomationProperties.AutomationId="AgentToken" AutomationProperties.Name="Agent access token (hidden)" />
+                                <Button x:Name="CopyAgentTokenButton" Width="36" Margin="8,0,0,0" Padding="8" Click="CopyAgentToken_Click" ToolTip="Copy access token" AutomationProperties.AutomationId="CopyAgentTokenButton" AutomationProperties.Name="Copy agent access token"><Path Style="{StaticResource CopyIcon}" /></Button>
+                                <Button x:Name="RegenerateAgentTokenButton" Content="Regenerate" Margin="8,0,0,0" Click="RegenerateAgentToken_Click" ToolTip="Create a new token. Agents using the old token must be updated." AutomationProperties.AutomationId="RegenerateAgentTokenButton" />
+                            </StackPanel>
+                        </Grid>
+                        <Border x:Name="AgentPortWarning" Style="{StaticResource ValidationWarningFrame}" Margin="0,12,0,0" Visibility="Collapsed" AutomationProperties.AutomationId="AgentPortWarning">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <TextBlock x:Name="AgentPortWarningText" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                <Button Grid.Column="1" Content="Change port" Style="{StaticResource ValidationWarningAction}" Click="ChangeAgentPort_Click" AutomationProperties.AutomationId="ChangeAgentPortButton" />
+                            </Grid>
+                        </Border>
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <Ellipse x:Name="AgentStatusDot" Style="{StaticResource StatusDot}" Margin="0,0,8,0" />
+                            <TextBlock x:Name="AgentStatusText" Style="{StaticResource DialogCaption}" TextWrapping="Wrap" AutomationProperties.AutomationId="AgentStatusText" AutomationProperties.LiveSetting="Polite" />
+                        </StackPanel>
+
+                        <TextBlock Text="Connect an agent" Style="{StaticResource SettingsSectionHeading}" />
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="Agent" VerticalAlignment="Center" />
+                            <ComboBox x:Name="AgentClientSelector" Grid.Column="1" Width="176" SelectionChanged="AgentClient_Changed" AutomationProperties.AutomationId="AgentClientSelector" AutomationProperties.Name="Agent" />
+                        </Grid>
+                        <TextBox x:Name="AgentSnippet" Style="{StaticResource SnippetBox}" Margin="0,12,0,0" AutomationProperties.AutomationId="AgentSnippet" AutomationProperties.Name="Agent setup command" />
+                        <Button x:Name="CopyAgentSnippetButton" Content="Copy command" HorizontalAlignment="Right" Margin="0,12,0,0" Click="CopyAgentSnippet_Click" AutomationProperties.AutomationId="CopyAgentSnippetButton" />
+                        <TextBlock x:Name="AgentsStatus" TextWrapping="Wrap" Foreground="{DynamicResource ActionTextBrush}" Style="{StaticResource DialogCaption}" Margin="0,12,0,0" AutomationProperties.LiveSetting="Polite" />
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

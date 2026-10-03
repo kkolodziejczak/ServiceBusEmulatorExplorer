@@ -17,7 +17,7 @@ dead paths.
 | Module | What it is | Depends on |
 | --- | --- | --- |
 | `src/ServiceBusEmulatorExplorer.Core/` | Service Bus SDK access, entity discovery, message projection, replay and delete services, watch and search queries | Azure SDK |
-| `src/ServiceBusEmulatorExplorer.App/` | WPF shell: Investigation workspace, Message Workbench prototype, dialogs, shared styles, settings | Core |
+| `src/ServiceBusEmulatorExplorer.App/` | WPF shell: Investigation workspace, Message Workbench prototype, dialogs, shared styles, settings, agent access (MCP) server in `Agent/` | Core, ModelContextProtocol.Core |
 | `tests/` | Core and App unit tests (default), Docker-gated integration tests, gated FlaUI UI smoke tests | — |
 | `tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/` | Headless screenshot harness for proof images | App |
 | `tools/ServiceBusEmulatorExplorer.InvestigationPrototype/` | The approved prototype; historical reference, not production | — |
@@ -53,6 +53,9 @@ dead paths.
 | DLQ delete scoped to captured deliveries with sequence-number safety | shared | `src/ServiceBusEmulatorExplorer.Core/ServiceBus/DlqDeleteReceiver.cs`; `src/ServiceBusEmulatorExplorer.Core/Investigation/DlqDeliveryDeleter.cs` |
 | Watch scope resolution with inherited and overridden inclusion | shared | `src/ServiceBusEmulatorExplorer.Core/Investigation/WatchScopeResolver.cs` |
 | Message search query model | shared | `src/ServiceBusEmulatorExplorer.Core/Investigation/MessageSearchQuery.cs` |
+| Local MCP server for agents (Streamable HTTP on HttpListener, stateless per POST, no ASP.NET Core) | shared | `src/ServiceBusEmulatorExplorer.App/Agent/AgentAccessHost.cs`; request checks in `AgentRequestGuard.cs`; tools in `AgentTools.cs`; [spec](specs/agent-access.md) |
+| Agent reads of live UI state: one Dispatcher snapshot carrying the per-profile permission | adapt | `src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWorkspace.Agent.cs`, `CaptureAgentSnapshot`, `PeekForAgentAsync`; adapter `src/ServiceBusEmulatorExplorer.App/Agent/WorkspaceAgentStateSource.cs` |
+| Cursor-paged event log that reports resets and eviction as an expired cursor | adapt | `src/ServiceBusEmulatorExplorer.App/Agent/AgentArrivalJournal.cs` |
 
 ## Testing, proof and delivery
 
@@ -61,7 +64,8 @@ dead paths.
 | Fast test loop excluding gated categories | shared | `AGENTS.md` (Fast Development Loop); `tests/README.md` |
 | Docker-gated integration tests against the local emulator | adapt | `tests/ServiceBusEmulatorExplorer.Integration.Tests/`; `compose.yaml` |
 | FlaUI UI smoke tests using UI Automation patterns, not physical input | adapt | `tests/ServiceBusEmulatorExplorer.UiSmoke.Tests/`; runner `scripts/Invoke-UiSmoke.ps1` |
-| Headless screenshot of the real window with synthetic services | shared | `tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/Program.cs`; `WpfScreenshot.cs` |
+| Headless screenshot of the real window with synthetic services | shared | `tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/Program.cs`; `WpfScreenshot.cs`; Settings tabs in `SelectorScreenshotScenario.cs` (`--selector-settings-connections`, `--selector-settings-agents`) |
+| MCP end-to-end test through the SDK's own HTTP client | adapt | `tests/ServiceBusEmulatorExplorer.App.Tests/AgentAccessTests.cs`, `Host_serves_read_only_tools_to_an_mcp_client_and_enforces_the_token` |
 | Exact WPF test viewport beyond a hosted desktop size limit | shared | `tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/NativeWindowSizeOverride.cs`, `NativeWindowSizeOverride.Install`; linked into App.Tests through its project file; dispose the window hook after proof |
 | Guarded release tagging and two-flavour Windows publish | shared | `scripts/Push-ReleaseTag.ps1`, `scripts/Publish-Windows.ps1`, `scripts/Test-ReleaseArtifacts.ps1` |
 | Convention check with ratchet baseline | shared | `tools/check-docs.ps1`; config `.agent-kit.json` |

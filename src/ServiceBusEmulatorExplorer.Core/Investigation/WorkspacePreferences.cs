@@ -6,7 +6,8 @@ public sealed record InvestigationProfile(
     string Id,
     ConnectionProfile Connection,
     string ColorHex = "#0069FA",
-    string WarningMessage = "");
+    string WarningMessage = "",
+    bool AllowAgentAccess = true);
 
 public enum TimestampDisplay { Utc, Local }
 
@@ -31,6 +32,10 @@ public sealed record WorkspacePreferences
     public int AutoRefreshSeconds { get; init; }
     public string SelectedEntityPath { get; init; } = "";
     public bool DeadLetter { get; init; }
+    public bool AgentAccessEnabled { get; init; }
+    public int AgentAccessPort { get; init; } = AgentAccessDefaults.Port;
+    /// <summary>Bearer token agents must send; empty until agent access is first enabled.</summary>
+    public string AgentAccessToken { get; init; } = "";
     public double WindowWidth { get; init; } = 1200;
     public double WindowHeight { get; init; } = 800;
     public IReadOnlyDictionary<string, IReadOnlyList<WatchPreference>> Watches { get; init; } =

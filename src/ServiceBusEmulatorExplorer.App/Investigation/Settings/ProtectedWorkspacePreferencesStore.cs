@@ -257,13 +257,15 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
                 stored.Id,
                 new ConnectionProfile(stored.Name.Trim(), runtime, administration, authenticationMode, namespaceName),
                 stored.ColorHex.ToUpperInvariant(),
-                stored.WarningMessage ?? string.Empty));
+                stored.WarningMessage ?? string.Empty,
+                stored.AllowAgentAccess ?? true));
         }
 
         StoredSettings settings = envelope.Settings;
         string selected = settings.SelectedProfileId is not null && profileIds.Contains(settings.SelectedProfileId)
             ? settings.SelectedProfileId
             : profiles[0].Id;
+        string agentToken = ReadAgentToken(settings.AgentAccessToken);
         return new WorkspacePreferences
         {
             Profiles = profiles,
@@ -284,6 +286,10 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
                 ? settings.SearchDeliveryBudget
                 : DefaultSearchDeliveryBudget,
             AutoRefreshSeconds = settings.AutoRefreshSeconds >= 0 ? settings.AutoRefreshSeconds : 0,
+            // An unreadable token cannot authenticate anyone; keep agent access off until it is regenerated.
+            AgentAccessEnabled = settings.AgentAccessEnabled && agentToken.Length > 0,
+            AgentAccessPort = AgentAccessDefaults.IsValidPort(settings.AgentAccessPort) ? settings.AgentAccessPort : AgentAccessDefaults.Port,
+            AgentAccessToken = agentToken,
             SelectedEntityPath = settings.SelectedEntityPath ?? string.Empty,
             DeadLetter = settings.DeadLetter,
             WindowWidth = ValidWindowSize(settings.WindowWidth, 980) ? settings.WindowWidth : DefaultWindowWidth,
@@ -326,7 +332,8 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
                 connection.AuthenticationMode == ConnectionAuthenticationMode.AzureCli
                     ? connection.FullyQualifiedNamespace?.Trim() ?? string.Empty
                     : null,
-                profile.WarningMessage ?? string.Empty));
+                profile.WarningMessage ?? string.Empty,
+                profile.AllowAgentAccess));
         }
 
         string selected = preferences.SelectedProfileId is not null && profileIds.Contains(preferences.SelectedProfileId)
@@ -358,7 +365,17 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
                 ValidWindowSize(preferences.WindowWidth, 980) ? preferences.WindowWidth : DefaultWindowWidth,
                 ValidWindowSize(preferences.WindowHeight, 640) ? preferences.WindowHeight : DefaultWindowHeight,
                 WriteWatches(preferences.Watches, profileIds),
-                WriteReplayFamilies(preferences.ReplayFamilies, profileIds)));
+                WriteReplayFamilies(preferences.ReplayFamilies, profileIds),
+                preferences.AgentAccessEnabled,
+                AgentAccessDefaults.IsValidPort(preferences.AgentAccessPort) ? preferences.AgentAccessPort : AgentAccessDefaults.Port,
+                string.IsNullOrEmpty(preferences.AgentAccessToken) ? null : UserProtectedText.Protect(preferences.AgentAccessToken)));
+    }
+
+    private static string ReadAgentToken(string? protectedToken)
+    {
+        if (string.IsNullOrWhiteSpace(protectedToken)) return string.Empty;
+        try { return UserProtectedText.Unprotect(protectedToken); }
+        catch (Exception exception) when (IsStorageFailure(exception)) { return string.Empty; }
     }
 
     private static Dictionary<string, IReadOnlyList<ReplayFamilyState>> ReadReplayFamilies(string? protectedValue, HashSet<string> profileIds)
@@ -483,7 +500,8 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
         string? RuntimeConnection,
         string? AdministrationConnection,
         string? FullyQualifiedNamespace,
-        string WarningMessage);
+        string WarningMessage,
+        bool? AllowAgentAccess = null);
 
     private sealed record StoredSettings(
         string? SelectedProfileId,
@@ -504,7 +522,10 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
         double WindowWidth,
         double WindowHeight,
         Dictionary<string, List<StoredWatch>> Watches,
-        string? ReplayFamilies = null);
+        string? ReplayFamilies = null,
+        bool AgentAccessEnabled = false,
+        int AgentAccessPort = AgentAccessDefaults.Port,
+        string? AgentAccessToken = null);
 
     private sealed record StoredWatch(string ScopeKey, bool? Active, bool? DeadLetter, bool? Included = null);
 

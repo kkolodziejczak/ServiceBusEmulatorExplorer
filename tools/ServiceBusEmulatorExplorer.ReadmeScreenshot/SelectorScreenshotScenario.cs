@@ -6,9 +6,11 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using ServiceBusEmulatorExplorer.App.Agent;
 using ServiceBusEmulatorExplorer.App.Investigation;
 using ServiceBusEmulatorExplorer.App.Investigation.Settings;
 using ServiceBusEmulatorExplorer.App.Investigation.Resources;
+using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 
 namespace ServiceBusEmulatorExplorer.ReadmeScreenshot;
@@ -27,7 +29,10 @@ internal static class SelectorScreenshotScenario
             try
             {
                 bool settings = mode.StartsWith("--selector-settings", StringComparison.Ordinal);
-                window = settings ? new SettingsWindow(new WorkspacePreferences(), _ => Task.CompletedTask) : mode switch
+                bool connections = mode == "--selector-settings-connections";
+                bool agents = mode == "--selector-settings-agents";
+                window = settings ? new SettingsWindow(connections ? ProductionProfilePreferences() : agents ? AgentAccessPreferences() : new WorkspacePreferences(),
+                    _ => Task.CompletedTask, trayAvailable: true, agents ? new ListeningAgentStatus() : null) : mode switch
                 {
                     "--selector-template-destination" => new Window { Content = new MessageLibraryPrototypeView() },
                     _ => throw new ArgumentException($"Unknown selector capture: {mode}")
@@ -36,6 +41,7 @@ internal static class SelectorScreenshotScenario
                 {
                     "purple" => "#7540BF", "teal" => "#007F80", "orange" => "#B85B00", "red" => "#C83B3B", _ => null
                 };
+                if (connections) accent = "#C83B3B";
                 if (accent is not null) ProfileTheme.Apply(window, accent);
                 window.ShowActivated = false;
                 window.ShowInTaskbar = false;
@@ -51,6 +57,19 @@ internal static class SelectorScreenshotScenario
                     ((Button)prototype.FindName("EditorPropertiesTab")!).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 window.UpdateLayout();
                 var content = (FrameworkElement)window.Content;
+                if (connections || agents)
+                {
+                    // Connections: the selected profile's color, warning and agent switch. Agents: the listening state.
+                    var tab = (TabItem)window.FindName(connections ? "ConnectionsTab" : "AgentsTab")!;
+                    tab.IsSelected = true;
+                    await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
+                    if (connections) ((ScrollViewer)tab.Content).ScrollToEnd();
+                    await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
+                    window.UpdateLayout();
+                    WpfScreenshot.SaveWindowContent(window, output, (int)content.ActualWidth, (int)content.ActualHeight);
+                    result = 0;
+                    return;
+                }
                 WpfScreenshot.SaveWindowContent(window, output, (int)content.ActualWidth, (int)content.ActualHeight);
                 var selector = settings ? (ComboBox)window.FindName("QueuePageSizeSelector")! : (ComboBox)prototype!.FindName("TemplateDestination")!;
                 selector.IsDropDownOpen = true;
@@ -74,4 +93,31 @@ internal static class SelectorScreenshotScenario
         app.Run();
         return result;
     }
+
+    private static WorkspacePreferences AgentAccessPreferences() => new()
+    {
+        AgentAccessEnabled = true,
+        AgentAccessPort = AgentAccessDefaults.Port,
+        AgentAccessToken = "screenshot-token"
+    };
+
+    private sealed class ListeningAgentStatus : IAgentAccessStatusSource
+    {
+        public AgentAccessStatus Status { get; } =
+            new(AgentAccessState.Listening, AgentAccessDefaults.Port, LastRequestUtc: DateTimeOffset.UtcNow.AddMinutes(-2));
+        public event Action<AgentAccessStatus>? StatusChanged { add { } remove { } }
+    }
+
+    private static WorkspacePreferences ProductionProfilePreferences() => new()
+    {
+        Profiles =
+        [
+            new("local-emulator", ConnectionProfileDefaults.LocalEmulator),
+            new("production", new ConnectionProfile("Production",
+                "Endpoint=sb://contoso-prod.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=example",
+                "Endpoint=sb://contoso-prod.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=example"),
+                "#C83B3B", "You are connecting to the live production namespace. Messages contain customer data.", AllowAgentAccess: false)
+        ],
+        SelectedProfileId = "production"
+    };
 }

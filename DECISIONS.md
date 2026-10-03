@@ -36,6 +36,9 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-020 | accepted | docs | README is user-facing; maintainer mechanics live in AGENTS.md |
 | DEC-021 | accepted | layout | No numeric navigation badges; native title bar carries the app name |
 | DEC-022 | accepted | Workbench layout | Responsive JSON/inspector with two property columns at medium width and one at small width |
+| DEC-023 | accepted | agent access | Agents use the running desktop app through an MCP server it hosts behind a Settings switch; no separate CLI |
+| DEC-024 | accepted | agent access | MCP over loopback HttpListener on a fixed, changeable port; agents poll for watch arrivals first |
+| DEC-025 | accepted | agent access | Each connection profile allows or blocks agent access; allowed by default |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -183,3 +186,24 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 - Decision: show JSON beside properties when usable editor width permits; otherwise use Body/Properties/Variables tabs. Medium layouts use two property columns; small layouts use one. New windows default to 1200x800 while retaining saved sizes and the 980x640 minimum.
 - Because: the user wanted a combination of proposals 2 and 3: "if we have a lot of space there is no need to hide the Json body editor", and clarified "if window will be smaller then we should have single column."
 - Consequences: resize the existing controls without losing drafts, selection or editing context. Keep Variables and advanced controls reachable. See the [approved contract](specs/message-library/responsive-layout.md).
+
+## DEC-023 — Agent access through the desktop app's MCP server
+
+- Status: accepted · 2026-10-02 · Scope: agent access
+- Decision: AI agents work with the tool through an MCP server hosted by the running desktop app. A Settings switch turns it on, the server starts with the app, and agents are pointed at it. No separate CLI.
+- Because: "people have the Desktop app they do not need CLI at all it is easier to lookup at windows then console"; the goal is to "lookup DLQ that I see and try figure out why this is not working"; "we don't need to use agents as a starting point. We can just point them."
+- Consequences: tools read the live session (current view, focused message, fetched messages, watches); agents never get delete (DEC-002); replay needs in-app confirmation (DEC-001). See the [agent access spec](specs/agent-access.md).
+
+## DEC-024 — Loopback HttpListener, fixed port, polled arrivals
+
+- Status: accepted · 2026-10-02 · Scope: agent access
+- Decision: serve Streamable HTTP MCP with `HttpListener` on `127.0.0.1`, on a fixed default port the user can change in Settings; watch arrivals are polled through a cursor first, with Claude Code channel push left for later.
+- Because: the user chose these over ASP.NET Core, a random port and push-first after the [agent access investigation](specs/agent-access.md#investigation-evidence): no extra runtime for the runtime-required build, stable agent configuration, and push works only in Claude Code's research-preview channels.
+- Consequences: keep the HTTP host behind a small seam so Kestrel can replace it; report port conflicts as actionable validation (DEC-013).
+
+## DEC-025 — Agent access per connection profile
+
+- Status: accepted · 2026-10-02 · Scope: agent access
+- Decision: every connection profile has an "Allow agent access" switch, on by default, next to its colour and warning. While the active profile blocks it, agents get no profile, entity or message data.
+- Because: for a live or production profile "I don't want to have MCP because this is too strict on the user personal details"; it works like the existing warning and colour that tell you which environment you are on.
+- Consequences: the global switch in Settings › Agents still turns the server on or off; the profile switch decides what it may expose. See the [agent access spec](specs/agent-access.md#per-profile-access).

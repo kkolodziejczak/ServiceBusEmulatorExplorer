@@ -109,3 +109,15 @@ Chrome-polish verification: zero-warning build and 347 routed checks pass. Actua
 ## Application identity (2026-09-21)
 
 Approved: cobalt bus spine, three cyan terminals, and a satin silver investigation lens. Use the shared [PNG](../src/ServiceBusEmulatorExplorer.App/Assets/AppIcon.png) and [multi-size ICO](../src/ServiceBusEmulatorExplorer.App/Assets/AppIcon.ico) for native windows, the taskbar, system tray and executable. The [README image](../docs/images/service-bus-emulator-explorer-icon.png) matches the PNG. The ICO contains transparent 16, 20, 24, 32, 40, 48, 64, 96, 128 and 256 pixel frames. This identity is static and independent of connection state or profile theme.
+
+## Settings › Agents tab (approved 2026-10-02)
+
+[Mockup](agent-access/settings-agents-tab-proposal.png), edited from a fresh capture of the current Settings window (rendered at 1.42× scale). Context: DEC-023, DEC-024 and the [agent access spec](agent-access.md).
+
+- A third `TabToggle`, "Agents", after General and Connections.
+- "Agent access": the existing Settings switch row, "Allow agent access", off by default, with a caption that message contents go to the agent's model provider.
+- "Connection": Address (read-only) and Access token (masked) reuse the Connections tab's masked field with the shared Copy icon; Port is a short text field; Regenerate is a plain `Button`. A status line shows listening state and the last request time; a port that cannot be bound becomes a `ValidationWarningFrame` with a remedy that focuses Port (DEC-013).
+- "Connect an agent": a `Dropdown` (Claude Code, Codex, GitHub Copilot) selects a read-only command or config snippet, with a Copy command button.
+- Registered in DESIGN.md: the Settings switch row (`Switch`, now in SharedStyles), `SettingsSectionHeading`, `SnippetBox` and `StatusDot`.
+- Per profile (DEC-025): [Connections mockup](agent-access/settings-profile-agent-access-proposal.png), edited from a fresh capture of a red Production profile. Settings › Connections gains an "Allow agent access" switch row below the connection warning, using the same switch row as General; on by default, shown off here. When the active profile is off, the Agents tab status reads "Paused: the current connection does not allow agent access".
+- Not shown yet: the main-window indicator that agent access is on, recently used, or paused by the profile.

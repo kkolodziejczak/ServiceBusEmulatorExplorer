@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using ServiceBusEmulatorExplorer.App.Agent;
 using ServiceBusEmulatorExplorer.App.Investigation.Resources;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
@@ -15,13 +16,17 @@ public partial class SettingsWindow : Window
 {
     private readonly Func<WorkspacePreferences, Task> _saveAsync;
     private readonly bool _trayAvailable;
+    private readonly IAgentAccessStatusSource? _agentStatus;
+    private bool _agentSavePending;
+    private string? _agentPortError;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     private bool _ready;
     private bool _generalSavePending;
     private int _persistencePendingCount;
     private EditableProfile? _selectedEditor;
 
-    public SettingsWindow(WorkspacePreferences preferences, Func<WorkspacePreferences, Task> saveAsync, bool trayAvailable = true)
+    public SettingsWindow(WorkspacePreferences preferences, Func<WorkspacePreferences, Task> saveAsync, bool trayAvailable = true,
+        IAgentAccessStatusSource? agentStatus = null)
     {
         ArgumentNullException.ThrowIfNull(preferences);
         ArgumentNullException.ThrowIfNull(saveAsync);
@@ -29,6 +34,7 @@ public partial class SettingsWindow : Window
         CurrentPreferences = preferences;
         _saveAsync = saveAsync;
         _trayAvailable = trayAvailable;
+        _agentStatus = agentStatus;
         InitializeComponent();
         CloseToTrayToggle.IsEnabled = trayAvailable;
         if (!trayAvailable) CloseToTrayDescription.Text = "System tray is unavailable in this session.";
@@ -59,6 +65,15 @@ public partial class SettingsWindow : Window
         Profiles = new ObservableCollection<EditableProfile>(preferences.Profiles.Select(EditableProfile.From));
         ProfilesList.ItemsSource = Profiles;
         ProfilesList.SelectedItem = Profiles.FirstOrDefault(profile => profile.Id == preferences.SelectedProfileId) ?? Profiles.FirstOrDefault();
+
+        AgentClientSelector.ItemsSource = AgentSnippets.Clients.Select(client => client.Name).ToArray();
+        AgentClientSelector.SelectedIndex = 0;
+        ApplyAgentPreferences(preferences);
+        if (_agentStatus is not null)
+        {
+            _agentStatus.StatusChanged += AgentStatusChanged;
+            Closed += (_, _) => _agentStatus.StatusChanged -= AgentStatusChanged;
+        }
         _ready = true;
         if (ProfilesList.SelectedItem is EditableProfile initialProfile)
         {
@@ -159,7 +174,7 @@ public partial class SettingsWindow : Window
         string color = ColorPicker.SelectedItem is ProfileAccent accent
             ? accent.ColorHex
             : _selectedEditor.ColorHex;
-        _selectedEditor.ApplyDraft(connection, color, ConnectionWarning.Text.Trim());
+        _selectedEditor.ApplyDraft(connection, color, ConnectionWarning.Text.Trim(), ProfileAgentAccessToggle.IsChecked == true);
     }
 
     private void LoadProfile(EditableProfile editor)
@@ -172,6 +187,7 @@ public partial class SettingsWindow : Window
         FullyQualifiedNamespace.Text = editor.FullyQualifiedNamespace;
         ColorPicker.SelectedValue = editor.ColorHex;
         ConnectionWarning.Text = editor.WarningMessage;
+        ProfileAgentAccessToggle.IsChecked = editor.AllowAgentAccess;
         ProfileStatus.Text = string.Empty;
         UpdateAuthenticationFields();
     }
@@ -245,7 +261,8 @@ public partial class SettingsWindow : Window
             editor.Id,
             connection,
             ColorPicker.SelectedItem is ProfileAccent accent ? accent.ColorHex : editor.ColorHex,
-            ConnectionWarning.Text.Trim());
+            ConnectionWarning.Text.Trim(),
+            ProfileAgentAccessToggle.IsChecked == true);
 
         try
         {
@@ -260,6 +277,7 @@ public partial class SettingsWindow : Window
             });
             editor.Apply(savedProfile);
             ProfilesList.Items.Refresh();
+            UpdateAgentStatus();
             if (ReferenceEquals(_selectedEditor, editor))
             {
                 ProfileStatus.Text = "Profile saved. No connection was attempted.";
@@ -315,6 +333,7 @@ public partial class SettingsWindow : Window
         AzureCliPanel.IsEnabled = enabled;
         ColorPicker.IsEnabled = enabled;
         ConnectionWarning.IsEnabled = enabled;
+        ProfileAgentAccessToggle.IsEnabled = enabled;
     }
 
     private void BeginPersistence()
@@ -381,6 +400,170 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private void ApplyAgentPreferences(WorkspacePreferences preferences)
+    {
+        AgentAccessToggle.IsChecked = preferences.AgentAccessEnabled;
+        if (_agentPortError is null) AgentPort.Text = preferences.AgentAccessPort.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        AgentEndpoint.Text = AgentAccessDefaults.Endpoint(preferences.AgentAccessPort);
+        AgentToken.Text = preferences.AgentAccessToken.Length == 0 ? string.Empty : new string('•', 16);
+        bool hasToken = preferences.AgentAccessToken.Length > 0;
+        CopyAgentTokenButton.IsEnabled = hasToken;
+        CopyAgentSnippetButton.IsEnabled = hasToken;
+        RegenerateAgentTokenButton.IsEnabled = hasToken && !_agentSavePending;
+        UpdateAgentSnippet();
+        UpdateAgentStatus();
+    }
+
+    private async void AgentAccess_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_ready) return;
+        bool enabled = AgentAccessToggle.IsChecked == true;
+        await SaveAgentAsync(current => current with
+        {
+            AgentAccessEnabled = enabled,
+            AgentAccessToken = current.AgentAccessToken.Length > 0 ? current.AgentAccessToken : AgentAccessDefaults.CreateToken()
+        }, enabled ? "Agent access is on." : "Agent access is off.");
+    }
+
+    private void AgentPort_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Enter) _ = ApplyAgentPortAsync();
+    }
+
+    private void AgentPort_LostFocus(object sender, System.Windows.Input.KeyboardFocusChangedEventArgs e) => _ = ApplyAgentPortAsync();
+
+    internal async Task ApplyAgentPortAsync()
+    {
+        if (!_ready) return;
+        if (!int.TryParse(AgentPort.Text.Trim(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int port)
+            || !AgentAccessDefaults.IsValidPort(port))
+        {
+            // Kept until a valid port is applied; listener status refreshes must not hide it (DEC-013).
+            _agentPortError = $"Enter a port between {AgentAccessDefaults.MinimumPort} and {AgentAccessDefaults.MaximumPort}.";
+            UpdateAgentStatus();
+            return;
+        }
+        _agentPortError = null;
+        if (port == CurrentPreferences.AgentAccessPort)
+        {
+            UpdateAgentStatus();
+            return;
+        }
+        await SaveAgentAsync(current => current with { AgentAccessPort = port }, $"Agent access port changed to {port}. Update your agents with the new address.");
+    }
+
+    private void ChangeAgentPort_Click(object sender, RoutedEventArgs e)
+    {
+        AgentPort.Focus();
+        AgentPort.SelectAll();
+    }
+
+    private async void RegenerateAgentToken_Click(object sender, RoutedEventArgs e) =>
+        await SaveAgentAsync(current => current with { AgentAccessToken = AgentAccessDefaults.CreateToken() },
+            "New token created. Agents using the old token must be set up again.");
+
+    private void CopyAgentEndpoint_Click(object sender, RoutedEventArgs e) =>
+        CopyAgentText(AgentAccessDefaults.Endpoint(CurrentPreferences.AgentAccessPort), "Address copied.");
+
+    private void CopyAgentToken_Click(object sender, RoutedEventArgs e) =>
+        CopyAgentText(CurrentPreferences.AgentAccessToken, "Access token copied.");
+
+    private void CopyAgentSnippet_Click(object sender, RoutedEventArgs e) =>
+        CopyAgentText(AgentSnippets.Build(SelectedAgentClient, AgentAccessDefaults.Endpoint(CurrentPreferences.AgentAccessPort),
+            CurrentPreferences.AgentAccessToken).Text, "Copied with the access token included.");
+
+    private void AgentClient_Changed(object sender, SelectionChangedEventArgs e) => UpdateAgentSnippet();
+
+    private AgentClient SelectedAgentClient =>
+        AgentSnippets.Clients[Math.Max(0, AgentClientSelector.SelectedIndex)].Client;
+
+    private void UpdateAgentSnippet()
+    {
+        var snippet = AgentSnippets.Build(SelectedAgentClient, AgentAccessDefaults.Endpoint(CurrentPreferences.AgentAccessPort), AgentSnippets.MaskedToken);
+        AgentSnippet.Text = snippet.Text;
+        CopyAgentSnippetButton.Content = snippet.CopyLabel;
+    }
+
+    private void CopyAgentText(string text, string done)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        try
+        {
+            Clipboard.SetText(text);
+            AgentsStatus.Text = done;
+        }
+        catch (ExternalException)
+        {
+            AgentsStatus.Text = "Clipboard is unavailable. Try copying again.";
+        }
+    }
+
+    private void AgentStatusChanged(AgentAccessStatus status) => Dispatcher.BeginInvoke(new Action(UpdateAgentStatus));
+
+    private void UpdateAgentStatus()
+    {
+        var preferences = CurrentPreferences;
+        var status = _agentStatus?.Status;
+        var activeProfile = Profiles?.FirstOrDefault(profile => profile.Id == preferences.SelectedProfileId);
+        bool failed = preferences.AgentAccessEnabled && status?.State == AgentAccessState.Failed && status.Port == preferences.AgentAccessPort;
+        string? warning = _agentPortError ?? (failed ? status!.Detail : null);
+        AgentPortWarning.Visibility = warning is null ? Visibility.Collapsed : Visibility.Visible;
+        AgentPortWarningText.Text = warning ?? string.Empty;
+
+        (string brush, string text) = !preferences.AgentAccessEnabled
+                ? ("SecondaryBrush", "Off. Agents cannot connect.")
+            : failed
+                ? ("DisconnectedHealthBrush", "Not listening.")
+            : status is null || status.State != AgentAccessState.Listening || status.Port != preferences.AgentAccessPort
+                ? ("SecondaryBrush", "Starting…")
+            : activeProfile is { AllowAgentAccess: false }
+                ? ("WarningHealthBrush", "Paused: the current connection does not allow agent access.")
+            : ("ConnectedHealthBrush", status.LastRequestUtc is { } last
+                ? $"Listening · last request {Ago(DateTimeOffset.UtcNow - last)}"
+                : "Listening · no requests yet");
+        AgentStatusDot.Fill = (System.Windows.Media.Brush)FindResource(brush);
+        AgentStatusText.Text = text;
+    }
+
+    private static string Ago(TimeSpan elapsed) =>
+        elapsed < TimeSpan.FromMinutes(1) ? "just now"
+        : elapsed < TimeSpan.FromHours(1) ? $"{(int)elapsed.TotalMinutes} minute{((int)elapsed.TotalMinutes == 1 ? "" : "s")} ago"
+        : $"{(int)elapsed.TotalHours} hour{((int)elapsed.TotalHours == 1 ? "" : "s")} ago";
+
+    private async Task SaveAgentAsync(Func<WorkspacePreferences, WorkspacePreferences> update, string done)
+    {
+        if (_agentSavePending) return;
+        _agentSavePending = true;
+        BeginPersistence();
+        SetAgentControlsEnabled(false);
+        AgentsStatus.Text = "Saving…";
+        try
+        {
+            await PersistAsync(update);
+            AgentsStatus.Text = done;
+        }
+        catch (Exception exception)
+        {
+            AgentsStatus.Text = $"Could not save agent settings: {exception.Message}";
+        }
+        finally
+        {
+            _agentSavePending = false;
+            _ready = false;
+            ApplyAgentPreferences(CurrentPreferences);
+            _ready = true;
+            SetAgentControlsEnabled(true);
+            EndPersistence();
+        }
+    }
+
+    private void SetAgentControlsEnabled(bool enabled)
+    {
+        AgentAccessToggle.IsEnabled = enabled;
+        AgentPort.IsEnabled = enabled;
+        RegenerateAgentTokenButton.IsEnabled = enabled && CurrentPreferences.AgentAccessToken.Length > 0;
+    }
+
     private static int NormalizePageSize(int value) => value is 25 or 50 or 100 or 200 ? value : 50;
 
     private static int NormalizeSearchTimeBudget(int value) => value is 10 or 30 or 60 or 120 ? value : 30;
@@ -398,6 +581,7 @@ public partial class SettingsWindow : Window
         private string _fullyQualifiedNamespace;
         private string _colorHex;
         private string _warningMessage;
+        private bool _allowAgentAccess = true;
 
         public EditableProfile(string id, string name, ConnectionProfile connection)
         {
@@ -421,12 +605,14 @@ public partial class SettingsWindow : Window
         public string FullyQualifiedNamespace => _fullyQualifiedNamespace;
         public string ColorHex => _colorHex;
         public string WarningMessage => _warningMessage;
+        public bool AllowAgentAccess => _allowAgentAccess;
 
         public static EditableProfile From(InvestigationProfile profile)
         {
             var editor = new EditableProfile(profile.Id, profile.Connection.Name, profile.Connection);
             editor._colorHex = profile.ColorHex;
             editor._warningMessage = profile.WarningMessage;
+            editor._allowAgentAccess = profile.AllowAgentAccess;
             return editor;
         }
 
@@ -439,10 +625,12 @@ public partial class SettingsWindow : Window
             Set(ref _fullyQualifiedNamespace, profile.Connection.FullyQualifiedNamespace, nameof(FullyQualifiedNamespace));
             Set(ref _colorHex, profile.ColorHex, nameof(ColorHex));
             Set(ref _warningMessage, profile.WarningMessage, nameof(WarningMessage));
+            Set(ref _allowAgentAccess, profile.AllowAgentAccess, nameof(AllowAgentAccess));
         }
 
-        public void ApplyDraft(ConnectionProfile connection, string colorHex, string warningMessage)
+        public void ApplyDraft(ConnectionProfile connection, string colorHex, string warningMessage, bool allowAgentAccess)
         {
+            Set(ref _allowAgentAccess, allowAgentAccess, nameof(AllowAgentAccess));
             Set(ref _name, connection.Name, nameof(Name));
             Set(ref _runtimeConnectionString, connection.RuntimeConnectionString, nameof(RuntimeConnectionString));
             Set(ref _administrationConnectionString, connection.AdministrationConnectionString, nameof(AdministrationConnectionString));

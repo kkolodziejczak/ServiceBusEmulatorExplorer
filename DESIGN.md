@@ -180,6 +180,10 @@ result.
 | Watch notification | `WatchNotificationWindow.cs` | hover, dismiss | Tray notifications | Approved |
 | Active badge | inline in `InvestigationWindow.xaml` (literal colours) | — | Message rows, inspector | Approved look, not yet a style |
 | Message Workbench workspace | `MessageLibraryPrototypeView.xaml` (dummy data) | compose, prepare, review, results, cancelled | Prototype | Approved prototype; production pending |
+| Settings switch row | `Switch` toggle with `DialogLabel` and wrapped `DialogCaption`; [Agents mockup](specs/agent-access/settings-agents-tab-proposal.png), [per-profile mockup](specs/agent-access/settings-profile-agent-access-proposal.png) | off, on, hover, pressed, keyboard focus, disabled | Settings General, Connections (per-profile agent access), Agents | Approved 2026-10-02 (General rows keep their earlier inline text styles) |
+| Settings section heading | `SettingsSectionHeading` | — | Settings › Agents | Approved 2026-10-02 |
+| Snippet box | `SnippetBox` (read-only monospace `TextBox`) | read-only, selectable, wraps | Settings › Agents setup command or configuration | Approved 2026-10-02 |
+| Status dot | `StatusDot` filled with `ConnectedHealthBrush`, `WarningHealthBrush`, `DisconnectedHealthBrush` or `SecondaryBrush` | listening, paused, failed, off | Settings › Agents status line | Approved 2026-10-02 |
 | Responsive Compose layout | [Layout controller](src/ServiceBusEmulatorExplorer.App/Investigation/MessageLibraryPrototypeView.Layout.cs), `ApplyEditorResponsiveLayout`; [visual contract](specs/message-library/responsive-layout.md) | wide: JSON plus inspector; medium: tabs and two property columns; small: tabs and one property column; Variables, editing, warning remedy | Message Workbench Compose | Approved 2026-10-02, DEC-022 |
 
 ### Operational tables

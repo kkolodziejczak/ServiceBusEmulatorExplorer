@@ -58,6 +58,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
         Watch.Warning += WatchWarning;
         Watch.Polled += WatchPolled;
         Watch.DiscoveryUpdated += WatchDiscoveryUpdated;
+        Watch.ArrivalAccepted += RecordAgentArrival;
     }
 
     private void WatchDiscoveryUpdated(EntityDiscoverySnapshot snapshot)
@@ -210,6 +211,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
         ++generation;
         var previous = session;
         session = null;
+        ResetAgentState();
         mutationCancellation?.Cancel();
         await StopReplayCleanupAsync();
         connectCancellation?.Cancel();
@@ -373,6 +375,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
         Watch.Warning -= WatchWarning;
         Watch.Polled -= WatchPolled;
         Watch.DiscoveryUpdated -= WatchDiscoveryUpdated;
+        Watch.ArrivalAccepted -= RecordAgentArrival;
         Surface.Dispose();
     }
 }
