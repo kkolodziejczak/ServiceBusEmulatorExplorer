@@ -11,6 +11,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation;
+using ServiceBusEmulatorExplorer.App.Investigation.Inspection;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
@@ -75,6 +76,123 @@ public sealed class InvestigationSearchRenderTests
         if (failure is not null)
         {
             ExceptionDispatchInfo.Capture(failure).Throw();
+        }
+    }
+
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void Workbench_namespace_suggestions_stay_entity_only_and_never_browse_or_retarget_the_draft()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try { RenderWorkbenchNamespaceSuggestions(); }
+            catch (Exception exception) { failure = exception; }
+        }) { IsBackground = true };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        Assert.True(thread.Join(TimeSpan.FromSeconds(30)), "The Workbench namespace suggestion proof exceeded its 30-second bound.");
+        if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
+    private static void RenderWorkbenchNamespaceSuggestions()
+    {
+        Dispatcher dispatcher = Dispatcher.CurrentDispatcher;
+        SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(dispatcher));
+        var messages = new FakeMessages();
+        InvestigationWorkspace workspace = CreateWorkspace(messages, searchDeliveryBudget: 10_000,
+            snapshot: CreateWorkbenchSnapshot());
+        var window = new InvestigationWindow(workspace);
+        workspace.ConfirmDiscard = () => Task.FromResult(true);
+
+        try
+        {
+            ShowAndConnect(dispatcher, workspace, window);
+            ((ToggleButton)window.FindName("MessageLibraryTab")!).IsChecked = true;
+            PumpUntil(dispatcher, () => ((FrameworkElement)window.FindName("MessageLibraryPrototype")!).IsVisible,
+                TimeSpan.FromSeconds(5));
+            window.UpdateLayout();
+
+            var search = (TextBox)window.FindName("SearchBox")!;
+            var clear = (Button)window.FindName("ClearSearchButton")!;
+            var popup = (Popup)window.FindName("SuggestionsPopup")!;
+            var suggestions = (ListBox)window.FindName("SuggestionsList")!;
+            var view = (MessageLibraryPrototypeView)window.FindName("MessageLibraryPrototype")!;
+            var destination = (ComboBox)view.FindName("TemplateDestination")!;
+            EntityNode? selectedEntity = workspace.Browse.SelectedEntity;
+            string? destinationValue = destination.SelectedValue?.ToString();
+            DeliveryIdentity? focusedMessage = workspace.Surface.FocusedMessage?.Key;
+            string draft = ((JsonEditor)view.FindName("EditorText")!).Text;
+            int peekCalls = messages.PeekCalls;
+
+            search.Focus();
+            search.Text = "billing";
+            PumpUntil(dispatcher, () => popup.IsOpen && suggestions.Items.Count > 0, TimeSpan.FromSeconds(5));
+            Assert.False(popup.StaysOpen);
+            Assert.IsAssignableFrom<System.ComponentModel.ICollectionView>(suggestions.ItemsSource);
+            Assert.All(suggestions.Items.Cast<SearchSuggestion>(), suggestion =>
+            {
+                Assert.Equal("ENTITIES", suggestion.Group);
+                Assert.Equal("entity", suggestion.Kind);
+                Assert.NotNull(suggestion.Entity);
+                Assert.Null(suggestion.Message);
+            });
+            Assert.DoesNotContain(suggestions.Items.Cast<SearchSuggestion>(), suggestion =>
+                suggestion.Kind.StartsWith("search-", StringComparison.Ordinal) || suggestion.Kind == "correlation");
+
+            RaisePreviewKey(search, Key.Down);
+            Assert.Equal(0, suggestions.SelectedIndex);
+            RaisePreviewKey(search, Key.Enter);
+            Assert.Equal("order-events/billing", search.Text);
+            Assert.False(popup.IsOpen);
+            Assert.Same(selectedEntity, workspace.Browse.SelectedEntity);
+            Assert.Equal(focusedMessage, workspace.Surface.FocusedMessage?.Key);
+            Assert.Equal(peekCalls, messages.PeekCalls);
+            Assert.Equal(destinationValue, destination.SelectedValue?.ToString());
+            Assert.Equal(draft, ((JsonEditor)view.FindName("EditorText")!).Text);
+            EntityNode orderEvents = workspace.Browse.Roots.Single(root => root.Name == "Topics").Children
+                .Single(entity => entity.Name == "order-events");
+            EntityNode inventoryEvents = workspace.Browse.Roots.Single(root => root.Name == "Topics").Children
+                .Single(entity => entity.Name == "inventory-events");
+            EntityNode orders = workspace.Browse.Roots.Single(root => root.Name == "Queues").Children.Single();
+            Assert.True(orderEvents.IsVisible);
+            Assert.False(inventoryEvents.IsVisible);
+            Assert.False(orders.IsVisible);
+            Assert.True(TreeItems((TreeView)view.FindName("LibraryTree")!).Any(item => Equals(item.Tag, "template:Order created")),
+                "A subscription suggestion should retain its parent topic as the template library scope.");
+            Assert.DoesNotContain(TreeItems((TreeView)view.FindName("LibraryTree")!), item => Equals(item.Tag, "template:Stock reserved"));
+
+            search.Text = "billing";
+            PumpUntil(dispatcher, () => popup.IsOpen && suggestions.Items.Count > 0, TimeSpan.FromSeconds(5));
+            suggestions.SelectedIndex = 0;
+            suggestions.UpdateLayout();
+            var namespaceRow = Assert.IsAssignableFrom<ListBoxItem>(suggestions.ItemContainerGenerator.ContainerFromIndex(0));
+            namespaceRow.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
+            { RoutedEvent = Mouse.PreviewMouseUpEvent });
+            Assert.Equal("order-events/billing", search.Text);
+            Assert.False(popup.IsOpen);
+            Assert.Equal(peekCalls, messages.PeekCalls);
+            Assert.Equal(destinationValue, destination.SelectedValue?.ToString());
+            Assert.Equal(draft, ((JsonEditor)view.FindName("EditorText")!).Text);
+            search.Text = "not-a-namespace";
+            PumpUntil(dispatcher, () => !popup.IsOpen, TimeSpan.FromSeconds(5));
+            Assert.Empty(suggestions.Items);
+            search.Text = "billing";
+            PumpUntil(dispatcher, () => popup.IsOpen && suggestions.Items.Count > 0, TimeSpan.FromSeconds(5));
+            RaisePreviewKey(suggestions, Key.Escape);
+            PumpUntil(dispatcher, () => !popup.IsOpen && search.IsKeyboardFocusWithin, TimeSpan.FromSeconds(5));
+            Assert.False(popup.IsOpen);
+            clear.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, clear));
+            PumpUntil(dispatcher, () => !popup.IsOpen && search.Text.Length == 0, TimeSpan.FromSeconds(5));
+            Assert.Equal(destinationValue, destination.SelectedValue?.ToString());
+            Assert.All(workspace.Browse.Roots.SelectMany(root => root.Children), entity => Assert.True(entity.IsVisible));
+            Assert.True(TreeItems((TreeView)view.FindName("LibraryTree")!).Any(item => Equals(item.Tag, "template:Stock reserved")),
+                "Clearing namespace search should restore the full library filter.");
+        }
+        finally
+        {
+            CloseWindow(dispatcher, window);
+            workspace.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
     }
 
@@ -409,6 +527,26 @@ public sealed class InvestigationSearchRenderTests
             Issues: []);
     }
 
+    private static EntityDiscoverySnapshot CreateWorkbenchSnapshot()
+    {
+        ServiceBusEntityNode queue = Entity(EntityKind.Queue, "order-replies", null);
+        ServiceBusEntityNode orders = Entity(EntityKind.Topic, "order-events", null);
+        ServiceBusEntityNode billing = Entity(EntityKind.Subscription, "billing", "order-events");
+        ServiceBusEntityNode inventory = Entity(EntityKind.Topic, "inventory-events", null);
+        ServiceBusEntityNode warehouse = Entity(EntityKind.Subscription, "warehouse", "inventory-events");
+        ServiceBusEntityNode[] entities = [queue, orders, billing, inventory, warehouse];
+        return new(
+            entities.Select(entity => new EntityObservation(
+                entity,
+                new EntityCountObservation(
+                    new(entity.Counts.ActiveMessageCount, CountAvailability.Known),
+                    new(entity.Counts.DeadLetterMessageCount, CountAvailability.Known),
+                    new(entity.Counts.ScheduledMessageCount, CountAvailability.Known)))).ToArray(),
+            DateTimeOffset.UtcNow,
+            IsComplete: true,
+            Issues: []);
+    }
+
     private static ServiceBusEntityNode Entity(EntityKind kind, string name, string? topicName) =>
         new(
             kind,
@@ -435,6 +573,20 @@ public sealed class InvestigationSearchRenderTests
         }
 
         return null;
+    }
+
+    private static IEnumerable<TreeViewItem> TreeItems(TreeView tree)
+    {
+        foreach (TreeViewItem item in TreeItems(tree.Items.OfType<TreeViewItem>())) yield return item;
+    }
+
+    private static IEnumerable<TreeViewItem> TreeItems(IEnumerable<TreeViewItem> items)
+    {
+        foreach (TreeViewItem item in items)
+        {
+            yield return item;
+            foreach (TreeViewItem child in TreeItems(item.Items.OfType<TreeViewItem>())) yield return child;
+        }
     }
 
     private static void AssertSourceBadges(DataGrid grid)
@@ -558,6 +710,7 @@ public sealed class InvestigationSearchRenderTests
         private TaskCompletionSource<bool>? _peekStarted;
         private TaskCompletionSource<bool>? _releasePeek;
         private bool _blockNextPeek;
+        private int _peekCalls;
 
         public FakeMessages()
         {
@@ -570,6 +723,7 @@ public sealed class InvestigationSearchRenderTests
         }
 
         public TaskCompletionSource<bool> PeekStarted => _peekStarted ??= new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public int PeekCalls => _peekCalls;
 
         public void BlockNextPeek()
         {
@@ -587,6 +741,7 @@ public sealed class InvestigationSearchRenderTests
             long? fromSequenceNumber,
             CancellationToken cancellationToken)
         {
+            _peekCalls++;
             if (_blockNextPeek)
             {
                 _blockNextPeek = false;

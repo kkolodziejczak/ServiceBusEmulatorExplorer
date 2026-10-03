@@ -78,7 +78,7 @@ internal static class SideBySideProof
         foreach (string name in new[]
         {
             "JsonTab", "PropertiesTab", "RawTab", "SaveInspectedTemplateButton",
-            "FindButton", "CopyCorrelationButton", "FindRelatedButton"
+            "CopyCorrelationButton", "FindRelatedButton"
         })
             AssertInside(Require<FrameworkElement>(window, name), inspector, name, viewport);
         FrameworkElement replay = Require<FrameworkElement>(window, "ReplayButton");
@@ -177,8 +177,8 @@ internal static class SideBySideProof
                 throw new InvalidOperationException($"The {tabName} action did not display its inspector body.");
         }
 
-        Button find = Require<Button>(window, "FindButton");
-        find.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, find));
+        Grid inspector = Require<Grid>(window, "InspectorPane");
+        ApplicationCommands.Find.Execute(null, inspector);
         await SettleAsync(window);
         FrameworkElement findPanel = Require<FrameworkElement>(window, "FindPanel");
         if (!findPanel.IsVisible || !Require<TextBox>(window, "FindBox").IsVisible)

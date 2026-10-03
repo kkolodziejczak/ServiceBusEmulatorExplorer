@@ -56,15 +56,6 @@
                 </Style.Triggers>
             </Style>
 
-            <Style TargetType="ComboBox">
-                <Setter Property="MinHeight" Value="32" />
-                <Setter Property="Padding" Value="8,4" />
-                <Setter Property="Background" Value="{DynamicResource RaisedBrush}" />
-                <Setter Property="Foreground" Value="{DynamicResource InkBrush}" />
-                <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
-                <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="HorizontalContentAlignment" Value="Left" />
-            </Style>
 
             <Style TargetType="Label">
                 <Setter Property="Foreground" Value="{DynamicResource InkBrush}" />

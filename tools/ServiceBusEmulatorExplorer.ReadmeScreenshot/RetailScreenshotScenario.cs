@@ -91,9 +91,11 @@ internal static class RetailScreenshotScenario
             || enqueuedColumn.Visibility != Visibility.Visible
             || messageGrid.ActualWidth < 600
             || Math.Abs(messageGrid.Columns[0].ActualWidth - 40) > 1
-            || messageColumnWidth < 250
-            || Math.Abs(messageGrid.Columns[2].ActualWidth - 145) > 1
-            || Math.Abs(enqueuedColumn.ActualWidth - 140) > 1
+            || !messageGrid.Columns[1].Width.IsAuto
+            || messageColumnWidth < 120 || messageColumnWidth > 201
+            || !messageGrid.Columns[2].Width.IsAuto
+            || messageGrid.Columns[2].ActualWidth < 110 || messageGrid.Columns[2].ActualWidth > 161
+            || !enqueuedColumn.Width.IsStar || enqueuedColumn.ActualWidth < 140
             || inspectorPane.ActualWidth < 350)
         {
             throw new InvalidOperationException(

@@ -16,6 +16,8 @@ public sealed class InvestigationPreferencesTests
         Assert.Equal(ConnectionProfileDefaults.LocalEmulator, Assert.Single(result.Preferences.Profiles).Connection);
         Assert.Equal("local-emulator", result.Preferences.SelectedProfileId);
         Assert.True(result.Preferences.WasConnected);
+        Assert.Equal(1200, result.Preferences.WindowWidth);
+        Assert.Equal(800, result.Preferences.WindowHeight);
     }
 
     [Fact]

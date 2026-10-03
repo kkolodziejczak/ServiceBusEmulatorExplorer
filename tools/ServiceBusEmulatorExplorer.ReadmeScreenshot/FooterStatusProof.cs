@@ -122,10 +122,7 @@ internal static class FooterStatusProof
         await SettleAsync(window);
 
         var prototype = (MessageLibraryPrototypeView)Require<FrameworkElement>(window, "MessageLibraryPrototype");
-        TreeView tree = Require<TreeView>(window, "PrototypeNamespaceTree");
-        var topics = (TreeViewItem)tree.Items[1];
-        ((TreeViewItem)topics.Items[0]).IsSelected = true;
-        await SettleAsync(window);
+        prototype.SelectEntityContext("topic:order-events");
         Button prepare = (Button)prototype.FindName("ContinueToPrepareButton")!;
         prepare.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, prepare));
         await SettleAsync(window);

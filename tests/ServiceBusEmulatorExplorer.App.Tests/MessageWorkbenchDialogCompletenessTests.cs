@@ -14,7 +14,7 @@ public sealed class MessageWorkbenchDialogCompletenessTests
 {
     [Fact]
     [Trait("TestCategory", "UiRender")]
-    public void Captured_draft_retains_filename_and_copied_properties_in_the_editor()
+    public void Captured_draft_retains_copied_properties_and_selected_folder_in_the_editor()
         => OnSta(() =>
         {
             var view = new MessageLibraryPrototypeView();
@@ -27,61 +27,84 @@ public sealed class MessageWorkbenchDialogCompletenessTests
                     "correlation-17", "session-4", null,
                     new Dictionary<string, object?> { ["source"] = "sample" });
                 view.OpenCapturedDraft("Captured order", "{\"ok\":true}", "order-events", "Archive",
-                    properties, "captured-order.sbetemplate.json");
+                    properties);
                 view.UpdateLayout();
 
                 Assert.Equal("Order captured", ((TextBox)view.FindName("PropertySubject")!).Text);
                 Assert.Equal("correlation-17", ((TextBox)view.FindName("PropertyCorrelationId")!).Text);
                 Assert.Equal("session-4", ((TextBox)view.FindName("PropertySessionId")!).Text);
-                Assert.Contains(Descendants(view).OfType<ListBoxItem>(), item =>
-                    item.ToolTip?.ToString()?.Contains("captured-order.sbetemplate.json", StringComparison.Ordinal) == true);
+                var tree = (TreeView)view.FindName("LibraryTree")!;
+                var captured = TreeItems(tree).Single(item => Equals(item.Tag, "template:Captured order"));
+                Assert.Contains(TreeItems(tree), item => Equals(item.Tag, "folder:Archive"));
+                Assert.Equal("Captured order", captured.Header is FrameworkElement header
+                    ? Descendants(header).OfType<TextBlock>().First().Text : captured.Header?.ToString());
             }
             finally { window.Close(); }
         });
 
     [Fact]
     [Trait("TestCategory", "UiRender")]
-    public void Capture_association_uses_the_selected_dummy_destination_and_rejects_free_text()
+    public void Capture_uses_the_source_destination_and_keeps_message_body_and_properties_read_only_until_chosen()
         => OnSta(() =>
         {
+            var enqueued = new DateTimeOffset(2026, 9, 22, 10, 0, 0, TimeSpan.Zero);
+            var message = new ExplorerMessage("observed-1", 17, "original body", "original body", 13,
+                enqueued, enqueued.AddMinutes(90), 2, "application/json", "correlation-17", "session-4", "Observed",
+                new Dictionary<string, object?> { ["attempt"] = 2, ["source"] = "billing" },
+                new Dictionary<string, object?> { ["LockedUntilUtc"] = enqueued.AddMinutes(1) });
             var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Capture, "Local", "order-events", 1);
             try
             {
-                dialog.SetCaptureSource("order-events / billing · Active", "{}", "{}", "warehouse-typo");
-                dialog.Show();
-                dialog.UpdateLayout();
-
-                var picker = (ComboBox)dialog.FindName("CaptureAssociation")!;
-                Assert.False(picker.IsEditable);
-                Assert.Equal(3, picker.Items.Count);
+                dialog.SetCaptureSource("order-events / billing ? DLQ", "original body", "edited body",
+                    "order-events", message, EntityKind.Topic);
                 Assert.Equal("order-events", dialog.CaptureTopic);
+                Assert.Equal(EntityKind.Topic, dialog.CaptureDestinationKind);
+                Assert.Equal("order-events (Topic)", ((TextBlock)dialog.FindName("CaptureAssociation")!).Text);
+                Assert.IsType<TextBlock>(dialog.FindName("CaptureAssociation"));
+                Assert.Null(dialog.FindName("CaptureFileName"));
+                Assert.Null(dialog.FindName("CaptureAcknowledge"));
+                Assert.False(((Expander)dialog.FindName("CaptureDetails")!).IsExpanded);
 
-                picker.SelectedItem = picker.Items.OfType<ComboBoxItem>().Single(item =>
-                    string.Equals(item.Tag?.ToString(), "order-replies", StringComparison.Ordinal));
-                Assert.Equal("order-replies", dialog.CaptureTopic);
+                var properties = Assert.IsType<PrototypeCaptureProperties>(dialog.CaptureProperties);
+                Assert.Equal("Observed", properties.Subject);
+                Assert.Equal("application/json", properties.ContentType);
+                Assert.Equal("correlation-17", properties.CorrelationId);
+                Assert.Equal("session-4", properties.SessionId);
+                Assert.Null(properties.TtlMinutes);
+                Assert.Equal(2, properties.ApplicationProperties["attempt"]);
+                Assert.Equal("billing", properties.ApplicationProperties["source"]);
+                Assert.DoesNotContain("observed-1", string.Join(" ", properties.ApplicationProperties.Values));
+
+                ((Expander)dialog.FindName("CaptureDetails")!).IsExpanded = true;
+                var copyTtl = (CheckBox)dialog.FindName("CaptureCopyTtl")!;
+                Assert.True(copyTtl.IsEnabled);
+                copyTtl.IsChecked = true;
+                Assert.Equal(90, dialog.CaptureProperties!.TtlMinutes);
+                Assert.Equal("observed-1", message.MessageId);
+                Assert.Equal("original body", message.Body);
+
+                ((RadioButton)dialog.FindName("CaptureEdited")!).IsChecked = true;
+                Assert.Equal("edited body", dialog.CaptureTemplateBody);
+                ((RadioButton)dialog.FindName("CaptureOriginal")!).IsChecked = true;
+                Assert.Equal("original body", dialog.CaptureTemplateBody);
+                Assert.Equal("observed-1", message.MessageId);
+                Assert.Equal("original body", message.Body);
             }
-            finally
-            {
-                dialog.Close();
-            }
+            finally { dialog.Close(); }
         });
 
     [Fact]
-    [Trait("TestCategory", "UiRender")]
-    public void Capture_preserves_a_real_source_topic_outside_the_dummy_options()
+    public void Capture_keeps_a_queue_destination_read_only()
         => OnSta(() =>
         {
-            var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Capture, "Local", "custom-topic", 1);
+            var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Capture, "Local", "order-replies", 1);
             try
             {
-                var message = new ExplorerMessage("observed-1", 17, "{}", "{}", 2, null, null, 0,
-                    "application/json", null, null, "Observed", new Dictionary<string, object?>(),
-                    new Dictionary<string, object?>());
-                dialog.SetCaptureSource("custom-topic · Active", "{}", "{}", "custom-topic", message);
-                var picker = (ComboBox)dialog.FindName("CaptureAssociation")!;
-                Assert.Equal(4, picker.Items.Count);
-                Assert.Equal("custom-topic", dialog.CaptureTopic);
-                Assert.False(picker.IsEditable);
+                dialog.SetCaptureSource("order-replies ? Active", "{}", "{}", "order-replies",
+                    destinationKind: EntityKind.Queue);
+                Assert.Equal("order-replies", dialog.CaptureTopic);
+                Assert.Equal(EntityKind.Queue, dialog.CaptureDestinationKind);
+                Assert.Equal("order-replies (Queue)", ((TextBlock)dialog.FindName("CaptureAssociation")!).Text);
             }
             finally { dialog.Close(); }
         });
@@ -95,7 +118,13 @@ public sealed class MessageWorkbenchDialogCompletenessTests
             {
                 dialog.SetCaptureCollections(["Orders", "Archive", "My samples"], "My samples");
                 Assert.Equal("My samples", dialog.CaptureCollectionName);
-                Assert.Equal(3, ((ComboBox)dialog.FindName("CaptureCollection")!).Items.Count);
+                Assert.False(((Expander)dialog.FindName("CaptureDetails")!).IsExpanded);
+                var picker = (ComboBox)dialog.FindName("CaptureCollection")!;
+                Assert.Equal(4, picker.Items.Count);
+                Assert.Contains(picker.Items.OfType<ComboBoxItem>(), item =>
+                    Equals(item.Tag, "") && Equals(item.Content, "Root"));
+                foreach (string folder in new[] { "Orders", "Archive", "My samples" })
+                    Assert.Contains(picker.Items.OfType<ComboBoxItem>(), item => Equals(item.Tag, folder));
             }
             finally { dialog.Close(); }
         });
@@ -190,5 +219,23 @@ public sealed class MessageWorkbenchDialogCompletenessTests
         for (int index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
             foreach (var child in Descendants(VisualTreeHelper.GetChild(root, index)))
                 yield return child;
+    }
+
+    private static IEnumerable<TreeViewItem> TreeItems(TreeView tree)
+    {
+        foreach (TreeViewItem root in tree.Items.OfType<TreeViewItem>())
+        {
+            yield return root;
+            foreach (var child in TreeItems(root)) yield return child;
+        }
+    }
+
+    private static IEnumerable<TreeViewItem> TreeItems(TreeViewItem parent)
+    {
+        foreach (TreeViewItem child in parent.Items.OfType<TreeViewItem>())
+        {
+            yield return child;
+            foreach (var descendant in TreeItems(child)) yield return descendant;
+        }
     }
 }

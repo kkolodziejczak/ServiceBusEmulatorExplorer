@@ -56,19 +56,6 @@ public partial class InvestigationWindow
             Math.Max(240, WorkspaceGrid.ActualWidth - ContentGrid.ColumnDefinitions[0].MinWidth
                 - ContentGrid.ColumnDefinitions[2].MinWidth - 10));
         WorkspaceGrid.ColumnDefinitions[0].Width = new GridLength(namespaceWidth);
-        PrototypeNamespaceTree.FontSize = compactLibrary ? 11 : 14;
-        ResizePrototypeHeader(PrototypeQueueHeader, compactLibrary ? 188 : 230);
-        ResizePrototypeHeader(PrototypeTopicHeader, compactLibrary ? 188 : 213);
-        ResizePrototypeHeader(PrototypeBillingHeader, compactLibrary ? 162 : 194);
-        ResizePrototypeHeader(PrototypeAnalyticsHeader, compactLibrary ? 162 : 194);
-        ResizePrototypeHeader(PrototypeNotificationsHeader, compactLibrary ? 162 : 194);
-    }
-
-    private static void ResizePrototypeHeader(Grid header, double width)
-    {
-        header.Width = width;
-        header.ColumnDefinitions[1].Width = new GridLength(24);
-        header.ColumnDefinitions[2].Width = new GridLength(24);
-        header.ColumnDefinitions[3].Width = new GridLength(24);
+        NamespaceTree.FontSize = compactLibrary ? 11 : 14;
     }
 }

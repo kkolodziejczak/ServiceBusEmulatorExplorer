@@ -1,3 +1,4 @@
+using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
@@ -20,6 +21,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     private readonly DispatcherTimer dispatchTimer = new() { Interval = TimeSpan.FromMilliseconds(550) };
     private readonly ObservableCollection<PrototypeResult> results = [];
     private readonly ObservableCollection<PrototypeScheduledResult> scheduledResults = [];
+    private readonly ObservableCollection<PrototypeCancellationAttempt> cancellationAttempts = [];
     private IReadOnlyList<PrototypePreparedMessage> preparedMessages = [];
     private int messageCount;
     private int dispatchIndex;
@@ -32,11 +34,24 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     public MessageLibraryPrototypeReviewSurface(string profile, string target, int count)
     {
         InitializeComponent();
+        InitializeScheduleInputs();
         dispatchTimer.Tick += DispatchTick;
         Unloaded += (_, _) => dispatchTimer.Stop();
         SizeChanged += (_, _) => UpdateReviewCardLayout();
         ReviewScroll.SizeChanged += (_, _) => UpdateReviewCardLayout();
         Configure(profile, target, count);
+    }
+
+    private void InitializeScheduleInputs()
+    {
+        ScheduleHourInput.ItemsSource = Enumerable.Range(0, 24)
+            .Select(hour => hour.ToString("D2", CultureInfo.InvariantCulture))
+            .ToArray();
+        ScheduleMinuteInput.ItemsSource = Enumerable.Range(0, 60)
+            .Select(minute => minute.ToString("D2", CultureInfo.InvariantCulture))
+            .ToArray();
+        ScheduleHourInput.SelectedIndex = 14;
+        ScheduleMinuteInput.SelectedIndex = 30;
     }
 
     private void UpdateReviewCardLayout()
@@ -59,7 +74,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         messageCount = count;
         ResultsGrid.ItemsSource = results;
         ScheduledGrid.ItemsSource = scheduledResults;
-        HistoryGrid.ItemsSource = scheduledResults;
+        HistoryGrid.ItemsSource = cancellationAttempts;
         ReviewProfile.Text = profile;
         ReviewTarget.Text = target;
         ReviewTargetKind.Text = target == "order-replies" ? "Queue" : "Topic";
@@ -67,8 +82,20 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         ReviewHeading.Text = $"Review {count} message{(count == 1 ? "" : "s")}";
         SetPreparedMessages(CreateSamplePreparedMessages(count));
         ScheduleDateInput.SelectedDate = DateTime.Today.AddDays(1);
+        ScheduleHourInput.SelectedIndex = 14;
+        ScheduleMinuteInput.SelectedIndex = 30;
         ReviewSurface.Visibility = Visibility.Visible;
         ReviewFooter.Visibility = Visibility.Visible;
+        UpdateReviewTiming();
+    }
+
+    private Func<bool>? destinationAvailable;
+
+    public void SetTargetDetails(EntityKind kind, string endpoint, Func<bool>? isAvailable = null)
+    {
+        ReviewTargetKind.Text = kind.ToString();
+        ReviewEndpoint.Text = endpoint;
+        destinationAvailable = isAvailable;
         UpdateReviewTiming();
     }
 
@@ -84,19 +111,20 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         [nameof(ReviewFooter)] = ReviewFooter,
         [nameof(ReviewHeading)] = ReviewHeading,
         [nameof(ReviewProfile)] = ReviewProfile,
+        [nameof(ReviewEndpoint)] = ReviewEndpoint,
         [nameof(ReviewTargetKind)] = ReviewTargetKind,
         [nameof(ReviewTarget)] = ReviewTarget,
         [nameof(ReviewSendNow)] = ReviewSendNow,
         [nameof(ReviewSchedule)] = ReviewSchedule,
         [nameof(ScheduleInputs)] = ScheduleInputs,
         [nameof(ScheduleDateInput)] = ScheduleDateInput,
-        [nameof(ScheduleTimeInput)] = ScheduleTimeInput,
+        [nameof(ScheduleHourInput)] = ScheduleHourInput,
+        [nameof(ScheduleMinuteInput)] = ScheduleMinuteInput,
         [nameof(ScheduleUtc)] = ScheduleUtc,
         [nameof(ScheduleLocal)] = ScheduleLocal,
         [nameof(ResolvedSchedule)] = ResolvedSchedule,
         [nameof(ReviewMessageCount)] = ReviewMessageCount,
         [nameof(ReviewTotalSize)] = ReviewTotalSize,
-        [nameof(ReviewMessageIds)] = ReviewMessageIds,
         [nameof(ReviewTtl)] = ReviewTtl,
         [nameof(ReviewPropertyDetails)] = ReviewPropertyDetails,
         [nameof(ReviewError)] = ReviewError,
@@ -142,10 +170,8 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         ShowResults();
     }
 
-    public void SetReviewProperties(string messageIds, string ttl, string details)
+    public void SetReviewProperties(string ttl, string details)
     {
-        if (preparedMessages.Count == 0)
-            ReviewMessageIds.Text = messageIds;
         ReviewTtl.Text = ttl.StartsWith("Time to live: ", StringComparison.OrdinalIgnoreCase)
             ? ttl["Time to live: ".Length..] : ttl;
         ReviewPropertyDetails.Text = details;
@@ -158,9 +184,6 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
             throw new ArgumentException($"Expected {messageCount} prepared messages, received {messages.Count}.", nameof(messages));
 
         preparedMessages = messages.ToArray();
-        ReviewMessageIds.Text = preparedMessages.Count == 0
-            ? "Message IDs: none"
-            : string.Join("\n", preparedMessages.Select(message => $"{message.Row}. {message.MessageId}"));
         long totalBytes = preparedMessages.Sum(message => (long)Encoding.UTF8.GetByteCount(message.Body));
         ReviewTotalSize.Text = $"{totalBytes:N0} bytes UTF-8 across prepared messages";
     }
@@ -169,7 +192,8 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         ReviewProfile.Text, ReviewTarget.Text, dispatchScheduled,
         results.Select(row => (row.Row, row.MessageId, row.Outcome, row.Details)).ToArray(),
         scheduledResults.Select(row => (row.Row, row.Receipt, row.Payload, row.Outcome, row.DueTime,
-            row.Selected, row.CancellationStatus, row.AttemptTime)).ToArray());
+            row.Selected, row.CancellationStatus, row.AttemptTime)).ToArray())
+        { CancellationAttempts = cancellationAttempts.ToArray() };
 
     public void RestoreRun(PrototypeRunSnapshot run)
     {
@@ -184,6 +208,9 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         foreach (var row in run.ScheduledResults)
             scheduledResults.Add(new PrototypeScheduledResult(row.Row, row.Receipt, row.Payload, row.Outcome, row.DueTime)
             { Selected = row.Selected, CancellationStatus = row.CancellationStatus, AttemptTime = row.AttemptTime });
+        cancellationAttempts.Clear();
+        foreach (var attempt in run.CancellationAttempts) cancellationAttempts.Add(attempt);
+        UpdateCancellationActions();
         CancelScheduled.Visibility = scheduledResults.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -220,7 +247,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         ConfirmDispatch.Content = $"{(schedule ? "Schedule" : "Send")} {messageCount} message{(messageCount == 1 ? "" : "s")}";
         ReviewNotice.Text = schedule
             ? $"{messageCount} sample message{(messageCount == 1 ? "" : "s")} will be scheduled for the same instant."
-            : ReviewTarget.Text == "order-replies" ? messageCount == 1
+            : ReviewTargetKind.Text == "Queue" ? messageCount == 1
                 ? "This message will be sent to the queue."
                 : $"{messageCount} messages will be sent to the queue."
                 : "Subscriptions receive messages according to their rules.";
@@ -239,8 +266,13 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     {
         utc = default;
         if (ScheduleDateInput?.SelectedDate is not DateTime date ||
-            !TimeOnly.TryParseExact(ScheduleTimeInput?.Text, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out TimeOnly time))
+            ScheduleHourInput?.SelectedItem is not string hourText ||
+            ScheduleMinuteInput?.SelectedItem is not string minuteText ||
+            !int.TryParse(hourText, NumberStyles.None, CultureInfo.InvariantCulture, out int hour) ||
+            !int.TryParse(minuteText, NumberStyles.None, CultureInfo.InvariantCulture, out int minute) ||
+            hour is < 0 or > 23 || minute is < 0 or > 59)
             return false;
+        TimeOnly time = new(hour, minute);
         DateTime selected = DateTime.SpecifyKind(date.Date.Add(time.ToTimeSpan()), DateTimeKind.Unspecified);
         if (ScheduleLocal?.IsChecked == true)
         {
@@ -253,6 +285,13 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
 
     private void Dispatch_Click(object sender, RoutedEventArgs e)
     {
+        if (destinationAvailable?.Invoke() == false)
+        {
+            ReviewError.Text = "Destination is unavailable or not verified. Return to preparation and refresh discovery.";
+            ReviewError.Visibility = Visibility.Visible;
+            ConfirmDispatch.IsEnabled = false;
+            return;
+        }
         dispatchScheduled = ReviewSchedule.IsChecked == true;
         if (dispatchScheduled && (!TryResolveSchedule(out DateTime utc) || utc <= DateTime.UtcNow))
         {
@@ -264,11 +303,12 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         SetSurface(ProgressSurface);
         ReviewFooter.Visibility = Visibility.Collapsed;
         ProgressHeading.Text = $"{(dispatchScheduled ? "Scheduling" : "Sending")} {messageCount} messages";
-        ProgressTarget.Text = $"Target: {ReviewProfile.Text} / localhost / {ReviewTarget.Text}";
+        ProgressTarget.Text = $"Target: {ReviewProfile.Text} / {ReviewEndpoint.Text} / {ReviewTarget.Text}";
         DispatchProgress.Maximum = messageCount;
         dispatchIndex = 0;
         results.Clear();
         scheduledResults.Clear();
+        cancellationAttempts.Clear();
         dispatchTimer.Start();
     }
 
@@ -320,7 +360,15 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
             snapshot.Target,
             snapshot.Scheduled,
             Results = snapshot.Results.Select(row => new { row.Row, row.MessageId, row.Outcome, row.Details }),
-            ScheduledResults = snapshot.ScheduledResults.Select(row => new { row.Row, row.Receipt, row.Payload, row.Outcome, row.DueTime, row.Selected, row.CancellationStatus, row.AttemptTime })
+            ScheduledResults = snapshot.ScheduledResults.Select(row => new { row.Row, row.Receipt, row.Payload, row.Outcome, row.DueTime, row.Selected, row.CancellationStatus, row.AttemptTime }),
+            cancellationAttempts = snapshot.CancellationAttempts.Select(attempt => new
+            {
+                row = attempt.Row,
+                receipt = attempt.Receipt,
+                payload = attempt.Payload,
+                outcome = attempt.Outcome,
+                requestedAtUtc = attempt.RequestedAtUtc
+            })
         };
         File.WriteAllText(save.FileName, JsonSerializer.Serialize(export, new JsonSerializerOptions { WriteIndented = true }));
     }
@@ -331,43 +379,6 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     }
 
     private void Back_Click(object sender, RoutedEventArgs e) => BackRequested?.Invoke();
-
-    private void ShowCancellation_Click(object sender, RoutedEventArgs e)
-    {
-        SetSurface(CancellationSurface);
-        CancellationError.Visibility = Visibility.Collapsed;
-        CancellationTarget.Text = $"{ReviewProfile.Text} · {ReviewTarget.Text} · {ResolvedSchedule.Text}";
-        SetWindowTitle("Scheduled results");
-    }
-
-    private void BackToResults_Click(object sender, RoutedEventArgs e)
-    {
-        SetSurface(ResultsSurface);
-        SetWindowTitle("Run results");
-    }
-
-    private void ConfirmCancellation_Click(object sender, RoutedEventArgs e)
-    {
-        var selected = scheduledResults.Where(row => row.Selected && row.CancellationStatus != "Cancellation acknowledged").ToArray();
-        if (selected.Length == 0)
-        {
-            CancellationError.Visibility = Visibility.Visible;
-            return;
-        }
-        CancellationError.Visibility = Visibility.Collapsed;
-        if (MessageBox.Show(Window.GetWindow(this),
-            $"Cancel {selected.Length} selected scheduled message{(selected.Length == 1 ? "" : "s")}? Activation may race this request.",
-            "Confirm cancellation", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
-        foreach (var row in selected)
-        {
-            row.CancellationStatus = row.Row % 2 == 0 ? "Outcome unknown" : "Cancellation acknowledged";
-            row.AttemptTime = DateTime.UtcNow.ToString("HH:mm 'UTC'", CultureInfo.InvariantCulture);
-        }
-        HistoryGrid.Items.Refresh();
-        ScheduledGrid.Items.Refresh();
-        SetSurface(HistorySurface);
-        SetWindowTitle("Cancellation history");
-    }
 
     private void SetSurface(FrameworkElement surface)
     {

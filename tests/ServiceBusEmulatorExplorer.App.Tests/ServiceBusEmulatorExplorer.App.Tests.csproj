@@ -25,6 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\tools\ServiceBusEmulatorExplorer.ReadmeScreenshot\NativeWindowSizeOverride.cs" Link="Screenshot\NativeWindowSizeOverride.cs" />
     <Compile Include="..\..\tools\ServiceBusEmulatorExplorer.ReadmeScreenshot\WpfScreenshot.cs"
              Link="Screenshot\WpfScreenshot.cs" />
   </ItemGroup>

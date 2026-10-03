@@ -109,8 +109,10 @@ public sealed class MainWindowSmokeTests
 
         string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
             Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        await new ServiceBusEmulatorExplorer.App.Investigation.Settings.ProtectedWorkspacePreferencesStore(profilePath)
+            .SaveAsync(new ServiceBusEmulatorExplorer.Core.Investigation.WorkspacePreferences { WasConnected = false }, CancellationToken.None);
         using Application application = Application.Launch(executablePath,
-            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+            $"--profile-store-path {QuoteProcessArgument(profilePath)} --message-workbench-prototype");
         using var automation = new UIA3Automation();
 
         try
@@ -178,13 +180,15 @@ public sealed class MainWindowSmokeTests
 
     [UiSmokeFact]
     [Trait("TestCategory", "UiSmoke")]
-    public async Task Message_library_prototype_filters_topics_and_requires_an_explicit_unassociated_destination()
+    public async Task Message_library_prototype_filters_topics_and_sets_unassociated_destination_inline()
     {
         string executablePath = WpfAppPath.Resolve();
         string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
             Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        await new ServiceBusEmulatorExplorer.App.Investigation.Settings.ProtectedWorkspacePreferencesStore(profilePath)
+            .SaveAsync(new ServiceBusEmulatorExplorer.Core.Investigation.WorkspacePreferences { WasConnected = false }, CancellationToken.None);
         using Application application = Application.Launch(executablePath,
-            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+            $"--profile-store-path {QuoteProcessArgument(profilePath)} --message-workbench-prototype");
         using var automation = new UIA3Automation();
         try
         {
@@ -196,13 +200,14 @@ public sealed class MainWindowSmokeTests
             WaitForAutomationId(window, "LibraryTree", TimeSpan.FromSeconds(5));
 
             AutomationElement unassociated = WaitForText(window, "Unassociated sample", TimeSpan.FromSeconds(5));
-            FindAncestor(unassociated, ControlType.ListItem).Patterns.SelectionItem.Pattern.Select();
+            SelectTreeItem(unassociated);
             InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
             Assert.False(WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled);
-            InvokeButton(window, "LibraryChooseDestination", TimeSpan.FromSeconds(5));
-            Window picker = WaitForWindowWithAutomationId(application, automation,
-                "PrototypeApplyDestination", TimeSpan.FromSeconds(5));
-            InvokeButton(picker, "PrototypeApplyDestination", TimeSpan.FromSeconds(5));
+            InvokeButton(window, "LibraryBackToCompose", TimeSpan.FromSeconds(5));
+            InvokeButton(window, "LibraryEditorProperties", TimeSpan.FromSeconds(5));
+            WaitForAutomationId(window, "TemplateDestination", TimeSpan.FromSeconds(5))
+                .AsComboBox().Select("inventory-events (Topic)");
+            InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
             Assert.True(SpinWait.SpinUntil(() => WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled,
                 TimeSpan.FromSeconds(5)));
 
@@ -230,13 +235,77 @@ public sealed class MainWindowSmokeTests
 
     [UiSmokeFact]
     [Trait("TestCategory", "UiSmoke")]
+    public async Task Message_library_prototype_adds_folders_and_renames_templates_in_memory()
+    {
+        string executablePath = WpfAppPath.Resolve();
+        string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
+            Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        await new ServiceBusEmulatorExplorer.App.Investigation.Settings.ProtectedWorkspacePreferencesStore(profilePath)
+            .SaveAsync(new ServiceBusEmulatorExplorer.Core.Investigation.WorkspacePreferences { WasConnected = false }, CancellationToken.None);
+        using Application application = Application.Launch(executablePath,
+            $"--profile-store-path {QuoteProcessArgument(profilePath)} --message-workbench-prototype");
+        using var automation = new UIA3Automation();
+
+        try
+        {
+            Window window = WaitForMainWindowWithAutomationId(application, automation,
+                "ConnectionButton", TimeSpan.FromSeconds(15));
+            AutomationElement libraryTab = WaitForAutomationId(window, "MessageLibraryTab", TimeSpan.FromSeconds(5));
+            if (libraryTab.Patterns.Toggle.Pattern.ToggleState != ToggleState.On)
+                libraryTab.Patterns.Toggle.Pattern.Toggle();
+
+            InvokeButton(window, "LibraryAddFolder", TimeSpan.FromSeconds(5));
+            Window addFolder = WaitForWindowWithAutomationId(application, automation,
+                "LibraryNameInput", TimeSpan.FromSeconds(5));
+            AutomationElement folderName = WaitForAutomationId(addFolder, "LibraryNameInput", TimeSpan.FromSeconds(5));
+            folderName.Patterns.Value.Pattern.SetValue(string.Empty);
+            InvokeButton(addFolder, "LibraryNameSave", TimeSpan.FromSeconds(5));
+            Assert.NotNull(WaitForText(addFolder, "Use a unique folder name without path separators.", TimeSpan.FromSeconds(5)));
+
+            folderName.Patterns.Value.Pattern.SetValue("UI Smoke Folder");
+            InvokeButton(addFolder, "LibraryNameSave", TimeSpan.FromSeconds(5));
+            AutomationElement createdFolder = WaitForText(window, "UI Smoke Folder", TimeSpan.FromSeconds(5));
+            Assert.Equal(ControlType.TreeItem, FindAncestor(createdFolder, ControlType.TreeItem).ControlType);
+
+            AutomationElement orderCreated = WaitForElement(TimeSpan.FromSeconds(5), () =>
+                window.FindAllDescendants().FirstOrDefault(element =>
+                    element.ControlType == ControlType.TreeItem && element.Name == "Order created"));
+            SelectTreeItem(orderCreated);
+            InvokeButton(window, "LibraryRename", TimeSpan.FromSeconds(5));
+            AutomationElement renameInput = WaitForElement(TimeSpan.FromSeconds(5), () =>
+                window.FindAllDescendants(cf => cf.ByAutomationId("LibraryRenameInput"))
+                    .FirstOrDefault(element => !element.IsOffscreen));
+            renameInput.Patterns.Value.Pattern.SetValue("Order created smoke renamed");
+            WaitForAutomationId(window, "LibrarySave", TimeSpan.FromSeconds(5)).Focus();
+            Assert.NotNull(WaitForText(window, "Order created", TimeSpan.FromSeconds(5)));
+            Assert.Null(window.FindFirstDescendant(cf => cf.ByText("Order created smoke renamed")));
+            InvokeButton(window, "LibraryRenameSave", TimeSpan.FromSeconds(5));
+            Assert.NotNull(WaitForText(window, "Order created smoke renamed", TimeSpan.FromSeconds(5)));
+            Assert.Null(window.FindFirstDescendant(cf => cf.ByText("Order created")));
+        }
+        finally
+        {
+            CloseApplication(application);
+            if (File.Exists(profilePath)) File.Delete(profilePath);
+            string directory = Path.GetDirectoryName(profilePath)!;
+            if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                Directory.Delete(directory);
+        }
+
+        await Task.CompletedTask;
+    }
+
+    [UiSmokeFact]
+    [Trait("TestCategory", "UiSmoke")]
     public async Task Message_library_prototype_schedules_and_exposes_cancellation_results()
     {
         string executablePath = WpfAppPath.Resolve();
         string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
             Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        await new ServiceBusEmulatorExplorer.App.Investigation.Settings.ProtectedWorkspacePreferencesStore(profilePath)
+            .SaveAsync(new ServiceBusEmulatorExplorer.Core.Investigation.WorkspacePreferences { WasConnected = false }, CancellationToken.None);
         using Application application = Application.Launch(executablePath,
-            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+            $"--profile-store-path {QuoteProcessArgument(profilePath)} --message-workbench-prototype");
         using var automation = new UIA3Automation();
         try
         {
@@ -277,8 +346,10 @@ public sealed class MainWindowSmokeTests
         string executablePath = WpfAppPath.Resolve();
         string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
             Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        await new ServiceBusEmulatorExplorer.App.Investigation.Settings.ProtectedWorkspacePreferencesStore(profilePath)
+            .SaveAsync(new ServiceBusEmulatorExplorer.Core.Investigation.WorkspacePreferences { WasConnected = false }, CancellationToken.None);
         using Application application = Application.Launch(executablePath,
-            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+            $"--profile-store-path {QuoteProcessArgument(profilePath)} --message-workbench-prototype");
         using var automation = new UIA3Automation();
         try
         {
@@ -319,8 +390,10 @@ public sealed class MainWindowSmokeTests
         string executablePath = WpfAppPath.Resolve();
         string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
             Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        await new ServiceBusEmulatorExplorer.App.Investigation.Settings.ProtectedWorkspacePreferencesStore(profilePath)
+            .SaveAsync(new ServiceBusEmulatorExplorer.Core.Investigation.WorkspacePreferences { WasConnected = false }, CancellationToken.None);
         using Application application = Application.Launch(executablePath,
-            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+            $"--profile-store-path {QuoteProcessArgument(profilePath)} --message-workbench-prototype");
         using var automation = new UIA3Automation();
         try
         {
@@ -333,26 +406,23 @@ public sealed class MainWindowSmokeTests
             var routing = WaitForAutomationId(window, "LibraryReplyRouting", TimeSpan.FromSeconds(5));
             Assert.Equal(ExpandCollapseState.Collapsed, routing.Patterns.ExpandCollapse.Pattern.ExpandCollapseState);
             var propertyGrid = WaitForAutomationId(window, "LibraryApplicationProperties", TimeSpan.FromSeconds(5));
-            int originalPropertyCount = propertyGrid.Patterns.Grid.Pattern.RowCount;
-            var deleteProperty = WaitForAutomationId(window, "LibraryDeleteSelectedProperty", TimeSpan.FromSeconds(5));
-            Assert.False(deleteProperty.IsEnabled);
-            InvokeButton(window, "LibraryAddProperty", TimeSpan.FromSeconds(5));
-            Assert.Equal(originalPropertyCount + 1, propertyGrid.Patterns.Grid.Pattern.RowCount);
-            Assert.True(deleteProperty.IsEnabled);
-            InvokeButton(window, "LibraryDeleteSelectedProperty", TimeSpan.FromSeconds(5));
-            Assert.Equal(originalPropertyCount, propertyGrid.Patterns.Grid.Pattern.RowCount);
-            Assert.False(deleteProperty.IsEnabled);
+            Assert.True(propertyGrid.Patterns.Grid.Pattern.RowCount >= 3);
+            Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("LibraryAddProperty")));
+            Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("LibraryDeleteSelectedProperty")));
+            AutomationElement amountRow = FindAncestor(WaitForText(window, "amount", TimeSpan.FromSeconds(5)), ControlType.DataItem);
+            amountRow.Patterns.SelectionItem.Pattern.Select();
+            AutomationElement? rowDelete = amountRow.FindFirstDescendant(cf => cf.ByAutomationId("LibraryDeleteProperty"));
+            Assert.NotNull(rowDelete);
+            Assert.False(rowDelete.IsOffscreen);
             SetText(window, "LibrarySubject", "OrderCreatedEdited");
             InvokeButton(window, "LibrarySave", TimeSpan.FromSeconds(5));
 
-            FindAncestor(WaitForText(window, "Order updated", TimeSpan.FromSeconds(5)),
-                ControlType.ListItem).Patterns.SelectionItem.Pattern.Select();
+            SelectTreeItem(WaitForText(window, "Order updated", TimeSpan.FromSeconds(5)));
             InvokeButton(window, "LibraryEditorProperties", TimeSpan.FromSeconds(5));
             Assert.Equal("OrderCreated", WaitForAutomationId(window, "LibrarySubject",
                 TimeSpan.FromSeconds(5)).Patterns.Value.Pattern.Value);
 
-            FindAncestor(WaitForText(window, "Order created", TimeSpan.FromSeconds(5)),
-                ControlType.ListItem).Patterns.SelectionItem.Pattern.Select();
+            SelectTreeItem(WaitForText(window, "Order created", TimeSpan.FromSeconds(5)));
             InvokeButton(window, "LibraryEditorProperties", TimeSpan.FromSeconds(5));
             Assert.Equal("OrderCreatedEdited", WaitForAutomationId(window, "LibrarySubject",
                 TimeSpan.FromSeconds(5)).Patterns.Value.Pattern.Value);
@@ -370,13 +440,15 @@ public sealed class MainWindowSmokeTests
 
     [UiSmokeFact]
     [Trait("TestCategory", "UiSmoke")]
-    public async Task Message_library_compact_layout_keeps_both_trees_and_switches_author_prepare()
+    public async Task Message_library_compact_layout_uses_shared_tree_and_switches_author_prepare()
     {
         string executablePath = WpfAppPath.Resolve();
         string profilePath = Path.Combine(AppContext.BaseDirectory, "ui-smoke-profiles",
             Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        await new ServiceBusEmulatorExplorer.App.Investigation.Settings.ProtectedWorkspacePreferencesStore(profilePath)
+            .SaveAsync(new ServiceBusEmulatorExplorer.Core.Investigation.WorkspacePreferences { WasConnected = false }, CancellationToken.None);
         using Application application = Application.Launch(executablePath,
-            $"--profile-store-path {QuoteProcessArgument(profilePath)}");
+            $"--profile-store-path {QuoteProcessArgument(profilePath)} --message-workbench-prototype");
         using var automation = new UIA3Automation();
         try
         {
@@ -386,7 +458,8 @@ public sealed class MainWindowSmokeTests
             AutomationElement libraryTab = WaitForAutomationId(window, "MessageLibraryTab", TimeSpan.FromSeconds(5));
             if (libraryTab.Patterns.Toggle.Pattern.ToggleState != ToggleState.On)
                 libraryTab.Patterns.Toggle.Pattern.Toggle();
-            WaitForAutomationId(window, "PrototypeNamespaceTree", TimeSpan.FromSeconds(5));
+            WaitForAutomationId(window, "NamespaceTree", TimeSpan.FromSeconds(5));
+            Assert.Contains("Sample entities", WaitForAutomationId(window, "NamespaceModeLabel", TimeSpan.FromSeconds(5)).Name);
             WaitForAutomationId(window, "LibraryTree", TimeSpan.FromSeconds(5));
             Assert.False(WaitForAutomationId(window, "LibraryAuthorEditor", TimeSpan.FromSeconds(5)).IsOffscreen);
             InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));

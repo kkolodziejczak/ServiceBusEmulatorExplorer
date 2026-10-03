@@ -178,6 +178,8 @@ public sealed class InvestigationWatchWorkflowTests
             return browser.Current;
         };
         var workflow = new MessageWatchWorkflow(clock);
+        var browse = new MessageBrowseWorkflow();
+        workflow.DiscoveryUpdated += browse.ApplySnapshot;
         var results = Observe(workflow);
         var warnings = Channel.CreateUnbounded<string>();
         workflow.Warning += warning => warnings.Writer.TryWrite(warning);
@@ -189,11 +191,61 @@ public sealed class InvestigationWatchWorkflowTests
             var warning = await warnings.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Contains("timed out", warning, StringComparison.OrdinalIgnoreCase);
             Assert.False(results.Reader.TryRead(out _));
+            Assert.NotNull(browse.DiscoverySnapshot);
+            Assert.False(browse.DiscoverySnapshot.IsComplete);
+            Assert.Empty(browse.DiscoverySnapshot.Entities);
+            Assert.Equal(WorkbenchDestinationStatus.Unverified,
+                WorkbenchDestinationAvailability.Evaluate(new("orders", EntityKind.Queue), browse.DiscoverySnapshot));
             await clock.WaitForPollDelay();
             browser.Discover = null;
             clock.FirePollDelay();
             Assert.Empty((await Next(results)).Arrivals);
             Assert.Equal(2, browser.Calls);
+            Assert.True(browse.DiscoverySnapshot!.IsComplete);
+            Assert.Equal(WorkbenchDestinationStatus.Available,
+                WorkbenchDestinationAvailability.Evaluate(new("orders", EntityKind.Queue), browse.DiscoverySnapshot));
+        }
+        finally { await workflow.StopAsync(); }
+    }
+
+    [Fact]
+    public async Task Discovery_failure_after_a_successful_poll_marks_destination_unverified_then_recovers()
+    {
+        var clock = new PollClock();
+        var browser = new Browser(Snapshot(true, "orders"));
+        var browse = new MessageBrowseWorkflow();
+        var workflow = new MessageWatchWorkflow(clock);
+        workflow.DiscoveryUpdated += browse.ApplySnapshot;
+        var results = Observe(workflow);
+        var warnings = Channel.CreateUnbounded<string>();
+        workflow.Warning += warning => warnings.Writer.TryWrite(warning);
+        var destination = new WorkbenchDestination("orders", EntityKind.Queue);
+        try
+        {
+            workflow.Start(Session(browser, new Messages()), 1, WatchActive);
+            await Next(results);
+            Assert.Equal(WorkbenchDestinationStatus.Available,
+                WorkbenchDestinationAvailability.Evaluate(destination, browse.DiscoverySnapshot));
+
+            await clock.WaitForPollDelay();
+            browser.Discover = _ => throw new InvalidOperationException("Simulated discovery failure.");
+            clock.FirePollDelay();
+            string warning = await warnings.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Contains("could not refresh", warning, StringComparison.OrdinalIgnoreCase);
+            await clock.WaitForPollDelay();
+
+            Assert.NotNull(browse.DiscoverySnapshot);
+            Assert.False(browse.DiscoverySnapshot.IsComplete);
+            Assert.Empty(browse.DiscoverySnapshot.Entities);
+            Assert.Equal(WorkbenchDestinationStatus.Unverified,
+                WorkbenchDestinationAvailability.Evaluate(destination, browse.DiscoverySnapshot));
+
+            browser.Discover = null;
+            clock.FirePollDelay();
+            await Next(results);
+            Assert.True(browse.DiscoverySnapshot!.IsComplete);
+            Assert.Equal(WorkbenchDestinationStatus.Available,
+                WorkbenchDestinationAvailability.Evaluate(destination, browse.DiscoverySnapshot));
         }
         finally { await workflow.StopAsync(); }
     }
@@ -206,6 +258,8 @@ public sealed class InvestigationWatchWorkflowTests
         var messages = new Messages();
         messages.Set("orders", 1);
         var workflow = new MessageWatchWorkflow(clock);
+        var browse = new MessageBrowseWorkflow();
+        workflow.DiscoveryUpdated += browse.ApplySnapshot;
         var results = Observe(workflow);
         var warnings = Channel.CreateUnbounded<string>();
         workflow.Warning += warning => warnings.Writer.TryWrite(warning);
@@ -213,6 +267,7 @@ public sealed class InvestigationWatchWorkflowTests
         {
             workflow.Start(Session(browser, messages), 1, WatchActive);
             await Next(results);
+            EntityDiscoverySnapshot successfulDiscovery = Assert.IsType<EntityDiscoverySnapshot>(browse.DiscoverySnapshot);
             await clock.WaitForPollDelay();
             messages.Set("orders", Enumerable.Range(1, 150).Select(value => (long)value).ToArray());
             messages.BlockFromSequence = 101;
@@ -230,6 +285,9 @@ public sealed class InvestigationWatchWorkflowTests
             Assert.Equal(50, remaining.Arrivals.Count);
             Assert.All(remaining.Arrivals, arrival => Assert.InRange(arrival.Identity.SequenceNumber, 101, 150));
             Assert.Equal(149, workflow.PendingArrivals.Count);
+            Assert.Same(successfulDiscovery, browse.DiscoverySnapshot);
+            Assert.Equal(WorkbenchDestinationStatus.Available,
+                WorkbenchDestinationAvailability.Evaluate(new("orders", EntityKind.Queue), browse.DiscoverySnapshot));
         }
         finally { await workflow.StopAsync(); }
     }

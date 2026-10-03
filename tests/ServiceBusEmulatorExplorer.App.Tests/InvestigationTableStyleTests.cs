@@ -3,6 +3,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation;
@@ -17,7 +18,7 @@ public sealed class InvestigationTableStyleTests
 {
     [Fact]
     [Trait("TestCategory", "UiRender")]
-    public void Workbench_property_and_variable_tables_center_content_and_use_flat_state_colors()
+    public void Workbench_property_and_variable_tables_left_align_content_and_use_flat_state_colors()
         => RunSta(() =>
         {
             var view = new MessageLibraryPrototypeView();
@@ -30,7 +31,7 @@ public sealed class InvestigationTableStyleTests
             var properties = (DataGrid)view.FindName("ApplicationPropertiesGrid")!;
             var typeDisplay = Descendants<ComboBox>(Row(properties, 2)).Single();
             Assert.False(typeDisplay.IsHitTestVisible);
-            Assert.Equal(HorizontalAlignment.Center, typeDisplay.HorizontalContentAlignment);
+            Assert.Equal(HorizontalAlignment.Left, typeDisplay.HorizontalContentAlignment);
             Assert.Equal("dateTimeUtc", typeDisplay.SelectedItem);
             properties.CurrentCell = new DataGridCellInfo(properties.Items[2], properties.Columns[1]);
             Assert.True(properties.BeginEdit());
@@ -55,7 +56,7 @@ public sealed class InvestigationTableStyleTests
 
     [Fact]
     [Trait("TestCategory", "UiRender")]
-    public void Dialog_validation_and_results_tables_center_headers_and_values()
+    public void Dialog_validation_and_results_tables_left_align_headers_and_values()
         => RunSta(() =>
         {
             var validation = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Validation, "Test", "orders", 2);
@@ -78,7 +79,7 @@ public sealed class InvestigationTableStyleTests
 
     [Fact]
     [Trait("TestCategory", "UiRender")]
-    public void Investigation_message_table_centers_headers_and_content()
+    public void Investigation_message_table_left_aligns_headers_and_content()
         => RunSta(() =>
         {
             var profile = new InvestigationProfile("table-proof",
@@ -123,14 +124,18 @@ public sealed class InvestigationTableStyleTests
 
     private static void AssertTable(DataGrid grid, int expectedRows)
     {
-        Assert.Equal(expectedRows, grid.Items.Count);
+        Assert.Equal(expectedRows, grid.Items.Cast<object>().Count(item =>
+            !ReferenceEquals(item, CollectionView.NewItemPlaceholder)));
         Assert.Equal(DataGridHeadersVisibility.Column, grid.HeadersVisibility);
         grid.UpdateLayout();
         var headers = Descendants<DataGridColumnHeader>(grid).Where(header => header.IsVisible).ToArray();
         Assert.NotEmpty(headers);
-        Assert.All(headers, header =>
+        var dataHeaders = headers.Where(header => header.Column?.Header is { } value
+            && value is not CheckBox && !string.IsNullOrWhiteSpace(value.ToString())).ToArray();
+        Assert.NotEmpty(dataHeaders);
+        Assert.All(dataHeaders, header =>
         {
-            Assert.Equal(HorizontalAlignment.Center, header.HorizontalContentAlignment);
+            Assert.Equal(HorizontalAlignment.Left, header.HorizontalContentAlignment);
             Assert.Equal(VerticalAlignment.Center, header.VerticalContentAlignment);
         });
 
@@ -139,12 +144,12 @@ public sealed class InvestigationTableStyleTests
         Assert.NotEmpty(cells);
         Assert.All(cells, cell =>
         {
-            Assert.Equal(HorizontalAlignment.Center, cell.HorizontalContentAlignment);
+            Assert.Equal(HorizontalAlignment.Left, cell.HorizontalContentAlignment);
             Assert.Equal(VerticalAlignment.Center, cell.VerticalContentAlignment);
             if (cell.Column is DataGridTextColumn)
             {
                 var text = Assert.IsType<TextBlock>(cell.Content);
-                Assert.Equal(TextAlignment.Center, text.TextAlignment);
+                Assert.Equal(TextAlignment.Left, text.TextAlignment);
                 Rect contentBounds = text.TransformToAncestor(cell).TransformBounds(new Rect(text.RenderSize));
                 Assert.InRange(Math.Abs(contentBounds.Top + contentBounds.Height / 2 - cell.ActualHeight / 2), 0, 2);
             }
