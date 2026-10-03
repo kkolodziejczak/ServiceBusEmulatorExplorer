@@ -50,7 +50,7 @@ token, consuming or settling messages.
   `Authorization: Bearer <token>`.
 - **Agent configuration**: Settings offers copyable snippets:
   - Claude Code: `claude mcp add --transport http sbe http://127.0.0.1:<port>/mcp --header "Authorization: Bearer <token>"`
-  - Codex CLI (`~/.codex/config.toml`): `[mcp_servers.sbe]`, `url = "http://127.0.0.1:<port>/mcp"`, `bearer_token_env_var = "SBE_MCP_TOKEN"`
+  - Codex CLI (`~/.codex/config.toml`): `[mcp_servers.sbe]`, `url = "http://127.0.0.1:<port>/mcp"`, `http_headers = { "Authorization" = "Bearer <token>" }`
   - GitHub Copilot (CLI and desktop app read `~/.copilot/mcp-config.json`; VS Code uses `mcp.json`):
     `"sbe": { "type": "http", "url": "http://127.0.0.1:<port>/mcp", "headers": { "Authorization": "Bearer <token>" }, "tools": ["*"] }`
 - **Visibility**: the main window shows when agent access is on and when an agent has called it
@@ -79,6 +79,24 @@ connection warning. It is on for new profiles and for profiles saved before the 
   access"), and so does the main-window indicator.
 - Stored as an optional per-profile field in the preferences file (version 1); missing means
   allowed.
+
+## Credential boundary
+
+Agents may use a connection through the tools but never receive its credentials.
+
+- No tool returns any part of a connection string (endpoint host, key name, key) or the access
+  token. `AgentSnapshot` carries only the profile name and an emulator flag computed in the app;
+  connection health and failure text are fixed app messages from `OperationFailureFormatter`.
+- Guarded end to end by `AgentAccessTests.No_tool_ever_returns_connection_strings_or_the_access_token`:
+  marker credentials, the real MCP host, every listed tool, both connected and after a failed
+  connect whose exception text contains the connection string. A new tool is covered
+  automatically.
+- Not covered, by design: an agent that also has a terminal (Claude Code, Codex) runs as the same
+  Windows user. DPAPI is bound to that user, so such an agent could read and decrypt the
+  preferences file directly, bypassing this server. Only the agent's own sandbox or permission
+  rules can prevent that; no in-app protection can.
+- Message bodies and properties are user data and are returned as-is; the per-profile switch is
+  the control for sensitive data.
 
 ## Architecture
 

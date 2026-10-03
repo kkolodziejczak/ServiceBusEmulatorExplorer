@@ -302,6 +302,47 @@ public sealed class AgentAccessTests
         await Assert.ThrowsAnyAsync<Exception>(() => Connect(port, Token));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task No_tool_ever_returns_connection_strings_or_the_access_token(bool connectFails)
+    {
+        // Markers stand in for every part of a real connection string and for the access token.
+        const string token = "TOKEN-MARKER-0123456789abcdef";
+        string[] secrets = ["marker-host", "RUNTIME-KEY-MARKER", "ADMIN-KEY-MARKER", "MarkerKeyName", token];
+        var profile = new InvestigationProfile("local", new ConnectionProfile("Local",
+            "Endpoint=sb://marker-host.servicebus.windows.net/;SharedAccessKeyName=MarkerKeyName;SharedAccessKey=RUNTIME-KEY-MARKER",
+            "Endpoint=sb://marker-host.servicebus.windows.net:5300/;SharedAccessKeyName=MarkerKeyName;SharedAccessKey=ADMIN-KEY-MARKER"));
+        // A failing connect whose exception text carries the connection string must not leak it through health or status.
+        Exception? failure = connectFails
+            ? new ServiceBusException($"Could not reach {profile.Connection.RuntimeConnectionString}", ServiceBusFailureReason.ServiceCommunicationProblem)
+            : null;
+        await using var workspace = Workspace(profile, new FakeMessages { Messages = [Message(7, "MaxDeliveryCountExceeded")] }, failure);
+        await workspace.InitializeAsync();
+        await workspace.ConnectAsync();
+        Assert.Equal(!connectFails, workspace.IsConnected);
+        if (!connectFails) workspace.RecordAgentArrival(Delivery(8, MessageBucket.DeadLetter, "MaxDeliveryCountExceeded", workspace.ConnectionGeneration));
+
+        int port = FreePort();
+        await using var host = new AgentAccessHost(new WorkspaceSource(workspace), () => token);
+        await host.ApplyAsync(true, port);
+        await using var client = await Connect(port, token);
+        var outputs = new List<string>();
+        foreach (var tool in await client.ListToolsAsync())
+        {
+            var arguments = tool.Name == "peek_messages"
+                ? new Dictionary<string, object?> { ["entity"] = "orders", ["bucket"] = "deadLetter" }
+                : new Dictionary<string, object?>();
+            outputs.Add($"{tool.Name}: {Text(await client.CallToolAsync(tool.Name, arguments))}");
+        }
+
+        Assert.Equal(5, outputs.Count);
+        Assert.Contains(outputs, output => output.Contains(connectFails ? "not connected" : "MaxDeliveryCountExceeded", StringComparison.OrdinalIgnoreCase));
+        foreach (string output in outputs)
+            foreach (string secret in secrets)
+                Assert.False(output.Contains(secret, StringComparison.OrdinalIgnoreCase), $"Tool output leaked '{secret}': {output}");
+    }
+
     [Fact]
     public async Task Second_host_on_the_same_port_reports_failure()
     {
@@ -351,7 +392,11 @@ public sealed class AgentAccessTests
     private static InvestigationProfile Profile(string id, string name) =>
         new(id, new ConnectionProfile(name, $"runtime-{id}", $"admin-{id}"));
 
-    private static InvestigationWorkspace Workspace(InvestigationProfile selected, FakeMessages messages, params InvestigationProfile[] others)
+    private static InvestigationWorkspace Workspace(InvestigationProfile selected, FakeMessages messages, params InvestigationProfile[] others) =>
+        Workspace(selected, messages, connectFailure: null, others);
+
+    private static InvestigationWorkspace Workspace(InvestigationProfile selected, FakeMessages messages, Exception? connectFailure,
+        params InvestigationProfile[] others)
     {
         var preferences = new WorkspacePreferences { Profiles = [selected, .. others], SelectedProfileId = selected.Id, WasConnected = false };
         var snapshot = new EntityDiscoverySnapshot(
@@ -360,7 +405,7 @@ public sealed class AgentAccessTests
                 new EntityCountObservation(new(null, CountAvailability.Unavailable), new(null, CountAvailability.Unavailable), new(null, CountAvailability.Unavailable)))],
             DateTimeOffset.UtcNow, IsComplete: true, Issues: []);
         return new InvestigationWorkspace(new MemoryStore(preferences),
-            new BrokerConnectionWorkflow(() => new FakeFactory(), _ => new FakeBrowser(snapshot), _ => messages));
+            new BrokerConnectionWorkflow(() => new FakeFactory(connectFailure), _ => new FakeBrowser(snapshot), _ => messages));
     }
 
     private static ExplorerMessage Message(long sequence, string? deadLetterReason = null) =>
@@ -390,11 +435,22 @@ public sealed class AgentAccessTests
         public Task SaveAsync(WorkspacePreferences preferences, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
-    private sealed class FakeFactory : IServiceBusClientFactory
+    /// <summary>Calls the workspace directly; the app's source only adds the hop to the UI thread.</summary>
+    private sealed class WorkspaceSource(InvestigationWorkspace workspace) : IAgentStateSource
+    {
+        public Task<AgentSnapshot> CaptureAsync(CancellationToken cancellationToken) => Task.FromResult(workspace.CaptureAgentSnapshot());
+        public Task<IReadOnlyList<MessageDelivery>> PeekAsync(string entityPath, MessageBucket bucket, int take, long? fromSequenceNumber,
+            CancellationToken cancellationToken) => workspace.PeekForAgentAsync(entityPath, bucket, take, fromSequenceNumber, cancellationToken);
+        public Task<AgentArrivalPage> ReadArrivalsAsync(string? cursor, int limit, CancellationToken cancellationToken) =>
+            Task.FromResult(workspace.ReadAgentArrivals(cursor, limit));
+    }
+
+    private sealed class FakeFactory(Exception? connectFailure = null) : IServiceBusClientFactory
     {
         public Azure.Messaging.ServiceBus.Administration.ServiceBusAdministrationClient AdministrationClient => null!;
         public ServiceBusClient RuntimeClient => null!;
-        public Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task ConnectAsync(ConnectionProfile profile, CancellationToken cancellationToken) =>
+            connectFailure is null ? Task.CompletedTask : Task.FromException(connectFailure);
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
