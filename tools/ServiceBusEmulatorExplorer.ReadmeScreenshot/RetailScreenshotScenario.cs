@@ -8,10 +8,23 @@ namespace ServiceBusEmulatorExplorer.ReadmeScreenshot;
 
 internal static class RetailScreenshotScenario
 {
-    public static async Task<InvestigationWorkspace> CreateWorkspaceAsync()
+    public static async Task<InvestigationWorkspace> CreateWorkspaceAsync(bool includeDeadLetter = false)
     {
         var preferences = RetailScreenshotData.CreatePreferences();
-        var messages = RetailScreenshotData.CreateMessages();
+        var messages = RetailScreenshotData.CreateMessages().ToList();
+        if (includeDeadLetter)
+        {
+            var message = messages.Single(item => item.MessageId == "order-10482-dispatched");
+            var properties = message.SystemProperties.ToDictionary(pair => pair.Key, pair => pair.Value);
+            properties["MessageId"] = "order-10482-dead-letter-fulfillment";
+            properties["DeadLetterReason"] = "MaxDeliveryCountExceeded";
+            properties["DeadLetterErrorDescription"] = "The message exceeded the delivery limit.";
+            messages.Add(message with
+            {
+                MessageId = "order-10482-dead-letter-fulfillment",
+                SystemProperties = properties
+            });
+        }
         var snapshot = RetailScreenshotData.CreateSnapshot();
         var workflow = new BrokerConnectionWorkflow(
             () => new ScenarioClientFactory(),
