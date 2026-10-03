@@ -58,7 +58,7 @@ public sealed class NamespaceIndicatorTests
 
     [Fact]
     [Trait("TestCategory", "UiRender")]
-    public void RefreshIndicatorTracksCurrentEntityBucketIntervalAndPauseIndependentlyOfWatch() => OnSta(() =>
+    public void RefreshIndicatorTracksWatchedEntityBucketIntervalAndPauseIndependentlyOfSelection() => OnSta(() =>
     {
         using var fixture = new Fixture();
         Complete(fixture.Workspace.UpdateWatchRulesAsync(fixture.Workspace.SelectedProfile.Id,
@@ -67,25 +67,27 @@ public sealed class NamespaceIndicatorTests
         EntityNode queue = fixture.Entity("orders-in");
         EntityNode subscription = fixture.Entity("billing");
         Assert.Equal("Running", queue.RefreshIndicator);
-        Assert.Contains("Active", queue.RefreshDetail, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal("None", subscription.RefreshIndicator);
+        Assert.Contains("Background", queue.RefreshDetail, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Running", subscription.RefreshIndicator);
+        Assert.Contains("Background", subscription.RefreshDetail, StringComparison.OrdinalIgnoreCase);
 
         string activeDetail = queue.RefreshDetail;
         var deadLetterTab = (ToggleButton)fixture.Window.FindName("DeadLetterTab");
         Set(deadLetterTab, true);
         Wait(() => fixture.Workspace.Browse.IsDeadLetter && !fixture.Workspace.Browse.IsBusy);
         Assert.Equal("Running", queue.RefreshIndicator);
-        Assert.NotEqual(activeDetail, queue.RefreshDetail);
+        Assert.Equal(activeDetail, queue.RefreshDetail);
 
         Complete(fixture.Workspace.Browse.SelectAsync(subscription, deadLetter: true));
-        Assert.Equal("None", queue.RefreshIndicator);
+        Assert.Equal("Running", queue.RefreshIndicator);
         Assert.Equal("Running", subscription.RefreshIndicator);
+        Assert.Equal(activeDetail, queue.RefreshDetail);
         Assert.True(subscription.IsActiveWatched);
         Assert.False(subscription.IsDlqWatched);
 
         var pause = (Button)fixture.Window.FindName("PauseButton");
         Invoke(pause);
-        Wait(() => subscription.RefreshIndicator == "Paused");
+        Wait(() => subscription.RefreshIndicator == "Paused" && queue.RefreshIndicator == "Paused");
         Assert.True(subscription.IsActiveWatched);
         Assert.Contains("30 seconds", subscription.RefreshDetail, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("Resume automatic refresh", System.Windows.Automation.AutomationProperties.GetName(pause));
@@ -103,12 +105,14 @@ public sealed class NamespaceIndicatorTests
 
     [Fact]
     [Trait("TestCategory", "UiRender")]
-    public void RefreshIndicatorIsHiddenDuringSearchWorkbenchAndDisconnect() => OnSta(() =>
+    public void WatchedRefreshIndicatorPersistsInSearchAndWorkbenchAndHidesOnDisconnect() => OnSta(() =>
     {
         using var fixture = new Fixture();
+        Complete(fixture.Workspace.UpdateWatchRulesAsync(fixture.Workspace.SelectedProfile.Id,
+            [new(WatchScopeResolver.QueueScopeKey("orders-in"), true, false)]));
         Complete(fixture.Workspace.Search.StartAsync("billing"));
         Assert.True(fixture.Workspace.Search.IsActive);
-        Assert.All(Entities(fixture.Workspace.Search.Roots), entity => Assert.Equal("None", entity.RefreshIndicator));
+        Assert.Equal("Running", fixture.Entity("orders-in").RefreshIndicator);
 
         fixture.Workspace.Search.Clear();
         Wait(() => !fixture.Workspace.Search.IsActive && fixture.Workspace.Browse.SelectedEntity is not null);
@@ -116,7 +120,7 @@ public sealed class NamespaceIndicatorTests
 
         ((ToggleButton)fixture.Window.FindName("MessageLibraryTab")).IsChecked = true;
         Wait(() => fixture.Window.FindName("MessageLibraryPrototype") is FrameworkElement { Visibility: Visibility.Visible });
-        Assert.All(Entities(fixture.Workspace.Browse.Roots), entity => Assert.Equal("None", entity.RefreshIndicator));
+        Assert.Equal("Running", fixture.Entity("orders-in").RefreshIndicator);
 
         ((ToggleButton)fixture.Window.FindName("InvestigationWorkspaceTab")).IsChecked = true;
         Complete(fixture.Workspace.DisconnectAsync());

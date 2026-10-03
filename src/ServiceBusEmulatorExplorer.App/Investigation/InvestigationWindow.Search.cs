@@ -119,6 +119,7 @@ public partial class InvestigationWindow
         SuggestionsPopup.IsOpen = false;
         if (wasSearch)
         {
+            workspace.Browse.RestoreWatchedMessages();
             MessageGrid.UpdateLayout();
             FindMessageScrollViewer(MessageGrid)?.ScrollToVerticalOffset(browseScrollOffset);
         }

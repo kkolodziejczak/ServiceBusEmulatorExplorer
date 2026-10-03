@@ -65,6 +65,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
         Watch.Warning += WatchWarning;
         Watch.Polled += WatchPolled;
         Watch.DiscoveryUpdated += WatchDiscoveryUpdated;
+        Browse.BackgroundRefreshWarning += BackgroundRefreshWarning;
     }
 
     private void WatchDiscoveryUpdated(EntityDiscoverySnapshot snapshot)
@@ -74,6 +75,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
     }
 
     private void WatchWarning(string message) => Log(message, true);
+    private void BackgroundRefreshWarning(string message) => Log(message, true);
 
     private void WatchPolled(WatchPollResult result)
     {
@@ -133,6 +135,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
             session = connected;
             readinessWarning = connected.ReadinessWarning;
             Browse.SetSession(session, generation);
+            Browse.SetWatchRules(CurrentWatchRules());
             Search.SetSession(session, generation);
             watchBaselineReady = false;
             Watch.Start(session, generation, CurrentWatchRules());
@@ -223,6 +226,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
         connectCancellation = null;
         connecting = false;
         Browse.SetSession(null, generation);
+        await Browse.StopBackgroundRefreshAsync();
         Search.SetSession(null, generation);
         await Watch.StopAsync(clearWatchArrivals);
         Inspector.Clear();
@@ -253,6 +257,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
         Browse.SetPreferences(preferences);
         Search.SetPreferences(preferences);
         Watch.UpdateRules(CurrentWatchRules());
+        Browse.SetWatchRules(CurrentWatchRules());
         NotifyConnection();
     }
 
@@ -272,6 +277,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
             preferences = preferences with { Watches = watches };
             watchBaselineReady = false;
             Watch.UpdateRules(CurrentWatchRules());
+            Browse.SetWatchRules(CurrentWatchRules());
             OnPropertyChanged(nameof(Preferences));
         }
         finally { saveGate.Release(); }
@@ -380,6 +386,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
         Watch.Warning -= WatchWarning;
         Watch.Polled -= WatchPolled;
         Watch.DiscoveryUpdated -= WatchDiscoveryUpdated;
+        Browse.BackgroundRefreshWarning -= BackgroundRefreshWarning;
         Surface.Dispose();
     }
 }

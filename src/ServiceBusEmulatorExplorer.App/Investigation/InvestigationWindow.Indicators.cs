@@ -9,8 +9,7 @@ public partial class InvestigationWindow
     {
         if (!ready) return;
         var targets = (editor ?? CreateWatchEditor()).Targets.Select(target => (target.Address, target.Bucket)).ToHashSet();
-        bool showRefresh = MessageLibraryPrototype.Visibility != Visibility.Visible
-            && !workspace.Search.IsActive && workspace.IsConnected
+        bool showRefresh = workspace.IsConnected
             && workspace.Preferences.AutoRefreshSeconds > 0;
         string bucket = workspace.Browse.IsDeadLetter ? "Dead letter" : "Active";
         var nodes = workspace.Browse.Roots.Concat(workspace.Search.Roots)
@@ -20,11 +19,18 @@ public partial class InvestigationWindow
             bool watchable = node.Address is { Kind: EntityKind.Queue or EntityKind.Subscription };
             bool active = watchable && targets.Contains((node.Address!, MessageBucket.Active));
             bool deadLetter = watchable && targets.Contains((node.Address!, MessageBucket.DeadLetter));
-            bool current = showRefresh && node.Address is not null && node.Address == workspace.Browse.SelectedEntity?.Address;
-            string refresh = current ? paused ? "Paused" : "Running" : "None";
-            string detail = !current ? "" : paused
-                ? $"Auto-refresh paused: Every {workspace.Preferences.AutoRefreshSeconds} seconds\nCurrent {bucket} view. Watch remains independent."
-                : $"Refresh: Every {workspace.Preferences.AutoRefreshSeconds} seconds\nCurrent {bucket} view. Follows the open Investigation view.";
+            bool topicActive = node.Kind == nameof(EntityKind.Topic) && targets.Any(target => target.Address.TopicName == node.Name && target.Bucket == MessageBucket.Active);
+            bool topicDlq = node.Kind == nameof(EntityKind.Topic) && targets.Any(target => target.Address.TopicName == node.Name && target.Bucket == MessageBucket.DeadLetter);
+            bool background = active || deadLetter || topicActive || topicDlq;
+            bool current = MessageLibraryPrototype.Visibility != Visibility.Visible && !workspace.Search.IsActive
+                && node.Address is not null && node.Address == workspace.Browse.SelectedEntity?.Address;
+            bool refreshing = showRefresh && (background || current);
+            string refresh = refreshing ? paused ? "Paused" : "Running" : "None";
+            string scope = background
+                ? $"Background: {((active || topicActive) && (deadLetter || topicDlq) ? "Active and Dead letter" : active || topicActive ? "Active" : "Dead letter")}" + (node.Kind == nameof(EntityKind.Topic) ? " watched subscriptions." : ".")
+                : $"Current {bucket} view.";
+            string detail = !refreshing ? "" :
+                $"{(paused ? "Auto-refresh paused" : "Refresh")}: Every {workspace.Preferences.AutoRefreshSeconds} seconds\n{scope} Watch remains independent.";
             node.SetIndicators(active, deadLetter, workspace.IsConnected, refresh, detail);
         }
     }

@@ -99,8 +99,9 @@ internal static class NamespaceIndicatorsProof
         await SelectAsync(window, workspace, inheritedRow, inherited);
         SelectAutoRefreshInterval(window, index: 3);
         await SettleAsync(window);
-        AssertRefresh(inheritedRow, "Running", "Active view");
-        AssertRefresh(ItemForEntity(tree, topic), "None", "");
+        AssertRefresh(inheritedRow, "Running", "Background");
+        AssertRefresh(ItemForEntity(tree, topic), "Running", "Background");
+        AssertWatch(ItemForEntity(tree, topic), active: false, deadLetter: false, "topic aggregate counts remain unmarked");
         AssertNoIndicatorOverlap(inheritedRow, "running subscription");
 
         foreach ((double width, double height, string suffix) in new[]
@@ -114,7 +115,7 @@ internal static class NamespaceIndicatorsProof
             window.Height = height;
             await SettleAsync(window);
             AssertNoIndicatorOverlap(inheritedRow, $"running subscription at {suffix}px");
-            AssertNoIndicatorOverlap(queueRow, $"queue at {suffix}px", expectVisible: false);
+            AssertNoIndicatorOverlap(queueRow, $"watched queue at {suffix}px");
             WpfScreenshot.SaveWindowContent(window,
                 Path.Combine(output, $"namespace-indicators-running-{suffix}.png"), (int)width, (int)height);
         }
@@ -128,6 +129,8 @@ internal static class NamespaceIndicatorsProof
         pause.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, pause));
         await SettleAsync(window);
         AssertRefresh(inheritedRow, "Paused", "paused");
+        AssertRefresh(ItemForEntity(tree, topic), "Paused", "paused");
+        AssertRefresh(queueRow, "Paused", "paused");
         AssertWatch(inheritedRow, active: true, deadLetter: true, "paused Watch remains enabled");
         foreach ((double width, double height, string suffix) in new[]
         {
@@ -149,27 +152,29 @@ internal static class NamespaceIndicatorsProof
         Require<ToggleButton>(window, "DeadLetterTab").IsChecked = true;
         await WaitUntilAsync(() => workspace.Browse.IsDeadLetter);
         await SettleAsync(window);
-        AssertRefresh(inheritedRow, "Running", "Dead letter view");
+        AssertRefresh(inheritedRow, "Running", "Background");
         AssertRefreshDetail(inheritedRow, "Dead letter");
 
         TreeViewItem topicAgain = ItemForEntity(tree, topic);
         await SelectAsync(window, workspace, topicAgain, topic);
-        AssertRefresh(topicAgain, "Running", "Dead letter view");
+        AssertRefresh(topicAgain, "Running", "Background");
         AssertWatch(topicAgain, active: false, deadLetter: false, "topic aggregate remains unwatched");
         AssertWatch(ItemFor(topicAgain, inherited), active: true, deadLetter: true, "inherited child Watch");
 
         SelectAutoRefreshInterval(window, index: 0);
         await SettleAsync(window);
         AssertRefresh(topicAgain, "None", "");
+        AssertRefresh(inheritedRow, "None", "");
+        AssertRefresh(queueRow, "None", "");
         AssertWatch(ItemFor(topicAgain, inherited), active: true, deadLetter: true, "Watch with auto-refresh off");
         SelectAutoRefreshInterval(window, index: 3);
         await SettleAsync(window);
-        AssertRefresh(topicAgain, "Running", "Dead letter view");
+        AssertRefresh(topicAgain, "Running", "Background");
 
         Require<ToggleButton>(window, "ActiveTab").IsChecked = true;
         await WaitUntilAsync(() => !workspace.Browse.IsDeadLetter);
         await SettleAsync(window);
-        AssertRefresh(topicAgain, "Running", "Active view");
+        AssertRefresh(topicAgain, "Running", "Background");
 
         browser.Snapshot = CreateSnapshot(largeCounts: true);
         workspace.Browse.ApplySnapshot(browser.Snapshot);
@@ -184,16 +189,16 @@ internal static class NamespaceIndicatorsProof
         await SelectAsync(window, workspace, inheritedRow, FindEntity(workspace, EntityKind.Subscription, InheritedSubscriptionName));
         await SettleAsync(window);
         AssertWatch(inheritedRow, active: true, deadLetter: true, "large-count subscription");
-        AssertRefresh(inheritedRow, "Running", "Active view");
+        AssertRefresh(inheritedRow, "Running", "Background");
         AssertNoIndicatorOverlap(inheritedRow, "large count stress subscription");
-        AssertNoIndicatorOverlap(queueRow, "large count stress queue", expectVisible: false);
+        AssertNoIndicatorOverlap(queueRow, "large count stress watched queue");
         WpfScreenshot.SaveWindowContent(window, Path.Combine(output, "namespace-indicators-large-counts.png"), 980, 640);
 
         await workspace.DisconnectAsync();
         await SettleAsync(window);
         if (Descendants<ShapePath>(tree).Any(path => path.Name == "RefreshIndicatorIcon" && path.IsVisible))
             throw new InvalidOperationException("An auto-refresh icon remained visible in the namespace tree after disconnect.");
-        Console.WriteLine("Namespace indicator proof passed: inherited and overridden Watch, queue/topic semantics, active/DLQ selection, auto-refresh off/paused/search/disconnect, and aligned rows at 1500, 1100, and 980px.");
+        Console.WriteLine("Namespace indicator proof passed: inherited and overridden Watch, watched background refresh on queue/subscription/topic, active/DLQ selection, auto-refresh off/paused/search/disconnect, and aligned rows at 1500, 1100, and 980px.");
     }
 
     private static EntityDiscoverySnapshot CreateSnapshot(bool largeCounts)

@@ -227,6 +227,7 @@ public partial class InvestigationWindow : Window
             {
                 SearchBox.Text = investigationSearchText;
                 workspace.Browse.FilterEntities(workspace.Search.IsActive ? "" : investigationSearchText);
+                if (!workspace.Search.IsActive) workspace.Browse.RestoreWatchedMessages();
             }
             if (library) FilterWorkbenchNamespaces(SearchBox.Text);
             ConfigureRefresh();
@@ -413,9 +414,10 @@ public partial class InvestigationWindow : Window
     {
         UpdateNamespaceIndicators();
         bool investigationSearch = MessageLibraryPrototype?.Visibility != Visibility.Visible && workspace.Search.IsActive;
-        if (paused || investigationSearch || !workspace.IsConnected || workspace.Preferences.AutoRefreshSeconds == 0)
+        if (paused || (investigationSearch && !workspace.Browse.HasWatchedTargets) || !workspace.IsConnected || workspace.Preferences.AutoRefreshSeconds == 0)
         {
             refreshTimer.Stop();
+            workspace.Browse.CancelBackgroundRefresh();
             return;
         }
         var interval = TimeSpan.FromSeconds(workspace.Preferences.AutoRefreshSeconds);
@@ -425,6 +427,12 @@ public partial class InvestigationWindow : Window
 
     private async void RefreshTimerTick(object? sender, EventArgs e)
     {
+        if (workspace.Browse.HasWatchedTargets)
+        {
+            bool refreshSelected = MessageLibraryPrototype.Visibility != Visibility.Visible && !workspace.Search.IsActive;
+            await workspace.RunReadAsync(() => workspace.Browse.RefreshBackgroundAsync(refreshSelected));
+            return;
+        }
         if (workspace.Browse.IsBusy) return;
         if (MessageLibraryPrototype.Visibility == Visibility.Visible)
             await workspace.RunReadAsync(workspace.Browse.RefreshAsync);
