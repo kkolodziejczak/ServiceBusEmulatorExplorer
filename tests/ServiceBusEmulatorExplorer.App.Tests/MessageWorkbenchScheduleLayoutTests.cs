@@ -51,8 +51,9 @@ public sealed class MessageWorkbenchScheduleLayoutTests
             Assert.Equal(32, minute.Height);
             Assert.False(hour.IsEditable);
             Assert.False(minute.IsEditable);
-            Assert.Equal(280, date.MaxWidth);
-            Assert.True(date.ActualWidth > 0 && date.ActualWidth <= 280);
+            var timeFields = Descendants(schedule).OfType<FrameworkElement>().Single(element => element.Name == "ScheduleTimeFields");
+            Assert.InRange(Math.Abs(date.MaxWidth - timeFields.ActualWidth), 0, 1);
+            Assert.True(date.ActualWidth > 0 && date.ActualWidth <= timeFields.ActualWidth);
             Assert.Equal(Enumerable.Range(0, 24).Select(value => value.ToString("D2")), hour.Items.Cast<string>());
             Assert.Equal(Enumerable.Range(0, 60).Select(value => value.ToString("D2")), minute.Items.Cast<string>());
             Assert.Equal("14", hour.SelectedItem);
@@ -90,11 +91,27 @@ public sealed class MessageWorkbenchScheduleLayoutTests
             Assert.True(editableTextHeight >= 16,
                 $"Date text viewport should leave room for the date at {width} DIPs; inner text viewport was {editableTextHeight} DIPs.");
 
-            Rect cardBounds = Bounds(card, dialog);
             Rect dateBounds = Bounds(date, dialog);
-            Assert.True(dateBounds.Width <= 280, $"The date selector must stay compact: {dateBounds.Width} DIPs.");
             Rect hourBounds = Bounds(hour, dialog);
+            Rect minuteBounds = Bounds(minute, dialog);
+
+            Rect dateTextLine = dateText.TransformToAncestor(dialog).TransformBounds(
+                dateText.GetRectFromCharacterIndex(0));
+            double dateCenter = dateBounds.Top + dateBounds.Height / 2;
+            double textCenter = dateTextLine.Top + dateTextLine.Height / 2;
+            Assert.True(Math.Abs(textCenter - dateCenter) <= 0.5,
+                $"Visible date text should be centered vertically in the field at {width} DIPs: date={dateBounds}, text={dateTextLine}.");
+
             Assert.InRange(Math.Abs(dateBounds.Left - hourBounds.Left), 0, 1);
+            Assert.InRange(Math.Abs(dateBounds.Right - minuteBounds.Right), 0, 1);
+
+            var pickerButton = Descendants(date).OfType<Button>().Single(button => button.Name == "PART_Button");
+            Rect pickerButtonBounds = Bounds(pickerButton, dialog);
+            Assert.True(pickerButtonBounds.Left >= dateBounds.Left && pickerButtonBounds.Right <= dateBounds.Right
+                && pickerButtonBounds.Top >= dateBounds.Top && pickerButtonBounds.Bottom <= dateBounds.Bottom,
+                $"Calendar action must remain contained in compact date field at {width} DIPs: button={pickerButtonBounds}, date={dateBounds}.");
+
+            Rect cardBounds = Bounds(card, dialog);
             foreach (FrameworkElement field in new FrameworkElement[] { date, hour, minute, zone, resolved })
             {
                 Rect bounds = Bounds(field, dialog);

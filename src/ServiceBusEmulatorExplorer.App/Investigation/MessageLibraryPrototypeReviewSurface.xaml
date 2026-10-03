@@ -25,10 +25,10 @@
       <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
       <TextBlock x:Name="ScheduleDateLabel" Grid.Row="0" Text="Date" VerticalAlignment="Center" Margin="0,0,8,8"/>
       <Grid Grid.Row="0" Grid.Column="1" x:Name="ScheduleDateFieldHost" Margin="0,0,0,8">
-       <DatePicker x:Name="ScheduleDateInput" Style="{StaticResource ScheduleDatePicker}" Width="{Binding ActualWidth, ElementName=ScheduleDateFieldHost}" MaxWidth="280" HorizontalAlignment="Left" AutomationProperties.AutomationId="ScheduleDateInput" AutomationProperties.Name="Date" AutomationProperties.LabeledBy="{Binding ElementName=ScheduleDateLabel}" SelectedDateChanged="ScheduleInput_Changed"/>
+       <DatePicker x:Name="ScheduleDateInput" Style="{StaticResource ScheduleDatePicker}" Width="{Binding ActualWidth, ElementName=ScheduleDateFieldHost}" MaxWidth="{Binding ActualWidth, ElementName=ScheduleTimeFields}" HorizontalAlignment="Left" AutomationProperties.AutomationId="ScheduleDateInput" AutomationProperties.Name="Date" AutomationProperties.LabeledBy="{Binding ElementName=ScheduleDateLabel}" SelectedDateChanged="ScheduleInput_Changed"/>
       </Grid>
       <TextBlock x:Name="ScheduleTimeLabel" Grid.Row="1" Text="Time" VerticalAlignment="Center" Margin="0,0,8,8"/>
-      <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
+      <StackPanel x:Name="ScheduleTimeFields" Grid.Row="1" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,0,8">
        <ComboBox x:Name="ScheduleHourInput" Width="80" Height="32" IsEditable="False" HorizontalContentAlignment="Center" Style="{StaticResource AppComboBox}" SelectionChanged="ScheduleInput_Changed" AutomationProperties.AutomationId="ScheduleHourInput" AutomationProperties.Name="Hour" AutomationProperties.LabeledBy="{Binding ElementName=ScheduleTimeLabel}"/>
        <TextBlock Text=":" VerticalAlignment="Center" Margin="8,0" Style="{StaticResource DialogLabel}"/>
        <ComboBox x:Name="ScheduleMinuteInput" Width="80" Height="32" IsEditable="False" HorizontalContentAlignment="Center" Style="{StaticResource AppComboBox}" SelectionChanged="ScheduleInput_Changed" AutomationProperties.AutomationId="ScheduleMinuteInput" AutomationProperties.Name="Minute" AutomationProperties.LabeledBy="{Binding ElementName=ScheduleTimeLabel}"/>

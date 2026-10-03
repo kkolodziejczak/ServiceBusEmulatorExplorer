@@ -38,6 +38,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-022 | accepted | Workbench layout | Responsive JSON/inspector with two property columns at medium width and one at small width |
 | DEC-023 | accepted | Workbench search and navigation | Contextual suggestions and adjacent inspector tabs |
 | DEC-024 | accepted | Workbench scheduling | Styled calendar and constrained hour/minute selectors |
+| DEC-025 | accepted | Workbench scheduling | Compact date width and vertically centered date text |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -199,3 +200,10 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 - Decision: use an app-styled calendar and noneditable hour/minute selectors, with vertically aligned radio labels.
 - Because: the user found the native date picker visually inconsistent, free-text time error-prone, and radio labels misaligned.
 - Consequences: preserve UTC/Local and future-time validation; no additional time zones or broker behavior. See the [approved contract](specs/message-library/scheduling-controls.md).
+
+## DEC-025 — Compact, vertically centered date field
+
+- Status: accepted · 2026-10-03 · Scope: Workbench scheduling
+- Decision: match the date field to the time controls below; center the date text vertically while retaining left alignment.
+- Because: the user found the date selector "too long" and its text "too low."
+- Consequences: reuse the existing scheduling components and preserve calendar and scheduling behavior. See the [scheduling contract](specs/message-library/scheduling-controls.md).
