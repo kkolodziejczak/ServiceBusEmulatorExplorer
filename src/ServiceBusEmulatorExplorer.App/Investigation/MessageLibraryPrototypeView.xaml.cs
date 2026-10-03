@@ -139,6 +139,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         columns[0].Width = new GridLength(compact ? 230 : 250);
         double stageWidth = ActualWidth - columns[0].Width.Value - columns[1].Width.Value;
         bool sideBySide = stageWidth >= 820;
+        PrepareBodyScroll.VerticalScrollBarVisibility = sideBySide ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto;
         if (sideBySide)
         {
             PrepareBody.ColumnDefinitions[0].Width = new GridLength(0.9, GridUnitType.Star);

@@ -43,7 +43,14 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
     public bool IsConnecting => connecting;
     public string HealthText => connecting ? "Connecting…" : !IsConnected ? "Disconnected" : readinessWarning is null ? "Connected" : "Warning";
     public string HealthDetail => readinessWarning ?? (IsConnected ? "Administration and runtime peek access verified." : "Connect to inspect messages.");
-    public string Status => Activity.LastOrDefault()?.Message ?? "Choose a connection to begin.";
+    public string Status
+    {
+        get
+        {
+            var latest = Activity.LastOrDefault();
+            return (latest?.StatusSummary ?? latest?.Message ?? "Choose a connection to begin.").ReplaceLineEndings(" ");
+        }
+    }
 
     public InvestigationWorkspace(IWorkspacePreferencesStore store, BrokerConnectionWorkflow connections,
         Func<ConnectionProfile, IReplayCopySender>? createReplaySender = null,
@@ -312,13 +319,13 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
     {
         var failure = OperationFailureFormatter.Format(exception, SelectedProfile.Connection.AuthenticationMode);
         readinessWarning = failure.UserMessage;
-        Log($"{failure.UserMessage} {failure.Detail}", true);
+        Log($"{failure.UserMessage} {failure.Detail}", true, statusSummary: $"{failure.UserMessage} See Activity log for details.");
         NotifyConnection();
     }
 
-    public void Log(string message, bool warning = false, bool watch = false)
+    public void Log(string message, bool warning = false, bool watch = false, string? statusSummary = null)
     {
-        Activity.Add(new(DateTimeOffset.UtcNow, message, warning, watch));
+        Activity.Add(new(DateTimeOffset.UtcNow, message, warning, watch, statusSummary));
         while (Activity.Count > 100) Activity.RemoveAt(0);
         OnPropertyChanged(nameof(Status));
     }

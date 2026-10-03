@@ -2,6 +2,8 @@ using ServiceBusEmulatorExplorer.App.Investigation;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using Azure;
+using Azure.Messaging.ServiceBus;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -253,6 +255,78 @@ public sealed class InvestigationWorkspaceTests
 
         Assert.Equal(1200, workspace.Preferences.WindowWidth);
         Assert.Equal(800, workspace.Preferences.WindowHeight);
+    }
+
+    [Fact]
+    public async Task Read_failure_keeps_multiline_diagnostics_in_activity_and_shows_short_status()
+    {
+        var workspace = CreateWorkspace(Profile("profile-a", "A"), new FakeFactory(),
+            new FakeBrowser(Snapshot()), new FakeMessages());
+        await using (workspace)
+        {
+            await workspace.InitializeAsync();
+            const string token = "test-secret-token";
+            string diagnostic = "<Error><Code>503</Code><Detail>Service is warming up. Please try after some time. TrackingId: b2f760d6-f581-4c79-8832-503081d58210</Detail></Error>\r\n\r\n" +
+                "Headers:\r\nConnection: keep-alive\r\nDate: Sat, 03 Oct 2026 08:16:42 GMT\r\nServer: Kestrel\r\n" +
+                "Content-Type: application/xml; charset=utf-8\r\nAuthorization: Bearer " + token;
+            var exception = new ServiceBusException(diagnostic, ServiceBusFailureReason.GeneralError, "orders");
+
+            await workspace.RunReadAsync(() => Task.FromException(exception));
+
+            Assert.Equal("The operation failed. See Activity log for details.", workspace.Status);
+            string latestActivity = workspace.Activity.Last().Message;
+            Assert.Contains("ServiceBusException: <Error><Code>503</Code>", latestActivity, StringComparison.Ordinal);
+            Assert.Contains("Service is warming up. Please try after some time.", latestActivity, StringComparison.Ordinal);
+            Assert.Contains("Headers:\r\nConnection: keep-alive", latestActivity, StringComparison.Ordinal);
+            Assert.DoesNotContain(token, latestActivity, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task Short_activity_message_remains_the_workspace_status()
+    {
+        var workspace = CreateWorkspace(Profile("profile-a", "A"), new FakeFactory(),
+            new FakeBrowser(Snapshot()), new FakeMessages());
+        await using (workspace)
+        {
+            await workspace.InitializeAsync();
+            workspace.Log("Connected to Orders.");
+
+            Assert.Equal("Connected to Orders.", workspace.Status);
+        }
+    }
+
+    [Fact]
+    public async Task Authorization_failure_keeps_actionable_guidance_in_workspace_status()
+    {
+        var workspace = CreateWorkspace(Profile("profile-a", "A"), new FakeFactory(),
+            new FakeBrowser(Snapshot()), new FakeMessages());
+        await using (workspace)
+        {
+            await workspace.InitializeAsync();
+            var exception = new RequestFailedException(403, "Localized server detail", "AuthorizationFailed", null);
+
+            await workspace.RunReadAsync(() => Task.FromException(exception));
+
+            Assert.StartsWith("Connection-string authorization failed. Verify the connection string and its SAS permissions, then retry.",
+                workspace.Status, StringComparison.Ordinal);
+            Assert.Contains("See Activity log for details.", workspace.Status, StringComparison.Ordinal);
+            Assert.Contains("HTTP 403 (AuthorizationFailed).", workspace.Activity.Last().Message, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task Multiline_activity_message_is_flattened_in_workspace_status()
+    {
+        var workspace = CreateWorkspace(Profile("profile-a", "A"), new FakeFactory(),
+            new FakeBrowser(Snapshot()), new FakeMessages());
+        await using (workspace)
+        {
+            await workspace.InitializeAsync();
+            workspace.Log("Queue unavailable.\r\nRetry after the emulator starts.");
+
+            Assert.Equal("Queue unavailable. Retry after the emulator starts.", workspace.Status);
+        }
     }
 
     [Fact]

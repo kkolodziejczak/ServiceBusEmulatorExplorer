@@ -20,6 +20,7 @@ internal static class Program
             or "--message-library-single-minimum" or "--message-library-prepare-log";
         bool namespaceTreeProof = args.Length == 2 && args[1] == "--namespace-tree";
         bool sideBySideProof = args.Length == 2 && args[1] == "--investigation-side-by-side";
+        bool footerStatusProof = args.Length == 2 && args[1] == "--footer-status";
         bool dialogCapture = args.Length == 2 && args[1] is
             "--message-library-map" or "--message-library-capture" or "--message-library-review" or "--message-library-results"
             or "--message-library-schedule" or "--message-library-conflict" or "--message-library-validation"
@@ -34,9 +35,9 @@ internal static class Program
             args[1] == "--message-library-capture" ? 925 :
             args[1] == "--message-library-map" ? 590 : args[1] == "--message-library-conflict" ? 500 : 620 :
             captureWidth == 1642 ? 958 : captureWidth == 1500 ? 1000 : captureWidth == 1100 ? 800 : captureWidth == 980 ? 640 : WpfScreenshot.CaptureHeight;
-        if ((args.Length != 1 && !prototypeCapture && !dialogCapture && !namespaceTreeProof && !sideBySideProof) || string.IsNullOrWhiteSpace(args[0]))
+        if ((args.Length != 1 && !prototypeCapture && !dialogCapture && !namespaceTreeProof && !sideBySideProof && !footerStatusProof) || string.IsNullOrWhiteSpace(args[0]))
         {
-            Console.Error.WriteLine("Usage: ServiceBusEmulatorExplorer.ReadmeScreenshot <output-png-or-directory> [--investigation-side-by-side|--namespace-tree|--message-library-prepare|--message-library-prepare-1500|--message-library-prepare-compact|--message-library-prepare-minimum|--message-library-properties|--message-library-variables|--message-library-single|--message-library-wizard-review|--message-library-wizard-review-minimum]");
+            Console.Error.WriteLine("Usage: ServiceBusEmulatorExplorer.ReadmeScreenshot <output-png-or-directory> [--footer-status|--investigation-side-by-side|--namespace-tree|--message-library-prepare|--message-library-prepare-1500|--message-library-prepare-compact|--message-library-prepare-minimum|--message-library-properties|--message-library-variables|--message-library-single|--message-library-wizard-review|--message-library-wizard-review-minimum]");
             return 2;
         }
 
@@ -147,6 +148,12 @@ internal static class Program
                 if (sideBySideProof)
                 {
                     await SideBySideProof.RunAsync(window, workspace, args[0]);
+                    exitCode = 0;
+                    return;
+                }
+                if (footerStatusProof)
+                {
+                    await FooterStatusProof.RunAsync(window, workspace, args[0]);
                     exitCode = 0;
                     return;
                 }
