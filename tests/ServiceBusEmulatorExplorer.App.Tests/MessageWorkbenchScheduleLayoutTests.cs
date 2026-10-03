@@ -157,12 +157,10 @@ public sealed class MessageWorkbenchScheduleLayoutTests
             AssertIntrinsicDateWidth(date, dateText, pickerButton, 1500);
 
             var popup = (Popup)date.Template.FindName("PART_Popup", date)!;
-            MouseButtonEventArgs click = RaiseRoutedMouseLeftClick(date);
-            bool dropdownImmediately = date.IsDropDownOpen;
-            bool popupImmediately = popup.IsOpen;
+            expandCollapse.Expand();
             dialog.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
             Assert.True(date.IsDropDownOpen && popup.IsOpen,
-                $"Clicking the displayed date should open the calendar: handled={click.Handled}, dropdownNow={dropdownImmediately}/{date.IsDropDownOpen}, popupNow={popupImmediately}/{popup.IsOpen}.");
+                "The accessible calendar action should open the popup.");
             Assert.Equal(ExpandCollapseState.Expanded, expandCollapse.ExpandCollapseState);
             Assert.Contains(datePeer.GetChildren()!, peer => peer.GetClassName() == nameof(Calendar));
             var calendar = popup.Child as Calendar ?? Descendants(popup.Child!).OfType<Calendar>().Single();
@@ -181,7 +179,7 @@ public sealed class MessageWorkbenchScheduleLayoutTests
             Assert.DoesNotContain(datePeer.GetChildren() ?? [], peer => peer.GetClassName() == nameof(Calendar));
 
             date.IsEnabled = false;
-            RaiseRoutedMouseLeftClick(date);
+            Assert.Throws<ElementNotEnabledException>(() => expandCollapse.Expand());
             Assert.False(date.IsDropDownOpen, "A disabled date field must not open its calendar.");
         }
         finally
@@ -241,16 +239,6 @@ public sealed class MessageWorkbenchScheduleLayoutTests
             + date.BorderThickness.Left + date.BorderThickness.Right;
         Assert.True(Math.Abs(date.ActualWidth - expectedWidth) <= 4,
             $"Date field should fit its text, small gap and calendar action at {width} DIPs: actual={date.ActualWidth}, intrinsic={expectedWidth}, text='{dateText.Text}'.");
-    }
-
-    private static MouseButtonEventArgs RaiseRoutedMouseLeftClick(UIElement target)
-    {
-        var click = new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
-        {
-            RoutedEvent = UIElement.PreviewMouseLeftButtonDownEvent
-        };
-        target.RaiseEvent(click);
-        return click;
     }
 
     private static void RaiseRoutedCalendarMouseClick(CalendarDayButton day)

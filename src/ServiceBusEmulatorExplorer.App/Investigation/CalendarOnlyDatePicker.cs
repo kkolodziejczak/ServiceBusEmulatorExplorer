@@ -26,7 +26,17 @@ public sealed class CalendarOnlyDatePicker : DatePicker
         base.OnPreviewMouseLeftButtonDown(e);
         if (!IsEnabled || IsDropDownOpen) return;
         Focus();
-        IsDropDownOpen = true;
+        e.Handled = CaptureMouse();
+    }
+
+    protected override void OnPreviewMouseLeftButtonUp(MouseButtonEventArgs e)
+    {
+        base.OnPreviewMouseLeftButtonUp(e);
+        if (!IsMouseCaptured) return;
+        bool releasedInside = new Rect(RenderSize).Contains(e.GetPosition(this));
+        ReleaseMouseCapture();
+        // Opening on press lets the same release dismiss the popup as an outside click.
+        if (IsEnabled && releasedInside) IsDropDownOpen = true;
         e.Handled = true;
     }
 
