@@ -29,6 +29,7 @@ dead paths.
 | --- | --- | --- |
 | Shared brushes, button variants, tab toggle, dialog text styles, grid styles, scrollbars | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SharedStyles.xaml` (see [DESIGN.md](DESIGN.md) for the registry) |
 | Dropdown with compact and table-editing variants | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Resources/DropdownStyles.xaml` (`AppComboBox`, `CompactComboBox`) |
+| Calendar-only date selection with pointer/keyboard opening and read-only UI Automation value | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/CalendarOnlyDatePicker.cs` (`CalendarOnlyDatePicker`); use with the shared `ScheduleDatePicker` style |
 | Vector icon geometries | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Resources/IconResources.xaml` |
 | Profile accent recolouring of the whole brush set at runtime | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Resources/ProfileTheme.cs` `Apply` |
 | Keyboard-only focus cue (no frame after pointer click) | shared | `SharedStyles.xaml` `KeyboardActionFocusVisual`, used by the implicit `Button` style |

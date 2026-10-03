@@ -234,7 +234,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         if (ScheduleInputs is not null) UpdateReviewTiming();
     }
 
-    private void ScheduleInput_Changed(object sender, EventArgs e)
+    private void ScheduleInput_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (ScheduleInputs is not null) UpdateReviewTiming();
     }

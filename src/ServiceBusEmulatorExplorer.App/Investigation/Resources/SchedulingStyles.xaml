@@ -170,7 +170,7 @@
   <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
   <Setter Property="Background" Value="Transparent"/>
   <Setter Property="BorderThickness" Value="0"/>
-  <Setter Property="Padding" Value="9,0"/>
+  <Setter Property="Padding" Value="8,0"/>
   <Setter Property="MinHeight" Value="0"/>
   <Setter Property="Margin" Value="0"/>
   <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -181,7 +181,7 @@
   <Setter Property="Template">
    <Setter.Value>
     <ControlTemplate TargetType="{x:Type primitives:DatePickerTextBox}">
-     <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" Focusable="False" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+     <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center" Focusable="False" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
     </ControlTemplate>
    </Setter.Value>
   </Setter>
@@ -213,6 +213,7 @@
   </Setter>
  </Style>
  <Style x:Key="ScheduleDatePicker" TargetType="DatePicker">
+  <Setter Property="Cursor" Value="Hand"/>
   <Setter Property="Focusable" Value="True"/>
   <Setter Property="FontFamily" Value="Segoe UI"/>
   <Setter Property="FontSize" Value="14"/>
@@ -232,7 +233,7 @@
     <ControlTemplate TargetType="DatePicker">
      <Border x:Name="ScheduleDateFrame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3">
       <Grid x:Name="PART_Root">
-       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="32"/></Grid.ColumnDefinitions>
+       <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="32"/></Grid.ColumnDefinitions>
        <primitives:DatePickerTextBox x:Name="PART_TextBox" Grid.Column="0" Style="{StaticResource ScheduleDatePickerTextBox}" Foreground="{TemplateBinding Foreground}" Focusable="{TemplateBinding Focusable}"/>
        <Button x:Name="PART_Button" Grid.Column="1" Style="{StaticResource ScheduleCalendarPickerButton}" ToolTip="Open calendar">
         <Path Data="{StaticResource ScheduleCalendarIconGeometry}" Width="16" Height="16" Stretch="Uniform" Fill="Transparent" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.5"/>
