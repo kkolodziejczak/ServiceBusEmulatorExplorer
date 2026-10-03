@@ -10,10 +10,10 @@ internal sealed record ObservedDeliveryCount(
 {
     public string Display => $"{Deliveries.Count:N0}*";
     public string Detail(MessageBucket bucket) =>
-        $"Observed {Deliveries.Count:N0} {(bucket == MessageBucket.DeadLetter ? "dead-letter" : "main-queue")} deliveries; " +
-        $"{(IsComplete ? "scan complete" : "partial scan")}; last checked {CheckedAtUtc:yyyy-MM-dd HH:mm:ss} UTC. " +
-        "This is a browsing observation, not a live broker total. " +
-        (bucket == MessageBucket.Active ? "Main-queue peeks can include scheduled, deferred and expired messages. " : "") +
+        $"Observed {Deliveries.Count:N0} {(bucket == MessageBucket.DeadLetter ? "dead-letter" : "main-queue")} deliveries\n" +
+        $"{(IsComplete ? "scan complete" : "partial scan")}\nChecked: {CheckedAtUtc:yyyy-MM-dd HH:mm:ss} UTC\n\n" +
+        "This is a browsing observation, not a live broker total.\n" +
+        (bucket == MessageBucket.Active ? "Main-queue peeks can include scheduled, deferred and expired messages.\n" : "") +
         "Topic observations count deliveries across subscriptions.";
 
     public ObservedDeliveryCount Without(IReadOnlySet<DeliveryIdentity> deleted) =>

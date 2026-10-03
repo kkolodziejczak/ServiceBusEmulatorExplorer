@@ -65,7 +65,12 @@ public partial class InvestigationWindow
             SuggestionsPopup.IsOpen = false;
             return;
         }
-        if (!workspace.Search.IsActive) workspace.Browse.FilterEntities(SearchBox.Text);
+        if (!workspace.Search.IsActive)
+        {
+            workspace.Browse.FilterEntities(SearchBox.Text);
+            NamespaceEmpty.Visibility = workspace.Surface.Roots.Any(node => node.IsVisible)
+                ? Visibility.Collapsed : Visibility.Visible;
+        }
         ClearSearchButton.Visibility = workspace.Search.IsActive || SearchBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         UpdateSuggestions();
     }

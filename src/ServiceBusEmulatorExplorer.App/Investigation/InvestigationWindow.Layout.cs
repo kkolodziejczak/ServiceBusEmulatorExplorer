@@ -63,24 +63,19 @@ public partial class InvestigationWindow
         bool compactLibrary = MessageLibraryPrototype.Visibility == Visibility.Visible && ActualWidth < 1200;
         WorkspaceGrid.ColumnDefinitions[0].MinWidth = 240;
         WorkspaceGrid.ColumnDefinitions[0].Width = new GridLength(compactLibrary ? 250 : 305);
-        NamespaceCountHeadings.ColumnDefinitions[1].Width = new GridLength(compactLibrary ? 50 : 65);
-        NamespaceCountHeadings.ColumnDefinitions[2].Width = new GridLength(compactLibrary ? 55 : 65);
-        NamespaceCountHeadings.ColumnDefinitions[3].Width = new GridLength(compactLibrary ? 27 : 36);
-        foreach (TextBlock label in NamespaceCountHeadings.Children.OfType<TextBlock>())
-            label.FontSize = compactLibrary ? 10 : 12;
         PrototypeNamespaceTree.FontSize = compactLibrary ? 11 : 14;
-        ResizePrototypeHeader(PrototypeQueueHeader, compactLibrary ? 188 : 230, compactLibrary);
-        ResizePrototypeHeader(PrototypeTopicHeader, compactLibrary ? 188 : 213, compactLibrary);
-        ResizePrototypeHeader(PrototypeBillingHeader, compactLibrary ? 162 : 194, compactLibrary);
-        ResizePrototypeHeader(PrototypeAnalyticsHeader, compactLibrary ? 162 : 194, compactLibrary);
-        ResizePrototypeHeader(PrototypeNotificationsHeader, compactLibrary ? 162 : 194, compactLibrary);
+        ResizePrototypeHeader(PrototypeQueueHeader, compactLibrary ? 188 : 230);
+        ResizePrototypeHeader(PrototypeTopicHeader, compactLibrary ? 188 : 213);
+        ResizePrototypeHeader(PrototypeBillingHeader, compactLibrary ? 162 : 194);
+        ResizePrototypeHeader(PrototypeAnalyticsHeader, compactLibrary ? 162 : 194);
+        ResizePrototypeHeader(PrototypeNotificationsHeader, compactLibrary ? 162 : 194);
     }
 
-    private static void ResizePrototypeHeader(Grid header, double width, bool compact)
+    private static void ResizePrototypeHeader(Grid header, double width)
     {
         header.Width = width;
-        header.ColumnDefinitions[1].Width = new GridLength(compact ? 25 : 35);
-        header.ColumnDefinitions[2].Width = new GridLength(compact ? 20 : 35);
-        header.ColumnDefinitions[3].Width = new GridLength(compact ? 20 : 25);
+        header.ColumnDefinitions[1].Width = new GridLength(24);
+        header.ColumnDefinitions[2].Width = new GridLength(24);
+        header.ColumnDefinitions[3].Width = new GridLength(24);
     }
 }

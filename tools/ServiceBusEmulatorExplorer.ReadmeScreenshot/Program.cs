@@ -18,6 +18,7 @@ internal static class Program
             or "--message-library-properties" or "--message-library-properties-bottom" or "--message-library-properties-selected" or "--message-library-variables" or "--message-library-single"
             or "--message-library-author-minimum" or "--message-library-properties-minimum" or "--message-library-wizard-review" or "--message-library-wizard-review-minimum" or "--message-library-wizard-review-queue" or "--message-library-wizard-review-large-batch"
             or "--message-library-single-minimum" or "--message-library-prepare-log";
+        bool namespaceTreeProof = args.Length == 2 && args[1] == "--namespace-tree";
         bool dialogCapture = args.Length == 2 && args[1] is
             "--message-library-map" or "--message-library-capture" or "--message-library-review" or "--message-library-results"
             or "--message-library-schedule" or "--message-library-conflict" or "--message-library-validation"
@@ -32,9 +33,9 @@ internal static class Program
             args[1] == "--message-library-capture" ? 925 :
             args[1] == "--message-library-map" ? 590 : args[1] == "--message-library-conflict" ? 500 : 620 :
             captureWidth == 1642 ? 958 : captureWidth == 1500 ? 1000 : captureWidth == 1100 ? 800 : captureWidth == 980 ? 640 : WpfScreenshot.CaptureHeight;
-        if ((args.Length != 1 && !prototypeCapture && !dialogCapture) || string.IsNullOrWhiteSpace(args[0]))
+        if ((args.Length != 1 && !prototypeCapture && !dialogCapture && !namespaceTreeProof) || string.IsNullOrWhiteSpace(args[0]))
         {
-            Console.Error.WriteLine("Usage: ServiceBusEmulatorExplorer.ReadmeScreenshot <output-png> [--message-library-prepare|--message-library-prepare-1500|--message-library-prepare-compact|--message-library-prepare-minimum|--message-library-properties|--message-library-variables|--message-library-single|--message-library-wizard-review|--message-library-wizard-review-minimum]");
+            Console.Error.WriteLine("Usage: ServiceBusEmulatorExplorer.ReadmeScreenshot <output-png-or-directory> [--namespace-tree|--message-library-prepare|--message-library-prepare-1500|--message-library-prepare-compact|--message-library-prepare-minimum|--message-library-properties|--message-library-variables|--message-library-single|--message-library-wizard-review|--message-library-wizard-review-minimum]");
             return 2;
         }
 
@@ -136,6 +137,12 @@ internal static class Program
                     () => { },
                     System.Windows.Threading.DispatcherPriority.ContextIdle);
                 window.UpdateLayout();
+                if (namespaceTreeProof)
+                {
+                    await NamespaceTreeProof.RunAsync(window, workspace, args[0]);
+                    exitCode = 0;
+                    return;
+                }
                 if (captureWidth == WpfScreenshot.CaptureWidth)
                     RetailScreenshotScenario.ValidateRenderedWindow(window, workspace);
                 if (prototypeCapture)
