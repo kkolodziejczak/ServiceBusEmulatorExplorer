@@ -172,7 +172,11 @@ public partial class InvestigationWindow : Window
 
     private void WorkbenchDiscoveryChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MessageBrowseWorkflow.DiscoverySnapshot)) UpdateWorkbenchDiscovery();
+        if (e.PropertyName == nameof(MessageBrowseWorkflow.DiscoverySnapshot))
+        {
+            UpdateWorkbenchDiscovery();
+            UpdateNamespaceIndicators();
+        }
     }
 
     private void UpdateWorkbenchDiscovery()
@@ -407,6 +411,7 @@ public partial class InvestigationWindow : Window
 
     private void ConfigureRefresh()
     {
+        UpdateNamespaceIndicators();
         bool investigationSearch = MessageLibraryPrototype?.Visibility != Visibility.Visible && workspace.Search.IsActive;
         if (paused || investigationSearch || !workspace.IsConnected || workspace.Preferences.AutoRefreshSeconds == 0)
         {

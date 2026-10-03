@@ -54,6 +54,7 @@ dead paths.
 | Non-destructive DLQ replay (new message, original left in DLQ) | shared | `src/ServiceBusEmulatorExplorer.Core/ServiceBus/DeadLetterReplayService.cs`, `ReplayCopySender.cs`, `DeadLetterReplayRequestFactory.cs` |
 | DLQ delete scoped to captured deliveries with sequence-number safety | shared | `src/ServiceBusEmulatorExplorer.Core/ServiceBus/DlqDeleteReceiver.cs`; `src/ServiceBusEmulatorExplorer.Core/Investigation/DlqDeliveryDeleter.cs` |
 | Watch scope resolution with inherited and overridden inclusion | shared | `src/ServiceBusEmulatorExplorer.Core/Investigation/WatchScopeResolver.cs` |
+| Namespace Watch and current-view refresh presentation | adapt | `src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWindow.Indicators.cs`, `UpdateNamespaceIndicators`; `src/ServiceBusEmulatorExplorer.App/Investigation/EntityNode.Indicators.cs` |
 | Message search query model | shared | `src/ServiceBusEmulatorExplorer.Core/Investigation/MessageSearchQuery.cs` |
 
 ## Testing, proof and delivery

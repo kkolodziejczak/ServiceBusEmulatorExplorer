@@ -5,7 +5,7 @@ using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
-public sealed class EntityNode : ObservableObject
+public sealed partial class EntityNode : ObservableObject
 {
     private bool expanded = true;
     private bool visible = true;
@@ -33,12 +33,12 @@ public sealed class EntityNode : ObservableObject
     public string DisplayScheduledCount => Format(Observation?.Counts.Scheduled);
     public string ActiveCountDetail => CountDetail("Messages", DisplayMessageCount,
         observedMain?.Detail(MessageBucket.Active) ?? Detail(Observation?.Counts.Active,
-            "Active messages reported by the broker.\nEmulator counts may be inaccurate."));
+            "Active messages reported by the broker.\nEmulator counts may be inaccurate.")) + WatchDetail(IsActiveWatched, "Active");
     public string ScheduledCountDetail => CountDetail("Scheduled", DisplayScheduledCount,
         Detail(Observation?.Counts.Scheduled, "Scheduled messages reported by the broker."));
     public string DlqCountDetail => CountDetail("DLQ", DisplayDlqCount,
         observedDlq?.Detail(MessageBucket.DeadLetter) ?? Detail(Observation?.Counts.DeadLetter,
-            "Dead-letter messages reported by the broker.\nEmulator counts may be inaccurate."));
+            "Dead-letter messages reported by the broker.\nEmulator counts may be inaccurate.")) + WatchDetail(IsDlqWatched, "Dead letter");
     private string CountDetail(string label, string value, string detail)
     {
         if (IsGroup) return string.Empty;

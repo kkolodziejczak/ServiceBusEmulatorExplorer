@@ -211,4 +211,31 @@
   <Style.Triggers><Trigger Property="Orientation" Value="Horizontal"><Setter Property="Width" Value="Auto"/><Setter Property="Height" Value="18"/></Trigger></Style.Triggers>
  </Style>
  <Style x:Key="NamespaceLegendLabel" TargetType="TextBlock"><Setter Property="FontSize" Value="12"/></Style>
+  <Style x:Key="NamespaceCount" TargetType="TextBlock">
+   <Setter Property="MaxWidth" Value="26"/>
+   <Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="TextAlignment" Value="Right"/>
+   <Setter Property="VerticalAlignment" Value="Center"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+   <Setter Property="Margin" Value="0,0,6,0"/>
+  </Style>
+ <Style x:Key="NamespaceActiveCount" TargetType="TextBlock" BasedOn="{StaticResource NamespaceCount}">
+  <Style.Triggers><DataTrigger Binding="{Binding IsActiveWatched}" Value="True"><Setter Property="TextDecorations" Value="Underline"/></DataTrigger></Style.Triggers>
+ </Style>
+ <Style x:Key="NamespaceDlqCount" TargetType="TextBlock" BasedOn="{StaticResource NamespaceCount}">
+  <Style.Triggers><DataTrigger Binding="{Binding IsDlqWatched}" Value="True"><Setter Property="TextDecorations" Value="Underline"/></DataTrigger></Style.Triggers>
+ </Style>
+ <Style x:Key="NamespaceRefreshIndicator" TargetType="Path">
+  <Setter Property="Width" Value="14"/><Setter Property="Height" Value="14"/><Setter Property="Margin" Value="4,0,0,0"/>
+  <Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Stretch" Value="Uniform"/>
+  <Setter Property="Stroke" Value="{DynamicResource PrimaryBrush}"/><Setter Property="StrokeThickness" Value="1.5"/>
+  <Setter Property="Visibility" Value="Collapsed"/><Setter Property="Data" Value="{StaticResource RefreshGeometry}"/>
+  <Style.Triggers>
+   <DataTrigger Binding="{Binding RefreshIndicator}" Value="Running"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+   <DataTrigger Binding="{Binding RefreshIndicator}" Value="Paused"><Setter Property="Visibility" Value="Visible"/><Setter Property="Data" Value="{StaticResource PauseGeometry}"/><Setter Property="Stroke" Value="{DynamicResource SecondaryBrush}"/></DataTrigger>
+  </Style.Triggers>
+ </Style>
+ <Style x:Key="NamespaceIndicatorLegendIcon" TargetType="Path">
+  <Setter Property="Width" Value="12"/><Setter Property="Height" Value="12"/><Setter Property="Margin" Value="0,0,4,0"/>
+  <Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Stretch" Value="Uniform"/>
+  <Setter Property="Stroke" Value="{DynamicResource SecondaryBrush}"/><Setter Property="StrokeThickness" Value="1.5"/>
+ </Style>
 </ResourceDictionary>

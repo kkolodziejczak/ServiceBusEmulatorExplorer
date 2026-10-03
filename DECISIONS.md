@@ -40,6 +40,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-024 | accepted | Workbench scheduling | Styled calendar and constrained hour/minute selectors |
 | DEC-025 | width superseded by DEC-026 | Workbench scheduling | Compact date width and vertically centered date text |
 | DEC-026 | accepted | Workbench scheduling | Content-sized date field with calendar-only selection |
+| DEC-027 | accepted | Namespace tree | Independent Watch count underlines and current-view refresh/pause indicators |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -215,3 +216,10 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 - Decision: fit the field to the displayed date and calendar button with a small gap; clicking the date opens the calendar and manual date entry is disabled.
 - Because: the user still found the field too wide and wants dates chosen through the popup.
 - Consequences: supersedes DEC-025 width matching while retaining vertical centering; preserve keyboard calendar access and scheduling validation. See the [scheduling contract](specs/message-library/scheduling-controls.md).
+
+## DEC-027 — Distinct Watch and auto-refresh indicators
+
+- Status: accepted · 2026-10-03 · Scope: namespace tree
+- Decision: underline watched Active/DLQ counts on queues and subscriptions; show a refresh glyph beside the current Investigation entity and a muted pause glyph when explicitly paused.
+- Because: the user wants a subtle indication of watched buckets and automatic refresh without confusing the two independent features; approved revised proposal 25.
+- Consequences: reflect effective inherited Watch rules and exclusions, preserve count colors/alignment and symbols, and explain states in tooltips and the legend. Auto-refresh follows the current browse view and remains a window-wide interval; this does not introduce per-entity refresh settings. Scheduled and topic aggregate counts have no Watch underline. See the [approved mockup](specs/message-library/design/proposed/25-watch-and-auto-refresh-indicators.png) and [design registry](DESIGN.md).
