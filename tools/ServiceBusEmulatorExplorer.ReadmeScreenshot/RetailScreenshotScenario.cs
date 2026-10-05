@@ -68,18 +68,23 @@ internal static class RetailScreenshotScenario
                 "The README scenario did not render the Investigation Workspace connection, message, and inspector surfaces.");
         }
 
-        double messageColumnWidth = messageGrid.Columns[1].ActualWidth;
+        var messageColumn = (DataGridColumn)window.FindName("EventColumn")!;
+        var correlationColumn = (DataGridColumn)window.FindName("CorrelationColumn")!;
+        var locationColumn = (DataGridColumn)window.FindName("SourceColumn")!;
+        var stateColumn = (DataGridColumn)window.FindName("StateColumn")!;
+        var enqueuedColumn = (DataGridColumn)window.FindName("EnqueuedColumn")!;
+        double messageColumnWidth = messageColumn.ActualWidth;
         FrameworkElement content = window.Content as FrameworkElement
             ?? throw new InvalidOperationException("The README scenario has no renderable window content.");
-        DataGridColumn enqueuedColumn = messageGrid.Columns.Single(column =>
-            string.Equals(column.Header?.ToString(), "Enqueued (UTC)", StringComparison.Ordinal));
+        var visibleDataColumns = messageGrid.Columns.Where(column => column.Visibility == Visibility.Visible
+            && column != messageGrid.Columns[0] && column != stateColumn).ToArray();
         bool hasRealizedRow = messageGrid.ItemContainerGenerator.ContainerFromIndex(0) is DataGridRow;
         DpiScale dpi = VisualTreeHelper.GetDpi(window);
         Console.WriteLine(
             $"Live screenshot layout: window {window.ActualWidth:F0}x{window.ActualHeight:F0}, " +
             $"content {content.ActualWidth:F0}x{content.ActualHeight:F0}, DPI {dpi.PixelsPerInchX:F0}, " +
             $"grid {messageGrid.ActualWidth:F0}, columns " +
-            $"{string.Join(", ", messageGrid.Columns.Select(column => $"{column.Header as string ?? "Select"}={column.ActualWidth:F0}"))}.");
+            $"{string.Join(", ", messageGrid.Columns.Select(column => $"{column.Header as string ?? "Select"}={column.ActualWidth:F0} ({column.Visibility}, {column.Width.UnitType})"))}.");
 
         if (!window.IsLoaded || !messageGrid.IsLoaded || !hasRealizedRow
             || Math.Abs(window.ActualWidth - WpfScreenshot.CaptureWidth) > 1
@@ -88,14 +93,17 @@ internal static class RetailScreenshotScenario
             || Math.Abs(content.ActualHeight - WpfScreenshot.CaptureHeight) > 1
             || Grid.GetColumn(inspectorPane) != 2
             || Grid.GetRow(inspectorPane) != 0
+            || messageColumn.Visibility != Visibility.Visible
+            || correlationColumn.Visibility != Visibility.Collapsed
+            || locationColumn.Visibility != Visibility.Visible
+            || stateColumn.Visibility != Visibility.Visible
             || enqueuedColumn.Visibility != Visibility.Visible
-            || messageGrid.ActualWidth < 600
+            || messageGrid.ActualWidth < 370
             || Math.Abs(messageGrid.Columns[0].ActualWidth - 40) > 1
-            || !messageGrid.Columns[1].Width.IsAuto
+            || Math.Abs(stateColumn.ActualWidth - 64) > 1
+            || visibleDataColumns.Any(column => !column.Width.IsAuto
+                || column.ActualWidth < column.MinWidth - 1 || column.ActualWidth > 201)
             || messageColumnWidth < 120 || messageColumnWidth > 201
-            || !messageGrid.Columns[2].Width.IsAuto
-            || messageGrid.Columns[2].ActualWidth < 110 || messageGrid.Columns[2].ActualWidth > 161
-            || !enqueuedColumn.Width.IsStar || enqueuedColumn.ActualWidth < 140
             || inspectorPane.ActualWidth < 350)
         {
             throw new InvalidOperationException(
