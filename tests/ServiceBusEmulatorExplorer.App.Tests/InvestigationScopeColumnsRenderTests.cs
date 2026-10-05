@@ -142,8 +142,20 @@ public sealed class InvestigationScopeColumnsRenderTests
 
                 DataGridColumnHeader lastHeader = Descendants<DataGridColumnHeader>(grid).Single(header => header.Column == visibleData[^1]);
                 Rect lastBounds = lastHeader.TransformToAncestor(grid).TransformBounds(new Rect(lastHeader.RenderSize));
-                Assert.True(lastBounds.Right < grid.ActualWidth - 8,
-                    $"Expected unused width after the last real column; column ended at {lastBounds.Right} of {grid.ActualWidth}.");
+                double visibleWidth = grid.Columns.Where(column => column.Visibility == Visibility.Visible)
+                    .Sum(column => column.ActualWidth);
+                if (visibleWidth <= grid.ActualWidth + 1)
+                {
+                    Assert.True(lastBounds.Right < grid.ActualWidth - 8,
+                        $"A fitting set of real columns should leave an empty trailing remainder; column ended at {lastBounds.Right} of {grid.ActualWidth}.");
+                }
+                else
+                {
+                    ScrollViewer viewer = Descendants<ScrollViewer>(grid).First();
+                    Assert.Equal(Visibility.Visible, viewer.ComputedHorizontalScrollBarVisibility);
+                    Assert.True(viewer.ScrollableWidth > 0,
+                        $"A compact viewport should scroll real columns instead of stretching the last one; grid={grid.ActualWidth}, content={visibleWidth}.");
+                }
                 CaptureIfRequested(window, "location44-replay45-subscription-1500x1000.png");
 
                 EntityNode topic = workspace.Browse.AllEntities().Single(node => node.Kind == "Topic" && node.Name == "orders");
@@ -252,7 +264,16 @@ public sealed class InvestigationScopeColumnsRenderTests
                         $"Correlation Copy should be fully visible after horizontal scrolling; bounds={copyBounds}, grid={grid.ActualWidth}.");
                     CaptureIfRequested(window, $"replay45-columns-{width}x{height}-right.png");
                 }
-                else CaptureIfRequested(window, $"replay45-columns-{width}x{height}.png");
+                else
+                {
+                    DataGridColumn correlation = (DataGridColumn)window.FindName("CorrelationColumn")!;
+                    DataGridColumnHeader header = Descendants<DataGridColumnHeader>(grid)
+                        .Single(candidate => candidate.Column == correlation);
+                    Rect headerBounds = header.TransformToAncestor(grid).TransformBounds(new Rect(header.RenderSize));
+                    Assert.True(headerBounds.Right < grid.ActualWidth - 8,
+                        $"When the measured viewport fits the real columns, the correlation column should leave an empty trailing remainder; bounds={headerBounds}, grid={grid.ActualWidth}.");
+                    CaptureIfRequested(window, $"replay45-columns-{width}x{height}.png");
+                }
             }
             finally
             {

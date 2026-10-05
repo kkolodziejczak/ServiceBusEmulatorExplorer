@@ -168,7 +168,9 @@ public sealed class MessageColumnSelectorTests
             hoverRow.ClearValue(Control.BackgroundProperty);
 
             OpenPopup(window, columnsButton, popup, search, choices);
-            Assert.InRange(Math.Abs(window.ActualWidth - width), 0, 2);
+            Assert.InRange(window.ActualWidth, Math.Min(width, window.MinWidth), width + 2);
+            Assert.True(grid.ActualWidth > 0 && grid.ActualWidth <= window.ActualWidth,
+                $"The message grid should occupy a measured part of the supported {window.ActualWidth}-DIP viewport; grid={grid.ActualWidth}.");
             ICollectionView view = Assert.IsAssignableFrom<ICollectionView>(choices.ItemsSource);
             Assert.NotEmpty(view.Groups!);
             Assert.Contains(view.Cast<MessageColumnOption>(), option => option.Id == "system:DeliveryCount");
@@ -307,8 +309,12 @@ public sealed class MessageColumnSelectorTests
             typeof(DataGrid).GetMethod("OnColumnReordered", BindingFlags.Instance | BindingFlags.NonPublic)!
                 .Invoke(grid, [new DataGridColumnEventArgs(dateColumn)]);
             Drain(window.Dispatcher);
-            Assert.False(dateColumn.Width.IsStar);
-            Assert.True(((DataGridColumn)window.FindName("CorrelationColumn")!).Width.IsStar);
+            Assert.All(grid.Columns.Where(column => column.Visibility == Visibility.Visible &&
+                !string.IsNullOrEmpty(column.SortMemberPath)), column =>
+            {
+                Assert.Equal(DataGridLengthUnitType.Auto, column.Width.UnitType);
+                Assert.InRange(column.MaxWidth, column.MinWidth, 200);
+            });
             CaptureWindowIfEnabled(window, width, height, "date-middle");
             Click(reset);
             Drain(window.Dispatcher);
@@ -398,8 +404,12 @@ public sealed class MessageColumnSelectorTests
         Assert.False(Move(added, "Up").IsEnabled);
         var displayed = grid.Columns.Where(column => column.Visibility == Visibility.Visible &&
             column != state && column != grid.Columns[0]).OrderBy(column => column.DisplayIndex).ToArray();
-        Assert.True(displayed[^1].Width.IsStar, "The last visible column must fill the available width, regardless of property.");
-        Assert.All(displayed[..^1], column => Assert.False(column.Width.IsStar, $"Middle column {column.Header} must not retain fill width."));
+        Assert.All(displayed, column =>
+        {
+            Assert.True(column.Width.UnitType == DataGridLengthUnitType.Auto,
+                $"Visible real column {column.Header} should remain content-sized after reordering.");
+            Assert.InRange(column.MaxWidth, column.MinWidth, 200);
+        });
         var saved = VisibleOrder();
         store.ThrowOnSave = true;
         Click(Move(added, "Down"));
