@@ -1,0 +1,101 @@
+<Window x:Class="ServiceBusEmulatorExplorer.App.Investigation.ReplayHistoryWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Title="Replay history" Width="1200" Height="720" MinWidth="780" MinHeight="480" WindowStartupLocation="CenterOwner"
+ Icon="/ServiceBusEmulatorExplorer.App;component/Assets/AppIcon.png" Style="{DynamicResource ReplayWindow}">
+ <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Resources/SharedStyles.xaml"/></ResourceDictionary.MergedDictionaries>
+  <Style x:Key="ReplayDeadLetterBadge" TargetType="Border" BasedOn="{StaticResource ReplayHistoryBadge}"><Setter Property="Background" Value="{DynamicResource DeadLetterBrush}"/><Setter Property="Padding" Value="8,3"/></Style>
+  <Style x:Key="ReplayDeadLetterBadgeText" TargetType="TextBlock" BasedOn="{StaticResource ReplayHistoryBadgeText}"><Setter Property="Foreground" Value="{DynamicResource DeadLetterTextBrush}"/></Style>
+  <DataTemplate x:Key="ObservedStateTemplate"><Border>
+   <Border.Style><Style TargetType="Border" BasedOn="{StaticResource ReplayHistoryBadge}"><Style.Triggers>
+    <DataTrigger Binding="{Binding IsUnchecked}" Value="True"><Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="0,4"/></DataTrigger>
+    <DataTrigger Binding="{Binding IsActive}" Value="True"><Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/></DataTrigger>
+    <DataTrigger Binding="{Binding IsDeadLetter}" Value="True"><Setter Property="Background" Value="{DynamicResource DeadLetterBrush}"/></DataTrigger>
+   </Style.Triggers></Style></Border.Style>
+   <TextBlock Text="{Binding Label}"><TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource ReplayHistoryBadgeText}"><Style.Triggers>
+    <DataTrigger Binding="{Binding IsActive}" Value="True"><Setter Property="Foreground" Value="{DynamicResource RaisedBrush}"/></DataTrigger>
+    <DataTrigger Binding="{Binding IsDeadLetter}" Value="True"><Setter Property="Foreground" Value="{DynamicResource DeadLetterTextBrush}"/></DataTrigger>
+    <DataTrigger Binding="{Binding IsProblem}" Value="True"><Setter Property="Foreground" Value="{DynamicResource WarningHealthBrush}"/></DataTrigger>
+   </Style.Triggers></Style></TextBlock.Style></TextBlock>
+  </Border></DataTemplate>
+ </ResourceDictionary></Window.Resources>
+ <Grid Margin="24" Background="{DynamicResource CanvasBrush}"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+  <DockPanel LastChildFill="True" Margin="0,0,0,8">
+   <WrapPanel DockPanel.Dock="Right" HorizontalAlignment="Right">
+    <Button x:Name="FindAllButton" Click="FindAll_Click" AutomationProperties.Name="Find all replays"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource SearchGeometry}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="16" Height="16" Stretch="Uniform" StrokeThickness="1.5" Margin="0,0,8,0"/><TextBlock Text="Find all replays"/></StackPanel></Button>
+    <Button x:Name="CheckStatusButton" Click="CheckStatus_Click" AutomationProperties.Name="Check status"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource RefreshGeometry}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="16" Height="16" Stretch="Uniform" StrokeThickness="1.5" Margin="0,0,8,0"/><TextBlock Text="Check status"/></StackPanel></Button>
+   </WrapPanel>
+   <TextBlock x:Name="HistorySummary" Style="{StaticResource ReplayHistoryHeading}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,16,0"/>
+  </DockPanel>
+  <TextBlock x:Name="HistoryNotice" Grid.Row="1" Style="{StaticResource ReplayHistoryMetadata}" Text="Local history. Observations are last checked states, not proof of API processing." TextWrapping="Wrap" Margin="0,0,0,8"/>
+  <DataGrid x:Name="HistoryGrid" Grid.Row="2" Style="{StaticResource ReplayHistoryGrid}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserReorderColumns="False" ScrollViewer.HorizontalScrollBarVisibility="Auto" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.ScrollUnit="Pixel" AreRowDetailsFrozen="True" SelectionMode="Single" SelectionChanged="Selection_Changed" RowDetailsVisibilityMode="VisibleWhenSelected" AutomationProperties.Name="Saved replay attempts">
+   <DataGrid.Columns>
+    <DataGridTemplateColumn Header="Original message" Width="1.2*"><DataGridTemplateColumn.CellTemplate><DataTemplate>
+     <StackPanel Margin="8,8">
+      <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+       <TextBlock Text="{Binding DisplayOriginalId}" ToolTip="{Binding OriginalMessageId}" Style="{StaticResource ReplayHistoryIdentity}" VerticalAlignment="Center"/>
+       <Button IsEnabled="{Binding BrokerAvailable}" x:Name="FindOriginalButton" Grid.Column="1" Style="{StaticResource InspectorDiscardLink}" Click="FindOriginal_Click" ToolTip="{Binding OriginalSearchName}" AutomationProperties.Name="{Binding OriginalSearchName}"><Path Data="{StaticResource SearchGeometry}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="16" Height="16" Stretch="Uniform" StrokeThickness="1.5"/></Button>
+      </Grid>
+      <WrapPanel Margin="0,4,0,0" ToolTip="{Binding SourceLocation.SourceDetail}">
+       <Border Style="{StaticResource ReplayDeadLetterBadge}"><TextBlock Text="DLQ" Style="{StaticResource ReplayDeadLetterBadgeText}"/></Border>
+       <TextBlock Style="{StaticResource ReplayHistoryMetadata}" VerticalAlignment="Center"><Run Text="{Binding OriginalSourceName, Mode=OneWay}"/><Run Text=" &#xB7; "/><Run Text="{Binding Original, Mode=OneWay}"/></TextBlock>
+      </WrapPanel>
+     </StackPanel>
+    </DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+    <DataGridTemplateColumn Header="Replay" Width="1.3*"><DataGridTemplateColumn.CellTemplate><DataTemplate>
+     <StackPanel Margin="8,8">
+      <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+       <TextBlock Text="{Binding DisplayReplayId}" ToolTip="{Binding MessageId}" Style="{StaticResource ReplayHistoryIdentity}" VerticalAlignment="Center"/>
+       <Button IsEnabled="{Binding BrokerAvailable}" x:Name="FindReplayButton" Grid.Column="1" Style="{StaticResource InspectorDiscardLink}" Click="FindReplay_Click" ToolTip="{Binding ReplaySearchName}" AutomationProperties.Name="{Binding ReplaySearchName}"><Path Data="{StaticResource SearchGeometry}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="16" Height="16" Stretch="Uniform" StrokeThickness="1.5"/></Button>
+      </Grid>
+      <TextBlock Margin="0,4,0,0" Text="{Binding Sent}" TextWrapping="Wrap" ToolTip="{Binding Sent}"><TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource ReplayHistoryMetadata}"><Style.Triggers><DataTrigger Binding="{Binding Attempt.SendStatus}" Value="Uncertain"><Setter Property="Foreground" Value="{DynamicResource WarningHealthBrush}"/><Setter Property="FontWeight" Value="SemiBold"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
+     </StackPanel>
+    </DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+    <DataGridTemplateColumn Header="Observed copies" Width="1.4*"><DataGridTemplateColumn.CellTemplate><DataTemplate>
+     <StackPanel Margin="8,8" ToolTip="{Binding Detail}">
+      <ItemsControl ItemsSource="{Binding ObservedStates}" ItemTemplate="{StaticResource ObservedStateTemplate}" Focusable="True" IsTabStop="True" AutomationProperties.Name="{Binding Observation}" AutomationProperties.HelpText="{Binding Detail}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel></ItemsControl>
+      <TextBlock Margin="0,4,0,0" Text="{Binding ObservationTime}" Style="{StaticResource ReplayHistoryMetadata}" TextWrapping="Wrap" ToolTip="{Binding ObservationTimeTooltip}"/>
+      <TextBlock Text="{Binding ObservationReason}" Style="{StaticResource ReplayHistoryMetadata}" TextWrapping="Wrap"/>
+     </StackPanel>
+    </DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+    <DataGridTemplateColumn Header="" Width="48" CanUserSort="False"><DataGridTemplateColumn.CellTemplate><DataTemplate>
+     <Button x:Name="RemoveHistoryButton" Click="RemoveHistory_Click" ToolTip="{Binding RemoveName}" AutomationProperties.Name="{Binding RemoveName}">
+      <Button.Style><Style TargetType="Button" BasedOn="{StaticResource InspectorDiscardLink}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding CanRemove}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Button.Style>
+      <Path Data="{StaticResource DeleteGeometry}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="16" Height="16" Stretch="Uniform" StrokeThickness="1.5"/>
+     </Button>
+    </DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+   </DataGrid.Columns>
+   <DataGrid.RowDetailsTemplate><DataTemplate>
+    <Border x:Name="ReplayDetailsBorder" Width="{Binding ViewportWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}}" MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ScrollContentPresenter}}" HorizontalAlignment="Left" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="0,1,0,0" Background="{DynamicResource RaisedBrush}" Padding="16">
+     <Grid>
+      <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+      <TextBlock Text="Original ID:" Style="{StaticResource DialogLabel}" Margin="0,0,16,8"/>
+      <WrapPanel Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,8">
+       <TextBox x:Name="DetailOriginalId" Text="{Binding OriginalMessageId, Mode=OneWay}" Style="{StaticResource ReplayHistoryDetailId}" MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=WrapPanel}}" AutomationProperties.Name="Original message ID"/>
+       <Button x:Name="CopyOriginalIdButton" Style="{StaticResource InspectorDiscardLink}" Click="CopyOriginalId_Click" AutomationProperties.Name="Copy original message ID"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource CopyIcon}" Margin="0,0,8,0"/><TextBlock Text="Copy"/></StackPanel></Button>
+      </WrapPanel>
+      <TextBlock Grid.Row="1" Text="Original source:" Style="{StaticResource DialogLabel}" Margin="0,0,16,8"/>
+      <WrapPanel Grid.Row="1" Grid.Column="1" Margin="0,0,8,8" VerticalAlignment="Center" ToolTip="{Binding Destination}">
+       <Path Data="{StaticResource TopicGeometry}" Width="16" Height="16" Stretch="Uniform" Stroke="{DynamicResource EntityPrimaryBrush}" StrokeThickness="1.5" Margin="0,0,8,0" VerticalAlignment="Center"><Path.Style><Style TargetType="Path"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SourceLocation.IsSubscription}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Path.Style></Path>
+       <TextBlock Text="{Binding SourceLocation.SourceTopic}" Style="{StaticResource ReplayHistoryMetadata}" MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=WrapPanel}}" VerticalAlignment="Center"/>
+       <TextBlock Text=" / " VerticalAlignment="Center"><TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource ReplayHistoryMetadata}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SourceLocation.IsSubscription}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
+       <Path Width="16" Height="16" Stretch="Uniform" StrokeThickness="1.5" Margin="8,0,8,0" VerticalAlignment="Center"><Path.Style><Style TargetType="Path"><Setter Property="Data" Value="{StaticResource QueueGeometry}"/><Setter Property="Stroke" Value="{DynamicResource EntityPrimaryBrush}"/><Style.Triggers><DataTrigger Binding="{Binding SourceLocation.IsSubscription}" Value="True"><Setter Property="Data" Value="{StaticResource SubscriptionGeometry}"/><Setter Property="Stroke" Value="{DynamicResource SubscriptionBrush}"/></DataTrigger></Style.Triggers></Style></Path.Style></Path>
+       <TextBlock Text="{Binding OriginalSourceName}" Style="{StaticResource ReplayHistoryMetadata}" MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=WrapPanel}}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+       <Border Style="{StaticResource ReplayDeadLetterBadge}"><TextBlock Text="DLQ" Style="{StaticResource ReplayDeadLetterBadgeText}"/></Border>
+       <TextBlock Text="{Binding Original}" Style="{StaticResource ReplayHistoryMetadata}" VerticalAlignment="Center"/>
+      </WrapPanel>
+      <Button x:Name="DeleteOriginalButton" VerticalAlignment="Center" Grid.Row="1" Grid.Column="2" IsEnabled="{Binding CanDeleteOriginal}" Style="{StaticResource DestructiveButton}" Click="DeleteOriginal_Click" ToolTip="Check status first. Every confirmed replay must be absent, and no related send may be uncertain." AutomationProperties.Name="Delete original"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource DeleteGeometry}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="16" Height="16" Stretch="Uniform" StrokeThickness="1.5" Margin="0,0,8,0"/><TextBlock Text="Delete original&#x2026;"/></StackPanel></Button>
+      <TextBlock Grid.Row="2" Text="Replay ID:" Style="{StaticResource DialogLabel}" Margin="0,0,16,0"/>
+      <WrapPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2">
+       <TextBox x:Name="DetailReplayId" Text="{Binding MessageId, Mode=OneWay}" Style="{StaticResource ReplayHistoryDetailId}" MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=WrapPanel}}" AutomationProperties.Name="Replay ID"/>
+       <Button x:Name="CopyReplayIdButton" Style="{StaticResource InspectorDiscardLink}" Click="CopyReplayId_Click" AutomationProperties.Name="Copy replay ID"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource CopyIcon}" Margin="0,0,8,0"/><TextBlock Text="Copy"/></StackPanel></Button>
+      </WrapPanel>
+      <TextBlock x:Name="LastCheckDetails" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding ObservationReason}" TextWrapping="Wrap" ToolTip="{Binding Detail}" AutomationProperties.Name="Replay send or observation detail">
+       <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource ReplayHistoryMetadata}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding HasObservationReason}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+      </TextBlock>
+     </Grid>
+    </Border>
+   </DataTemplate></DataGrid.RowDetailsTemplate>
+  </DataGrid>
+ </Grid>
+</Window>

@@ -43,7 +43,14 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
     public bool IsConnecting => connecting;
     public string HealthText => connecting ? "Connecting…" : !IsConnected ? "Disconnected" : readinessWarning is null ? "Connected" : "Warning";
     public string HealthDetail => readinessWarning ?? (IsConnected ? "Administration and runtime peek access verified." : "Connect to inspect messages.");
-    public string Status => Activity.LastOrDefault()?.Message ?? "Choose a connection to begin.";
+    public string Status
+    {
+        get
+        {
+            var latest = Activity.LastOrDefault();
+            return (latest?.StatusSummary ?? latest?.Message ?? "Choose a connection to begin.").ReplaceLineEndings(" ");
+        }
+    }
 
     public InvestigationWorkspace(IWorkspacePreferencesStore store, BrokerConnectionWorkflow connections,
         Func<ConnectionProfile, IReplayCopySender>? createReplaySender = null,
@@ -58,6 +65,10 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
         Watch.Warning += WatchWarning;
         Watch.Polled += WatchPolled;
         Watch.DiscoveryUpdated += WatchDiscoveryUpdated;
+        Browse.BackgroundRefreshWarning += BackgroundRefreshWarning;
+        Browse.Messages.CollectionChanged += ReplayRowsChanged;
+        Search.Messages.CollectionChanged += ReplayRowsChanged;
+        PropertyChanged += ReplayRowPreferencesChanged;
     }
 
     private void WatchDiscoveryUpdated(EntityDiscoverySnapshot snapshot)
@@ -67,6 +78,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
     }
 
     private void WatchWarning(string message) => Log(message, true);
+    private void BackgroundRefreshWarning(string message) => Log(message, true);
 
     private void WatchPolled(WatchPollResult result)
     {
@@ -93,7 +105,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
         try
         {
             if (Volatile.Read(ref disposeStarted) != 0) return;
-            preferences = result.Preferences;
+            preferences = result.Preferences with { LogExpanded = false };
             Browse.SetPreferences(preferences);
             Search.SetPreferences(preferences);
             initialized = true;
@@ -126,6 +138,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
             session = connected;
             readinessWarning = connected.ReadinessWarning;
             Browse.SetSession(session, generation);
+            Browse.SetWatchRules(CurrentWatchRules());
             Search.SetSession(session, generation);
             watchBaselineReady = false;
             Watch.Start(session, generation, CurrentWatchRules());
@@ -216,6 +229,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
         connectCancellation = null;
         connecting = false;
         Browse.SetSession(null, generation);
+        await Browse.StopBackgroundRefreshAsync();
         Search.SetSession(null, generation);
         await Watch.StopAsync(clearWatchArrivals);
         Inspector.Clear();
@@ -237,7 +251,10 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
         {
             // Settings owns profile/display fields; workflow state may have committed since it opened.
             var replacement = updated with { SelectedProfileId = preferences.SelectedProfileId,
-                WasConnected = IsConnected, Watches = preferences.Watches, ReplayFamilies = preferences.ReplayFamilies };
+                WasConnected = IsConnected, Watches = preferences.Watches, ReplayFamilies = preferences.ReplayFamilies,
+                MessageColumns = preferences.MessageColumns,
+                MessageColumnOrder = preferences.MessageColumnOrder,
+                ReplayAttempts = preferences.ReplayAttempts.Where(attempt => updated.Profiles.Any(profile => profile.Id == attempt.ProfileId)).ToArray() };
             await store.SaveAsync(replacement, CancellationToken.None);
             preferences = replacement;
             if (credentialsChanged) await Watch.StopAsync(clearPending: true);
@@ -246,11 +263,27 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
         Browse.SetPreferences(preferences);
         Search.SetPreferences(preferences);
         Watch.UpdateRules(CurrentWatchRules());
+        Browse.SetWatchRules(CurrentWatchRules());
         NotifyConnection();
     }
 
     private IReadOnlyList<WatchPreference> CurrentWatchRules() =>
         preferences.Watches.TryGetValue(preferences.SelectedProfileId, out var rules) ? rules : [];
+
+    public async Task UpdateMessageColumnsAsync(IReadOnlyList<string> columns, IReadOnlyList<string>? order = null)
+    {
+        var selection = MessageColumnCatalog.Normalize(columns);
+        await saveGate.WaitAsync();
+        try
+        {
+            var replacement = preferences with { MessageColumns = selection,
+                MessageColumnOrder = MessageColumnCatalog.NormalizeOrder(order ?? preferences.MessageColumnOrder, selection) };
+            await store.SaveAsync(replacement, CancellationToken.None);
+            preferences = replacement;
+            OnPropertyChanged(nameof(Preferences));
+        }
+        finally { saveGate.Release(); }
+    }
 
     public async Task UpdateWatchRulesAsync(string profileId, IReadOnlyList<WatchPreference> rules)
     {
@@ -265,6 +298,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
             preferences = preferences with { Watches = watches };
             watchBaselineReady = false;
             Watch.UpdateRules(CurrentWatchRules());
+            Browse.SetWatchRules(CurrentWatchRules());
             OnPropertyChanged(nameof(Preferences));
         }
         finally { saveGate.Release(); }
@@ -312,13 +346,13 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
     {
         var failure = OperationFailureFormatter.Format(exception, SelectedProfile.Connection.AuthenticationMode);
         readinessWarning = failure.UserMessage;
-        Log($"{failure.UserMessage} {failure.Detail}", true);
+        Log($"{failure.UserMessage} {failure.Detail}", true, statusSummary: $"{failure.UserMessage} See Activity log for details.");
         NotifyConnection();
     }
 
-    public void Log(string message, bool warning = false, bool watch = false)
+    public void Log(string message, bool warning = false, bool watch = false, string? statusSummary = null)
     {
-        Activity.Add(new(DateTimeOffset.UtcNow, message, warning, watch));
+        Activity.Add(new(DateTimeOffset.UtcNow, message, warning, watch, statusSummary));
         while (Activity.Count > 100) Activity.RemoveAt(0);
         OnPropertyChanged(nameof(Status));
     }
@@ -373,6 +407,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
         Watch.Warning -= WatchWarning;
         Watch.Polled -= WatchPolled;
         Watch.DiscoveryUpdated -= WatchDiscoveryUpdated;
+        Browse.BackgroundRefreshWarning -= BackgroundRefreshWarning;
         Surface.Dispose();
     }
 }

@@ -28,10 +28,16 @@ public sealed class MessageWorkbenchCancellationTests
                 OpenCancellation(dialog);
                 string text = Get<TextBlock>(dialog, "CancellationTarget").Text;
                 Assert.Contains("order-events", text, StringComparison.Ordinal);
-                Assert.Contains("23 Sep 2099 14:30 UTC", text, StringComparison.Ordinal);
+                Assert.Contains(new DateTime(2099, 9, 23).ToString("d") + " 14:30 UTC", text, StringComparison.Ordinal);
 
                 Assert.True(Get<StackPanel>(dialog, "CancellationSurface").Visibility == Visibility.Visible);
                 Assert.Empty(dialog.CaptureRun()!.CancellationAttempts);
+                foreach (var format in Enum.GetValues<ServiceBusEmulatorExplorer.Core.Investigation.DateDisplayFormat>())
+                {
+                    DatePresentation.SetFormat(dialog, format);
+                    Assert.Contains(DateDisplay.Date(new DateTime(2099, 9, 23), format), Get<TextBlock>(dialog, "CancellationTarget").Text);
+                    Assert.Equal("23 Sep 2099 14:30 UTC", Assert.Single(dialog.CaptureRun()!.ScheduledResults).DueTime);
+                }
             }
             finally { dialog.Close(); }
         });
@@ -51,7 +57,7 @@ public sealed class MessageWorkbenchCancellationTests
                 {
                     string text = string.Join(" ", Descendants(confirmation).OfType<TextBlock>().Select(block => block.Text));
                     Assert.Contains("order-events", text, StringComparison.Ordinal);
-                    Assert.Contains("23 Sep 2099 14:30 UTC", text, StringComparison.Ordinal);
+                    Assert.Contains(new DateTime(2099, 9, 23).ToString("d") + " 14:30 UTC", text, StringComparison.Ordinal);
                     Assert.Contains("701", text, StringComparison.Ordinal);
                     Assert.Contains("1", text, StringComparison.Ordinal);
                     CaptureProof(confirmation, "cancellation-confirmation");

@@ -9,12 +9,11 @@ public sealed record DeleteSelectionState(IReadOnlyList<MessageDelivery> Targets
 
 public static class DeleteSelection
 {
-    public static DeleteSelectionState Evaluate(bool connected, IReadOnlyList<MessageRow> rows, MessageRow? focused)
+    public static DeleteSelectionState Evaluate(bool connected, IReadOnlyList<MessageRow> rows)
     {
         if (!connected) return new([], "Connect before deleting dead-letter messages.");
-        var selected = rows.Where(row => row.IsSelected).ToArray();
-        var targets = selected.Length > 0 ? selected
-            : focused is not null && rows.Any(row => row.Key == focused.Key) ? new[] { focused } : [];
+        var targets = rows.Where(row => row.IsSelected).ToArray();
+        if (targets.Length == 0) return new([], "Check dead-letter messages to delete.");
         var deliveries = targets.Select(row => row.Delivery).DistinctBy(delivery => delivery.Identity).ToArray();
         return targets.Any(row => !row.IsDeadLetter)
             ? new(deliveries, "Select only dead-letter messages to delete.")

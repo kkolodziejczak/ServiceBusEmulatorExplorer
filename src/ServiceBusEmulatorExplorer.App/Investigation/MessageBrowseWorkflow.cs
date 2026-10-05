@@ -6,7 +6,7 @@ using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
-public sealed class MessageBrowseWorkflow : ObservableObject
+public sealed partial class MessageBrowseWorkflow : ObservableObject
 {
     private BrokerSession? session;
     private DeliveryPager? pager;
@@ -53,12 +53,16 @@ public sealed class MessageBrowseWorkflow : ObservableObject
     public void SetPreferences(WorkspacePreferences value)
     {
         preferences = value;
-        foreach (var row in Messages) row.SetTimeDisplay(value.TimestampDisplay);
+        foreach (var row in Messages) row.SetTimeDisplay(value.TimestampDisplay, value.DateFormat);
+        foreach (var node in AllEntities()) node.SetDateFormat(value.DateFormat);
     }
 
     public void SetSession(BrokerSession? value, long connectionGeneration)
     {
         Cancel();
+        CancelBackgroundRefresh();
+        backgroundPages.Clear();
+        watchedScopes.Clear();
         generation = connectionGeneration;
         DiscoverySnapshot = null;
         session = value;
@@ -117,6 +121,7 @@ public sealed class MessageBrowseWorkflow : ObservableObject
         if (UsesObservedCounts) ObservedDeliveryCounts.AggregateTopics(AllEntities());
         ApplyEntityFilter();
         DiscoverySnapshot = snapshot;
+        ReconcileWatchedScopes();
         OnPropertyChanged(nameof(DiscoverySnapshot));
         NotifyScope();
     }
@@ -162,10 +167,13 @@ public sealed class MessageBrowseWorkflow : ObservableObject
         if (existingNodes.TryGetValue(address, out EntityNode? existing))
         {
             existing.UpdateObservation(observation);
+            existing.SetDateFormat(preferences.DateFormat);
             return existing;
         }
 
-        return new EntityNode(observation.Entity.Name, observation.Entity.Kind.ToString(), observation);
+        var node = new EntityNode(observation.Entity.Name, observation.Entity.Kind.ToString(), observation);
+        node.SetDateFormat(preferences.DateFormat);
+        return node;
     }
 
     private EntityNode ReuseGroup(string name)
@@ -188,6 +196,13 @@ public sealed class MessageBrowseWorkflow : ObservableObject
         bucket = deadLetter ? MessageBucket.DeadLetter : MessageBucket.Active;
         FocusedMessage = null;
         ReplaceMessages([]);
+        if (backgroundPages.TryGetValue(new(node.Address!, bucket), out var cached))
+        {
+            pager = cached.Pager;
+            ApplyRefreshedDeliveries(cached.Deliveries);
+            NotifyScope();
+            return;
+        }
         pager = CreatePager();
         NotifyScope();
         await LoadMoreAsync();
@@ -211,7 +226,7 @@ public sealed class MessageBrowseWorkflow : ObservableObject
         MessageRow? observed = Messages.FirstOrDefault(row => row.Key == known.Key);
         if (observed is null)
         {
-            observed = new MessageRow(known.Delivery, preferences.TimestampDisplay);
+            observed = new MessageRow(known.Delivery, preferences.TimestampDisplay, preferences.DateFormat);
             observed.MarkRetainedAsUnobserved();
             AddRow(observed);
             NotifyScope();
@@ -248,13 +263,14 @@ public sealed class MessageBrowseWorkflow : ObservableObject
                 if (rowsByKey.TryGetValue(delivery.Identity, out var existing)) existing.UpdateDelivery(delivery);
                 else
                 {
-                    var row = new MessageRow(delivery, preferences.TimestampDisplay);
+                    var row = new MessageRow(delivery, preferences.TimestampDisplay, preferences.DateFormat);
                     rowsByKey.Add(delivery.Identity, row);
                     AddRow(row);
                 }
             }
             FocusedMessage ??= Messages.FirstOrDefault();
             CaptureObservedCounts();
+            RememberWatchedPage();
         }
         finally
         {
@@ -309,40 +325,8 @@ public sealed class MessageBrowseWorkflow : ObservableObject
             }
             if (operationVersion != version) return;
             pager = refreshedPager;
-            MessageRow? oldFocused = FocusedMessage;
-            DeliveryIdentity? oldFocusedKey = oldFocused?.Key;
-            var oldRows = Messages.ToDictionary(row => row.Key);
-            var rows = new List<MessageRow>(deliveries.Count + Messages.Count);
-            var observedKeys = new HashSet<DeliveryIdentity>();
-            foreach (MessageDelivery delivery in deliveries)
-            {
-                if (deleted.Contains(delivery.Identity)) continue;
-                observedKeys.Add(delivery.Identity);
-                if (oldRows.TryGetValue(delivery.Identity, out MessageRow? existing))
-                {
-                    existing.UpdateDelivery(delivery);
-                    rows.Add(existing);
-                }
-                else
-                {
-                    rows.Add(new MessageRow(delivery, preferences.TimestampDisplay));
-                }
-            }
-
-            foreach (MessageRow row in Messages)
-            {
-                if (!observedKeys.Contains(row.Key) && (row.IsSelected || ReferenceEquals(row, oldFocused)))
-                {
-                    row.MarkRetainedAsUnobserved();
-                    rows.Add(row);
-                }
-            }
-
-            ReconcileMessages(rows);
-            CaptureObservedCounts();
-            FocusedMessage = oldFocusedKey is not null
-                ? Messages.FirstOrDefault(row => row.Key == oldFocusedKey) ?? Messages.FirstOrDefault()
-                : Messages.FirstOrDefault();
+            ApplyRefreshedDeliveries(deliveries);
+            RememberWatchedPage();
         }
         finally
         {
@@ -353,6 +337,44 @@ public sealed class MessageBrowseWorkflow : ObservableObject
                 NotifyScope();
             }
         }
+    }
+
+    private void ApplyRefreshedDeliveries(IReadOnlyList<MessageDelivery> deliveries)
+    {
+        MessageRow? oldFocused = FocusedMessage;
+        DeliveryIdentity? oldFocusedKey = oldFocused?.Key;
+        var oldRows = Messages.ToDictionary(row => row.Key);
+        var rows = new List<MessageRow>(deliveries.Count + Messages.Count);
+        var observedKeys = new HashSet<DeliveryIdentity>();
+        foreach (MessageDelivery delivery in deliveries)
+        {
+            if (deleted.Contains(delivery.Identity)) continue;
+            observedKeys.Add(delivery.Identity);
+            if (oldRows.TryGetValue(delivery.Identity, out MessageRow? existing))
+            {
+                existing.UpdateDelivery(delivery);
+                rows.Add(existing);
+            }
+            else
+            {
+                rows.Add(new MessageRow(delivery, preferences.TimestampDisplay, preferences.DateFormat));
+            }
+        }
+
+        foreach (MessageRow row in Messages)
+        {
+            if (!observedKeys.Contains(row.Key) && (row.IsSelected || ReferenceEquals(row, oldFocused)))
+            {
+                row.MarkRetainedAsUnobserved();
+                rows.Add(row);
+            }
+        }
+
+        ReconcileMessages(rows);
+        CaptureObservedCounts();
+        FocusedMessage = oldFocusedKey is not null
+            ? Messages.FirstOrDefault(row => row.Key == oldFocusedKey) ?? Messages.FirstOrDefault()
+            : Messages.FirstOrDefault();
     }
 
     public void SetAllChecked(bool value)

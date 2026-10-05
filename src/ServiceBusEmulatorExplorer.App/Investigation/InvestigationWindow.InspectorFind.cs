@@ -22,7 +22,7 @@ public partial class InvestigationWindow
 
     private void InspectorFind_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        string selected = inspectorMode == "JSON" ? BodyEditor.SelectedText : BodyViewer.Selection.Text;
+        string selected = inspectorMode == "Body" ? BodyEditor.SelectedText : BodyViewer.Selection.Text;
         FindPanel.Visibility = Visibility.Visible;
         BodyEditor.TextArea.SelectionBrush = new SolidColorBrush(Color.FromRgb(113, 80, 0));
         BodyEditor.TextArea.SelectionForeground = (Brush)FindResource("ModifiedTextBrush");
@@ -55,7 +55,7 @@ public partial class InvestigationWindow
         ClearInspectorMatchSelection();
         inspectorSearchText = null;
         if (!restoreFocus) return;
-        if (inspectorMode == "JSON") BodyEditor.Focus();
+        if (inspectorMode == "Body") BodyEditor.Focus();
         else BodyViewer.Focus();
     }
 
@@ -73,7 +73,7 @@ public partial class InvestigationWindow
     private void RefreshInspectorFind(bool force = false)
     {
         if (FindPanel?.Visibility != Visibility.Visible || FindBox is null || FindMatchCount is null) return;
-        string text = inspectorMode == "JSON" ? BodyEditor.Text
+        string text = inspectorMode == "Body" ? BodyEditor.Text
             : new TextRange(BodyViewer.Document.ContentStart, BodyViewer.Document.ContentEnd).Text;
         string query = FindBox.Text;
         if (!force && text == inspectorSearchText && query == inspectorSearchQuery) return;
@@ -91,7 +91,7 @@ public partial class InvestigationWindow
                 offset = match + query.Length;
             }
         }
-        bool preserveEditingSelection = !force && BodyEditor.IsKeyboardFocusWithin && inspectorMode == "JSON";
+        bool preserveEditingSelection = !force && BodyEditor.IsKeyboardFocusWithin && inspectorMode == "Body";
         inspectorMatchIndex = inspectorMatches.Count == 0 ? -1 : 0;
         FindPrevious.IsEnabled = FindNext.IsEnabled = inspectorMatches.Count > 0;
         if (inspectorMatchIndex < 0)
@@ -127,8 +127,9 @@ public partial class InvestigationWindow
         int index = inspectorMatches[inspectorMatchIndex];
         int length = FindBox.Text.Length;
         FindMatchCount.Text = $"{inspectorMatchIndex + 1} of {inspectorMatches.Count}";
-        if (inspectorMode == "JSON")
+        if (inspectorMode == "Body")
         {
+            BodyEditor.RevealRange(index, length);
             BodyEditor.Select(index, length);
             BodyEditor.ScrollToLine(BodyEditor.Document.GetLineByOffset(index).LineNumber);
         }

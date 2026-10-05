@@ -16,12 +16,20 @@ public partial class InvestigationWindow
     private void UpdateSearchSurface()
     {
         var search = workspace.Search;
-        if (!workspace.IsConnected) { suggestions.Clear(); suggestionGeneration = null; }
+        if (!workspace.IsConnected)
+        {
+            suggestions.Clear();
+            suggestionGeneration = null;
+            SuggestionsPopup.IsOpen = false;
+            MessageLibraryPrototype.CloseLibrarySearchSuggestions();
+        }
         var generation = workspace.Surface.Messages.FirstOrDefault()?.Key.ConnectionGeneration;
         if (generation is not null && generation != suggestionGeneration)
         {
             suggestions.Clear();
             suggestionGeneration = generation;
+            SuggestionsPopup.IsOpen = false;
+            MessageLibraryPrototype.CloseLibrarySearchSuggestions();
         }
         suggestions.Track(workspace.Surface.Messages);
         SearchStatusPanel.Visibility = search.IsActive ? Visibility.Visible : Visibility.Collapsed;
@@ -33,17 +41,19 @@ public partial class InvestigationWindow
         StopSearchButton.IsEnabled = search.IsBusy;
         StopSearchButton.Visibility = search.IsBusy ? Visibility.Visible : Visibility.Collapsed;
         BrowseTabs.Visibility = search.IsActive ? Visibility.Collapsed : Visibility.Visible;
-        SearchSummary.Visibility = search.IsActive && ActualWidth >= 1200 ? Visibility.Visible : Visibility.Collapsed;
-        SearchSummary.Text = $"{search.QueryText} · {search.Messages.Count:N0} matches{(complete ? "" : " so far")}";
+        bool replaySearch = replaySearchQuery is not null && search.QueryText == replaySearchQuery;
+        SearchSummary.Visibility = search.IsActive && (replaySearch || ActualWidth >= 1200) ? Visibility.Visible : Visibility.Collapsed;
+        SearchSummary.Text = replaySearch ? ReplayDeliverySummary.Format(search.Messages, complete)
+            : $"{search.QueryText} · {search.Messages.Count:N0} matches{(complete ? "" : " so far")}";
+        SearchSummary.TextWrapping = replaySearch ? TextWrapping.Wrap : TextWrapping.NoWrap;
+        SearchSummary.ToolTip = search.QueryText;
+        if (replaySearch && ListHeading.Visibility != Visibility.Visible)
+            SearchStatusText.Text = $"{SearchSummary.Text}\n{search.Status}";
         ListToolbar.Visibility = search.IsActive ? Visibility.Collapsed : Visibility.Visible;
         NamespaceTree.ToolTip = search.IsActive && MessageLibraryPrototype.Visibility != Visibility.Visible
             ? "Counts show matching messages found so far. Clear search to restore entity totals."
             : null;
-        NamespaceEmpty.Visibility = workspace.Surface.Roots.Any(node => node.IsVisible) ? Visibility.Collapsed : Visibility.Visible;
-        if (MessageLibraryPrototype.Visibility == Visibility.Visible) NamespaceEmpty.Visibility = Visibility.Collapsed;
-        NamespaceEmpty.Text = search.IsActive ? search.IsBusy ? "Searching for matching entities…"
-            : "No matching entities found in the scanned deliveries. Clear the search to show all entities."
-            : "No matching entities. Clear the search to show all entities.";
+        UpdateNamespaceEmptyState();
         LoadMoreButton.Content = search.IsActive ? "Continue" : "Load more";
         FindRelatedButton.IsEnabled = workspace.Surface.FocusedMessage is { CorrelationId.Length: > 0 };
         if (search.IsActive)
@@ -53,23 +63,69 @@ public partial class InvestigationWindow
             EmptyDescription.Text = search.QueryError.Length > 0 ? search.QueryError + "\nUse OR between IDs and * to match any characters." : search.Status;
             EmptyClearButton.Visibility = Visibility.Visible;
         }
+        else if (workspace.Surface.Messages.Count == 0)
+        {
+            EmptyResults.Visibility = Visibility.Visible;
+            MessageGrid.Visibility = Visibility.Collapsed;
+            EmptyMessage.Text = workspace.Surface.IsBusy ? "Loading messages…"
+                : workspace.IsConnecting ? "Connecting to Service Bus…"
+                : workspace.IsConnected ? "No messages in this view" : "Connect to browse messages";
+            EmptyDescription.Text = workspace.Surface.IsBusy ? "Reading without consuming messages."
+                : workspace.IsConnecting ? "Discovering available entities." : "";
+            EmptyClearButton.Visibility = Visibility.Collapsed;
+        }
         ClearSearchButton.Visibility = search.IsActive || SearchBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        UpdateNamespaceFilterIndicator();
         ConfigureRefresh();
     }
 
     private void Search_Changed(object sender, TextChangedEventArgs e)
     {
         if (!ready) return;
+        UpdateNamespaceFilterIndicator();
         if (MessageLibraryPrototype.Visibility == Visibility.Visible)
         {
+            SuggestionsPopup.IsOpen = false;
+            MessageLibraryPrototype.CloseLibrarySearchSuggestions();
             FilterWorkbenchNamespaces(SearchBox.Text);
             ClearSearchButton.Visibility = SearchBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-            SuggestionsPopup.IsOpen = false;
+            UpdateSuggestions();
             return;
         }
-        if (!workspace.Search.IsActive) workspace.Browse.FilterEntities(SearchBox.Text);
+        if (!workspace.Search.IsActive)
+        {
+            workspace.Browse.FilterEntities(SearchBox.Text);
+            UpdateNamespaceEmptyState();
+        }
         ClearSearchButton.Visibility = workspace.Search.IsActive || SearchBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         UpdateSuggestions();
+    }
+
+    private void UpdateNamespaceEmptyState()
+    {
+        var search = workspace.Search;
+        bool hasVisibleNamespace = workspace.Surface.Roots.Any(node => node.IsVisible);
+        bool showNamespaceEmpty = MessageLibraryPrototype.Visibility != Visibility.Visible && !hasVisibleNamespace
+            && (search.IsActive || workspace.IsConnecting
+                || workspace.IsConnected && workspace.Browse.DiscoverySnapshot is not null
+                || !string.IsNullOrWhiteSpace(SearchBox.Text));
+        NamespaceEmpty.Visibility = showNamespaceEmpty ? Visibility.Visible : Visibility.Collapsed;
+        NamespaceEmpty.Text = search.IsActive ? search.IsBusy ? "Searching for matching entities…"
+            : "No matching entities found in the scanned deliveries. Clear the search to show all entities."
+            : workspace.IsConnecting ? "Discovering entities…"
+            : !string.IsNullOrWhiteSpace(SearchBox.Text) ? "No matching entities. Clear the search to show all entities."
+            : "No entities found on this connection.";
+    }
+
+    private void UpdateNamespaceFilterIndicator()
+    {
+        bool applied = MessageLibraryPrototype.Visibility == Visibility.Visible && !string.IsNullOrWhiteSpace(SearchBox.Text);
+        SearchIcon.SetResourceReference(System.Windows.Shapes.Path.DataProperty, applied ? "FilterGeometry" : "SearchGeometry");
+        SearchIcon.SetResourceReference(System.Windows.Shapes.Path.StrokeProperty, applied ? "PrimaryBrush" : "IconBrush");
+        if (applied) SearchBox.SetResourceReference(Control.BorderBrushProperty, "PrimaryBrush");
+        else SearchBox.ClearValue(Control.BorderBrushProperty);
+        System.Windows.Automation.AutomationProperties.SetHelpText(SearchBox,
+            applied ? $"Namespace filter applied: {SearchBox.Text}" : "");
     }
 
     private void ClearSearch_Click(object sender, RoutedEventArgs e)
@@ -91,6 +147,7 @@ public partial class InvestigationWindow
         SuggestionsPopup.IsOpen = false;
         if (wasSearch)
         {
+            workspace.Browse.RestoreWatchedMessages();
             MessageGrid.UpdateLayout();
             FindMessageScrollViewer(MessageGrid)?.ScrollToVerticalOffset(browseScrollOffset);
         }
@@ -99,12 +156,31 @@ public partial class InvestigationWindow
 
     private void SearchFocused(object sender, KeyboardFocusChangedEventArgs e) => UpdateSuggestions();
 
+    private void WorkbenchModeVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        SuggestionsPopup.IsOpen = false;
+        MessageLibraryPrototype.CloseLibrarySearchSuggestions();
+    }
+
     private void UpdateSuggestions()
     {
         if (!ready) return;
         if (MessageLibraryPrototype.Visibility == Visibility.Visible)
         {
-            SuggestionsPopup.IsOpen = false;
+            IEnumerable<EntityNode> entities = workspace.IsConnected
+                ? workspace.Browse.AllEntities()
+                : sampleNamespaceRoots.SelectMany(root => root.Children).SelectMany(entity => entity.Children.Prepend(entity));
+            string query = SearchBox.Text.Trim();
+            List<SearchSuggestion> workbenchItems = query.Length == 0 ? [] : entities
+                .Where(entity => !entity.IsGroup && WorkbenchPath(entity, workspace.IsConnected ? workspace.Browse.Roots : sampleNamespaceRoots).Contains(query, StringComparison.OrdinalIgnoreCase))
+                .Take(5)
+                .Select(entity => new SearchSuggestion("ENTITIES", WorkbenchPath(entity, workspace.IsConnected ? workspace.Browse.Roots : sampleNamespaceRoots), "", "entity", entity))
+                .ToList();
+            var workbenchView = new ListCollectionView(workbenchItems);
+            workbenchView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(SearchSuggestion.Group)));
+            SuggestionsList.ItemsSource = workbenchView;
+            SuggestionsList.SelectedIndex = -1;
+            SuggestionsPopup.IsOpen = SearchBox.IsKeyboardFocusWithin && workbenchItems.Count > 0;
             return;
         }
         suggestions.Track(workspace.Surface.Messages);
@@ -142,7 +218,7 @@ public partial class InvestigationWindow
     private void SuggestionKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter) { ChooseSuggestion(); e.Handled = true; }
-        else if (e.Key == Key.Escape) { SuggestionsPopup.IsOpen = false; SearchBox.Focus(); e.Handled = true; }
+        else if (e.Key == Key.Escape) { SearchBox.Focus(); SuggestionsPopup.IsOpen = false; e.Handled = true; }
     }
 
     private void SuggestionPicked(object sender, MouseButtonEventArgs e) => ChooseSuggestion();
@@ -153,6 +229,13 @@ public partial class InvestigationWindow
         SuggestionsPopup.IsOpen = false;
         if (suggestion.Entity is { } entity)
         {
+            if (MessageLibraryPrototype.Visibility == Visibility.Visible)
+            {
+                SearchBox.Text = WorkbenchPath(entity, workspace.IsConnected ? workspace.Browse.Roots : sampleNamespaceRoots);
+                SearchBox.Focus();
+                SuggestionsPopup.IsOpen = false;
+                return;
+            }
             ClearSearch_Click(this, new RoutedEventArgs());
             SearchBox.Text = entity.Path;
             SuggestionsPopup.IsOpen = false;

@@ -212,7 +212,6 @@ public sealed class DailySearchLifecycleAuditTests
         Assert.Equal(body, fixture.Workspace.Inspector.RawText);
         Assert.Equal(body, fixture.Workspace.Inspector.Document.Text);
         Assert.False(fixture.Workspace.Inspector.IsValidJson);
-        Assert.Equal("Body (not JSON)", fixture.Workspace.Inspector.JsonLabel);
     });
 
     [UiNavigationSmokeFact(Timeout = 90_000)]
@@ -228,7 +227,7 @@ public sealed class DailySearchLifecycleAuditTests
         string expected = Convert.ToBase64String(bytes);
         Assert.Equal(expected, fixture.Workspace.Inspector.RawText);
         Assert.Equal(expected, fixture.Workspace.Inspector.Document.Text);
-        Assert.Contains("Base64", fixture.Workspace.Inspector.RawDescription, StringComparison.Ordinal);
+        Assert.Contains("Base64", fixture.Workspace.Inspector.BodyDescription, StringComparison.Ordinal);
     });
 
     [UiNavigationSmokeFact(Timeout = 90_000)]

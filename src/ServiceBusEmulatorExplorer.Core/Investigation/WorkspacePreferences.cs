@@ -9,6 +9,7 @@ public sealed record InvestigationProfile(
     string WarningMessage = "");
 
 public enum TimestampDisplay { Utc, Local }
+public enum DateDisplayFormat { Windows, Iso, DayFirst, MonthFirst, NamedMonth }
 
 public sealed record WatchPreference(string ScopeKey, bool? Active, bool? DeadLetter, bool? Included = null);
 
@@ -21,8 +22,12 @@ public sealed record WorkspacePreferences
     public bool NotificationsEnabled { get; init; } = true;
     public bool AutoConnectOnSwitch { get; init; }
     public bool WasConnected { get; init; }
-    public bool LogExpanded { get; init; } = true;
+    public bool LogExpanded { get; init; } = false;
     public TimestampDisplay TimestampDisplay { get; init; }
+    public DateDisplayFormat DateFormat { get; init; }
+    // Null is the pre-selector default layout; an explicit selection is global across profiles.
+    public IReadOnlyList<string>? MessageColumns { get; init; }
+    public IReadOnlyList<string>? MessageColumnOrder { get; init; }
     public int QueuePageSize { get; init; } = 50;
     public int TopicPageSize { get; init; } = 50;
     public int SubscriptionPageSize { get; init; } = 50;
@@ -37,6 +42,7 @@ public sealed record WorkspacePreferences
         new Dictionary<string, IReadOnlyList<WatchPreference>>();
     public IReadOnlyDictionary<string, IReadOnlyList<ReplayFamilyState>> ReplayFamilies { get; init; } =
         new Dictionary<string, IReadOnlyList<ReplayFamilyState>>();
+    public IReadOnlyList<ReplayAttempt> ReplayAttempts { get; init; } = [];
 }
 
 public sealed record PreferencesLoadResult(WorkspacePreferences Preferences, string? Warning = null);

@@ -10,6 +10,234 @@ namespace ServiceBusEmulatorExplorer.App.Tests;
 
 public sealed class InvestigationReplayWorkflowTests
 {
+    [Theory]
+    [InlineData(false, "Confirmed")]
+    [InlineData(true, "Uncertain")]
+    public async Task Replay_PersistsAttemptBeforeSendingAndFinalizesItsOutcome(bool failSend, string finalStatus)
+    {
+        var store = new Store();
+        IReadOnlyList<ReplayAttempt>? attemptsAtSend = null;
+        var sender = new Sender
+        {
+            OnSend = (_, _, _) =>
+            {
+                attemptsAtSend = store.Saved.ReplayAttempts.ToArray();
+                return failSend ? Task.FromException(new IOException("Response lost")) : Task.CompletedTask;
+            }
+        };
+        await using var workspace = await OpenAsync(store, sender);
+        var delivery = Delivery();
+
+        var outcome = await workspace.ReplayAsync(delivery);
+
+        Assert.Equal(failSend ? ReplaySendStatus.Uncertain : ReplaySendStatus.Confirmed, outcome.Status);
+        var persistedBeforeSend = Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<ReplayAttempt>>(attemptsAtSend));
+        AssertAttempt(persistedBeforeSend, delivery, outcome.Reservation.MessageId, "Uncertain", sentAtUtc: null);
+        var persistedAfterOutcome = Assert.Single(store.Saved.ReplayAttempts);
+        if (failSend) Assert.Contains("Transport error", new ReplayHistoryRow(persistedAfterOutcome, store.Saved).Detail);
+        AssertAttempt(persistedAfterOutcome, delivery, outcome.Reservation.MessageId, finalStatus,
+            sentAtUtc: failSend ? null : persistedAfterOutcome.SentAtUtc);
+    }
+
+    [Theory]
+    [InlineData("timeout", ReplaySendFailure.Timeout, "timed out")]
+    [InlineData("authorization", ReplaySendFailure.Authorization, "Authorization failed")]
+    [InlineData("unknown", ReplaySendFailure.Unknown, "Send failed")]
+    public async Task Replay_PersistsSafeDiagnosticWithoutRawException(string kind, ReplaySendFailure expected, string text)
+    {
+        const string sensitive = "SharedAccessKey=DO-NOT-PERSIST";
+        Exception error = kind switch
+        {
+            "timeout" => new TimeoutException(sensitive),
+            "authorization" => new UnauthorizedAccessException(sensitive),
+            _ => new InvalidOperationException(sensitive)
+        };
+        var store = new Store();
+        var sender = new Sender { OnSend = (_, _, _) => Task.FromException(error) };
+        await using var workspace = await OpenAsync(store, sender);
+        await workspace.ReplayAsync(Delivery());
+        var saved = Assert.Single(store.Saved.ReplayAttempts);
+        Assert.Equal(expected, saved.SendFailure);
+        Assert.Contains(text, new ReplayHistoryRow(saved, store.Saved).Detail);
+        Assert.DoesNotContain(sensitive, System.Text.Json.JsonSerializer.Serialize(saved));
+    }
+
+    [Fact]
+    public async Task PrepareReplay_IsSideEffectFreeAndFreezesTheReviewedBody()
+    {
+        var store = new Store();
+        await using var workspace = await OpenAsync(store, new Sender());
+        var delivery = Delivery();
+        int savesBeforePrepare = store.SaveCount;
+
+        var prepared = workspace.PrepareReplay(delivery, "{\"reviewed\":true}");
+
+        Assert.Equal(savesBeforePrepare, store.SaveCount);
+        Assert.Empty(store.Saved.ReplayFamilies);
+        Assert.Empty(store.Saved.ReplayAttempts);
+        Assert.Equal("{\"reviewed\":true}", prepared.EditedBody);
+        Assert.Equal(ReplayNamespace.Fingerprint(ConnectionProfileDefaults.LocalEmulator), prepared.NamespaceFingerprint);
+        Assert.Equal(ReplayLineage.Fingerprint(delivery), prepared.OriginalFingerprint);
+        Assert.Equal("original", prepared.Delivery.Message.MessageId);
+        Assert.Equal(new byte[] { 0, 255, 42 }, prepared.Delivery.Message.RawBody!.ToArray());
+    }
+
+    [Fact]
+    public async Task CurrentReplayHistory_IsScopedToSelectedProfileAndItsCurrentNamespace()
+    {
+        var currentProfile = new InvestigationProfile("profile", ConnectionProfileDefaults.LocalEmulator);
+        var otherProfile = new InvestigationProfile("other", ConnectionProfileDefaults.LocalEmulator with { Name = "Other" });
+        var currentAttempt = HistoryAttempt("profile", currentProfile.Connection, "current-namespace-replay");
+        var otherAttempt = HistoryAttempt("other", otherProfile.Connection, "other-profile-replay");
+        var store = new Store(new WorkspacePreferences
+        {
+            Profiles = [currentProfile, otherProfile],
+            SelectedProfileId = "profile",
+            ReplayAttempts = [currentAttempt, otherAttempt]
+        });
+
+        await using var workspace = await OpenAsync(store, new Sender());
+        Assert.Equal(currentAttempt.AttemptId, Assert.Single(workspace.CurrentReplayHistory).AttemptId);
+
+        var changedConnection = currentProfile.Connection with
+        {
+            RuntimeConnectionString = currentProfile.Connection.RuntimeConnectionString.Replace(
+                "sb://localhost", "sb://different.localhost", StringComparison.Ordinal)
+        };
+        await workspace.ApplyPreferencesAsync(workspace.Preferences with
+        {
+            Profiles = [currentProfile with { Connection = changedConnection }, otherProfile]
+        });
+        Assert.Empty(workspace.CurrentReplayHistory);
+        Assert.Equal(2, workspace.Preferences.ReplayAttempts.Count);
+
+        Assert.True(await workspace.SwitchProfileAsync(otherProfile));
+        Assert.Equal(otherAttempt.AttemptId, Assert.Single(workspace.CurrentReplayHistory).AttemptId);
+        Assert.Equal(currentAttempt, Assert.Single(workspace.Preferences.ReplayAttempts,
+            attempt => attempt.AttemptId == currentAttempt.AttemptId));
+    }
+
+    [Fact]
+    public async Task SendReplay_UsesReviewedMessageIdAndBodyExactlyOnce()
+    {
+        var store = new Store();
+        var sender = new Sender();
+        await using var workspace = await OpenAsync(store, sender);
+        var prepared = workspace.PrepareReplay(Delivery(), "{\"reviewed\":true}");
+        const string reviewedId = "reviewed-replay-42";
+
+        var outcome = await workspace.SendReplayAsync(prepared, reviewedId);
+        int savesAfterSend = store.SaveCount;
+
+        Assert.Equal(ReplaySendStatus.Confirmed, outcome.Status);
+        var sent = Assert.Single(sender.Sends);
+        Assert.Equal(reviewedId, sent.Message.MessageId);
+        Assert.Equal(BinaryData.FromString("{\"reviewed\":true}").ToArray(), sent.Message.Body.ToArray());
+        Assert.Equal("original", prepared.Delivery.Message.MessageId);
+        Assert.Equal(reviewedId, outcome.Reservation.MessageId);
+        Assert.Equal(ReplaySendStatus.Confirmed, Assert.Single(store.Saved.ReplayAttempts).SendStatus);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => workspace.SendReplayAsync(prepared, reviewedId));
+        Assert.Single(sender.Sends);
+        Assert.Equal(savesAfterSend, store.SaveCount);
+    }
+
+    [Fact]
+    public async Task SendReplay_RejectsCandidateAfterReconnectWithoutSavingOrSending()
+    {
+        var store = new Store();
+        var sender = new Sender();
+        await using var workspace = await OpenAsync(store, sender);
+        var prepared = workspace.PrepareReplay(Delivery());
+        await workspace.DisconnectAsync();
+        await workspace.ConnectAsync();
+        int savesAfterReconnect = store.SaveCount;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            workspace.SendReplayAsync(prepared, prepared.Reservation.MessageId));
+
+        Assert.Equal(savesAfterReconnect, store.SaveCount);
+        Assert.Empty(sender.Sends);
+        Assert.Empty(store.Saved.ReplayAttempts);
+    }
+
+    [Fact]
+    public async Task SendReplay_RejectsSupersededCandidateWithoutSendingAgain()
+    {
+        var store = new Store();
+        var sender = new Sender();
+        await using var workspace = await OpenAsync(store, sender);
+        var prepared = workspace.PrepareReplay(Delivery());
+        await workspace.SendReplayAsync(prepared, prepared.Reservation.MessageId);
+        int savesAfterFirstSend = store.SaveCount;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            workspace.SendReplayAsync(prepared, prepared.Reservation.MessageId));
+
+        Assert.Equal(savesAfterFirstSend, store.SaveCount);
+        Assert.Single(sender.Sends);
+        Assert.Single(store.Saved.ReplayAttempts);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")]
+    public async Task SendReplay_InvalidReviewedIdDoesNotSaveOrSend(string reviewedId)
+    {
+        var store = new Store();
+        var sender = new Sender();
+        await using var workspace = await OpenAsync(store, sender);
+        var prepared = workspace.PrepareReplay(Delivery());
+        int savesBeforeSend = store.SaveCount;
+
+        await Assert.ThrowsAsync<ArgumentException>(() => workspace.SendReplayAsync(prepared, reviewedId));
+
+        Assert.Equal(savesBeforeSend, store.SaveCount);
+        Assert.Empty(sender.Sends);
+        Assert.Empty(store.Saved.ReplayAttempts);
+    }
+
+    [Fact]
+    public async Task PrepareReplays_ReservesDistinctAttemptsForRepeatedMembersOfOneFamily()
+    {
+        var store = new Store();
+        await using var workspace = await OpenAsync(store, new Sender());
+        var delivery = Delivery();
+
+        var prepared = workspace.PrepareReplays([delivery, delivery]);
+
+        Assert.Equal(new long[] { 1, 2 }, prepared.Select(item => item.Reservation.Family.LastAttempt));
+        Assert.Equal(prepared[0].Reservation.Family.FamilyId, prepared[1].Reservation.Family.FamilyId);
+        Assert.NotEqual(prepared[0].Reservation.MessageId, prepared[1].Reservation.MessageId);
+        Assert.NotEqual(prepared[0].AttemptId, prepared[1].AttemptId);
+        Assert.Empty(store.Saved.ReplayAttempts);
+        Assert.Empty(store.Saved.ReplayFamilies);
+    }
+
+    [Fact]
+    public async Task ConfirmedSend_LeavesConservativeUncertainHistoryWhenOutcomeSaveFails()
+    {
+        var store = new Store();
+        var sender = new Sender
+        {
+            OnSend = (_, _, _) =>
+            {
+                store.FailSave = true;
+                return Task.CompletedTask;
+            }
+        };
+        await using var workspace = await OpenAsync(store, sender);
+        var prepared = workspace.PrepareReplay(Delivery());
+
+        var outcome = await workspace.SendReplayAsync(prepared, prepared.Reservation.MessageId);
+
+        Assert.Equal(ReplaySendStatus.Confirmed, outcome.Status);
+        Assert.True(outcome.HistoryPersistenceFailed);
+        Assert.Equal(ReplaySendStatus.Uncertain, Assert.Single(store.Saved.ReplayAttempts).SendStatus);
+        Assert.Equal(ReplaySendStatus.Uncertain, Assert.Single(workspace.Preferences.ReplayAttempts).SendStatus);
+        Assert.Single(sender.Sends);
+    }
+
     [Fact]
     public async Task FailedReservationSave_DoesNotSendOrAdvanceInMemoryCounter()
     {
@@ -101,7 +329,8 @@ public sealed class InvestigationReplayWorkflowTests
         };
         await using var workspace = await OpenAsync(store, sender);
         using var cancellation = new CancellationTokenSource();
-        var replay = workspace.ReplayAsync(Delivery(), cancellationToken: cancellation.Token);
+        var prepared = workspace.PrepareReplay(Delivery());
+        var replay = workspace.SendReplayAsync(prepared, prepared.Reservation.MessageId, cancellation.Token);
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         if (disconnect) await workspace.DisconnectAsync();
         else cancellation.Cancel();
@@ -226,6 +455,8 @@ public sealed class InvestigationReplayWorkflowTests
         Assert.False(workspace.Preferences.CloseToTray);
         Assert.Equal(replay.Reservation.Family, Assert.Single(store.Saved.ReplayFamilies["profile"]));
         Assert.Equal(replay.Reservation.Family, Assert.Single(workspace.Preferences.ReplayFamilies["profile"]));
+        Assert.Equal(ReplaySendStatus.Confirmed, Assert.Single(store.Saved.ReplayAttempts).SendStatus);
+        Assert.Equal(store.Saved.ReplayAttempts, workspace.Preferences.ReplayAttempts);
     }
 
     private static async Task<InvestigationWorkspace> OpenAsync(Store store, Sender sender)
@@ -234,13 +465,30 @@ public sealed class InvestigationReplayWorkflowTests
             new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(), _ => new Messages()),
             profile =>
             {
-                Assert.Equal("runtime", profile.RuntimeConnectionString);
+                Assert.Equal(ConnectionProfileDefaults.LocalEmulator, profile);
                 return sender;
             });
         await workspace.InitializeAsync();
         if (!workspace.IsConnected) await workspace.ConnectAsync();
         Assert.True(workspace.IsConnected);
         return workspace;
+    }
+
+    private static void AssertAttempt(ReplayAttempt attempt, MessageDelivery original, string outgoingMessageId,
+        string expectedStatus, DateTimeOffset? sentAtUtc)
+    {
+        Assert.NotEqual(Guid.Empty, attempt.AttemptId);
+        Assert.Equal("profile", attempt.ProfileId);
+        Assert.Equal(ReplayNamespace.Fingerprint(ConnectionProfileDefaults.LocalEmulator),
+            attempt.NamespaceFingerprint);
+        Assert.Equal(outgoingMessageId, attempt.Reservation.MessageId);
+        Assert.Equal(original.Identity.SequenceNumber, attempt.OriginalSequenceNumber);
+        Assert.Equal(ReplayLineage.Fingerprint(original), attempt.OriginalFingerprint);
+        Assert.Equal(original.Message.MessageId, attempt.OriginalMessageId);
+        Assert.Equal(original.Identity.Source, attempt.OriginalSource);
+        Assert.InRange(attempt.RequestedAtUtc, DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddMinutes(1));
+        Assert.Equal(Enum.Parse<ReplaySendStatus>(expectedStatus), attempt.SendStatus);
+        Assert.Equal(sentAtUtc, attempt.SentAtUtc);
     }
 
     private static MessageDelivery Delivery(EntityAddress? source = null) => new(
@@ -250,13 +498,27 @@ public sealed class InvestigationReplayWorkflowTests
             new Dictionary<string, object?>(), new Dictionary<string, object?>())
         { RawBody = new BinaryData(new byte[] { 0, 255, 42 }) });
 
+    private static ReplayAttempt HistoryAttempt(string profileId, ConnectionProfile connection, string messageId)
+    {
+        var delivery = Delivery();
+        var family = ReplayLineage.Reserve(delivery, []).Family;
+        return new(Guid.NewGuid(), profileId, ReplayNamespace.Fingerprint(connection),
+            new ReplayReservation(family, messageId), delivery.Identity.Source, delivery.Identity.SequenceNumber,
+            ReplayLineage.Fingerprint(delivery), delivery.Message.MessageId, DateTimeOffset.UtcNow,
+            ReplaySendStatus.Confirmed, DateTimeOffset.UtcNow);
+    }
+
     private sealed class Store : IWorkspacePreferencesStore
     {
-        public WorkspacePreferences Saved { get; private set; } = new()
+        public Store(WorkspacePreferences? initial = null)
         {
-            Profiles = [new("profile", new ConnectionProfile("Profile", "runtime", "admin"))],
-            SelectedProfileId = "profile"
-        };
+            Saved = initial ?? new WorkspacePreferences
+            {
+                Profiles = [new("profile", ConnectionProfileDefaults.LocalEmulator)],
+                SelectedProfileId = "profile"
+            };
+        }
+        public WorkspacePreferences Saved { get; private set; }
         public bool FailSave { get; set; }
         public int SaveCount { get; private set; }
         public Task<PreferencesLoadResult> LoadAsync(CancellationToken cancellationToken) => Task.FromResult(new PreferencesLoadResult(Saved));

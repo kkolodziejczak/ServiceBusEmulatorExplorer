@@ -42,7 +42,7 @@ public partial class InvestigationWindow
         EditError.Visibility = visible && selection.Problem is not null ? Visibility.Visible : Visibility.Collapsed;
         ReplayActions.Visibility = visible && (workspace.Inspector.IsDirty || selection.Problem is not null)
             ? Visibility.Visible : Visibility.Collapsed;
-        NextReplayIdText.Text = "A new ID includes the saved attempt number and a unique suffix.";
+        NextReplayIdText.Text = "Review the exact outgoing message ID before sending.";
         NextReplayIdText.ToolTip = NextReplayIdText.Text;
         DiscardButton.IsEnabled = !replayPending;
     }
@@ -60,19 +60,18 @@ public partial class InvestigationWindow
         UpdateInspector();
         try
         {
-            foreach (var delivery in selection.Targets)
+            var candidates = workspace.PrepareReplays(selection.Targets, selection.EditedBody);
+            var review = new ReplayReviewWindow(workspace.SelectedProfile, candidates) { Owner = this };
+            if (review.ShowDialog() != true) return;
+            for (int index = 0; index < candidates.Count; index++)
             {
                 if (closing || closePending || !currentSession() || !workspace.IsConnected) break;
-                var source = delivery.Identity.Source;
-                if (source.Kind == EntityKind.Subscription && new ProfileWarningWindow(workspace.SelectedProfile.Connection.Name,
-                    $"Replay message {delivery.Message.MessageId} from {source.TopicName}/{source.Name}?\n\nThis publishes a new copy to topic {source.TopicName}. Other matching subscriptions can receive it. The original DLQ message will remain.",
-                    workspace.SelectedProfile.ColorHex, "Replay to parent topic", "Replay") { Owner = this }.ShowDialog() != true)
-                    break;
+                var delivery = candidates[index].Delivery;
                 ReplayCopyOutcome outcome;
                 attempted++;
                 try
                 {
-                    outcome = await workspace.ReplayAsync(delivery, selection.EditedBody);
+                    outcome = await workspace.SendReplayAsync(candidates[index], review.ReviewedIds[index]);
                 }
                 catch (Exception)
                 {
@@ -96,6 +95,10 @@ public partial class InvestigationWindow
                     workspace.Inspector.DiscardReplayedDraft(delivery.Identity, selection.EditedBody);
             }
         }
+        catch (Exception)
+        {
+            if (currentSession()) workspace.Log("Replay review could not be prepared. Refresh and select current DLQ messages.", true);
+        }
         finally
         {
             if (currentSession() && !closing && selection.Targets.Count > 1)
@@ -103,6 +106,7 @@ public partial class InvestigationWindow
                     uncertain > 0 || notSent > 0);
             replayPending = false;
             if (!closing) UpdateInspector();
+            if (attempted > 0 && currentSession() && !closing) ShowReplayHistory();
         }
     }
 }

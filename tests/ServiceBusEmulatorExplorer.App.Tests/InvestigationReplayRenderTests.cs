@@ -6,6 +6,7 @@ using System.Windows.Automation;
 using System.Windows.Automation.Peers;
 using System.Windows.Automation.Provider;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -15,6 +16,7 @@ using ServiceBusEmulatorExplorer.App.Investigation;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.ReadmeScreenshot;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -28,6 +30,14 @@ public sealed class InvestigationReplayRenderTests
     [Trait("TestCategory", "UiRender")]
     public void Replay_actions_validate_edits_disable_during_send_and_preserve_originals(int width, int height) =>
         OnSta(() => Exercise(width, height));
+
+    [Theory]
+    [InlineData(1500, 1000)]
+    [InlineData(1100, 800)]
+    [InlineData(980, 640)]
+    [Trait("TestCategory", "UiRender")]
+    public void Inspector_actions_wrap_below_tabs_without_clipping_or_losing_accessibility(int width, int height) =>
+        OnSta(() => ExerciseInspectorActionLayout(width, height));
 
     [Fact]
     [Trait("TestCategory", "UiRender")]
@@ -52,39 +62,43 @@ public sealed class InvestigationReplayRenderTests
             Respond(false);
             Assert.Single(sender.Sends);
             workspace.Browse.SetAllChecked(true);
-            Respond(true, false);
-            Assert.Equal(2, sender.Sends.Count);
-            Assert.Contains(workspace.Activity, entry => entry.Message.Contains("Replay batch: 1 sent") && entry.Message.Contains("1 canceled"));
+            Respond(false);
+            Assert.Single(sender.Sends);
+            Respond(true);
+            Assert.Equal(3, sender.Sends.Count);
+            Assert.Contains(workspace.Activity, entry => entry.Message.Contains("Replay batch: 2 sent") && entry.Message.Contains("0 canceled"));
 
-            void Respond(params bool[] responses)
+            void Respond(bool confirm)
             {
                 bool handled = false;
-                int responseIndex = 0;
                 Exception? failure = null;
                 var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(20) };
                 timer.Tick += (_, _) =>
                 {
-                    var dialog = window.OwnedWindows.OfType<ProfileWarningWindow>().FirstOrDefault();
+                    var dialog = window.OwnedWindows.OfType<ReplayReviewWindow>().FirstOrDefault(candidate => candidate.IsVisible);
                     if (dialog is null) return;
                     try
                     {
-                        string message = ((TextBlock)dialog.FindName("WarningMessageText")).Text;
-                        Assert.Contains("Other matching subscriptions can receive it", message);
-                        Assert.Contains("original DLQ message will remain", message);
-                        Assert.Equal("Replay to parent topic", ((TextBlock)dialog.FindName("WarningHeading")).Text);
+                        Assert.Equal(dialog.Rows.Count == 1 ? "Replay 1 message" : $"Replay {dialog.Rows.Count} messages",
+                            ((TextBlock)dialog.FindName("ReviewHeading")).Text);
+                        Assert.All(dialog.Rows, row =>
+                        {
+                            Assert.Contains("Other matching subscriptions may receive this copy", row.Notice);
+                            Assert.Contains("original DLQ message stays", row.Notice);
+                        });
                         var cancel = (Button)dialog.FindName("CancelButton");
-                        Assert.True(cancel.IsDefault);
+                        Assert.True(cancel.IsCancel);
                         Assert.True(cancel.IsKeyboardFocused, "The safe Cancel action should receive initial modal focus.");
-                        foreach (string name in new[] { "CancelButton", "ContinueButton" })
+                        foreach (string name in new[] { "CancelButton", "ReplayConfirmButton" })
                         {
                             var button = (FrameworkElement)dialog.FindName(name);
                             var bounds = button.TransformToAncestor(dialog).TransformBounds(new Rect(button.RenderSize));
                             Assert.True(bounds.Width > 0 && bounds.Right <= dialog.ActualWidth && bounds.Bottom <= dialog.ActualHeight);
                         }
-                        Capture(dialog, "replay-topic-confirmation");
-                        Invoke((Button)dialog.FindName(responses[responseIndex++] ? "ContinueButton" : "CancelButton"));
-                        handled = responseIndex == responses.Length;
-                        if (handled) timer.Stop();
+                        Capture(dialog, "replay-topic-review");
+                        Invoke((Button)dialog.FindName(confirm ? "ReplayConfirmButton" : "CancelButton"));
+                        handled = true;
+                        timer.Stop();
                     }
                     catch (Exception ex) { failure = ex; dialog.Close(); handled = true; }
                 };
@@ -131,7 +145,12 @@ public sealed class InvestigationReplayRenderTests
             Assert.True(replay.IsEnabled);
             Assert.Equal("Replay", AutomationProperties.GetName(replay));
             Capture(window, $"replay-clean-{width}x{height}");
-            Invoke(replay);
+            ConfirmReview(dispatcher, window, replay, review =>
+            {
+                Assert.Single(review.Rows);
+                Assert.Equal("Original body", review.Rows[0].BodySummary);
+                Assert.NotEmpty(review.Rows[0].MessageId);
+            });
             Wait(dispatcher, () => sender.Sends.Count == 1 && replay.IsEnabled);
             Assert.Same(original, workspace.Browse.Messages[0]);
             Assert.Equal(original.Delivery.Message.RawBody!.ToArray(), sender.Sends[0].Body.ToArray());
@@ -159,7 +178,7 @@ public sealed class InvestigationReplayRenderTests
             workspace.Browse.SetAllChecked(false);
             var pending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             sender.Send = () => pending.Task;
-            Invoke(replay);
+            ConfirmReview(dispatcher, window, replay);
             Wait(dispatcher, () => sender.Sends.Count == 2);
             Assert.False(replay.IsEnabled);
             Assert.Equal("Replaying…", AutomationProperties.GetName(replay));
@@ -177,7 +196,7 @@ public sealed class InvestigationReplayRenderTests
 
             workspace.Inspector.Document.Text = "{\"uncertain\":true}";
             sender.Send = () => throw new IOException("Lost acknowledgement");
-            Invoke(replay);
+            ConfirmReview(dispatcher, window, replay);
             Wait(dispatcher, () => sender.Sends.Count == 3 && replay.IsEnabled);
             Assert.True(workspace.Inspector.IsDirty);
             Assert.Contains(workspace.Activity, entry => entry.Warning && entry.Message.Contains("send outcome uncertain"));
@@ -186,7 +205,8 @@ public sealed class InvestigationReplayRenderTests
             sender.Send = () => Task.CompletedTask;
             workspace.Browse.SetAllChecked(true);
             Assert.Equal("Replay (2)", AutomationProperties.GetName(replay));
-            Invoke(replay);
+            ConfirmReview(dispatcher, window, replay, review =>
+                Assert.Equal(2, review.Rows.Count));
             Wait(dispatcher, () => sender.Sends.Count == 5 && replay.IsEnabled);
             Assert.Equal(2, workspace.Browse.Messages.Count);
             workspace.Browse.SetAllChecked(false);
@@ -195,7 +215,7 @@ public sealed class InvestigationReplayRenderTests
             Complete(dispatcher, workspace.Browse.SelectAsync(workspace.Browse.AllEntities().Single(), true));
             var lateSend = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             sender.Send = () => lateSend.Task;
-            Invoke(replay);
+            ConfirmReview(dispatcher, window, replay);
             Wait(dispatcher, () => sender.Sends.Count == 6);
             string oldReplayId = sender.Sends[^1].MessageId;
             Complete(dispatcher, workspace.DisconnectAsync());
@@ -212,6 +232,129 @@ public sealed class InvestigationReplayRenderTests
             Wait(dispatcher, () => !window.IsVisible);
             Complete(dispatcher, workspace.DisposeAsync().AsTask());
         }
+    }
+
+    private static void ExerciseInspectorActionLayout(int width, int height)
+    {
+        var dispatcher = Dispatcher.CurrentDispatcher;
+        SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(dispatcher));
+        var workspace = new InvestigationWorkspace(new Store(),
+            new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(), _ => new Messages()));
+        var window = new InvestigationWindow(workspace);
+        try
+        {
+            window.Show();
+            Wait(dispatcher, () => window.IsVisible);
+            Complete(dispatcher, workspace.ConnectAsync());
+            EntityNode entity = workspace.Browse.AllEntities().Single();
+
+            foreach (bool deadLetter in new[] { false, true })
+            {
+                Complete(dispatcher, workspace.Browse.SelectAsync(entity, deadLetter));
+                window.Width = width;
+                window.Height = height;
+                window.UpdateLayout();
+                Wait(dispatcher, () => window.ActualWidth > 0 && window.ActualHeight > 0);
+                window.UpdateLayout();
+
+                var toolbar = (Grid)window.FindName("InspectorTabs");
+                var tabChoices = (StackPanel)window.FindName("InspectorTabChoices");
+                var actions = (StackPanel)window.FindName("InspectorActionButtons");
+                var bodyTab = (ToggleButton)window.FindName("JsonTab");
+                var propertiesTab = (ToggleButton)window.FindName("PropertiesTab");
+                var template = (Button)window.FindName("SaveInspectedTemplateButton");
+                var replay = (Button)window.FindName("ReplayButton");
+
+                Assert.True(bodyTab.IsVisible && propertiesTab.IsVisible);
+                Assert.Equal("Body", AutomationProperties.GetName(bodyTab));
+                Assert.Equal("JsonTab", AutomationProperties.GetAutomationId(bodyTab));
+                Assert.Equal("PropertiesTab", AutomationProperties.GetAutomationId(propertiesTab));
+                Assert.True(template.IsVisible);
+                Assert.Equal("Create template", AutomationProperties.GetName(template));
+                Assert.Equal("InspectorSaveTemplate", AutomationProperties.GetAutomationId(template));
+                Assert.Equal(deadLetter, replay.IsVisible);
+                Assert.Equal("ReplayButton", AutomationProperties.GetAutomationId(replay));
+
+                System.Windows.Shapes.Path addIcon = Descendants(template).OfType<System.Windows.Shapes.Path>().Single();
+                Assert.Equal(window.FindResource("AddGeometry"), addIcon.Data);
+                Assert.Contains(Descendants(template).OfType<TextBlock>(), label => label.Text == "Create template");
+
+                Toggle((IToggleProvider)UIElementAutomationPeer.CreatePeerForElement(propertiesTab)!
+                    .GetPattern(PatternInterface.Toggle)!);
+                Assert.True(propertiesTab.IsChecked);
+                Toggle((IToggleProvider)UIElementAutomationPeer.CreatePeerForElement(bodyTab)!
+                    .GetPattern(PatternInterface.Toggle)!);
+                Assert.True(bodyTab.IsChecked);
+
+                tabChoices.Measure(new Size(toolbar.ActualWidth, double.PositiveInfinity));
+                actions.Measure(new Size(toolbar.ActualWidth, double.PositiveInfinity));
+                bool shouldWrap = toolbar.ActualWidth < tabChoices.DesiredSize.Width + actions.DesiredSize.Width;
+                if (width == 1500)
+                {
+                    Assert.False(shouldWrap, "The wide inspector should keep tabs and actions on one row.");
+                }
+                if (width == 980 && deadLetter)
+                {
+                    Assert.True(shouldWrap, "The minimum-width DLQ inspector should wrap actions below the tabs.");
+                }
+                Assert.Equal(shouldWrap ? 1 : 0, Grid.GetRow(actions));
+                Assert.Equal(0, Grid.GetRow(tabChoices));
+                Assert.Equal(shouldWrap ? 2 : 1, Grid.GetColumnSpan(actions));
+
+                Rect toolbarBounds = toolbar.TransformToAncestor(window).TransformBounds(new Rect(toolbar.RenderSize));
+                Rect tabBounds = tabChoices.TransformToAncestor(toolbar).TransformBounds(new Rect(tabChoices.RenderSize));
+                Rect actionBounds = actions.TransformToAncestor(toolbar).TransformBounds(new Rect(actions.RenderSize));
+                Assert.InRange(actionBounds.Right, toolbar.ActualWidth - 1, toolbar.ActualWidth + 1);
+                Assert.True(actionBounds.Left >= 0 && actionBounds.Right <= toolbar.ActualWidth,
+                    $"Inspector actions were clipped at {width}x{height} ({(deadLetter ? "DLQ" : "Active")}): {actionBounds}.");
+                Assert.True(toolbarBounds.Left >= 0 && toolbarBounds.Right <= window.ActualWidth
+                    && toolbarBounds.Top >= 0 && toolbarBounds.Bottom <= window.ActualHeight,
+                    $"Inspector toolbar was clipped at {width}x{height}: {toolbarBounds}.");
+                CaptureInspectorActionLayoutIfEnabled(window,
+                    $"{width}x{height}-{(deadLetter ? "dlq" : "active")}");
+                if (!shouldWrap)
+                {
+                    Assert.True(actionBounds.Left >= tabBounds.Right,
+                        $"Inspector tabs and actions overlap at {width}x{height} ({(deadLetter ? "DLQ" : "Active")}).");
+                }
+                else
+                {
+                    Assert.True(actionBounds.Top >= tabBounds.Bottom,
+                        $"Wrapped inspector actions overlap the tabs at {width}x{height} ({(deadLetter ? "DLQ" : "Active")}).");
+                }
+            }
+        }
+        finally
+        {
+            window.Close();
+            Wait(dispatcher, () => !window.IsVisible);
+            Complete(dispatcher, workspace.DisposeAsync().AsTask());
+        }
+    }
+
+    private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
+    {
+        yield return root;
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            foreach (DependencyObject descendant in Descendants(VisualTreeHelper.GetChild(root, index)))
+            {
+                yield return descendant;
+            }
+        }
+    }
+
+    private static void Toggle(IToggleProvider provider) => provider.Toggle();
+
+    private static void CaptureInspectorActionLayoutIfEnabled(Window window, string name)
+    {
+        string? directory = Environment.GetEnvironmentVariable("SBE_INSPECTOR_ACTION_PROOF_DIR");
+        if (string.IsNullOrWhiteSpace(directory)) return;
+
+        var content = (FrameworkElement)window.Content;
+        content.UpdateLayout();
+        WpfScreenshot.SaveWindowContent(window, Path.Combine(directory, name + ".png"),
+            (int)Math.Ceiling(content.ActualWidth), (int)Math.Ceiling(content.ActualHeight), minimumBytes: 1000);
     }
 
     private static void OnSta(Action action)
@@ -246,6 +389,44 @@ public sealed class InvestigationReplayRenderTests
     private static void Invoke(Button button) => ((IInvokeProvider)UIElementAutomationPeer.CreatePeerForElement(button)!
         .GetPattern(PatternInterface.Invoke)).Invoke();
 
+    private static void ConfirmReview(Dispatcher dispatcher, InvestigationWindow owner, Button replay,
+        Action<ReplayReviewWindow>? inspect = null)
+    {
+        ReplayReviewWindow? review = null;
+        bool handled = false;
+        Exception? failure = null;
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(20) };
+        timer.Tick += (_, _) =>
+        {
+            review = owner.OwnedWindows.OfType<ReplayReviewWindow>().FirstOrDefault(candidate => candidate.IsVisible);
+            if (review is null) return;
+            try
+            {
+                inspect?.Invoke(review);
+                var confirm = (Button)review.FindName("ReplayConfirmButton");
+                Assert.True(confirm.IsEnabled);
+                Invoke(confirm);
+                handled = true;
+                timer.Stop();
+            }
+            catch (Exception exception)
+            {
+                failure = exception;
+                if (review.IsVisible) Invoke((Button)review.FindName("CancelButton"));
+                handled = true;
+                timer.Stop();
+            }
+        };
+        timer.Start();
+        try
+        {
+            Invoke(replay);
+            Wait(dispatcher, () => handled);
+            if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
+        }
+        finally { timer.Stop(); }
+    }
+
     private static void Capture(Window window, string name)
     {
         window.UpdateLayout();
@@ -255,9 +436,8 @@ public sealed class InvestigationReplayRenderTests
             Assert.True(bounds.Width > 0 && bounds.Height > 0 && bounds.Left >= 0 && bounds.Top >= 0
                 && bounds.Right <= window.ActualWidth && bounds.Bottom <= window.ActualHeight, $"Replay action clipped: {bounds}");
         }
-        DirectoryInfo? root = new(AppContext.BaseDirectory);
-        while (root is not null && !Directory.Exists(Path.Combine(root.FullName, ".git"))) root = root.Parent;
-        string directory = Path.Combine(root!.FullName, "artifacts", "investigation-ui");
+        DirectoryInfo root = FindRepositoryRoot();
+        string directory = Path.Combine(root.FullName, "artifacts", "investigation-ui");
         Directory.CreateDirectory(directory);
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(window.ActualWidth), (int)Math.Ceiling(window.ActualHeight), 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(window);
@@ -267,11 +447,24 @@ public sealed class InvestigationReplayRenderTests
         encoder.Save(output);
     }
 
+    private static DirectoryInfo FindRepositoryRoot()
+    {
+        DirectoryInfo? root = new(AppContext.BaseDirectory);
+        while (root is not null
+            && !Directory.Exists(Path.Combine(root.FullName, ".git"))
+            && !File.Exists(Path.Combine(root.FullName, ".git")))
+        {
+            root = root.Parent;
+        }
+
+        return root ?? throw new DirectoryNotFoundException("The repository root was not found for investigation render output.");
+    }
+
     private sealed class Store : IWorkspacePreferencesStore
     {
         private WorkspacePreferences value = new()
         {
-            Profiles = [new("render", new ConnectionProfile("Replay render", "runtime", "admin"))],
+            Profiles = [new("render", ConnectionProfileDefaults.LocalEmulator with { Name = "Replay render" })],
             SelectedProfileId = "render", CloseToTray = false, WasConnected = false
         };
         public Task<PreferencesLoadResult> LoadAsync(CancellationToken cancellationToken) => Task.FromResult(new PreferencesLoadResult(value));

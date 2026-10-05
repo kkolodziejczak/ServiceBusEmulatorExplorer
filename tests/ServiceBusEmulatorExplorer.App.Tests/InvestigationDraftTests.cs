@@ -118,7 +118,7 @@ public sealed class InvestigationDraftTests
         string expectedBase64 = Convert.ToBase64String(bytes);
         Assert.Equal(expectedBase64, inspector.RawText);
         Assert.Equal(expectedBase64, inspector.Document.Text);
-        Assert.Contains("not valid UTF-8", inspector.RawDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not valid UTF-8", inspector.BodyDescription, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(bytes, delivery.Message.RawBody!.ToArray());
         Assert.False(inspector.IsValidJson);
     }
@@ -133,7 +133,6 @@ public sealed class InvestigationDraftTests
 
         Assert.Equal("Audit service started.", inspector.RawText);
         Assert.Equal("Audit service started.", inspector.Document.Text);
-        Assert.Equal("Body (not JSON)", inspector.JsonLabel);
         Assert.False(inspector.IsValidJson);
         Assert.False(inspector.IsDirty);
     }

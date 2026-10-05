@@ -82,16 +82,19 @@ public sealed class InvestigationWindowRenderTests
             Assert.True(activeTab.IsChecked);
             Assert.False(workspace.Browse.IsDeadLetter);
 
-            ToggleButton rawTab = (ToggleButton)window.FindName("RawTab")!;
             ToggleButton propertiesTab = (ToggleButton)window.FindName("PropertiesTab")!;
             ToggleButton jsonTab = (ToggleButton)window.FindName("JsonTab")!;
             RichTextBox bodyViewer = (RichTextBox)window.FindName("BodyViewer")!;
-            ToggleThroughAutomation(rawTab);
-            Assert.Equal(Visibility.Visible, bodyViewer.Visibility);
-            Assert.Equal(workspace.Inspector.RawText.TrimEnd(),
-                new System.Windows.Documents.TextRange(bodyViewer.Document.ContentStart, bodyViewer.Document.ContentEnd).Text.TrimEnd());
+            Assert.Null(window.FindName("RawTab"));
+            StackPanel bodyHeader = Assert.IsType<StackPanel>(jsonTab.Content);
+            TextBlock bodyLabel = Assert.Single(bodyHeader.Children.OfType<TextBlock>());
+            Border modifiedBadge = Assert.Single(bodyHeader.Children.OfType<Border>());
+            Assert.Equal("Body", bodyLabel.Text);
+            Assert.Same(bodyHeader, modifiedBadge.Parent);
+            TextBlock modifiedLabel = Assert.Single(((StackPanel)modifiedBadge.Child).Children.OfType<TextBlock>());
+            Assert.Equal("Modified", modifiedLabel.Text);
+            Assert.Equal(Visibility.Collapsed, modifiedBadge.Visibility);
             ToggleThroughAutomation(propertiesTab);
-            Assert.False(rawTab.IsChecked);
             Assert.Equal(workspace.Inspector.PropertiesText.ReplaceLineEndings("\n").TrimEnd(),
                 new System.Windows.Documents.TextRange(bodyViewer.Document.ContentStart, bodyViewer.Document.ContentEnd).Text.ReplaceLineEndings("\n").TrimEnd());
             ToggleThroughAutomation(jsonTab);
@@ -99,6 +102,11 @@ public sealed class InvestigationWindowRenderTests
             Assert.Equal(Visibility.Collapsed, bodyViewer.Visibility);
             ToggleThroughAutomation(jsonTab);
             Assert.True(jsonTab.IsChecked);
+            workspace.Inspector.Document.Text = "{\"renderProof\":true}";
+            Assert.Equal(Visibility.Visible, modifiedBadge.Visibility);
+            Assert.True(jsonTab.IsChecked, "The Modified badge should remain inside the selected Body tab.");
+            workspace.Inspector.DiscardCurrent();
+            Assert.Equal(Visibility.Collapsed, modifiedBadge.Visibility);
 
             CheckBox selectAll = (CheckBox)window.FindName("SelectAllBox")!;
             Assert.False(selectAll.IsChecked);

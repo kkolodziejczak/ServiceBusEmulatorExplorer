@@ -10,7 +10,7 @@ public partial class InvestigationWindow
     private CancellationTokenSource? deleteCancellation;
 
     private DeleteSelectionState CurrentDeleteSelection() => DeleteSelection.Evaluate(workspace.IsConnected,
-        workspace.Surface.Messages, workspace.Surface.FocusedMessage);
+        workspace.Surface.Messages);
 
     private void UpdateDeleteSurface()
     {
@@ -21,7 +21,7 @@ public partial class InvestigationWindow
         AutomationProperties.SetName(DeleteButton, label);
         DeleteButton.IsEnabled = pending ? !deleteCancellation!.IsCancellationRequested : !replayPending && selection.CanDelete;
         DeleteButton.ToolTip = pending ? "Stop acquiring further deliveries. Already confirmed deletions remain deleted."
-            : selection.Problem ?? "Delete checked dead-letter messages, or the focused message, after typed confirmation.";
+            : selection.Problem ?? "Delete checked dead-letter messages after typed confirmation.";
     }
 
     private async void Delete_Click(object sender, RoutedEventArgs e)

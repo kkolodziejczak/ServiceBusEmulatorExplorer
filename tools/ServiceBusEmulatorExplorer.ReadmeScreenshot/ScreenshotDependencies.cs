@@ -46,10 +46,10 @@ internal sealed class ScenarioMessageService(IReadOnlyList<ExplorerMessage> mess
         long? fromSequenceNumber,
         CancellationToken cancellationToken)
     {
-        IReadOnlyList<ExplorerMessage> result = bucket == MessageBucket.Active
-            && address.Kind == EntityKind.Subscription
+        IReadOnlyList<ExplorerMessage> result = address.Kind == EntityKind.Subscription
             && address.TopicName == "order-events"
-            ? messages
+            ? messages.Where(message =>
+                    (bucket == MessageBucket.DeadLetter) == message.SystemProperties.ContainsKey("DeadLetterReason"))
                 .Where(message => message.MessageId.EndsWith(address.Name, StringComparison.Ordinal)
                     || (address.Name == "fulfillment" && message.MessageId == "order-10482-dispatched"))
                 .Where(message => fromSequenceNumber is null || message.SequenceNumber >= fromSequenceNumber)

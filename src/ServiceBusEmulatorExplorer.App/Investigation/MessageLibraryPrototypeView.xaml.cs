@@ -131,8 +131,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         {
             lastRun = null;
             ViewRunResultsButton.Visibility = Visibility.Collapsed;
-            ValidationDetailsButton.IsEnabled = false;
-            ValidationDetailsButton.Opacity = 0.45;
+            ValidationDetailsButton.Visibility = Visibility.Collapsed;
             InvalidatePreview();
             UpdateDestinationControls();
         }
@@ -147,6 +146,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         columns[0].Width = new GridLength(compact ? 230 : 250);
         double stageWidth = ActualWidth - columns[0].Width.Value - columns[1].Width.Value;
         bool sideBySide = stageWidth >= 820;
+        PrepareBodyScroll.VerticalScrollBarVisibility = sideBySide ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto;
         if (sideBySide)
         {
             PrepareBody.ColumnDefinitions[0].Width = new GridLength(0.9, GridUnitType.Star);
@@ -214,11 +214,13 @@ public partial class MessageLibraryPrototypeView : UserControl
             ClearTemplateSearchButton.Visibility = string.IsNullOrEmpty(TemplateSearch.Text)
                 ? Visibility.Collapsed : Visibility.Visible;
         if (LibraryTree is not null) RefreshLibraryTree();
+        UpdateLibrarySuggestions();
     }
 
     private void ClearTemplateSearch_Click(object sender, RoutedEventArgs e)
     {
         TemplateSearch.Clear();
+        LibrarySuggestionsPopup.IsOpen = false;
         TemplateSearch.Focus();
     }
 
@@ -231,7 +233,9 @@ public partial class MessageLibraryPrototypeView : UserControl
 
     public void FilterByNamespaceQuery(string query)
     {
+        bool changed = !namespaceQuery.Equals(query, StringComparison.OrdinalIgnoreCase);
         namespaceQuery = query;
+        if (changed) CloseLibrarySearchSuggestions();
         RefreshLibraryTree();
         bool outside = query.Length > 0 && templates.FirstOrDefault(value => value.Name == selectedTemplateName) is { } current
             && !TemplateAssociations(current).Any(path => path.Contains(query, StringComparison.OrdinalIgnoreCase));
@@ -578,13 +582,7 @@ public partial class MessageLibraryPrototypeView : UserControl
 
     private void ViewValidationResults_Click(object sender, RoutedEventArgs e)
     {
-        if (lastRun is not null && CsvRowsGrid.ItemsSource is IEnumerable<CsvPreviewRow> validRows &&
-            validRows.All(row => row.Status == "Ready"))
-        {
-            ViewRunResults_Click(sender, e);
-            return;
-        }
-        if (CsvRowsGrid.ItemsSource is not IEnumerable<CsvPreviewRow> rows) return;
+        if (CsvRowsGrid.ItemsSource is not IEnumerable<CsvPreviewRow> rows || rows.All(row => row.Status == "Ready")) return;
         var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Validation, currentProfileName,
             selectedDestination ?? "order-events", 3) { Owner = Window.GetWindow(this) };
         dialog.SetValidationRows(rows.Select(row => (row.Row, row.CustomerId, row.Status)));
@@ -655,9 +653,8 @@ public partial class MessageLibraryPrototypeView : UserControl
             ValidationStatusText.Foreground = new System.Windows.Media.SolidColorBrush(
                 (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(valid == 3 ? "#197442" : "#A52436")!);
             previewReady = valid == 3 && PrepareMessages(rows);
-            ValidationDetailsButton.Content = valid == 3 ? "View results" : "View errors";
-            ValidationDetailsButton.IsEnabled = valid != 3 || lastRun is not null;
-            ValidationDetailsButton.Opacity = ValidationDetailsButton.IsEnabled ? 1 : 0.45;
+            ValidationDetailsButton.Visibility = valid != 3 ? Visibility.Visible : Visibility.Collapsed;
+            ValidationDetailsButton.IsEnabled = valid != 3;
             ReviewButton.IsEnabled = previewReady && selectedDestination is not null;
             ReviewStepButton.IsEnabled = ReviewButton.IsEnabled || lastRun is not null;
             PreviewHint.Text = previewReady ? "3 of 3 rows valid · Row 1 preview" :
@@ -709,6 +706,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         if (!previewReady) return;
         var row = CsvMode.IsChecked == true ? CsvRowsGrid.SelectedItem as CsvPreviewRow : null;
         int rowNumber = row?.Row ?? 1;
+        PreviewHeading.Text = $"Row {rowNumber} preview";
         var prepared = preparedMessages.Single(message => message.Row == rowNumber);
         PreviewHint.Text = CsvMode.IsChecked == true ? $"3 of 3 rows valid · Row {rowNumber} preview" : "1 sample message valid";
         if (propertiesPreview)
@@ -764,9 +762,6 @@ public partial class MessageLibraryPrototypeView : UserControl
     {
         lastRun = run;
         ViewRunResultsButton.Visibility = Visibility.Visible;
-        ValidationDetailsButton.Content = "View results";
-        ValidationDetailsButton.IsEnabled = true;
-        ValidationDetailsButton.Opacity = 1;
         ReviewStepButton.IsEnabled = true;
     }
 

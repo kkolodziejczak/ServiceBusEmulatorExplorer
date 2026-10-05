@@ -317,7 +317,9 @@ public partial class MessageLibraryPrototypeView
         {
             string? previous = selectedTemplateName.Length == 0 ? null : $"template:{selectedTemplateName}";
             selectedLibraryTag = previous;
+            revealedTemplateName = selectedTemplateName.Length == 0 ? null : selectedTemplateName;
             RefreshLibraryTree();
+            if (previous is not null) RevealLibraryItem(previous);
             return;
         }
         CancelRename();

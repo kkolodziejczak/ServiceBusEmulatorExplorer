@@ -60,6 +60,9 @@ public partial class InvestigationWindow : Window
     {
         ready = true;
         initializingWindow = true;
+        UpdateWorkspace();
+        SurfaceChanged(workspace.Surface, new PropertyChangedEventArgs(nameof(InvestigationSurface.Messages)));
+        UpdateLayoutMode();
         await workspace.InitializeAsync();
         if (closing || closePending) return;
         initializingWindow = false;
@@ -77,7 +80,7 @@ public partial class InvestigationWindow : Window
     {
         if (e.PropertyName == nameof(InvestigationWorkspace.Status))
         {
-            LastOperation.Text = workspace.Status;
+            LastOperation.Text = workspace.IsConnecting ? "Connecting to Service Bus…" : workspace.Status;
             return;
         }
         UpdateWorkspace();
@@ -99,19 +102,25 @@ public partial class InvestigationWindow : Window
                 workspace.IsConnecting || workspace.HealthText == "Warning" ? "WarningHealthBrush" :
                 workspace.IsConnected ? "ConnectedHealthBrush" : "DisconnectedHealthBrush");
             ProfileTheme.Apply(this, workspace.SelectedProfile.ColorHex);
-            LastOperation.Text = workspace.Status;
+            LastOperation.Text = workspace.IsConnecting ? "Connecting to Service Bus…" : workspace.Status;
+            DatePresentation.SetFormat(this, workspace.Preferences.DateFormat);
             TimeDisplaySelector.SelectedIndex = workspace.Preferences.TimestampDisplay == TimestampDisplay.Utc ? 0 : 1;
             AutoInterval.SelectedIndex = Array.IndexOf(new[] { 0, 5, 10, 30 }, workspace.Preferences.AutoRefreshSeconds);
             LogPanel.Visibility = workspace.Preferences.LogExpanded ? Visibility.Visible : Visibility.Collapsed;
+            LogToggle.ToolTip = workspace.Preferences.LogExpanded ? "Collapse activity log" : "Expand activity log";
+            System.Windows.Automation.AutomationProperties.SetName(LogToggle, (string)LogToggle.ToolTip);
             LogHeading.Text = workspace.Preferences.LogExpanded ? "Activity log · Expanded" : "Activity log · Collapsed";
             LogChevron.Data = Geometry.Parse(workspace.Preferences.LogExpanded ? "M1,8 L7,2 L13,8" : "M1,2 L7,8 L13,2");
             EnqueuedColumn.Header = workspace.Preferences.TimestampDisplay == TimestampDisplay.Utc ? "Enqueued (UTC)" : "Enqueued (Local)";
+            UpdateMessageColumns();
             ConfigureRefresh();
             RenderActivity();
             UpdateSearchSurface();
             UpdateWatchSurface();
             UpdateReplaySurface();
             UpdateNamespaceTreeSource();
+            UpdateBrowseScopeHeader();
+            ScheduleNamespaceSelectionRestore();
             if (MessageLibraryPrototype.Visibility == Visibility.Visible)
                 FilterWorkbenchNamespaces(SearchBox.Text);
         }
@@ -121,9 +130,10 @@ public partial class InvestigationWindow : Window
     private void SurfaceChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (!ready) return;
+        if (!workspace.Surface.IsBusy && namespaceTreeReconciliation) ScheduleNamespaceSelectionRestore();
         UpdateWatchSurface();
         SynchronizeBucketTabs();
-        SourceColumn.Visibility = workspace.Surface.ShowsSource ? Visibility.Visible : Visibility.Collapsed;
+        UpdateMessageColumns();
         if (MessageGrid.SelectedItem != workspace.Surface.FocusedMessage)
             MessageGrid.SelectedItem = workspace.Surface.FocusedMessage;
         EmptyResults.Visibility = workspace.Surface.Messages.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -131,10 +141,14 @@ public partial class InvestigationWindow : Window
         SelectAllBox.IsEnabled = workspace.Surface.Messages.Count > 0;
         SelectAllBox.IsChecked = workspace.Surface.SelectedCount == 0 ? false :
             workspace.Surface.SelectedCount == workspace.Surface.Messages.Count ? true : null;
-        EmptyMessage.Text = workspace.Surface.IsBusy ? "Loading messages…" : workspace.IsConnected ? "No messages in this view" : "Connect to browse messages";
-        EmptyDescription.Text = workspace.Surface.IsBusy ? "Reading without consuming messages." : "";
+        EmptyMessage.Text = workspace.Surface.IsBusy ? "Loading messages…" : workspace.IsConnecting ? "Connecting to Service Bus…"
+            : workspace.IsConnected ? "No messages in this view" : "Connect to browse messages";
+        EmptyDescription.Text = workspace.Surface.IsBusy ? "Reading without consuming messages."
+            : workspace.IsConnecting ? "Discovering available entities." : "";
         EmptyClearButton.Visibility = Visibility.Collapsed;
         UpdateNamespaceTreeSource();
+        UpdateBrowseScopeHeader();
+        ScheduleNamespaceSelectionRestore();
         if (MessageLibraryPrototype.Visibility == Visibility.Visible)
             FilterWorkbenchNamespaces(SearchBox.Text);
         UpdateSearchSurface();
@@ -170,7 +184,15 @@ public partial class InvestigationWindow : Window
 
     private void WorkbenchDiscoveryChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MessageBrowseWorkflow.DiscoverySnapshot)) UpdateWorkbenchDiscovery();
+        if (e.PropertyName == nameof(MessageBrowseWorkflow.DiscoverySnapshot))
+        {
+            if (workspace.Browse.DiscoverySnapshot is null && workspace.Browse.SelectedEntity is not null)
+                namespaceTreeReconciliation = true;
+            else if (workspace.Browse.DiscoverySnapshot is not null)
+                ScheduleNamespaceSelectionRestore();
+            UpdateWorkbenchDiscovery();
+            UpdateNamespaceIndicators();
+        }
     }
 
     private void UpdateWorkbenchDiscovery()
@@ -221,6 +243,7 @@ public partial class InvestigationWindow : Window
             {
                 SearchBox.Text = investigationSearchText;
                 workspace.Browse.FilterEntities(workspace.Search.IsActive ? "" : investigationSearchText);
+                if (!workspace.Search.IsActive) workspace.Browse.RestoreWatchedMessages();
             }
             if (library) FilterWorkbenchNamespaces(SearchBox.Text);
             ConfigureRefresh();
@@ -319,6 +342,10 @@ public partial class InvestigationWindow : Window
 
     private async void Tree_Selected(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
+        if (restoringNamespaceSelection || namespaceTreeReconciliation && !NamespaceTree.IsKeyboardFocusWithin) return;
+        if (e.NewValue is EntityNode { Address: { } selectedAddress })
+            namespaceSelectionAddress = selectedAddress;
+
         if (MessageLibraryPrototype.Visibility == Visibility.Visible)
         {
             if (e.NewValue is EntityNode { IsGroup: false } workbenchEntity)
@@ -405,10 +432,12 @@ public partial class InvestigationWindow : Window
 
     private void ConfigureRefresh()
     {
+        UpdateNamespaceIndicators();
         bool investigationSearch = MessageLibraryPrototype?.Visibility != Visibility.Visible && workspace.Search.IsActive;
-        if (paused || investigationSearch || !workspace.IsConnected || workspace.Preferences.AutoRefreshSeconds == 0)
+        if (paused || (investigationSearch && !workspace.Browse.HasWatchedTargets) || !workspace.IsConnected || workspace.Preferences.AutoRefreshSeconds == 0)
         {
             refreshTimer.Stop();
+            workspace.Browse.CancelBackgroundRefresh();
             return;
         }
         var interval = TimeSpan.FromSeconds(workspace.Preferences.AutoRefreshSeconds);
@@ -418,6 +447,12 @@ public partial class InvestigationWindow : Window
 
     private async void RefreshTimerTick(object? sender, EventArgs e)
     {
+        if (workspace.Browse.HasWatchedTargets)
+        {
+            bool refreshSelected = MessageLibraryPrototype.Visibility != Visibility.Visible && !workspace.Search.IsActive;
+            await workspace.RunReadAsync(() => workspace.Browse.RefreshBackgroundAsync(refreshSelected));
+            return;
+        }
         if (workspace.Browse.IsBusy) return;
         if (MessageLibraryPrototype.Visibility == Visibility.Visible)
             await workspace.RunReadAsync(workspace.Browse.RefreshAsync);
@@ -439,6 +474,8 @@ public partial class InvestigationWindow : Window
     private void RenderActivity()
     {
         if (!ready) return;
+        ClearLogButton.IsEnabled = workspace.Activity.Count > 0;
+        LogEmpty.Visibility = workspace.Activity.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         LogText.Document.Blocks.Clear();
         foreach (var entry in workspace.Activity)
         {
@@ -446,7 +483,7 @@ public partial class InvestigationWindow : Window
             paragraph.Inlines.Add(new Run(ActivityTime(entry.TimestampUtc) + "   ")
             {
                 Foreground = new SolidColorBrush(Color.FromRgb(135, 167, 191)),
-                ToolTip = entry.TimestampUtc.ToString("O")
+                ToolTip = ActivityDate(entry.TimestampUtc)
             });
             paragraph.Inlines.Add(new Run(entry.Warning ? "WARN    " : entry.Watch ? "WATCH   " : "INFO    ")
             {
@@ -457,8 +494,15 @@ public partial class InvestigationWindow : Window
         }
         var last = workspace.Activity.LastOrDefault();
         LastOperationTime.Text = last is null ? "" : ActivityTime(last.TimestampUtc);
-        LastOperationTime.ToolTip = last?.TimestampUtc.ToString("O");
+        LastOperationTime.ToolTip = last is null ? null : ActivityDate(last.TimestampUtc);
         LogText.ScrollToEnd();
+    }
+
+    private string ActivityDate(DateTimeOffset instant)
+    {
+        bool local = workspace.Preferences.TimestampDisplay == TimestampDisplay.Local;
+        return DateDisplay.Timestamp(local ? instant.ToLocalTime() : instant.ToUniversalTime(), workspace.Preferences.DateFormat)
+            + (local ? " Local" : " UTC");
     }
 
     private string ActivityTime(DateTimeOffset instant) => workspace.Preferences.TimestampDisplay == TimestampDisplay.Utc

@@ -57,6 +57,8 @@ public sealed class InvestigationDeleteEndToEndTests
             automation = new UIA3Automation();
             var main = WaitWindow(application, automation, "ConnectionButton", timeout.Token);
             SelectMessage(main, originalId, timeout.Token);
+            Assert.False(ById(main, "DeleteButton")!.IsEnabled, "Delete must stay disabled until a message checkbox is checked.");
+            Assert.True(ById(main, "ReplayButton")!.IsEnabled, "The focused message must remain replayable while unchecked.");
             Invoke(main, "ReplayButton", timeout.Token);
             var copy = await ReceiveAsync(active, timeout.Token);
             Assert.NotEqual(originalId, copy.MessageId);
@@ -78,7 +80,7 @@ public sealed class InvestigationDeleteEndToEndTests
             WaitElement(() => ById(main, "MessageGrid")?.FindFirstDescendant(cf => cf.ByText(copy.MessageId)), "replay copy in DLQ grid", timeout.Token);
 
             // An incomplete confirmation must neither enable deletion nor remove a broker delivery.
-            SelectMessage(main, originalId, timeout.Token);
+            CheckMessage(main, originalId, timeout.Token);
             Invoke(main, "DeleteButton", timeout.Token);
             var dialog = WaitWindow(application, automation, "DeleteConfirmationInput", timeout.Token);
             Assert.False(ById(dialog, "ConfirmDeleteButton")!.IsEnabled);
@@ -174,7 +176,7 @@ public sealed class InvestigationDeleteEndToEndTests
 
     private static void DeleteThroughUi(Application application, UIA3Automation automation, Window main, string messageId, CancellationToken token)
     {
-        SelectMessage(main, messageId, token);
+        CheckMessage(main, messageId, token);
         Invoke(main, "DeleteButton", token);
         var dialog = WaitWindow(application, automation, "DeleteConfirmationInput", token);
         ById(dialog, "DeleteConfirmationInput")!.Patterns.Value.Pattern.SetValue("DELETE");
@@ -185,7 +187,30 @@ public sealed class InvestigationDeleteEndToEndTests
             $"deleted row {messageId} removed and delete operation idle", token);
     }
 
+    private static void CheckMessage(Window main, string messageId, CancellationToken token)
+    {
+        SelectMessage(main, messageId, token);
+        AutomationElement row = MessageRow(main, messageId, token);
+        AutomationElement checkBox = WaitElement(
+            () => row.FindFirstDescendant(cf => cf.ByControlType(ControlType.CheckBox)),
+            $"selection checkbox for {messageId}", token);
+        if (checkBox.Patterns.Toggle.Pattern.ToggleState.Value != ToggleState.On)
+            checkBox.Patterns.Toggle.Pattern.Toggle();
+        WaitElement(
+            () => checkBox.Patterns.Toggle.Pattern.ToggleState.Value == ToggleState.On ? checkBox : null,
+            $"checked selection for {messageId}", token);
+    }
+
     private static AutomationElement? ById(AutomationElement root, string id) => root.FindFirstDescendant(cf => cf.ByAutomationId(id));
+
+    private static AutomationElement MessageRow(Window main, string messageId, CancellationToken token)
+    {
+        AutomationElement text = WaitElement(
+            () => ById(main, "MessageGrid")?.FindFirstDescendant(cf => cf.ByText(messageId)), messageId, token);
+        while (text.ControlType != ControlType.DataItem)
+            text = text.Parent ?? throw new InvalidOperationException("Message text has no DataGrid row ancestor.");
+        return text;
+    }
 
     private static Window WaitWindow(Application application, UIA3Automation automation, string id, CancellationToken token) =>
         WaitElement(() => application.GetAllTopLevelWindows(automation).FirstOrDefault(window => !window.IsOffscreen && ById(window, id) is not null), id, token).AsWindow();

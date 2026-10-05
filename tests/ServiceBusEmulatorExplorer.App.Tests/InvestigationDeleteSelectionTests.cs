@@ -10,7 +10,7 @@ public sealed class InvestigationDeleteSelectionTests
     public void DisconnectedSelectionCannotDelete()
     {
         var row = Row("orders", selected: true);
-        var result = DeleteSelection.Evaluate(false, [row], row);
+        var result = DeleteSelection.Evaluate(false, [row]);
         Assert.False(result.CanDelete);
         Assert.Empty(result.Targets);
     }
@@ -18,45 +18,44 @@ public sealed class InvestigationDeleteSelectionTests
     [Fact]
     public void EmptySelectionCannotDelete()
     {
-        var result = DeleteSelection.Evaluate(true, [Row("orders")], null);
+        var result = DeleteSelection.Evaluate(true, [Row("orders")]);
         Assert.False(result.CanDelete);
         Assert.Empty(result.Targets);
     }
 
     [Fact]
-    public void FocusedVisibleDlqIsTheTargetWhenNoRowsAreChecked()
+    public void UncheckedDlqIsNeverADeleteTarget()
     {
         var row = Row("orders");
-        var result = DeleteSelection.Evaluate(true, [row], row);
-        Assert.True(result.CanDelete);
-        Assert.Equal([row.Delivery], result.Targets);
+        var result = DeleteSelection.Evaluate(true, [row]);
+        Assert.False(result.CanDelete);
+        Assert.Empty(result.Targets);
     }
 
     [Fact]
-    public void CheckedRowsOverrideFocusAndPreserveVisibleOrder()
+    public void OnlyCheckedRowsAreTargetsInVisibleOrder()
     {
         var first = Row("orders", selected: true);
         var focused = Row("audit");
         var last = Row("billing", selected: true);
-        var result = DeleteSelection.Evaluate(true, [first, focused, last], focused);
+        var result = DeleteSelection.Evaluate(true, [first, focused, last]);
         Assert.True(result.CanDelete);
         Assert.Equal([first.Delivery, last.Delivery], result.Targets);
     }
 
     [Fact]
-    public void FocusFromPreviousPageCannotBecomeADeleteTarget()
+    public void UncheckedCurrentPageCannotDelete()
     {
-        var stale = Row("previous-page");
-        var result = DeleteSelection.Evaluate(true, [Row("current-page")], stale);
+        var result = DeleteSelection.Evaluate(true, [Row("current-page")]);
         Assert.False(result.CanDelete);
         Assert.Empty(result.Targets);
     }
 
     [Fact]
-    public void CurrentCheckedRowsRemainUsableWhenFocusIsStale()
+    public void CheckedCurrentPageCanDelete()
     {
         var current = Row("current-page", selected: true);
-        var result = DeleteSelection.Evaluate(true, [current], Row("previous-page"));
+        var result = DeleteSelection.Evaluate(true, [current]);
         Assert.True(result.CanDelete);
         Assert.Equal([current.Delivery], result.Targets);
     }
@@ -64,10 +63,10 @@ public sealed class InvestigationDeleteSelectionTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void ActiveCannotBeDeletedWhetherFocusedOrChecked(bool selected)
+    public void ActiveCannotBeDeletedWhetherUncheckedOrChecked(bool selected)
     {
         var active = Row("orders", MessageBucket.Active, selected);
-        AssertBlocked(DeleteSelection.Evaluate(true, [active], active));
+        AssertBlocked(DeleteSelection.Evaluate(true, [active]));
     }
 
     [Fact]
@@ -75,15 +74,15 @@ public sealed class InvestigationDeleteSelectionTests
     {
         var dlq = Row("orders", selected: true);
         var active = Row("billing", MessageBucket.Active, true);
-        AssertBlocked(DeleteSelection.Evaluate(true, [dlq, active], dlq));
+        AssertBlocked(DeleteSelection.Evaluate(true, [dlq, active]));
     }
 
     [Fact]
-    public void CheckedActiveDoesNotFallBackToFocusedDlq()
+    public void CheckedActiveDoesNotFallBackToUncheckedDlq()
     {
         var dlq = Row("orders");
         var active = Row("billing", MessageBucket.Active, true);
-        AssertBlocked(DeleteSelection.Evaluate(true, [dlq, active], dlq));
+        AssertBlocked(DeleteSelection.Evaluate(true, [dlq, active]));
     }
 
     private static void AssertBlocked(DeleteSelectionState result)

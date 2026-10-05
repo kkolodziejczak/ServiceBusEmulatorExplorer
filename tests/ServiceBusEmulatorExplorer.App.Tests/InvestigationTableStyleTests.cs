@@ -1,10 +1,14 @@
+using System.IO;
+using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
+using System.Windows.Documents;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation;
 using ServiceBusEmulatorExplorer.Core.Connection;
@@ -116,13 +120,102 @@ public sealed class InvestigationTableStyleTests
             Drain(window.Dispatcher);
 
             var grid = (DataGrid)window.FindName("MessageGrid")!;
-            AssertTable(grid, expectedRows: 1);
+            DataGridColumn correlationColumn = (DataGridColumn)window.FindName("CorrelationColumn")!;
+            DataGridColumn sourceColumn = (DataGridColumn)window.FindName("SourceColumn")!;
+            Assert.Equal(Visibility.Visible, correlationColumn.Visibility);
+            Assert.Equal(Visibility.Collapsed, sourceColumn.Visibility);
+
+            // The row's Copy action is hosted inside this cell; focus on it must not add
+            // a cell frame or erase the selected-row color when WPF focus cues are hidden.
+            DataGridRow correlationRow = Row(grid, 0);
+            correlationRow.IsSelected = true;
+            grid.CurrentCell = new DataGridCellInfo(correlationRow, correlationColumn);
+            DataGridCell correlationCell = Descendants<DataGridCell>(correlationRow)
+                .Single(cell => cell.Column == correlationColumn);
+            Button rowCopy = Descendants<Button>(correlationCell)
+                .Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == "Copy row correlation ID");
+            Assert.True(correlationCell.Focus());
+            Assert.True(correlationCell.IsKeyboardFocusWithin);
+            Assert.Same(window.FindResource("KeyboardActionFocusVisual"), correlationCell.FocusVisualStyle);
+
+            // WPF normally shows FocusVisualStyle only after keyboard navigation. Force
+            // that WPF state in this headless rendered test and inspect its actual adorner.
+            Type keyboardNavigation = typeof(System.Windows.Input.KeyboardNavigation);
+            PropertyInfo alwaysShowFocusVisual = keyboardNavigation.GetProperty(
+                "AlwaysShowFocusVisual", BindingFlags.Static | BindingFlags.NonPublic)
+                ?? throw new MissingMemberException(keyboardNavigation.FullName, "AlwaysShowFocusVisual");
+            MethodInfo showFocusVisual = keyboardNavigation.GetMethod(
+                "ShowFocusVisual", BindingFlags.Static | BindingFlags.NonPublic)
+                ?? throw new MissingMethodException(keyboardNavigation.FullName, "ShowFocusVisual");
+            object previousAlwaysShow = alwaysShowFocusVisual.GetValue(null)!;
+            try
+            {
+                alwaysShowFocusVisual.SetValue(null, true);
+                showFocusVisual.Invoke(null, null);
+                Assert.True(correlationCell.Focus());
+                Drain(window.Dispatcher);
+                AdornerLayer adornerLayer = AdornerLayer.GetAdornerLayer(correlationCell)
+                    ?? throw new Xunit.Sdk.XunitException("The focused Copy button has no WPF adorner layer.");
+                Adorner[] focusAdorners = adornerLayer.GetAdorners(correlationCell) ?? [];
+                Border keyboardCue = Assert.Single(
+                    focusAdorners.SelectMany(adorner => Descendants<Border>(adorner)),
+                    border => border.BorderThickness == new Thickness(0, 0, 0, 2));
+                Assert.Equal(window.FindResource("PrimaryBrush"), keyboardCue.BorderBrush);
+                CaptureFocusedCorrelationCellIfRequested(window, "correlation-cell-keyboard-focused.png");
+            }
+            finally
+            {
+                alwaysShowFocusVisual.SetValue(null, previousAlwaysShow);
+                System.Windows.Input.Keyboard.ClearFocus();
+            }
+
+            Assert.True(rowCopy.Focus());
+            Drain(window.Dispatcher);
+            Assert.True(rowCopy.IsKeyboardFocused);
+            Assert.True(correlationRow.IsSelected);
+            AssertBrush(correlationRow.Background, "#DBEDFF");
+            AssertBrush(correlationCell.Background, "#DBEDFF");
+            Assert.Same(window.FindResource("KeyboardActionFocusVisual"), rowCopy.FocusVisualStyle);
+            CaptureFocusedCorrelationCellIfRequested(window, "correlation-cell-focused-without-keyboard-cue.png");
+            Assert.Equal(new Thickness(0), correlationCell.BorderThickness);
+
+            // Force the shared location template into view to prove its one-line queue branch.
+            sourceColumn.Visibility = Visibility.Visible;
+            correlationColumn.Visibility = Visibility.Collapsed;
+            AssertTable(grid, expectedRows: 1, stretchedColumns:
+                [(DataGridColumn)window.FindName("EventColumn")!,
+                 sourceColumn]);
             Assert.NotNull(FindText(grid, "OrderCreated"));
+
+            Assert.Equal("correlation-1", ((TextBlock)window.FindName("CorrelationValue")!).Text);
+            var inspectorCopy = (Button)window.FindName("CopyCorrelationButton")!;
+            Assert.True(inspectorCopy.IsVisible);
+            Assert.Equal("Copy correlation ID", System.Windows.Automation.AutomationProperties.GetName(inspectorCopy));
+
+            Assert.Equal(EntityKind.Queue, row.SourceKind);
+            Assert.Equal(string.Empty, row.SourceTopic);
+            Assert.Equal("orders", row.SourceName);
+            Assert.False(row.IsSubscription);
+            Assert.Equal("Queue: orders", row.SourceDetail);
+            DataGridRow renderedRow = Row(grid, 0);
+            DataGridCell sourceCell = Descendants<DataGridCell>(renderedRow).Single(cell => cell.Column == sourceColumn);
+            FrameworkElement topicLine = Descendants<FrameworkElement>(sourceCell).Single(element => element.Name == "SourceTopicLine");
+            FrameworkElement nameLine = Descendants<FrameworkElement>(sourceCell).Single(element => element.Name == "SourceNameLine");
+            TextBlock topicText = Descendants<TextBlock>(sourceCell).Single(text => text.Name == "SourceTopicText");
+            TextBlock sourceName = Descendants<TextBlock>(sourceCell).Single(text => text.Name == "SourceNameText");
+            System.Windows.Shapes.Path queueIcon = Descendants<System.Windows.Shapes.Path>(sourceCell)
+                .Single(icon => icon.Name == "SourceNameIcon");
+            Assert.Equal(Visibility.Collapsed, topicLine.Visibility);
+            Assert.False(topicText.IsVisible);
+            Assert.Equal(Visibility.Visible, nameLine.Visibility);
+            Assert.Equal("orders", sourceName.Text);
+            Assert.Equal(row.SourceDetail, sourceName.ToolTip);
+            Assert.Equal(window.FindResource("QueueGeometry"), queueIcon.Data);
             window.Close();
             workspace.DisposeAsync().AsTask().GetAwaiter().GetResult();
         });
 
-    private static void AssertTable(DataGrid grid, int expectedRows)
+    private static void AssertTable(DataGrid grid, int expectedRows, DataGridColumn[]? stretchedColumns = null)
     {
         Assert.Equal(expectedRows, grid.Items.Cast<object>().Count(item =>
             !ReferenceEquals(item, CollectionView.NewItemPlaceholder)));
@@ -144,7 +237,18 @@ public sealed class InvestigationTableStyleTests
         Assert.NotEmpty(cells);
         Assert.All(cells, cell =>
         {
-            Assert.Equal(HorizontalAlignment.Left, cell.HorizontalContentAlignment);
+            bool reservesTrailingAction = stretchedColumns?.Contains(cell.Column) == true;
+            Assert.Equal(reservesTrailingAction ? HorizontalAlignment.Stretch : HorizontalAlignment.Left,
+                cell.HorizontalContentAlignment);
+            if (reservesTrailingAction)
+            {
+                // Fill the cell to reserve the trailing badge/copy action, while keeping text left aligned.
+                var labels = Descendants<TextBlock>(cell).Where(text => text.IsVisible).ToArray();
+                if (cell.Column.Header?.ToString() == "Location")
+                    labels = labels.Where(text => text.Name is "SourceNameText" or "SourceTopicText").ToArray();
+                Assert.NotEmpty(labels);
+                Assert.All(labels, text => Assert.Equal(TextAlignment.Left, text.TextAlignment));
+            }
             Assert.Equal(VerticalAlignment.Center, cell.VerticalContentAlignment);
             if (cell.Column is DataGridTextColumn)
             {
@@ -171,6 +275,33 @@ public sealed class InvestigationTableStyleTests
     {
         var solid = Assert.IsType<SolidColorBrush>(brush);
         Assert.Equal(expected, $"#{solid.Color.R:X2}{solid.Color.G:X2}{solid.Color.B:X2}");
+    }
+
+    private static void CaptureFocusedCorrelationCellIfRequested(Window window, string fileName)
+    {
+        if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_CELL_FOCUS"), "true", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        window.UpdateLayout();
+        int width = Math.Max(1, (int)Math.Ceiling(window.ActualWidth));
+        int height = Math.Max(1, (int)Math.Ceiling(window.ActualHeight));
+        var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(window);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+
+        DirectoryInfo? root = new(AppContext.BaseDirectory);
+        while (root is not null && !Directory.Exists(Path.Combine(root.FullName, ".git")) && !File.Exists(Path.Combine(root.FullName, ".git")))
+            root = root.Parent;
+        if (root is null)
+            throw new DirectoryNotFoundException("Could not locate the repository root for the focused-cell proof image.");
+
+        string outputDirectory = Path.Combine(root.FullName, "artifacts", "cell-focus-proof");
+        Directory.CreateDirectory(outputDirectory);
+        using var output = new FileStream(
+            Path.Combine(outputDirectory, fileName),
+            FileMode.Create, FileAccess.Write, FileShare.Read);
+        encoder.Save(output);
     }
 
     private static void Click(FrameworkElement root, string name) =>

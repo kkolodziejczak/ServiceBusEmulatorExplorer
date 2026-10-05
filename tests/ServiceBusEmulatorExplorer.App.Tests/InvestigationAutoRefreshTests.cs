@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
@@ -135,6 +136,74 @@ public sealed class InvestigationAutoRefreshTests
 
     [Fact]
     [Trait("TestCategory", "UiRender")]
+    public void WatchedMessagesRefreshInSearchAndWorkbenchWithoutChangingSelectionOrFocus() => OnSta(() =>
+    {
+        using var fixture = new Fixture(includeSecondQueue: true);
+        EntityNode watched = fixture.Workspace.Browse.AllEntities().Single(node => node.Name == "orders");
+        EntityNode selected = fixture.Workspace.Browse.AllEntities().Single(node => node.Name == "invoices");
+        Complete(fixture.Workspace.UpdateWatchRulesAsync(fixture.Workspace.SelectedProfile.Id,
+            [new(WatchScopeResolver.QueueScopeKey("orders"), true, false)]));
+        Complete(fixture.Workspace.Browse.SelectAsync(selected, deadLetter: false));
+        fixture.Workspace.Browse.FocusedMessage = fixture.Workspace.Browse.Messages.Single();
+        var focused = fixture.Workspace.Browse.FocusedMessage;
+
+        fixture.Messages.Set(new(EntityKind.Queue, "orders"), 1, 2);
+        Complete(fixture.Workspace.Search.StartAsync("invoices"));
+        Assert.True(fixture.Workspace.Search.IsActive);
+        Assert.True(fixture.Timer.IsEnabled, "Watch must keep the shared timer active during Investigation search.");
+        int searchPeeks = fixture.Messages.CallsFor(new(EntityKind.Queue, "orders"));
+        TickRefresh(fixture.Window);
+        Wait(() => fixture.Messages.CallsFor(new(EntityKind.Queue, "orders")) > searchPeeks);
+        Assert.Equal("invoices", fixture.Workspace.Browse.SelectedEntity?.Name);
+        Assert.Same(focused, fixture.Workspace.Browse.FocusedMessage);
+
+        fixture.Messages.Set(new(EntityKind.Queue, "orders"), 1, 2, 3);
+        OpenWorkbench(fixture.Window);
+        Assert.True(fixture.Timer.IsEnabled, "Watch must keep the shared timer active in Message Workbench.");
+        int workbenchPeeks = fixture.Messages.CallsFor(new(EntityKind.Queue, "orders"));
+        TickRefresh(fixture.Window);
+        Wait(() => fixture.Messages.CallsFor(new(EntityKind.Queue, "orders")) > workbenchPeeks);
+        Assert.Equal("invoices", fixture.Workspace.Browse.SelectedEntity?.Name);
+        Assert.Same(focused, fixture.Workspace.Browse.FocusedMessage);
+
+        ((System.Windows.Controls.Primitives.ToggleButton)fixture.Window.FindName("InvestigationWorkspaceTab")).IsChecked = true;
+        Invoke((Button)fixture.Window.FindName("ClearSearchButton"));
+        Wait(() => !fixture.Workspace.Search.IsActive);
+        Complete(fixture.Workspace.Browse.SelectAsync(watched, deadLetter: false));
+        Assert.Equal(new long[] { 1, 2, 3 }, fixture.Workspace.Browse.Messages.Select(row => row.Key.SequenceNumber));
+        fixture.Workspace.Browse.FocusedMessage = fixture.Workspace.Browse.Messages.First();
+        var watchedFocus = fixture.Workspace.Browse.FocusedMessage;
+
+        OpenWorkbench(fixture.Window);
+        fixture.Messages.Set(new(EntityKind.Queue, "orders"), 1, 2, 3, 4);
+        int beforeWorkbenchReturn = fixture.Messages.CallsFor(new(EntityKind.Queue, "orders"));
+        TickRefresh(fixture.Window);
+        Wait(() => fixture.Messages.CallsFor(new(EntityKind.Queue, "orders")) > beforeWorkbenchReturn
+            && BackgroundRefresh(fixture.Workspace).IsCompleted);
+        Assert.Equal(new long[] { 1, 2, 3 }, fixture.Workspace.Browse.Messages.Select(row => row.Key.SequenceNumber));
+        Assert.Same(watchedFocus, fixture.Workspace.Browse.FocusedMessage);
+
+        ((System.Windows.Controls.Primitives.ToggleButton)fixture.Window.FindName("InvestigationWorkspaceTab")).IsChecked = true;
+        Assert.Equal(new long[] { 1, 2, 3, 4 }, fixture.Workspace.Browse.Messages.Select(row => row.Key.SequenceNumber));
+        Assert.Same(watchedFocus, fixture.Workspace.Browse.FocusedMessage);
+
+        fixture.Messages.Set(new(EntityKind.Queue, "orders"), 1, 2, 3, 4, 5);
+        Complete(fixture.Workspace.Search.StartAsync("orders"));
+        int beforeSearchClear = fixture.Messages.CallsFor(new(EntityKind.Queue, "orders"));
+        TickRefresh(fixture.Window);
+        Wait(() => fixture.Messages.CallsFor(new(EntityKind.Queue, "orders")) > beforeSearchClear
+            && BackgroundRefresh(fixture.Workspace).IsCompleted);
+        Assert.Equal(new long[] { 1, 2, 3, 4 }, fixture.Workspace.Browse.Messages.Select(row => row.Key.SequenceNumber));
+        Assert.Same(watchedFocus, fixture.Workspace.Browse.FocusedMessage);
+
+        Invoke((Button)fixture.Window.FindName("ClearSearchButton"));
+        Wait(() => !fixture.Workspace.Search.IsActive);
+        Assert.Equal(new long[] { 1, 2, 3, 4, 5 }, fixture.Workspace.Browse.Messages.Select(row => row.Key.SequenceNumber));
+        Assert.Same(watchedFocus, fixture.Workspace.Browse.FocusedMessage);
+    });
+
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
     public void SelectingSingleDestinationTemplateFiltersDisconnectedNamespaceSample() => OnSta(() =>
     {
         using var fixture = new Fixture();
@@ -195,20 +264,24 @@ public sealed class InvestigationAutoRefreshTests
 
     private sealed class Fixture : IDisposable
     {
-        public Browser Browser { get; } = new();
+        public Browser Browser { get; }
+        public Messages Messages { get; } = new();
         public InvestigationWorkspace Workspace { get; }
         public InvestigationWindow Window { get; }
         public DispatcherTimer Timer => (DispatcherTimer)typeof(InvestigationWindow)
             .GetField("refreshTimer", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(Window)!;
-        public Fixture()
+        public Fixture(bool includeSecondQueue = false)
         {
             SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+            Browser = new Browser(includeSecondQueue);
+            Messages.Set(new(EntityKind.Queue, "orders"), 1);
+            Messages.Set(new(EntityKind.Queue, "invoices"), 10);
             Workspace = new InvestigationWorkspace(new Store(),
-                new BrokerConnectionWorkflow(() => new Factory(), _ => Browser, _ => new Messages()));
+                new BrokerConnectionWorkflow(() => new Factory(), _ => Browser, _ => Messages));
             Window = new InvestigationWindow(Workspace);
             Window.Show();
             Complete(Workspace.ConnectAsync());
-            Complete(Workspace.Browse.SelectAsync(Workspace.Browse.AllEntities().Single(), false));
+            Complete(Workspace.Browse.SelectAsync(Workspace.Browse.AllEntities().Single(node => node.Name == "orders"), false));
             Assert.True(Workspace.IsConnected);
             Assert.True(Timer.IsEnabled);
         }
@@ -250,6 +323,14 @@ public sealed class InvestigationAutoRefreshTests
     private static void OpenWorkbench(InvestigationWindow window) =>
         ((System.Windows.Controls.Primitives.ToggleButton)window.FindName("MessageLibraryTab")).IsChecked = true;
 
+    private static void TickRefresh(InvestigationWindow window) =>
+        typeof(InvestigationWindow).GetMethod("RefreshTimerTick", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(window, [null, EventArgs.Empty]);
+
+    private static Task BackgroundRefresh(InvestigationWorkspace workspace) =>
+        (Task)typeof(MessageBrowseWorkflow).GetField("backgroundRefresh", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(workspace.Browse)!;
+
     private static IEnumerable<TreeViewItem> TreeItems(TreeView tree)
     {
         foreach (TreeViewItem root in tree.Items.OfType<TreeViewItem>())
@@ -282,20 +363,42 @@ public sealed class InvestigationAutoRefreshTests
 
     private sealed class Browser : IInvestigationEntityBrowser
     {
+        private readonly bool includeSecondQueue;
         public int Discoveries { get; private set; }
+        public Browser(bool includeSecondQueue) => this.includeSecondQueue = includeSecondQueue;
         public Task<EntityDiscoverySnapshot> DiscoverAsync(CancellationToken cancellationToken)
-        { Discoveries++; return Task.FromResult(Snapshot()); }
-        public static EntityDiscoverySnapshot Snapshot(long activeCount = 0) => new([new EntityObservation(
-            new ServiceBusEntityNode(EntityKind.Queue, "orders", null, new(0, 0, 0, 0),
-                new("orders", "Active", null, null, null, null, null, null, null)),
-            new(new(activeCount, CountAvailability.Known), new(0, CountAvailability.Known), new(0, CountAvailability.Known)))],
-            DateTimeOffset.UtcNow, true, []);
+        { Discoveries++; return Task.FromResult(Snapshot(includeSecondQueue: includeSecondQueue)); }
+        public static EntityDiscoverySnapshot Snapshot(long activeCount = 0, bool includeSecondQueue = false)
+        {
+            EntityObservation Observation(string name, long count) => new(
+                new ServiceBusEntityNode(EntityKind.Queue, name, null, new(0, 0, 0, 0),
+                    new(name, "Active", null, null, null, null, null, null, null)),
+                new(new(count, CountAvailability.Known), new(0, CountAvailability.Known), new(0, CountAvailability.Known)));
+            var entities = new List<EntityObservation> { Observation("orders", activeCount) };
+            if (includeSecondQueue) entities.Add(Observation("invoices", 0));
+            return new(entities, DateTimeOffset.UtcNow, true, []);
+        }
     }
 
     private sealed class Messages : IServiceBusMessageService
     {
+        private readonly ConcurrentDictionary<EntityAddress, IReadOnlyList<ExplorerMessage>> messages = new();
+        private readonly ConcurrentQueue<EntityAddress> requests = new();
+        public int CallsFor(EntityAddress address) => requests.Count(item => item == address);
+        public void Set(EntityAddress address, params long[] sequences)
+            => messages[address] = sequences.Select(Message).ToArray();
         public Task<IReadOnlyList<ExplorerMessage>> PeekMessagesAsync(EntityAddress address, MessageBucket bucket, int take,
-            long? fromSequenceNumber, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ExplorerMessage>>([]);
+            long? fromSequenceNumber, CancellationToken cancellationToken)
+        {
+            requests.Enqueue(address);
+            IReadOnlyList<ExplorerMessage> result = messages.TryGetValue(address, out var source)
+                ? source.Where(message => fromSequenceNumber is null || message.SequenceNumber >= fromSequenceNumber.Value).Take(take).ToArray()
+                : [];
+            return Task.FromResult(result);
+        }
+        private static ExplorerMessage Message(long sequence) => new($"message-{sequence}", sequence,
+            $"body-{sequence}", $"body-{sequence}", 7, null, null, 0, null, null, null, null,
+            new Dictionary<string, object?>(), new Dictionary<string, object?>());
         public Task SendMessageAsync(SendMessageCommand command, CancellationToken cancellationToken) => throw new InvalidOperationException();
     }
 

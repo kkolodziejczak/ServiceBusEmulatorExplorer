@@ -84,7 +84,7 @@ public sealed class MessageSearchWorkflow : ObservableObject
         preferences = value;
         foreach (MessageRow row in rows.Values)
         {
-            row.SetTimeDisplay(value.TimestampDisplay);
+            row.SetTimeDisplay(value.TimestampDisplay, value.DateFormat);
         }
     }
 
@@ -382,7 +382,7 @@ public sealed class MessageSearchWorkflow : ObservableObject
             }
             else
             {
-                row = new MessageRow(delivery, preferences.TimestampDisplay);
+                row = new MessageRow(delivery, preferences.TimestampDisplay, preferences.DateFormat);
                 rows.Add(delivery.Identity, row);
                 row.PropertyChanged += MessageRow_PropertyChanged;
             }
