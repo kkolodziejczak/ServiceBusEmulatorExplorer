@@ -60,6 +60,7 @@ public partial class InvestigationWindow
             watchPopupEntity = null;
         }
         var editor = CreateWatchEditor();
+        UpdateNamespaceIndicators(editor);
         if (globalWatchWindow is not null) globalWatchWindow.IsEnabled = !savingWatch;
         globalWatchWindow?.RefreshRules(workspace.Browse.Roots, editor);
         bool watching = !workspace.Search.IsActive && workspace.Browse.SelectedEntity is { } selected

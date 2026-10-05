@@ -99,6 +99,13 @@ public partial class MessageLibraryPrototypeDialog : Window
             Title = "Review messages";
             Height = 620;
         }
+        if (mode is PrototypeDialogMode.SampleCsv or PrototypeDialogMode.Mapping or
+            PrototypeDialogMode.Validation or PrototypeDialogMode.DraftGuard or PrototypeDialogMode.CancellationConfirmation)
+        {
+            MinHeight = 0;
+            SizeToContent = SizeToContent.Height;
+            MaxHeight = Math.Max(300, SystemParameters.WorkArea.Height - 32);
+        }
     }
 
     public string SampleFile { get; set; } = "orders.csv";

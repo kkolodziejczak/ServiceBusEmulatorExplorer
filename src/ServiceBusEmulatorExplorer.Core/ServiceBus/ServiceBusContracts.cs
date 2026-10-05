@@ -62,6 +62,7 @@ public sealed record ExplorerMessage(
 {
     /// <summary>Original broker bytes, independent of the decoded body used for text display.</summary>
     public BinaryData? RawBody { get; init; }
+    public Azure.Messaging.ServiceBus.ServiceBusMessageState? BrokerState { get; init; }
 }
 
 public sealed record ReplayRequest(

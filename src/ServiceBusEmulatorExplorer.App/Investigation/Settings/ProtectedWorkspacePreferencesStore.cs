@@ -14,7 +14,7 @@ namespace ServiceBusEmulatorExplorer.App.Investigation.Settings;
 /// Stores the investigation profile and workspace preferences in the user's local profile.
 /// Connection strings are protected with the current Windows user's DPAPI key.
 /// </summary>
-public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesStore
+public sealed partial class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesStore
 {
     private const int CurrentVersion = 1;
     private const int DefaultPageSize = 50;
@@ -273,7 +273,10 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
             AutoConnectOnSwitch = settings.AutoConnectOnSwitch,
             WasConnected = settings.WasConnected,
             LogExpanded = settings.LogExpanded,
+            MessageColumns = settings.MessageColumns is null ? null : MessageColumnCatalog.Normalize(settings.MessageColumns),
+            MessageColumnOrder = settings.MessageColumnOrder is null ? null : MessageColumnCatalog.NormalizeOrder(settings.MessageColumnOrder, settings.MessageColumns),
             TimestampDisplay = ValidTimestamp(settings.TimestampDisplay) ? settings.TimestampDisplay : TimestampDisplay.Utc,
+            DateFormat = Enum.IsDefined(settings.DateFormat) ? settings.DateFormat : DateDisplayFormat.Windows,
             QueuePageSize = ValidPageSize(settings.QueuePageSize) ? settings.QueuePageSize : DefaultPageSize,
             TopicPageSize = ValidPageSize(settings.TopicPageSize) ? settings.TopicPageSize : DefaultPageSize,
             SubscriptionPageSize = ValidPageSize(settings.SubscriptionPageSize) ? settings.SubscriptionPageSize : DefaultPageSize,
@@ -289,7 +292,8 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
             WindowWidth = ValidWindowSize(settings.WindowWidth, 980) ? settings.WindowWidth : DefaultWindowWidth,
             WindowHeight = ValidWindowSize(settings.WindowHeight, 640) ? settings.WindowHeight : DefaultWindowHeight,
             Watches = ReadWatches(settings.Watches, profileIds),
-            ReplayFamilies = ReadReplayFamilies(settings.ReplayFamilies, profileIds)
+            ReplayFamilies = ReadReplayFamilies(settings.ReplayFamilies, profileIds),
+            ReplayAttempts = ReadReplayAttempts(settings.ReplayAttempts, profileIds)
         };
     }
 
@@ -358,7 +362,11 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
                 ValidWindowSize(preferences.WindowWidth, 980) ? preferences.WindowWidth : DefaultWindowWidth,
                 ValidWindowSize(preferences.WindowHeight, 640) ? preferences.WindowHeight : DefaultWindowHeight,
                 WriteWatches(preferences.Watches, profileIds),
-                WriteReplayFamilies(preferences.ReplayFamilies, profileIds)));
+                WriteReplayFamilies(preferences.ReplayFamilies, profileIds),
+                Enum.IsDefined(preferences.DateFormat) ? preferences.DateFormat : DateDisplayFormat.Windows,
+                WriteReplayAttempts(preferences.ReplayAttempts, profileIds),
+                preferences.MessageColumns is null ? null : MessageColumnCatalog.Normalize(preferences.MessageColumns),
+                preferences.MessageColumnOrder is null ? null : MessageColumnCatalog.NormalizeOrder(preferences.MessageColumnOrder, preferences.MessageColumns)));
     }
 
     private static Dictionary<string, IReadOnlyList<ReplayFamilyState>> ReadReplayFamilies(string? protectedValue, HashSet<string> profileIds)
@@ -504,7 +512,11 @@ public sealed class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesSt
         double WindowWidth,
         double WindowHeight,
         Dictionary<string, List<StoredWatch>> Watches,
-        string? ReplayFamilies = null);
+        string? ReplayFamilies = null,
+        DateDisplayFormat DateFormat = DateDisplayFormat.Windows,
+        string? ReplayAttempts = null,
+        IReadOnlyList<string>? MessageColumns = null,
+        IReadOnlyList<string>? MessageColumnOrder = null);
 
     private sealed record StoredWatch(string ScopeKey, bool? Active, bool? DeadLetter, bool? Included = null);
 

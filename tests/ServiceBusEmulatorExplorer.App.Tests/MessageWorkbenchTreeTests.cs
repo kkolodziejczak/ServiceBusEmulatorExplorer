@@ -2,6 +2,7 @@ using System.Runtime.ExceptionServices;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -120,6 +121,149 @@ public sealed class MessageWorkbenchTreeTests
             view.FilterByNamespaceQuery("inventory-events");
 
             Assert.True(HasTreeItem(view, "folder:Orders/Empty folder"));
+        });
+
+    [Fact]
+    public void Template_suggestions_group_matches_and_include_folder_context_then_open_selected_template()
+        => Run((window, view) =>
+        {
+            TextBox search = Get<TextBox>(view, "TemplateSearch");
+            search.Focus();
+            search.Text = "Order";
+            Drain(window);
+
+            Popup popup = Get<Popup>(view, "LibrarySuggestionsPopup");
+            ListBox suggestions = Get<ListBox>(view, "LibrarySuggestionsList");
+            Assert.True(popup.IsOpen);
+            Assert.False(popup.StaysOpen, "An outside interaction should dismiss the suggestion popup.");
+            var collectionView = Assert.IsAssignableFrom<System.ComponentModel.ICollectionView>(suggestions.ItemsSource);
+            Assert.Equal(2, collectionView.Groups.Count);
+
+            object orderCreated = suggestions.Items.Cast<object>().Single(row => Read(row, "Title") == "Order created");
+            Assert.Equal("TEMPLATES", Read(orderCreated, "Group"));
+            Assert.Equal("Orders", Read(orderCreated, "Detail"));
+            object ordersFolder = suggestions.Items.Cast<object>().Single(row => Read(row, "IsFolder") == "True");
+            Assert.Equal("FOLDERS", Read(ordersFolder, "Group"));
+            Assert.Equal("Orders", Read(ordersFolder, "Path"));
+
+            PressPreview(search, Key.Up);
+            Assert.Equal(suggestions.Items.Count - 1, suggestions.SelectedIndex);
+            PressPreview(suggestions, Key.Escape);
+            Drain(window);
+            Assert.False(popup.IsOpen);
+            Assert.True(search.IsKeyboardFocusWithin);
+
+            search.Text = "Order updated";
+            Drain(window);
+            PressPreview(search, Key.Down);
+            Assert.Equal(0, suggestions.SelectedIndex);
+            PressPreview(search, Key.Enter);
+            Assert.Equal("Order updated", Get<TextBlock>(view, "AuthorTitle").Text);
+            Assert.Equal("template:Order updated", ((TreeViewItem)Get<TreeView>(view, "LibraryTree").SelectedItem!).Tag);
+        });
+
+    [Fact]
+    public void Folder_suggestion_reveals_and_selects_folder_without_replacing_draft_and_combined_filter_hides_unrelated_rows()
+        => Run((window, view) =>
+        {
+            const string draft = "{\"customerId\":\"unsaved folder suggestion draft\"}";
+            Get<JsonEditor>(view, "EditorText").Text = draft;
+
+            TextBox search = Get<TextBox>(view, "TemplateSearch");
+            search.Focus();
+            search.Text = "Orders";
+            Drain(window);
+            ListBox suggestions = Get<ListBox>(view, "LibrarySuggestionsList");
+            int folderIndex = suggestions.Items.Cast<object>().ToList().FindIndex(row => Read(row, "IsFolder") == "True");
+            Assert.True(folderIndex >= 0);
+            suggestions.UpdateLayout();
+            suggestions.SelectedIndex = folderIndex;
+            ListBoxItem folderRow = Assert.IsAssignableFrom<ListBoxItem>(suggestions.ItemContainerGenerator.ContainerFromIndex(folderIndex));
+            folderRow.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
+            { RoutedEvent = Mouse.PreviewMouseUpEvent });
+            Drain(window);
+
+            Assert.Equal("folder:Orders", ((TreeViewItem)Get<TreeView>(view, "LibraryTree").SelectedItem!).Tag);
+            Assert.True(GetTreeItem(view, "folder:Orders").IsExpanded);
+            Assert.Equal(draft, Get<JsonEditor>(view, "EditorText").Text);
+
+            view.FilterByNamespaceQuery("inventory-events");
+            Drain(window);
+            Assert.False(Get<Popup>(view, "LibrarySuggestionsPopup").IsOpen,
+                "Changing namespace scope should close stale suggestions.");
+            search.Text = "Stock reserved";
+            Drain(window);
+            Assert.True(Get<Popup>(view, "LibrarySuggestionsPopup").IsOpen);
+            Assert.All(suggestions.Items.Cast<object>(), row => Assert.Equal("Stock reserved", Read(row, "Title")));
+            search.Text = "Orders";
+            Drain(window);
+            Assert.False(Get<Popup>(view, "LibrarySuggestionsPopup").IsOpen,
+                "A template/folder outside the active namespace filter should not remain as a stale suggestion.");
+            Assert.Empty(suggestions.Items);
+
+            search.Clear();
+            Drain(window);
+            Assert.False(Get<Popup>(view, "LibrarySuggestionsPopup").IsOpen);
+            Assert.Equal(draft, Get<JsonEditor>(view, "EditorText").Text);
+        });
+
+    [Fact]
+    public void Canceling_a_dirty_template_switch_from_suggestions_keeps_the_current_template_and_draft()
+        => Run((window, view) =>
+        {
+            const string draft = "{\"customerId\":\"keep suggestion draft\"}";
+            Get<JsonEditor>(view, "EditorText").Text = draft;
+            TextBox search = Get<TextBox>(view, "TemplateSearch");
+            search.Focus();
+            search.Text = "Order updated";
+            Drain(window);
+
+            window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
+            {
+                Window guard = window.OwnedWindows.OfType<Window>().Single(child => child.Title == "Save changes?");
+                Descendants(guard).OfType<Button>().Single(button => button.IsVisible && Equals(button.Content, "Cancel"))
+                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            }));
+            PressPreview(search, Key.Down);
+            PressPreview(search, Key.Enter);
+            Drain(window);
+
+            Assert.Equal("template:Order created", ((TreeViewItem)Get<TreeView>(view, "LibraryTree").SelectedItem!).Tag);
+            Assert.Equal("Order created", Get<TextBlock>(view, "AuthorTitle").Text);
+            Assert.Equal(draft, Get<JsonEditor>(view, "EditorText").Text);
+        });
+
+    [Fact]
+    public void Long_template_suggestion_trims_visually_and_keeps_full_title_and_folder_in_accessible_name()
+        => Run((window, view) =>
+        {
+            string longName = "Long order template " + new string('x', 72);
+            Get<Button>(view, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            FindAutomationId<Button>(view, "LibraryRename").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            TextBox rename = VisibleRenameInput(view);
+            rename.Text = longName;
+            Press(rename, Key.Enter);
+            Drain(window);
+
+            TextBox search = Get<TextBox>(view, "TemplateSearch");
+            search.Focus();
+            search.Text = "Long order template";
+            Drain(window);
+            ListBox suggestions = Get<ListBox>(view, "LibrarySuggestionsList");
+            object row = Assert.Single(suggestions.Items.Cast<object>());
+            Assert.Equal(longName, Read(row, "Title"));
+            Assert.Equal("Orders", Read(row, "Detail"));
+            Assert.Equal($"Template, {longName}, folder Orders", Read(row, "AccessibleName"));
+
+            suggestions.UpdateLayout();
+            var container = Assert.IsAssignableFrom<ListBoxItem>(suggestions.ItemContainerGenerator.ContainerFromItem(row));
+            container.UpdateLayout();
+            Border accessibleRow = Descendants(container).OfType<Border>()
+                .Single(element => AutomationProperties.GetName(element) == Read(row, "AccessibleName"));
+            Assert.Equal($"Template, {longName}, folder Orders", AutomationProperties.GetName(accessibleRow));
+            TextBlock title = Descendants(container).OfType<TextBlock>().Single(text => text.Text == longName);
+            Assert.Equal(TextTrimming.CharacterEllipsis, title.TextTrimming);
+            Assert.Equal(longName, title.ToolTip);
         });
 
     [Fact]
@@ -307,6 +451,15 @@ public sealed class MessageWorkbenchTreeTests
         { RoutedEvent = Keyboard.KeyDownEvent };
         target.RaiseEvent(args);
     }
+
+    private static void PressPreview(UIElement target, Key key)
+    {
+        var args = new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(target)!, 0, key)
+        { RoutedEvent = Keyboard.PreviewKeyDownEvent };
+        target.RaiseEvent(args);
+    }
+
+    private static string? Read(object row, string property) => row.GetType().GetProperty(property)?.GetValue(row)?.ToString();
 
     private static TextBox VisibleRenameInput(FrameworkElement root) =>
         Descendants(root).OfType<TextBox>().Single(input =>

@@ -1,111 +1,38 @@
-# Investigation UI language and final audit
+# UI reference index
 
-Authoritative tokens and the approved component registry now live in [DESIGN.md](../DESIGN.md); product decisions in [DECISIONS.md](../DECISIONS.md). This file keeps the audit history, the production integration notes and every **Proposed** component until the user approves it, at which point the component moves to `DESIGN.md`.
+[DESIGN.md](../DESIGN.md) owns current visual rules and registered components;
+[DECISIONS.md](../DECISIONS.md) owns accepted behavior and its rationale;
+[CAPABILITIES.md](../CAPABILITIES.md) points to reusable implementations.
+Read those documents before changing the UI. Generated boards govern approved composition;
+existing application tokens govern exact colors, icons and typography. In particular, preserve
+the existing pale-orange/dark-orange DLQ palette.
 
-Status: prototype approved as complete by the user on 2026-09-12, baseline `8575a2c`. The production application now uses the investigation workspace; final verification is tracked in the latest [handoff checkpoints](investigation-workspace-handoff.md). Preserve the approved UI and the explicit production decisions below. Broader physical keyboard, spoken screen-reader and Windows scaling proof remain separate from rendered-window evidence.
+## Current approved references
 
-Authority: the latest decisions in the “Audit and simplify Service Bus UI” conversation, then the current [prototype preview](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/preview.png). Earlier generated images are historical references. Preserve the approved compact connection toolbar, three panes, full-width console, and bottom time selector.
-
-Production integration decisions approved on 2026-09-12 supersede the corresponding prototype details: use UTC/Local only; add Scheduled alongside Active-message and DLQ counts, showing an em dash when unsupported; expose separate Queue, Topic and Subscription page defaults in Settings. The user also approved compact Active badges with `#EFF6FF` fill, a one-DIP `#6C9BD2` border and `#174A7E` text so selection does not erase their outline. Apply this treatment consistently in message rows and the inspector; preserve the distinct amber DLQ treatment.
-
-## Audit findings and current implementation
-
-The findings below describe the original audit baseline. The prototype has a [shared style dictionary](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/SharedStyles.xaml), shared action templates and normalized Settings profile/tab selection. The production app uses keyboard-only button focus cues so pointer clicks do not leave a frame. Verify the complete affected surfaces before closing findings; code changes alone do not constitute a visual pass.
-
-| Priority | Finding and evidence | Required correction |
-| --- | --- | --- |
-| P1 | White 14 DIPs labels on primary blue `#0078F8` have about 4.16:1 contrast; Settings `#087CF0` about 4.08:1. Hover opacity further reduces contrast. | Use one primary palette; proposed existing `#0069FA` provides about 4.77:1 with white. Verify hover/pressed too; do not fade the whole button. |
-| P2 | [Notification](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/WatchNotificationWindow.cs) uses native action-button templates and different default typography. | Share main-window typography, action styles and states; keep compact notification layout and rounded outer panel. |
-| P2 | [Settings](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/PrototypeSettingsWindow.xaml) has blue profile cards but gray native Connections selection; main tabs and Settings tabs have different selected fills. | Use one selection palette and explicit templates for tabs/lists across windows. |
-| P2 | Focus borders differ between controls; a color-only border trigger on a borderless icon button may be invisible. | Give keyboard navigation a visible, unclipped focus cue without leaving a frame after pointer clicks; verify keyboard navigation separately from logical focus. |
-| P3 | Settings, Pause, Find related, Replay and Discard still use font glyphs. Watch/Refresh/Copy now use paths. | Replace remaining action glyphs with named vector assets in the same family, preserving recognizable meanings. |
-| P3 | Inspector title is 24 in XAML but 25 in code; Settings 22; notification summary 15 (its application title is 12). | Apply the role-based sizes below instead of one-off overrides. |
-| Tradeoff | At minimum size with the log expanded, only one full message row may be visible. | Keep the existing responsive layout for first promotion; explicitly test this tradeoff. Do not silently claim ample space at minimum size. |
-
-Primary source: [main XAML](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/PrototypeWindow.xaml), [layout code](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/PrototypeWindow.xaml.cs), Settings and notification sources above. Rendered desktop, compact, Settings, Watch, notification and refresh-selector states were inspected from the latest `artifacts/toolbar-icons-proof` output. That output is local/ignored; the committed preview is the durable desktop reference.
-
-## Shared tokens
-
-Sizes below are WPF device-independent units (DIPs), not physical pixels. Use named WPF resources in the real app, shared by the shell, Settings, dialogs and notifications. Values below are the approved defaults; deviations must represent a named density or semantic variant.
-
-| Role | Value / rule |
+| Feature | Final reference and scope |
 | --- | --- |
-| Font family | Segoe UI; Consolas for JSON and console |
-| Type scale | 14 DIPs controls/body; 12 DIPs metadata; 11 DIPs badges/timestamps only; 16 DIPs section title; 24 DIPs inspector title; 18 DIPs compact title; native Settings window title only; 16 DIPs notification summary |
-| Code/console | JSON 14 DIPs; console 12 DIPs; always wrap body text; preserve raw content |
-| Primary text / secondary / action text | `#17213D` / `#627692` / `#234266` |
-| Canvas / raised / toolbar | `#FAFCFF` / `#FFFFFF` / `#F5F9FE` |
-| Dark editor/log | `#1C2937`, light text; retain semantic syntax colors |
-| Primary / hover / pressed | Blue baseline `#0069FA` / `#005BD8` / `#004FBD`; active profile supplies accessible variants with white labels; verify every palette/state |
-| Neutral hover / selected | `#EAF4FF` / `#DBEDFF` |
-| Control border / divider | `#CBD8E8` / `#DFE6EE` |
-| DLQ / modified | Orange and amber backgrounds with dark text; always accompany color with a label |
-| Entity colors | Blue for queues/topics; purple for subscriptions; preserve distinct geometry |
-| Profile identity | User-selected blue, purple, teal, orange or red theme across buttons, selection and surface tints, dropdown swatch; profile name remains visible. Apply the active profile consistently to Settings and related windows; editing an inactive profile does not preview its theme. Semantic health, DLQ and red Delete colors remain fixed. |
-| Connection health | Labeled green Connected, red Disconnected or amber Warning indicator, separate from profile accent; warning tooltip describes the reason |
-| Spacing | Prefer 4, 8, 12, 16, 24; use existing 7 DIPs icon-label gap consistently |
-| Corners | 3 DIPs controls; 4 DIPs menu/hover surfaces; 9 DIPs notification outer panel |
-| Icons | 16 DIPs optical box, 1.5 DIPs strokes; chosen rounded Copy retains 1.4 DIPs stroke and 16×18 aspect. Chevrons 8×5. No Unicode substitute glyphs for actions. |
-| Buttons | Standard minimum 32 DIPs height; compact footer selector 24 DIPs; icon-only target at least 28×28 where space permits; content centered vertically |
-| Density | Toolbar 40 DIPs; message rows 54 DIPs desktop / 50 DIPs compact; preserve splitter resizing |
-| Viewports | Desktop 1500×1000; compact 1100×800; minimum window 980×640. Check 100%, 125%, 150%, 200% Windows scaling and multi-monitor movement. |
+| Investigation panes | [Side-by-side layout](investigation-side-by-side-approved.png) |
+| Workbench search and inspector tabs | [Contract](message-library/search-and-inspector-tabs.md) |
+| Scheduling | [Contract](message-library/scheduling-controls.md) |
+| Date formats | [Contract](date-display.md) |
+| Namespace filtering and initial workspace | [Board 21](message-library/design/proposed/21-namespace-and-default-workspace.png) |
+| Validation, results and activity log | [Board 22](message-library/design/proposed/22-validation-results-and-activity-log.png) |
+| Mapping dialog sizing | [Board 23](message-library/design/proposed/23-content-sized-mapping-dialog.png) |
+| Watch and refresh indicators | [Board 25](message-library/design/proposed/25-watch-and-auto-refresh-indicators.png); DEC-028 controls background scope |
+| Replay review form | [Board 29](message-library/design/proposed/29-replay-results-and-history.png), review form only; current history is Replay 47 |
+| Modified Body tab | [Inspect 33 v2](message-library/design/proposed/INSPECT-033-r2-body-tab.png); Copy remains fixed in the document viewport per DEC-037 |
+| Replay and delivery badges | [Replay 35](message-library/design/proposed/Replay-35-v1-result-badges.png) |
+| JSON folding | [Inspect 36](message-library/design/proposed/Inspect-36-v1-json-folding.png) |
+| Delivery location hierarchy | [Location 37 v2](message-library/design/proposed/Location-37-v2-delivery-hierarchy.png) |
+| Column selector | [Columns 38](message-library/design/proposed/columns-38-v1.png), option 3 |
+| Editor status | [Inspect 40](message-library/design/proposed/inspect-40-v1-subtle-editability.png); overlay placement follows DESIGN.md |
+| State column and saved ordering | [Columns 41](message-library/design/proposed/columns-41-v1-state-and-order.png) |
+| Scope header and sidebar selection | [Location 44](message-library/design/proposed/location-44-v1-scope-header.png) |
+| Compact columns and empty remainder | [Replay 45](message-library/design/proposed/replay-45-v1-history-cleanup-and-columns.png), callouts 4 and 5 only; its history proposal is not authoritative |
+| Replay history | [Replay 47](message-library/design/proposed/replay-47-v1-opus-inline-details.png) and [current contract](replay-history.md) |
 
-Do not confuse glyph dimensions with hit targets. Keep Copy beside the correlation text. Preserve the crossed-out/filled Watch distinction and the selected rounded-copy shape. The app name/icon belongs in the native title bar, not a duplicate banner.
-
-## Component registry
-
-Shared control resources are loaded by [App.xaml](../src/ServiceBusEmulatorExplorer.App/App.xaml). The touched selector surfaces use the implicit [dropdown style](../src/ServiceBusEmulatorExplorer.App/Investigation/Resources/DropdownStyles.xaml), with named compact and table-editing variants; Settings and Workbench dialogs no longer provide independent selector templates. Shared buttons, tables, dialog headings, labels and captions remain in [SharedStyles.xaml](../src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SharedStyles.xaml). This is an incremental migration, not an assertion that every legacy surface has been audited.
-
-Read this registry before proposing or changing UI. Record every distinct new component or interaction concept here with its purpose, states, usage, canonical source, and approval status. A mockup or prototype is **Proposed** until the user approves the rendered behavior; update the entry and validate its links when that changes.
-
-| Component / status | Purpose, states, and usage | Canonical source |
-| --- | --- | --- |
-| Responsive Workbench hybrid - Approved (2026-10-02) | Wide: JSON beside two property groups. Medium: Body/Properties/Variables tabs with two property columns. Small: tabs with one stacked property column. Choose from usable editor width, preserve controls, drafts, selection and editing context across resize. New windows default to 1200x800; saved dimensions and 980x640 minimum remain. Generated omissions are not removals. | [Visual](message-library/design/approved/18-responsive-workbench.png), [contract](message-library/responsive-layout.md) |
-| Workbench layout alternatives - Exploration, not approved (2026-10-02) | Compare a centered bounded form, responsive property groups, simultaneous body editor/property inspector, and collapsible namespace navigation (shown combined with inspector). These are alternative spatial arrangements, not approval of generated control differences: preserve the Reply and routing expander, inline insertion row, and existing Copy action. Any selected alternative needs a final visual contract and compact/expanded states before implementation. | [Bounded](message-library/design/proposed/layout-comparison/01-bounded-form.png), [columns](message-library/design/proposed/layout-comparison/02-responsive-columns.png), [inspector](message-library/design/proposed/layout-comparison/03-editor-inspector.png), [collapse](message-library/design/proposed/layout-comparison/04-collapsible-navigation.png) |
-| Shared namespace filter and compact property form - Proposed (2026-10-02) | Active-filter treatment in namespace search plus removable scope chip in Workbench library; either clear action restores both trees without changing the open draft or destination. Compact left-aligned fields/table. Namespace width shared across workspaces, initially based on average rendered discovered entity-name widths plus tree/count chrome, bounded by available space; preserve manual resize until next connection. Filtered/unfiltered, empty, long-name, compact and manually resized states. Final visual approval pending; the chip would supersede the earlier no-extra-clear-row contract. | [Proposal](message-library/design/proposed/18-filter-scope-and-compact-properties.png) |
-| Validation remedy action - Approved refinement (2026-10-02) | Severity-colored validation frame with a right-aligned matching action; wraps at narrow widths. Navigate to, reveal, and focus the exact corrective field without losing input. Warning/error, focus, unresolved and corrected states; app-wide validation, first use Workbench destination warnings. Preserve library selection while editing; clear only on blank library space. Schedule uses separate centered Date/Time fields and wrapping time-zone/resolved-time rows. | [Approved refinement](message-library/design/approved/17-validation-actions-and-schedule.png) and [app validation rule](../AGENTS.md#actionable-validation) |
-| Connection toolbar — Approved | Profile selection, health, Watch all and Settings; connected/disconnected/warning, focus and disabled states; shared window chrome | [Production window](../src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWindow.xaml) |
-| Namespace tree and search — Approved | One shared tree in Investigation and Message Workbench; browse/search entities and show aligned Messages/Scheduled/DLQ counts, including connected automatic refresh. The disconnected Workbench labels sample entities and leaves live counts unavailable. Selected, filtered, empty and loading states; persistent left pane. | [Production window](../src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWindow.xaml) |
-| Message inspector and JSON surface — Approved | Body/Properties/Raw inspection; dark Consolas surface, syntax colors, read-only/edited/invalid states; Investigation workspace | [Production window](../src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWindow.xaml) and [syntax colorizer](../src/ServiceBusEmulatorExplorer.App/Investigation/Inspection/JsonSyntaxColorizer.cs) |
-| Activity log and time footer — Approved | Expanded/collapsed log, UTC/Local and status; full-window footer | [Production window](../src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWindow.xaml) |
-| Buttons, tabs, focus, palette and scrollbars — Approved | Normal/hover/pressed/focused/selected/disabled, profile accent and dark editor palette; all WPF surfaces. Buttons and button-like toggles show a bottom focus cue for keyboard navigation but no lingering frame after pointer clicks. | [Shared styles](../src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SharedStyles.xaml) |
-| Tables and property actions ? Approved refinement (2026-10-02) | Left-aligned headers, values and editors; compact capped leading columns, final data column fills remaining space; full values retained with tooltips/uncapped editors. Preserve row density, white rows, tinted hover/selection, keyboard focus and semantic badges. Workbench Properties uses a permanent insertion row and row-local trash actions on hover/selection/focus. Variable details stay visible with generated-only controls disabled. | [Approved refinement](message-library/design/approved/12-compact-tables-and-explicit-rename.png) and [shared styles](../src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SharedStyles.xaml) |
-| Capture summary and inspector search - Approved refinement (2026-10-02) | Capture summary plus optional six-row property disclosure; no verbose exclusions or duplicate footer note. Inspector Ctrl+F selected-text search, match navigation/count, no-match, X/Escape and Copy below; equal 32-DIP capture/replay actions. | [Capture](message-library/design/approved/15-capture-summary-expanded.png), [inspector](message-library/design/approved/16-inspector-search.png) and [contract](message-library/design/README.md) |
-| Workbench destination selector and Prepare warning - Approved refinement (2026-10-02) | Queue/topic icon, destination name and right-aligned type label in selected and expanded states. A wrapping amber warning above Prepare actions explains missing/unverified/unset destinations and clears when available. No repeated Prepare subtitle or target/profile footer labels. | [Approved mockup](message-library/design/approved/14-destinations-and-prepare-warning.png) and [contract](message-library/design/README.md) |
-| Workbench library organization and capture - Approved refinement (2026-10-02) | Save as chooses a name and existing library folder, including Root. Templates and folder subtrees move through drag/drop or the keyboard-accessible Move to context action; invalid cycles and folder conflicts are rejected. Saved items stay revealed across filters until navigation. Read-only review targets use plain text and summaries omit per-message IDs. A saved destination is Available, Missing after complete discovery, or Unverified after failed/partial discovery or disconnection; warnings preserve the saved target and prevent sending. Create template uses a compact name/folder dialog with optional message details and leaves the source active/DLQ message untouched. | [Approved refinement](message-library/design/approved/13-library-organization-and-capture.png) and [visual contract](message-library/design/README.md) |
-| Message Workbench workspace — Approved mockup plan, not implemented | One-row Workspaces switcher on the left; connection state then profile selector, Watch all and Settings on the right; namespace Search carries topic filtering; four panes and Scheduled counts remain | [Approved workspace mockup](message-library/design/approved/01-message-workbench.png) and [visual contract](message-library/design/README.md) |
-| Message Workbench in-memory prototype — Approved dummy-data prototype | Persistent Namespaces and templates panes, with template search styled like Namespaces search. The body has one JSON editor. Add folder reveals and selects even an empty filtered folder; + New template directly creates an empty `{}` draft with blank properties. Observed-message capture stays in Investigation. Compose → Prepare → Review & send wizard in the main pane; Back retains authoring and preparation state. Editing automatically refreshes CSV or single-message validation and preview; review cards fill the wide stage and stage actions reuse shared button styles. Review lists show short content fully and scroll within bounded areas for large batches or long details, while confirmation stays visible. Simulated send/schedule, results and cancellation use synthetic data only, with no template persistence or broker transport. Active, disabled, invalid, progress and results states are visible in their stages. | [Prototype view](../src/ServiceBusEmulatorExplorer.App/Investigation/MessageLibraryPrototypeView.xaml), [review surface](../src/ServiceBusEmulatorExplorer.App/Investigation/MessageLibraryPrototypeReviewSurface.xaml), and [approved wizard images](message-library/design/approved/08-wizard-compose.png) |
-| Library tree, inline rename and destination — Approved (2026-10-02) | Nested folders/templates; selection and open draft are independent. New template/New folder/Collapse all icon toolbar, click-away deselection, title pencil and F2/context Rename. Empty, selected, expanded, focused, editing, invalid and canceled states; one inline destination per template. No library footer or Refresh. | [Approved refinement](message-library/design/README.md#approved-library-tree-refinement-2026-10-02), [mockup](message-library/design/approved/11-library-tree-and-rename.png) and [prototype view](../src/ServiceBusEmulatorExplorer.App/Investigation/MessageLibraryPrototypeView.xaml) |
-
-The [five-board Message Workbench contract](message-library/design/README.md) remains the approved feature baseline. The in-app prototype is deliberately synthetic and does not authorize repository-backed templates, compilation, CSV transport, or broker send/schedule/cancel behavior.
-
-The 2026-10-02 compact-table refinement supersedes the earlier centered table examples. It applies to active Investigation and Workbench tables; utility checkboxes and action icons remain centered. Text values are never shortened in the data model. Existing flat colors, fonts, row heights and focus rules remain authoritative over generated mockup artifacts.
-
-## State contract and visual gate
-
-- Buttons, tabs, checkboxes, selectors and menu items: normal, hover, keyboard focus, pressed, selected/checked and disabled must be explicit and consistent. Avoid opacity-only hover treatment.
-- Disable an action while it cannot safely run, including duplicate submission during an operation; show progress and keep unrelated actions usable. Long operations need cancellation where safe.
-- Empty, loading, stopped, unavailable counts, partial failure, long IDs and malformed/non-JSON bodies must remain distinguishable.
-- Test contrast of normal text at 4.5:1 and meaningful control/focus boundaries at 3:1; include selected rows and dark surfaces.
-- Preserve the accessible names and routed behavior already covered by proofs. Verify physical keyboard traversal, Escape, Space, Enter, screen-reader labels and focus restoration; these are not proven by logical-focus assertions alone.
-- Capture the complete affected surface after each style migration. Include expanded/collapsed log, Watch on/off, notification hover, profile selection, invalid/empty search, dirty editor and compact sizing.
-- Verify global and topic Watch scope, Active/DLQ independence, future-entity inheritance and child overrides. The searchable inclusion tree uses checked/unchecked/mixed states; a branch choice applies to its descendants and a later specific child choice overrides inherited inclusion. A scope summary must not imply a topic itself is a receiving endpoint.
-- Delete remains a visible action with exact typed `DELETE` confirmation. The approved production safety decision restricts it to captured DLQ deliveries; mixed Active selections disable it. Checked messages form the batch; otherwise the focused message is targeted. Canceling confirmation changes nothing; cancellation after settlement preserves and reports confirmed per-delivery outcomes. Unseen messages are never implied by select-all.
-
-- General settings omit the duplicate connection picker. Automatically connect when switching profiles is an opt-in saved switch; it does not bypass warnings or connect on profile edits.
-- Add connection opens a uniquely named empty editor without changing the active connection; Save persists its color and optional warning. Saved warnings gate switching, Connect and restored startup attempts. Cancel preserves the previous connection or leaves the pending attempt disconnected.
-- Watch search uses an inline magnifier and concise placeholder; keep its accessible name without a verbose duplicate instruction.
-
-Current gate: **visual consistency and routed flows PASS** at the three supported window sizes, with 347 walkthrough checks and 11 real tray checks. Typed confirmation, inclusion-tree Watch, profile colors/health and protected preference save/reopen are covered by the [walkthrough](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/verification.md). Full-profile themes, saved warning flows, Add connection and simplified Watch search pass the current rerun, including saving while a warning is pending and restored DLQ browsing. **Broader physical keyboard, screen-reader and Windows DPI/multi-monitor evidence remains BLOCKED (not collected).** Synthetic interactions do not establish broker correctness or a complete accessibility audit.
-
-## Final chrome polish (2026-09-12)
-
-The toolbar uses only a 1-DIP neutral gray (#DFE6EE) divider below, meeting the pane splitters. The bottom divider stays neutral across profiles. Settings uses a conventional toothed cog and the native window title without a duplicate content heading. Each masked connection field has the shared rounded Copy icon, an accessible name and a tooltip; copying uses the current field value without logging it. Empty fields disable Copy.
-
-All shared scrollbars use an 18-DIP hit lane, a rounded 8-DIP visible thumb and profile-themed hover/drag feedback. Preserve wheel, keyboard, page and thumb behavior in both orientations. Dark editor/log backgrounds remain dark beneath the transparent track.
-
-Chrome-polish verification: zero-warning build and 347 routed checks pass. Actual desktop/compact/minimum screenshots, masked-field copying, Watch scrolling, and page/drag commands in both orientations were checked. Current rendered evidence is reflected in the linked previews and walkthrough; prior physical-input/DPI limitations remain. One initial run encountered external clipboard contention while restoring clipboard contents; the complete final rerun passed.
-
-## Application identity (2026-09-21)
-
-Approved: cobalt bus spine, three cyan terminals, and a satin silver investigation lens. Use the shared [PNG](../src/ServiceBusEmulatorExplorer.App/Assets/AppIcon.png) and [multi-size ICO](../src/ServiceBusEmulatorExplorer.App/Assets/AppIcon.ico) for native windows, the taskbar, system tray and executable. The [README image](../docs/images/service-bus-emulator-explorer-icon.png) matches the PNG. The ICO contains transparent 16, 20, 24, 32, 40, 48, 64, 96, 128 and 256 pixel frames. This identity is static and independent of connection state or profile theme.
+Existing filenames remain stable for retained references. Superseded draft boards, rejected
+alternatives and completed execution ledgers are not part of the current specification.
+Keep future proposals here only while they are being considered; once implemented, retain
+the useful final reference and move binding rules into DESIGN.md and DECISIONS.md.
+Unfinished feature plans elsewhere in specs remain in force.

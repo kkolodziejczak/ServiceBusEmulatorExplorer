@@ -3,7 +3,10 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Automation;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 using System.Windows.Media;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -158,11 +161,11 @@ internal static class DestinationScreenshotScenario
                     var reviewSurface = Get<ContentControl>(view, "ReviewHost").Content as MessageLibraryPrototypeReviewSurface
                         ?? throw new InvalidOperationException("The embedded Review surface was not found.");
                     var schedule = ReviewElement<RadioButton>(reviewSurface, "ReviewSchedule");
-                    schedule.IsChecked = true;
+                    Select(schedule);
                     await Idle(window);
                     var scheduleInputs = ReviewElement<FrameworkElement>(reviewSurface, "ScheduleInputs");
                     Require(scheduleInputs.Visibility == Visibility.Visible, "The embedded schedule inputs must appear when Schedule is selected.");
-                    foreach (string inputName in new[] { "ScheduleDateInput", "ScheduleTimeInput", "ScheduleUtc", "ScheduleLocal", "ResolvedSchedule" })
+                    foreach (string inputName in new[] { "ScheduleDateInput", "ScheduleHourInput", "ScheduleMinuteInput", "ScheduleUtc", "ScheduleLocal", "ResolvedSchedule" })
                     {
                         var input = ReviewElement<FrameworkElement>(reviewSurface, inputName);
                         input.BringIntoView();
@@ -170,6 +173,38 @@ internal static class DestinationScreenshotScenario
                         RequireInside(input, window, $"Embedded Review schedule {inputName} at {width}px");
                     }
                     Capture(window, outputDirectory, $"destination-{width}-review-schedule");
+                    var date = ReviewElement<DatePicker>(reviewSurface, "ScheduleDateInput");
+                    date.ApplyTemplate();
+                    Invoke((ButtonBase)date.Template.FindName("PART_Button", date)!);
+                    await Idle(window);
+                    var datePopup = (Popup)date.Template.FindName("PART_Popup", date)!;
+                    Require(date.IsDropDownOpen && datePopup.IsOpen, "The date calendar must open through its routed toggle action.");
+                    CaptureWithPopup(window, datePopup, outputDirectory, $"destination-{width}-review-calendar-open");
+
+                    var calendar = datePopup.Child as Calendar
+                        ?? Descendants(datePopup.Child!).OfType<Calendar>().Single();
+                    var nextMonth = Descendants(calendar).OfType<ButtonBase>().Single(button =>
+                        button.Name == "PART_NextButton");
+                    Invoke(nextMonth);
+                    await Idle(window);
+                    CaptureWithPopup(window, datePopup, outputDirectory, $"destination-{width}-review-calendar-next-month");
+
+                    DateTime selectedDate = date.SelectedDate!.Value;
+                    DateTime targetDate = new DateTime(selectedDate.Year, selectedDate.Month, 1).AddMonths(1).AddDays(2);
+                    var day = Descendants(calendar).OfType<CalendarDayButton>().Single(button =>
+                        button.DataContext is DateTime displayedDay && displayedDay.Date == targetDate.Date);
+                    string dayName = AutomationProperties.GetName(day);
+                    if (string.IsNullOrWhiteSpace(dayName))
+                        dayName = UIElementAutomationPeer.CreatePeerForElement(day)?.GetName() ?? "";
+                    Require(!string.IsNullOrWhiteSpace(dayName), "Calendar day buttons must expose an accessible date label.");
+                    RaiseRoutedCalendarMouseClick(day);
+                    await Idle(window);
+                    Require(date.SelectedDate?.Date == targetDate, "Selecting a calendar day must update the schedule date.");
+                    Require(!date.IsDropDownOpen, "Selecting a calendar day must dismiss the popup.");
+                    Capture(window, outputDirectory, $"destination-{width}-review-calendar-selected");
+
+                    await CaptureScheduleCombo(window, reviewSurface, outputDirectory, width, "ScheduleHourInput", "hour-open");
+                    await CaptureScheduleCombo(window, reviewSurface, outputDirectory, width, "ScheduleMinuteInput", "minute-open");
                     var summaryCard = (FrameworkElement)reviewSurface.FindName("ReviewSummaryCard");
                     var reviewScroll = (ScrollViewer)reviewSurface.FindName("ReviewScroll");
                     reviewScroll.ScrollToVerticalOffset(reviewScroll.VerticalOffset + summaryCard.TransformToAncestor(reviewScroll).Transform(new Point()).Y);
@@ -296,6 +331,52 @@ internal static class DestinationScreenshotScenario
         surface.NamedElements.TryGetValue(name, out var element) && element is T typed
             ? typed : throw new InvalidOperationException($"Could not find embedded Review element {name}.");
 
+    private static async Task CaptureScheduleCombo(Window window, MessageLibraryPrototypeReviewSurface surface,
+        string outputDirectory, int width, string name, string state)
+    {
+        var combo = ReviewElement<ComboBox>(surface, name);
+        combo.ApplyTemplate();
+        var expand = (IExpandCollapseProvider)UIElementAutomationPeer.CreatePeerForElement(combo)!
+            .GetPattern(PatternInterface.ExpandCollapse);
+        expand.Expand();
+        await Idle(window);
+        var popup = (Popup)combo.Template.FindName("PART_Popup", combo)!;
+        Require(combo.IsDropDownOpen && popup.IsOpen, $"The {name} selector must open through UI Automation.");
+        CaptureWithPopup(window, popup, outputDirectory, $"destination-{width}-review-{state}");
+        expand.Collapse();
+        await Idle(window);
+    }
+
+    private static void Select(FrameworkElement element) =>
+        ((ISelectionItemProvider)UIElementAutomationPeer.CreatePeerForElement(element)!
+            .GetPattern(PatternInterface.SelectionItem)).Select();
+
+    private static void Invoke(ButtonBase button) =>
+        ((IInvokeProvider)UIElementAutomationPeer.CreatePeerForElement(button)!
+            .GetPattern(PatternInterface.Invoke)).Invoke();
+
+    private static void RaiseRoutedCalendarMouseClick(CalendarDayButton day)
+    {
+        day.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
+        {
+            RoutedEvent = Mouse.MouseDownEvent
+        });
+        day.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
+        {
+            RoutedEvent = Mouse.MouseUpEvent
+        });
+    }
+
+    private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
+    {
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(root, index);
+            yield return child;
+            foreach (DependencyObject descendant in Descendants(child)) yield return descendant;
+        }
+    }
+
     private static void AssertPrepareLayout(Window window, MessageLibraryPrototypeView view)
     {
         if (Get<Border>(view, "PrepareDestinationWarning").Visibility == Visibility.Visible)
@@ -346,6 +427,13 @@ internal static class DestinationScreenshotScenario
     {
         window.UpdateLayout();
         WpfScreenshot.SaveWindowContent(window, Path.Combine(directory, name + ".png"),
+            (int)window.ActualWidth, (int)window.ActualHeight);
+    }
+
+    private static void CaptureWithPopup(Window window, Popup popup, string directory, string name)
+    {
+        window.UpdateLayout();
+        WpfScreenshot.SaveWindowContentWithPopup(window, popup, Path.Combine(directory, name + ".png"),
             (int)window.ActualWidth, (int)window.ActualHeight);
     }
 

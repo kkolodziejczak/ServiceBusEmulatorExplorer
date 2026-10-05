@@ -59,19 +59,33 @@ public sealed class InvestigationInspectorSearchTests
             var viewer = (RichTextBox)window.FindName("BodyViewer")!;
             var saveTemplate = (Button)window.FindName("SaveInspectedTemplateButton")!;
             var replay = (Button)window.FindName("ReplayButton")!;
+            var documentSurface = (Grid)window.FindName("InspectorDocumentSurface")!;
+            var copy = (Button)window.FindName("CopyButton")!;
+            var modifiedBadge = (Border)window.FindName("ModifiedBadge")!;
+            var discard = (Button)window.FindName("DiscardButton")!;
+            var bodyTab = (ToggleButton)window.FindName("JsonTab")!;
 
             Assert.Equal(Visibility.Visible, saveTemplate.Visibility);
             Assert.InRange(Math.Abs(saveTemplate.ActualHeight - 32), 0, 0.5);
             Assert.Equal(Visibility.Collapsed, replay.Visibility);
+            Assert.True(bodyTab.IsChecked);
+            Assert.Contains(Descendants(bodyTab), element => ReferenceEquals(element, modifiedBadge));
+            Border tabSurface = (Border)bodyTab.Template.FindName("TabSurface", bodyTab)!;
+            Assert.True(tabSurface.BorderThickness.Bottom > 0, "The selected Body surface must carry the tab underline.");
             int firstAlpha = editor.Text.IndexOf("alpha", StringComparison.Ordinal);
             int secondAlpha = editor.Text.IndexOf("alpha", firstAlpha + "alpha".Length, StringComparison.Ordinal);
             editor.Select(firstAlpha, "alpha".Length);
+            foreach (var fold in editor.JsonFoldings) fold.IsFolded = true;
+            Capture(window, "inspector-folded-1500x1000.png");
             ApplicationCommands.Find.Execute(null, editor);
             Assert.Equal(Visibility.Visible, findPanel.Visibility);
+            window.UpdateLayout();
+            Assert.InRange(Math.Abs(findPanel.ActualWidth - documentSurface.ActualWidth), 0, 1);
             Assert.Equal("alpha", findBox.Text);
             Assert.Equal("1 of 2", matchCount.Text);
             Assert.Equal("alpha", editor.SelectedText);
             Assert.Equal(firstAlpha, editor.SelectionStart);
+            Assert.DoesNotContain(editor.JsonFoldings, fold => fold.IsFolded && fold.StartOffset < firstAlpha && fold.EndOffset > firstAlpha);
 
             findNext.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, findNext));
             Assert.Equal("alpha", editor.SelectedText);
@@ -116,10 +130,29 @@ public sealed class InvestigationInspectorSearchTests
 
             editor.Document.Insert(editor.CaretOffset, "y");
             Assert.Contains("alphaxy", editor.Text, StringComparison.Ordinal);
+            Assert.Equal(Visibility.Visible, modifiedBadge.Visibility);
+            Assert.Equal(Visibility.Visible, discard.Visibility);
+            Assert.Contains(Descendants(bodyTab), element => ReferenceEquals(element, modifiedBadge));
             Assert.Equal(caretAfterFirstEdit + 1, editor.CaretOffset);
             Assert.Equal(caretAfterFirstEdit + 1, editor.SelectionStart);
             Assert.Equal(0, editor.SelectionLength);
             Assert.Equal("2 matches", matchCount.Text);
+
+            editor.Focus();
+            window.UpdateLayout();
+            Assert.Equal(1, copy.Opacity, 3);
+            editor.ScrollToEnd();
+            window.UpdateLayout();
+            double documentOffset = editor.VerticalOffset;
+            Assert.True(documentOffset > 0, "The long inspector fixture must scroll vertically.");
+            Assert.Equal(1, copy.Opacity, 3);
+            AssertVisibleInside(copy, documentSurface);
+            Assert.True(copy.Margin.Right >= 24, "Copy must leave a gap beyond the vertical scrollbar.");
+            Assert.True(copy.Focus(), "The Copy button must remain keyboard reachable.");
+            window.UpdateLayout();
+            Assert.Equal(documentOffset, editor.VerticalOffset, 1);
+            Assert.Equal(1, copy.Opacity, 3);
+            editor.Focus();
 
             findNext.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, findNext));
             Assert.Equal("1 of 2", matchCount.Text);
@@ -136,6 +169,16 @@ public sealed class InvestigationInspectorSearchTests
                     $"the {width}x{height} inspector viewport");
                 window.UpdateLayout();
                 Assert.InRange(Math.Abs(replay.ActualHeight - 32), 0, 0.5);
+                Assert.True(editor.Padding.Right >= copy.ActualWidth + copy.Margin.Right,
+                    "Responsive layout must preserve the document action lane so Copy cannot obscure long lines.");
+                editor.Focus();
+                editor.ScrollToEnd();
+                window.UpdateLayout();
+                Assert.Equal(1, copy.Opacity, 3);
+                AssertVisibleInside(copy, documentSurface);
+                AssertHoverAtCurrentScroll(documentSurface, copy, findBox);
+                editor.Focus();
+                Capture(window, $"inspector-copy-body-scrolled-{(int)width}x{(int)height}.png");
                 Assert.InRange(Math.Abs(saveTemplate.ActualHeight - 32), 0, 0.5);
                 Capture(window, $"inspector-dlq-found-{(int)width}x{(int)height}.png");
             }
@@ -159,6 +202,7 @@ public sealed class InvestigationInspectorSearchTests
             Complete(dispatcher, workspace.Browse.SelectAsync(queue, deadLetter: false));
             Assert.Equal(Visibility.Collapsed, replay.Visibility);
             CaptureDialogScreenshots(dispatcher, window);
+            Complete(dispatcher, workspace.Browse.SelectAsync(queue, deadLetter: true));
 
             ApplicationCommands.Find.Execute(null, editor);
             findBox.Text = "alpha";
@@ -168,12 +212,36 @@ public sealed class InvestigationInspectorSearchTests
             window.UpdateLayout();
             Assert.Equal("1 of 1", matchCount.Text);
             Assert.Contains("alpha", viewer.Selection.Text, StringComparison.OrdinalIgnoreCase);
+            foreach ((int width, int height) in new[] { (1500, 1000), (1100, 800), (980, 640) })
+            {
+                window.Width = width;
+                window.Height = height;
+                window.UpdateLayout();
+                viewer.Focus();
+                viewer.ScrollToEnd();
+                window.UpdateLayout();
+                double propertiesOffset = viewer.VerticalOffset;
+                Assert.True(propertiesOffset > 0, "Properties must scroll to reproduce the reported failure.");
+                Assert.Equal(1, copy.Opacity, 3);
+                AssertVisibleInside(copy, documentSurface);
+                Assert.True(viewer.Padding.Right >= copy.ActualWidth + copy.Margin.Right);
+                Assert.True(copy.Focus());
+                window.UpdateLayout();
+                Assert.Equal(propertiesOffset, viewer.VerticalOffset, 1);
+                AssertHoverAtCurrentScroll(documentSurface, copy, findBox);
+                viewer.Focus();
+                Capture(window, $"inspector-copy-properties-scrolled-{width}x{height}.png");
+            }
 
-            var rawTab = (ToggleButton)window.FindName("RawTab")!;
-            rawTab.IsChecked = true;
+            bodyTab.IsChecked = true;
             window.UpdateLayout();
             Assert.Equal("1 of 2", matchCount.Text);
-            Assert.Contains("alpha", viewer.Selection.Text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("alpha", editor.SelectedText, StringComparison.OrdinalIgnoreCase);
+
+            discard.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, discard));
+            Assert.DoesNotContain("alphaxy", editor.Text, StringComparison.Ordinal);
+            Assert.Equal(Visibility.Collapsed, modifiedBadge.Visibility);
+            Assert.Equal(Visibility.Collapsed, discard.Visibility);
 
             workspace.Browse.FocusedMessage = workspace.Browse.Messages[1];
             PumpUntil(dispatcher, () => matchCount.Text == "No matches", "the result count to refresh for the newly focused message");
@@ -192,6 +260,41 @@ public sealed class InvestigationInspectorSearchTests
             workspace.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
     });
+
+    private static void AssertHoverAtCurrentScroll(Grid surface, Button copy, TextBox outside)
+    {
+        outside.Focus();
+        Assert.False(surface.IsKeyboardFocusWithin);
+        // Drive WPF's actual hover state and routed input handlers without moving the user's cursor.
+        var key = (DependencyPropertyKey)typeof(UIElement).GetField("IsMouseOverPropertyKey",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!.GetValue(null)!;
+        var writeFlag = typeof(UIElement).GetMethod("WriteFlag",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        var mouseOverFlag = Enum.Parse(writeFlag.GetParameters()[0].ParameterType, "IsMouseOverCache");
+        bool originalHover = surface.IsMouseOver;
+        try
+        {
+            foreach (bool hovered in new[] { false, true, false })
+            {
+                surface.SetValue(key, hovered);
+                // IsMouseOver's CLR getter uses WPF's cached flag, not the dependency-property value.
+                writeFlag.Invoke(surface, [mouseOverFlag, hovered]);
+                Assert.Equal(hovered, surface.IsMouseOver);
+                surface.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, Environment.TickCount)
+                {
+                    RoutedEvent = hovered ? UIElement.MouseEnterEvent : UIElement.MouseLeaveEvent
+                });
+                Assert.Equal(hovered ? 1 : 0, copy.Opacity, 3);
+                Assert.Equal(hovered, copy.IsHitTestVisible);
+                if (hovered) AssertVisibleInside(copy, surface);
+            }
+        }
+        finally
+        {
+            surface.ClearValue(key);
+            writeFlag.Invoke(surface, [mouseOverFlag, originalHover]);
+        }
+    }
 
     private static void CaptureDialogScreenshots(Dispatcher dispatcher, InvestigationWindow owner)
     {
@@ -327,13 +430,14 @@ public sealed class InvestigationInspectorSearchTests
         null,
         id,
         new Dictionary<string, object?> { ["searchableProperty"] = marker },
-        new Dictionary<string, object?>())
+        Enumerable.Range(0, 40).ToDictionary(index => $"system-{index:D2}", index => (object?)$"value-{index:D2}"))
     {
         RawBody = BinaryData.FromString(body)
     };
 
     private static void Capture(Window window, string filename)
     {
+        if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase)) return;
         window.UpdateLayout();
         var content = (FrameworkElement)window.Content;
         WpfScreenshot.SaveWindowContent(window, ScreenshotPath(filename),
@@ -351,7 +455,7 @@ public sealed class InvestigationInspectorSearchTests
         }
 
         if (directory is null) throw new DirectoryNotFoundException("The repository root was not found for screenshot output.");
-        string output = Path.Combine(directory.FullName, "artifacts", "capture-search-proof");
+        string output = Path.Combine(directory.FullName, "artifacts", "inspector-refinement", "rendered");
         Directory.CreateDirectory(output);
         return Path.Combine(output, filename);
     }
@@ -454,9 +558,16 @@ public sealed class InvestigationInspectorSearchTests
         private static readonly EntityAddress Queue = new(EntityKind.Queue, "orders");
         private readonly IReadOnlyList<ExplorerMessage> messages =
         [
-            MakeMessage("first", 1, "{\"word\":\"alpha\",\"nested\":\"alpha\"}", "alpha"),
-            MakeMessage("second", 2, "{\"word\":\"beta\"}", "beta")
+            MakeMessage("first", 1, CreateSearchBody("alpha"), "alpha"),
+            MakeMessage("second", 2, CreateSearchBody("beta"), "beta")
         ];
+
+        private static string CreateSearchBody(string value)
+        {
+            string details = string.Join(",\n", Enumerable.Range(0, 40)
+                .Select(index => $"    \"detail-{index:D2}\": \"value-{index:D2}\""));
+            return $"{{\n  \"word\": \"{value}\",\n  \"nested\": {{\n    \"match\": \"{value}\"\n  }},\n{details}\n}}";
+        }
 
         public Task<IReadOnlyList<ExplorerMessage>> PeekMessagesAsync(
             EntityAddress address, MessageBucket bucket, int take, long? fromSequenceNumber, CancellationToken cancellationToken)

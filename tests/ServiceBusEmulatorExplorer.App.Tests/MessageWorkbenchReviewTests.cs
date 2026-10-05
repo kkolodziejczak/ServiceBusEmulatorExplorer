@@ -3,10 +3,13 @@ using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Automation.Peers;
 using System.Windows.Automation.Provider;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation;
 
@@ -28,12 +31,162 @@ public sealed class MessageWorkbenchReviewTests
             Assert.Contains("queue", notice, StringComparison.OrdinalIgnoreCase);
             Assert.StartsWith(expectedNotice, notice, StringComparison.Ordinal);
             var schedule = (RadioButton)dialog.FindName("ReviewSchedule")!;
-            schedule.IsChecked = true;
+            Assert.Equal(Visibility.Collapsed, ((FrameworkElement)dialog.FindName("ScheduleInputs")!).Visibility);
+            Select(schedule);
+            Assert.Equal(Visibility.Visible, ((FrameworkElement)dialog.FindName("ScheduleInputs")!).Visibility);
             var confirm = (Button)dialog.FindName("ConfirmDispatch")!;
+            var hour = (ComboBox)dialog.FindName("ScheduleHourInput")!;
+            var minute = (ComboBox)dialog.FindName("ScheduleMinuteInput")!;
             ((DatePicker)dialog.FindName("ScheduleDateInput")!).SelectedDate = DateTime.Today.AddDays(-1);
             Assert.False(confirm.IsEnabled);
             ((DatePicker)dialog.FindName("ScheduleDateInput")!).SelectedDate = DateTime.Today.AddDays(1);
+            hour.SelectedItem = "23";
+            minute.SelectedItem = "59";
             Assert.True(confirm.IsEnabled);
+            Assert.Contains("23:59 UTC", ((TextBlock)dialog.FindName("ResolvedSchedule")!).Text);
+        }
+        finally { dialog.Close(); }
+    });
+
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void Schedule_selector_actions_resolve_utc_and_local_instants_and_reject_past_dates() => OnSta(() =>
+    {
+        var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Review, "Local", "orders", 1);
+        try
+        {
+            dialog.Show();
+            var schedule = (RadioButton)dialog.FindName("ReviewSchedule")!;
+            Select(schedule);
+            Assert.True(schedule.Focus() && schedule.IsKeyboardFocusWithin);
+            Assert.Equal(Visibility.Visible, ((FrameworkElement)dialog.FindName("ScheduleInputs")!).Visibility);
+            var date = (DatePicker)dialog.FindName("ScheduleDateInput")!;
+            var hour = (ComboBox)dialog.FindName("ScheduleHourInput")!;
+            var minute = (ComboBox)dialog.FindName("ScheduleMinuteInput")!;
+            var utc = (RadioButton)dialog.FindName("ScheduleUtc")!;
+            var local = (RadioButton)dialog.FindName("ScheduleLocal")!;
+            var confirm = (Button)dialog.FindName("ConfirmDispatch")!;
+            var resolved = (TextBlock)dialog.FindName("ResolvedSchedule")!;
+
+            DateTime futureDate = DateTime.Today.AddDays(2);
+            date.SelectedDate = futureDate;
+            SelectComboItem(hour, "23");
+            SelectComboItem(minute, "59");
+            Assert.True(confirm.IsEnabled);
+            Assert.Contains(futureDate.ToString("d", System.Globalization.CultureInfo.CurrentCulture) + " 23:59", resolved.Text);
+            Assert.Contains("UTC", resolved.Text);
+
+            Select(local);
+            DateTime localWallTime = DateTime.SpecifyKind(futureDate.AddHours(23).AddMinutes(59), DateTimeKind.Unspecified);
+            DateTime localUtc = TimeZoneInfo.ConvertTimeToUtc(localWallTime, TimeZoneInfo.Local);
+            Assert.True(confirm.IsEnabled);
+            Assert.Contains(localUtc.ToString("d", System.Globalization.CultureInfo.CurrentCulture) + " " + localUtc.ToString("HH:mm"), resolved.Text);
+
+            Select(utc);
+            date.SelectedDate = DateTime.Today.AddDays(-1);
+            Assert.False(confirm.IsEnabled);
+            Assert.Contains("Choose a future date", resolved.Text);
+
+            Select((RadioButton)dialog.FindName("ReviewSendNow")!);
+            Assert.Equal(Visibility.Collapsed, ((FrameworkElement)dialog.FindName("ScheduleInputs")!).Visibility);
+            Assert.True(confirm.IsEnabled);
+            Assert.Equal("Send 1 message", confirm.Content);
+            Select(schedule);
+            Assert.Equal(Visibility.Visible, ((FrameworkElement)dialog.FindName("ScheduleInputs")!).Visibility);
+            Assert.False(confirm.IsEnabled);
+        }
+        finally { dialog.Close(); }
+    });
+
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void Schedule_rejects_invalid_and_ambiguous_local_wall_times()
+    {
+        if (!TimeZoneInfo.Local.SupportsDaylightSavingTime) return;
+        DateTime? invalidTime = FindLocalWallTime(TimeZoneInfo.Local.IsInvalidTime);
+        DateTime? ambiguousTime = FindLocalWallTime(TimeZoneInfo.Local.IsAmbiguousTime);
+        if (invalidTime is null || ambiguousTime is null) return;
+
+        OnSta(() =>
+        {
+            var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Review, "Local", "orders", 1);
+            try
+            {
+                dialog.Show();
+                Select((RadioButton)dialog.FindName("ReviewSchedule")!);
+                Select((RadioButton)dialog.FindName("ScheduleLocal")!);
+                var date = (DatePicker)dialog.FindName("ScheduleDateInput")!;
+                var hour = (ComboBox)dialog.FindName("ScheduleHourInput")!;
+                var minute = (ComboBox)dialog.FindName("ScheduleMinuteInput")!;
+                var confirm = (Button)dialog.FindName("ConfirmDispatch")!;
+                var resolved = (TextBlock)dialog.FindName("ResolvedSchedule")!;
+
+                date.SelectedDate = invalidTime.Value.Date;
+                SelectComboItem(hour, invalidTime.Value.ToString("HH", System.Globalization.CultureInfo.InvariantCulture));
+                SelectComboItem(minute, invalidTime.Value.ToString("mm", System.Globalization.CultureInfo.InvariantCulture));
+                Assert.False(confirm.IsEnabled);
+                Assert.Contains("unambiguous time", resolved.Text);
+
+                date.SelectedDate = ambiguousTime.Value.Date;
+                SelectComboItem(hour, ambiguousTime.Value.ToString("HH", System.Globalization.CultureInfo.InvariantCulture));
+                SelectComboItem(minute, ambiguousTime.Value.ToString("mm", System.Globalization.CultureInfo.InvariantCulture));
+                Assert.False(confirm.IsEnabled);
+                Assert.Contains("unambiguous time", resolved.Text);
+            }
+            finally { dialog.Close(); }
+        });
+    }
+
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void Schedule_calendar_supports_routed_month_navigation_day_selection_and_dismissal() => OnSta(() =>
+    {
+        var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Review, "Local", "orders", 1);
+        try
+        {
+            dialog.Show();
+            Select((RadioButton)dialog.FindName("ReviewSchedule")!);
+            var date = (DatePicker)dialog.FindName("ScheduleDateInput")!;
+            date.ApplyTemplate();
+            var openButton = (ButtonBase)date.Template.FindName("PART_Button", date)!;
+            Invoke(openButton);
+            Drain(dialog.Dispatcher);
+
+            var popup = (Popup)date.Template.FindName("PART_Popup", date)!;
+            Assert.True(date.IsDropDownOpen && popup.IsOpen);
+            var calendar = popup.Child as Calendar ?? Descendants(popup.Child!).OfType<Calendar>().Single();
+            calendar.ApplyTemplate();
+            Drain(dialog.Dispatcher);
+
+            DateTime displayedDate = date.SelectedDate!.Value;
+            DateTime targetDate = new DateTime(displayedDate.Year, displayedDate.Month, 1).AddMonths(1).AddDays(2);
+            var nextMonth = Descendants(calendar).OfType<ButtonBase>().Single(button =>
+                ((FrameworkElement)button).Name == "PART_NextButton");
+            Invoke(nextMonth);
+            Drain(dialog.Dispatcher);
+            Assert.Equal(targetDate.Month, calendar.DisplayDate.Month);
+
+            var day = Descendants(calendar).OfType<CalendarDayButton>().Single(button =>
+                button.DataContext is DateTime displayedDay && displayedDay.Date == targetDate.Date);
+            string dayName = AutomationProperties.GetName(day);
+            if (string.IsNullOrWhiteSpace(dayName))
+                dayName = UIElementAutomationPeer.CreatePeerForElement(day)?.GetName() ?? "";
+            Assert.False(string.IsNullOrWhiteSpace(dayName), "Calendar day buttons must expose an accessible date label.");
+            RaiseRoutedCalendarMouseClick(day);
+            Drain(dialog.Dispatcher);
+
+            Assert.Equal(targetDate, date.SelectedDate?.Date);
+            Assert.False(date.IsDropDownOpen);
+            Assert.True(((Button)dialog.FindName("ConfirmDispatch")!).IsEnabled);
+            Assert.Contains(targetDate.ToString("d", System.Globalization.CultureInfo.CurrentCulture) + " 14:30",
+                ((TextBlock)dialog.FindName("ResolvedSchedule")!).Text);
+
+            Invoke(openButton);
+            Drain(dialog.Dispatcher);
+            Assert.True(date.IsDropDownOpen);
+            Invoke(openButton);
+            Drain(dialog.Dispatcher);
+            Assert.False(date.IsDropDownOpen, "Invoking the calendar toggle should dismiss the popup.");
         }
         finally { dialog.Close(); }
     });
@@ -190,6 +343,64 @@ public sealed class MessageWorkbenchReviewTests
     private static void Invoke(ButtonBase button) =>
         ((IInvokeProvider)UIElementAutomationPeer.CreatePeerForElement(button)!
             .GetPattern(PatternInterface.Invoke)).Invoke();
+
+    private static void RaiseRoutedCalendarMouseClick(CalendarDayButton day)
+    {
+        day.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
+        {
+            RoutedEvent = Mouse.MouseDownEvent
+        });
+        day.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
+        {
+            RoutedEvent = Mouse.MouseUpEvent
+        });
+    }
+
+    private static void Select(FrameworkElement element) =>
+        ((ISelectionItemProvider)UIElementAutomationPeer.CreatePeerForElement(element)!
+            .GetPattern(PatternInterface.SelectionItem)).Select();
+
+    private static void SelectComboItem(ComboBox combo, string value)
+    {
+        var peer = UIElementAutomationPeer.CreatePeerForElement(combo)!;
+        var expand = (IExpandCollapseProvider)peer.GetPattern(PatternInterface.ExpandCollapse);
+        expand.Expand();
+        Drain(combo.Dispatcher);
+
+        var itemPeer = Assert.Single(peer.GetChildren()!, child => child.GetName() == value);
+        var selection = itemPeer.GetPattern(PatternInterface.SelectionItem);
+        Assert.NotNull(selection);
+        ((ISelectionItemProvider)selection!).Select();
+        expand.Collapse();
+        Drain(combo.Dispatcher);
+    }
+
+    private static void Drain(Dispatcher dispatcher) => dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+
+    private static DateTime? FindLocalWallTime(Func<DateTime, bool> matches)
+    {
+        DateTime firstDate = DateTime.Today;
+        for (int day = 0; day < 365 * 4; day++)
+        {
+            DateTime date = firstDate.AddDays(day);
+            for (int minuteOfDay = 0; minuteOfDay < 24 * 60; minuteOfDay++)
+            {
+                DateTime wallTime = DateTime.SpecifyKind(date.AddMinutes(minuteOfDay), DateTimeKind.Unspecified);
+                if (matches(wallTime)) return wallTime;
+            }
+        }
+        return null;
+    }
+
+    private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
+    {
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(root, index);
+            yield return child;
+            foreach (DependencyObject descendant in Descendants(child)) yield return descendant;
+        }
+    }
 
     private static void OnSta(Action action)
     {

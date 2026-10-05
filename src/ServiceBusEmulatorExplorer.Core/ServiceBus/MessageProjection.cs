@@ -23,7 +23,8 @@ public static class MessageProjection
             CopyProperties(message.ApplicationProperties),
             CreateSystemProperties(message))
         {
-            RawBody = BinaryData.FromBytes(message.Body.ToArray())
+            RawBody = BinaryData.FromBytes(message.Body.ToArray()),
+            BrokerState = message.State
         };
     }
 

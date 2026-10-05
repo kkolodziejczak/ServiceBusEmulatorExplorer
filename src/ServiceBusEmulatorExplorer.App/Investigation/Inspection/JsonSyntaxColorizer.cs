@@ -68,20 +68,3 @@ public sealed class JsonColorizingTransformer : DocumentColorizingTransformer
         }
     }
 }
-
-/// <summary>Configured editor used for the formatted JSON inspection tab.</summary>
-public sealed class JsonEditor : TextEditor
-{
-    public JsonEditor()
-    {
-        WordWrap = true;
-        ShowLineNumbers = true;
-        Foreground = JsonSyntaxColorizer.TextBrush;
-        TextArea.TextView.LineTransformers.Add(new JsonColorizingTransformer());
-        Options.EnableHyperlinks = false;
-        Options.EnableEmailHyperlinks = false;
-        Options.IndentationSize = 2;
-        Options.HighlightCurrentLine = true;
-        TextArea.TextView.CurrentLineBackground = new SolidColorBrush(Color.FromRgb(38, 58, 83));
-    }
-}

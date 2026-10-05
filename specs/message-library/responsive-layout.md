@@ -2,7 +2,7 @@
 
 Approved 2026-10-02: [hybrid mockup](design/approved/18-responsive-workbench.png), refined by the user to require one property column at small widths.
 
-- Wide editing area: editable JSON body beside two property groups (message properties and application properties/destination).
+- Wide editing area: editable JSON body beside two property groups (message properties and application properties/destination). Adjacent Properties / Variables tabs select the inspector with a persistent active state, as refined by the [search and inspector contract](search-and-inspector-tabs.md).
 - Medium editing area: Body / Properties / Variables tabs; Properties has two groups side by side.
 - Small editing area: the same tabs; Properties has one stacked column.
 - Measure usable editor space after navigation panes; keep fields compact and left aligned, wrap labels/actions as needed, and use vertical scrolling instead of clipping or whole-form horizontal scrolling.

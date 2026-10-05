@@ -42,14 +42,10 @@ public sealed class DeliveryInspector : ObservableObject
 
     public bool IsReadOnly => Current?.Identity.Bucket != MessageBucket.DeadLetter;
 
-    public string JsonLabel => _currentDocument is null
-        ? "JSON"
-        : IsValidJson ? "JSON" : "Body (not JSON)";
-
     /// <summary>The exact UTF-8 text received, or Base64 when the original bytes are not valid UTF-8.</summary>
     public string RawText => _currentDocument?.RawText ?? string.Empty;
 
-    public string RawDescription => _currentDocument?.RawDescription ?? "No message selected.";
+    public string BodyDescription => _currentDocument?.BodyDescription ?? "No message selected.";
 
     public string PropertiesText => _currentDocument?.PropertiesText ?? string.Empty;
 
@@ -138,7 +134,7 @@ public sealed class DeliveryInspector : ObservableObject
         return cached;
     }
 
-    private static (string RawText, string RawDescription) DecodeBody(ExplorerMessage message)
+    private static (string RawText, string BodyDescription) DecodeBody(ExplorerMessage message)
     {
         if (message.RawBody is null)
         {
@@ -192,9 +188,8 @@ public sealed class DeliveryInspector : ObservableObject
         {
             OnPropertyChanged(nameof(IsDirty));
             OnPropertyChanged(nameof(IsReadOnly));
-            OnPropertyChanged(nameof(JsonLabel));
             OnPropertyChanged(nameof(RawText));
-            OnPropertyChanged(nameof(RawDescription));
+            OnPropertyChanged(nameof(BodyDescription));
             OnPropertyChanged(nameof(PropertiesText));
             OnPropertyChanged(nameof(IsValidJson));
         }
@@ -228,7 +223,6 @@ public sealed class DeliveryInspector : ObservableObject
         OnPropertyChanged(nameof(IsDirty));
         OnPropertyChanged(nameof(HasDrafts));
         OnPropertyChanged(nameof(IsValidJson));
-        OnPropertyChanged(nameof(JsonLabel));
     }
 
     private sealed class CachedDocument(
@@ -241,7 +235,7 @@ public sealed class DeliveryInspector : ObservableObject
         public TextDocument Document { get; } = document;
         public string OriginalDocumentText { get; } = originalDocumentText;
         public string RawText { get; } = rawText;
-        public string RawDescription { get; } = rawDescription;
+        public string BodyDescription { get; } = rawDescription;
         public string PropertiesText { get; } = propertiesText;
         public bool IsApplyingChange { get; set; }
 

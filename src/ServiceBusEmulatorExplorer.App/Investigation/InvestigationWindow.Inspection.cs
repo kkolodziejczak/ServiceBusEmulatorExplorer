@@ -11,7 +11,7 @@ namespace ServiceBusEmulatorExplorer.App.Investigation;
 
 public partial class InvestigationWindow
 {
-    private string inspectorMode = "JSON";
+    private string inspectorMode = "Body";
     private bool inspectorSynchronizingSelection;
     private bool inspectorRendering;
     private string? inspectorRenderedText;
@@ -72,14 +72,6 @@ public partial class InvestigationWindow
         }
     }
 
-    private void CopyRowCorrelation_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { DataContext: MessageRow row } && !string.IsNullOrEmpty(row.CorrelationId))
-        {
-            CopyToClipboard(row.CorrelationId);
-        }
-    }
-
     private void CopyCorrelation_Click(object sender, RoutedEventArgs e)
     {
         if (workspace.Surface.FocusedMessage is { CorrelationId.Length: > 0 } row)
@@ -88,19 +80,20 @@ public partial class InvestigationWindow
         }
     }
 
+    private void CopyRowCorrelation_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: MessageRow row } && !string.IsNullOrEmpty(row.CorrelationId))
+            CopyToClipboard(row.CorrelationId);
+    }
+
     private void Json_Checked(object sender, RoutedEventArgs e)
     {
-        if (ready && !inspectorRendering) SetInspectorMode("JSON");
+        if (ready && !inspectorRendering) SetInspectorMode("Body");
     }
 
     private void Properties_Checked(object sender, RoutedEventArgs e)
     {
         if (ready && !inspectorRendering) SetInspectorMode("Properties");
-    }
-
-    private void Raw_Checked(object sender, RoutedEventArgs e)
-    {
-        if (ready && !inspectorRendering) SetInspectorMode("Raw");
     }
 
     private void InspectorTab_Unchecked(object sender, RoutedEventArgs e)
@@ -126,7 +119,6 @@ public partial class InvestigationWindow
         string text = inspectorMode switch
         {
             "Properties" => workspace.Inspector.PropertiesText,
-            "Raw" => workspace.Inspector.RawText,
             _ => workspace.Inspector.Document.Text
         };
         CopyToClipboard(text);
@@ -165,8 +157,6 @@ public partial class InvestigationWindow
         CopyButton.Visibility = hasMessage ? Visibility.Visible : Visibility.Collapsed;
         DlqReason.Visibility = focused?.IsDeadLetter == true ? Visibility.Visible : Visibility.Collapsed;
         ReplayActions.Visibility = hasMessage && focused?.IsDeadLetter == true ? Visibility.Visible : Visibility.Collapsed;
-        RawTab.ToolTip = inspector.RawDescription;
-        RawTab.Content = inspector.RawDescription.Contains("Base64", StringComparison.Ordinal) ? "Raw (Base64)" : "Raw";
         ApplyInspectorStateBadge(focused);
         if (!hasMessage)
         {
@@ -178,24 +168,38 @@ public partial class InvestigationWindow
         {
             if (!ReferenceEquals(BodyEditor.Document, inspector.Document))
             {
-                BodyEditor.Document = inspector.Document;
+                BodyEditor.SetInspectionDocument(inspector.Document);
             }
 
             BodyEditor.IsReadOnly = inspector.IsReadOnly || replayPending;
-            BodyEditor.Visibility = hasMessage && inspectorMode == "JSON"
+            bool editable = inspectorMode == "Body" && !BodyEditor.IsReadOnly;
+            string editability = editable ? "Editable" : "Read-only";
+            string editabilityHelp = editable
+                ? "Edit this body, then replay a new copy. Original stays unchanged."
+                : replayPending ? "Read-only while replay is in progress."
+                : inspectorMode != "Body" ? "Message properties are read-only. You can select and copy them."
+                : "This message body is read-only. You can select, find, fold and copy its content.";
+            InspectorEditabilityStatus.Visibility = hasMessage ? Visibility.Visible : Visibility.Collapsed;
+            InspectorEditabilityText.Text = editability;
+            InspectorEditabilityIcon.SetResourceReference(System.Windows.Shapes.Path.DataProperty,
+                editable ? "PencilGeometry" : "LockGeometry");
+            InspectorEditabilityStatus.ToolTip = editabilityHelp;
+            System.Windows.Automation.AutomationProperties.SetName(InspectorEditabilityStatus, editability);
+            System.Windows.Automation.AutomationProperties.SetHelpText(InspectorEditabilityStatus, editabilityHelp);
+            System.Windows.Automation.AutomationProperties.SetHelpText(BodyEditor, editabilityHelp);
+            BodyEditor.Visibility = hasMessage && inspectorMode == "Body"
                 ? Visibility.Visible
                 : Visibility.Collapsed;
-            BodyViewer.Visibility = hasMessage && inspectorMode != "JSON"
+            BodyViewer.Visibility = hasMessage && inspectorMode != "Body"
                 ? Visibility.Visible
                 : Visibility.Collapsed;
-            JsonTab.Content = inspector.JsonLabel;
             JsonTab.ToolTip = inspector.IsValidJson
                 ? "Formatted JSON"
+                : inspector.BodyDescription.Contains("Base64", StringComparison.Ordinal) ? inspector.BodyDescription
                 : "Plain text or invalid JSON cannot be formatted; the body is shown as received.";
-            JsonTab.IsChecked = inspectorMode == "JSON";
+            JsonTab.IsChecked = inspectorMode == "Body";
             PropertiesTab.IsChecked = inspectorMode == "Properties";
-            RawTab.IsChecked = inspectorMode == "Raw";
-            ModifiedBadge.Visibility = hasMessage && inspectorMode == "JSON" && inspector.IsDirty
+            ModifiedBadge.Visibility = hasMessage && inspector.IsDirty
                 ? Visibility.Visible
                 : Visibility.Collapsed;
             DiscardButton.Visibility = hasMessage && inspector.IsDirty
@@ -209,6 +213,7 @@ public partial class InvestigationWindow
             inspectorRendering = false;
         }
         RefreshInspectorFind();
+        UpdateInspectorCopy();
         UpdateReplaySurface();
     }
 
@@ -262,12 +267,12 @@ public partial class InvestigationWindow
 
     private void RenderViewer(DeliveryInspector inspector, bool hasMessage)
     {
-        if (!hasMessage || inspectorMode == "JSON")
+        if (!hasMessage || inspectorMode == "Body")
         {
             return;
         }
 
-        string text = inspectorMode == "Properties" ? inspector.PropertiesText : inspector.RawText;
+        string text = inspector.PropertiesText;
         if (string.Equals(inspectorRenderedText, text, StringComparison.Ordinal)
             && BodyViewer.Document is not null)
         {
@@ -276,14 +281,7 @@ public partial class InvestigationWindow
 
         inspectorRenderedText = text;
         var paragraph = new Paragraph { Margin = new Thickness(0), LineHeight = 24 };
-        if (inspectorMode == "Properties")
-        {
-            AddHighlightedJson(paragraph, text);
-        }
-        else
-        {
-            paragraph.Inlines.Add(new Run(text));
-        }
+        AddHighlightedJson(paragraph, text);
 
         var document = new FlowDocument
         {

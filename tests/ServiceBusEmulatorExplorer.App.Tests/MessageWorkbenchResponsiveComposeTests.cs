@@ -2,6 +2,7 @@ using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation;
@@ -27,15 +28,30 @@ public sealed class MessageWorkbenchResponsiveComposeTests
             Get<TextBox>(view, "PropertyReplyTo").Text = "orders-replies-responsive";
             AssertWide(view, dispatcher);
 
-            Get<Button>(view, "WideVariablesAction").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            ToggleButton properties = Get<ToggleButton>(view, "WidePropertiesAction");
+            ToggleButton variablesAction = Get<ToggleButton>(view, "WideVariablesAction");
+            Assert.True(properties.IsChecked);
+            Assert.False(variablesAction.IsChecked);
+            variablesAction.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, variablesAction));
             WaitForLayout(dispatcher);
             Assert.Equal(Visibility.Visible, Get<FrameworkElement>(view, "VariablesEditorSurface").Visibility);
             Assert.Equal(Visibility.Visible, Get<FrameworkElement>(view, "BodyEditorSurface").Visibility);
-            Assert.Equal("Variables", Get<TextBlock>(view, "WidePropertiesHeading").Text);
+            Assert.False(properties.IsChecked);
+            Assert.True(variablesAction.IsChecked);
+            Assert.Equal("Properties", properties.Content);
+            Assert.Equal("Variables", variablesAction.Content);
+            Assert.True(body.TextArea.Focus());
+            Assert.True(variablesAction.Focus());
+            variablesAction.IsChecked = false;
+            variablesAction.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, variablesAction));
+            WaitForLayout(dispatcher);
+            Assert.True(variablesAction.IsChecked, "Clicking the selected inspector must leave it selected.");
+            Assert.False(properties.IsChecked, "The wide inspector choices must remain exclusive.");
             Assert.True(body.TextArea.Focus());
             Resize(window, dispatcher, 1680, 1000);
             Assert.Equal(Visibility.Visible, Get<FrameworkElement>(view, "VariablesEditorSurface").Visibility);
-            Assert.Equal("Variables", Get<TextBlock>(view, "WidePropertiesHeading").Text);
+            Assert.True(variablesAction.IsChecked);
+            Assert.False(properties.IsChecked);
 
             Resize(window, dispatcher, 1150, 900);
             AssertTabsMode(view);
@@ -130,6 +146,8 @@ public sealed class MessageWorkbenchResponsiveComposeTests
 
     private static void AssertTwoPropertyColumns(MessageLibraryPrototypeView view)
     {
+        Assert.Equal("Properties", Get<ToggleButton>(view, "WidePropertiesAction").Content);
+        Assert.Equal("Variables", Get<ToggleButton>(view, "WideVariablesAction").Content);
         var groups = Get<Grid>(view, "PropertyGroupsGrid");
         Assert.Equal(Visibility.Visible, Get<FrameworkElement>(view, "MessagePropertiesGroup").Visibility);
         Assert.Equal(Visibility.Visible, Get<FrameworkElement>(view, "RoutingPropertiesGroup").Visibility);

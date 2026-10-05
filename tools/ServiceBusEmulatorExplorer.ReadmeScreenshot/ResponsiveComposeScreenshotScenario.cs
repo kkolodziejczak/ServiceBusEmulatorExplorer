@@ -58,6 +58,37 @@ internal static class ResponsiveComposeScreenshotScenario
                 ((ToggleButton)window.FindName("MessageLibraryTab")!).IsChecked = true;
                 var view = (MessageLibraryPrototypeView)window.FindName("MessageLibraryPrototype")!;
                 Idle(window);
+                SetSize(window, Viewports[0]);
+                var namespaceSearch = (TextBox)window.FindName("SearchBox")!;
+                var namespacePopup = (Popup)window.FindName("SuggestionsPopup")!;
+                var namespaceSuggestions = (ListBox)window.FindName("SuggestionsList")!;
+                namespaceSearch.Focus();
+                namespaceSearch.Text = "order-events";
+                Idle(window);
+                Require(namespacePopup.IsOpen && namespaceSuggestions.Items.Count > 0,
+                    "Workbench namespace search should open entity suggestions.");
+                Require(namespaceSuggestions.Items.Cast<SearchSuggestion>().All(item => item.Kind == "entity" && item.Entity is not null),
+                    "Workbench namespace suggestions should contain entities only.");
+                CapturePopup(window, namespacePopup, outputDirectory, "wide-namespace-suggestions", Viewports[0]);
+                ((Button)window.FindName("ClearSearchButton")!).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Idle(window);
+
+                var templateSearch = (TextBox)view.FindName("TemplateSearch")!;
+                var templatePopup = (Popup)view.FindName("LibrarySuggestionsPopup")!;
+                var templateSuggestions = (ListBox)view.FindName("LibrarySuggestionsList")!;
+                templateSearch.Focus();
+                templateSearch.Text = "Order";
+                Idle(window);
+                Require(templatePopup.IsOpen && templateSuggestions.Items.Count > 0,
+                    "Workbench template search should open grouped template and folder suggestions.");
+                Require(templateSuggestions.ItemsSource is System.ComponentModel.ICollectionView suggestionView
+                    && suggestionView.Groups.Count == 2,
+                    "The template popup should group matching templates and folders.");
+                CapturePopup(window, templatePopup, outputDirectory, "wide-template-suggestions", Viewports[0]);
+                templateSearch.Clear();
+                namespaceSearch.Focus();
+                Idle(window);
+
                 SelectTemplate(view, "Order created");
                 var body = (JsonEditor)view.FindName("EditorText")!;
                 body.Text = "{\n  \"orderId\": \"ORD-RESPONSIVE-1042\",\n  \"amount\": 149.90\n}";
@@ -69,11 +100,20 @@ internal static class ResponsiveComposeScreenshotScenario
                 AssertLayout(view, "wide");
                 Capture(window, outputDirectory, "wide-body-and-properties", Viewports[0]);
 
+                var wideProperties = (ToggleButton)view.FindName("WidePropertiesAction")!;
+                var wideVariables = (ToggleButton)view.FindName("WideVariablesAction")!;
+                Require(wideProperties.IsChecked == true && wideVariables.IsChecked == false,
+                    "Wide inspector toggles should start with Properties selected exclusively.");
                 Click(view, "WideVariablesAction");
                 AssertLayout(view, "wide");
+                Require(wideProperties.IsChecked == false && wideVariables.IsChecked == true,
+                    "Selecting Variables should update the exclusive wide inspector state.");
                 Require(((FrameworkElement)view.FindName("VariablesEditorSurface")!).IsVisible,
                     "The wide Variables action must open Variables beside the body.");
                 Capture(window, outputDirectory, "wide-variables-inspector", Viewports[0]);
+                Click(view, "WideVariablesAction");
+                Require(wideProperties.IsChecked == false && wideVariables.IsChecked == true,
+                    "Clicking the selected wide inspector should keep it selected.");
                 Require(body.TextArea.Focus(), "The JSON body editor should receive focus in the wide layout.");
                 SetSize(window, Viewports[1]);
                 AssertLayout(view, "wide");
@@ -111,6 +151,14 @@ internal static class ResponsiveComposeScreenshotScenario
 
                 SetSize(window, Viewports[4]);
                 AssertLayout(view, "small");
+                namespaceSearch.Text = "order-events";
+                namespaceSearch.Focus();
+                Idle(window);
+                Require(namespacePopup.IsOpen && namespaceSuggestions.Items.Cast<SearchSuggestion>().All(item => item.Kind == "entity"),
+                    "Compact Workbench search should keep entity-only suggestions available.");
+                CapturePopup(window, namespacePopup, outputDirectory, "minimum-namespace-suggestions", Viewports[4]);
+                ((Button)window.FindName("ClearSearchButton")!).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Idle(window);
                 Click(view, "EditorPropertiesTab");
                 Capture(window, outputDirectory, "minimum-properties-one-column", Viewports[4]);
                 CapturePropertyBottom(window, view, outputDirectory, Viewports[4]);
@@ -222,13 +270,14 @@ internal static class ResponsiveComposeScreenshotScenario
 
     private static void Click(DependencyObject root, string controlName)
     {
-        Button button = root is FrameworkElement frameworkRoot
-            ? frameworkRoot.FindName(controlName) as Button
-                ?? Elements(root).OfType<Button>().Single(control => control.IsVisible
+        ButtonBase button = root is FrameworkElement frameworkRoot
+            ? frameworkRoot.FindName(controlName) as ButtonBase
+                ?? Elements(root).OfType<ButtonBase>().Single(control => control.IsVisible
                     && AutomationProperties.GetAutomationId(control) == controlName)
             : throw new InvalidOperationException("The responsive Compose scenario expects a named Workbench root.");
         Require(button.IsVisible && button.IsEnabled, $"Action {controlName} should be visible and enabled.");
-        button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, button));
+        if (button is ToggleButton toggle) toggle.IsChecked = !toggle.IsChecked;
+        button.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, button));
         if (Window.GetWindow(root) is { } window) Idle(window);
     }
 
@@ -246,6 +295,14 @@ internal static class ResponsiveComposeScreenshotScenario
         Idle(window);
         string path = Path.Combine(directory, $"{viewport.Name}-{state}.png");
         WpfScreenshot.SaveWindowContent(window, path, viewport.Width, viewport.Height, minimumBytes: 20_000);
+    }
+
+    private static void CapturePopup(Window window, Popup popup, string directory, string state,
+        (string Name, int Width, int Height) viewport)
+    {
+        Idle(window);
+        string path = Path.Combine(directory, $"{viewport.Name}-{state}.png");
+        WpfScreenshot.SaveWindowContentWithPopup(window, popup, path, viewport.Width, viewport.Height, minimumBytes: 20_000);
     }
 
     private static void Idle(Window window) => window.Dispatcher.Invoke(() => window.UpdateLayout(), DispatcherPriority.ApplicationIdle);
