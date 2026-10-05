@@ -186,6 +186,51 @@ public sealed class MessageWorkbenchScheduleLayoutTests
         }
     });
 
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void Collapsing_calendar_refreshes_automation_children_synchronously() => OnSta(() =>
+    {
+        var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Review, "Local emulator", "order-events", 1);
+        try
+        {
+            dialog.Show();
+            ((RadioButton)dialog.FindName("ReviewSchedule")!).IsChecked = true;
+            dialog.UpdateLayout();
+
+            var date = (CalendarOnlyDatePicker)dialog.FindName("ScheduleDateInput")!;
+            date.ApplyTemplate();
+            var datePeer = UIElementAutomationPeer.CreatePeerForElement(date)!;
+            var expandCollapse = Assert.IsAssignableFrom<IExpandCollapseProvider>(datePeer.GetPattern(PatternInterface.ExpandCollapse));
+
+            expandCollapse.Expand();
+            dialog.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            Assert.Contains(datePeer.GetChildren()!, peer => peer.GetClassName() == nameof(Calendar));
+
+            expandCollapse.Collapse();
+            Assert.Equal(ExpandCollapseState.Collapsed, expandCollapse.ExpandCollapseState);
+            bool cachedChildrenContainCalendar = datePeer.GetChildren()!
+                .Any(peer => peer.GetClassName() == nameof(Calendar));
+
+            datePeer.ResetChildrenCache();
+            bool refreshedChildrenContainCalendar = datePeer.GetChildren()!
+                .Any(peer => peer.GetClassName() == nameof(Calendar));
+
+            Assert.False(cachedChildrenContainCalendar || refreshedChildrenContainCalendar,
+                $"A collapsed picker must exclude its calendar immediately; cached={cachedChildrenContainCalendar}, rebuilt={refreshedChildrenContainCalendar}.");
+
+            expandCollapse.Expand();
+            Assert.Equal(ExpandCollapseState.Expanded, expandCollapse.ExpandCollapseState);
+            Assert.Contains(datePeer.GetChildren()!, peer => peer.GetClassName() == nameof(Calendar));
+            expandCollapse.Collapse();
+            Assert.Equal(ExpandCollapseState.Collapsed, expandCollapse.ExpandCollapseState);
+            Assert.DoesNotContain(datePeer.GetChildren()!, peer => peer.GetClassName() == nameof(Calendar));
+        }
+        finally
+        {
+            dialog.Close();
+        }
+    });
+
     [Theory]
     [InlineData(Key.Space)]
     [InlineData(Key.Enter)]

@@ -84,6 +84,7 @@ public sealed class CalendarOnlyDatePicker : DatePicker
             peer.RaisePropertyChangedEvent(ValuePatternIdentifiers.ValueProperty, e.OldValue, e.NewValue);
         else if (e.Property == IsDropDownOpenProperty)
         {
+            peer.ResetChildrenCache();
             peer.InvalidatePeer();
             peer.RaisePropertyChangedEvent(ExpandCollapsePatternIdentifiers.ExpandCollapseStateProperty,
                 (bool)e.OldValue ? ExpandCollapseState.Expanded : ExpandCollapseState.Collapsed,
