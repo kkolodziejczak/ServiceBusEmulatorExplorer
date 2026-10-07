@@ -40,6 +40,9 @@ public sealed class InvestigationKeyboardEndToEndTests
         Assert.True(
             File.Exists(executablePath),
             $"Build the WPF app before running UI smoke tests. Missing: {executablePath}");
+        // Without saved preferences the first launch auto-connects, which hides "Disconnected" when an emulator is running.
+        await new ServiceBusEmulatorExplorer.App.Investigation.Settings.ProtectedWorkspacePreferencesStore(profilePath)
+            .SaveAsync(new ServiceBusEmulatorExplorer.Core.Investigation.WorkspacePreferences { WasConnected = false }, CancellationToken.None);
 
         Application? application = null;
         UIA3Automation? automation = null;

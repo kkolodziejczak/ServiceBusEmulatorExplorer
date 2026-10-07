@@ -201,12 +201,19 @@ public sealed class MainWindowSmokeTests
 
             AutomationElement unassociated = WaitForText(window, "Unassociated sample", TimeSpan.FromSeconds(5));
             SelectTreeItem(unassociated);
-            InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
-            Assert.False(WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled);
-            InvokeButton(window, "LibraryBackToCompose", TimeSpan.FromSeconds(5));
+            // A template without a destination stays in Compose until one is chosen.
+            Assert.True(SpinWait.SpinUntil(() => !WaitForAutomationId(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5)).IsEnabled,
+                TimeSpan.FromSeconds(5)));
             InvokeButton(window, "LibraryEditorProperties", TimeSpan.FromSeconds(5));
-            WaitForAutomationId(window, "TemplateDestination", TimeSpan.FromSeconds(5))
-                .AsComboBox().Select("inventory-events (Topic)");
+            var destination = WaitForAutomationId(window, "TemplateDestination", TimeSpan.FromSeconds(5)).AsComboBox();
+            // Choosing a destination rebuilds the choices, so let the selection settle before closing the list;
+            // ComboBox.Select(text) collapses immediately and the closing list restores "Choose destination".
+            destination.Expand();
+            destination.Items.First(item => item.Name == "inventory-events, Topic").Patterns.SelectionItem.Pattern.Select();
+            Assert.True(SpinWait.SpinUntil(() => destination.SelectedItem?.Name == "inventory-events, Topic",
+                TimeSpan.FromSeconds(5)), "The chosen destination was not applied.");
+            destination.Collapse();
+            Assert.Equal("inventory-events, Topic", destination.SelectedItem?.Name);
             InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
             Assert.True(SpinWait.SpinUntil(() => WaitForAutomationId(window, "LibraryReview", TimeSpan.FromSeconds(5)).IsEnabled,
                 TimeSpan.FromSeconds(5)));

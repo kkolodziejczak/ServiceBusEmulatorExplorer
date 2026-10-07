@@ -119,6 +119,25 @@ public sealed class MessageWorkbenchDestinationTests
 
     [Fact]
     [Trait("TestCategory", "UiRender")]
+    public void Entering_offline_prototype_after_disconnected_discovery_restores_sample_destinations()
+        => Run((window, view) =>
+        {
+            view.SetDestinationDiscovery("profile-a", 0, null, "localhost");
+            WaitFor(window.Dispatcher, () => Warning(view).Text.Contains("not verified", StringComparison.OrdinalIgnoreCase));
+            Assert.False(Get<Button>(view, "ContinueToPrepareButton").IsEnabled);
+
+            view.UseSampleDestinations();
+            WaitFor(window.Dispatcher, () => Warning(view).Visibility == Visibility.Collapsed);
+            Assert.True(Get<Button>(view, "ContinueToPrepareButton").IsEnabled);
+            Assert.True(Get<Button>(view, "PrepareStepButton").IsEnabled);
+
+            view.SetDestinationDiscovery("profile-a", 1, Snapshot(true));
+            WaitFor(window.Dispatcher, () => Warning(view).Text.Contains("unavailable", StringComparison.OrdinalIgnoreCase));
+            Assert.False(Get<Button>(view, "ContinueToPrepareButton").IsEnabled);
+        });
+
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
     public void Warning_actions_reveal_destination_preserve_draft_and_gate_both_prepare_routes()
         => Run((window, view) =>
         {

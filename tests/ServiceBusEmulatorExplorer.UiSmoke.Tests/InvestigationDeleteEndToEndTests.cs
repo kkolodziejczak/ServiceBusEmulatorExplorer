@@ -60,6 +60,8 @@ public sealed class InvestigationDeleteEndToEndTests
             Assert.False(ById(main, "DeleteButton")!.IsEnabled, "Delete must stay disabled until a message checkbox is checked.");
             Assert.True(ById(main, "ReplayButton")!.IsEnabled, "The focused message must remain replayable while unchecked.");
             Invoke(main, "ReplayButton", timeout.Token);
+            // Replay sends nothing until the outgoing message ID is reviewed and confirmed.
+            Invoke(WaitWindow(application, automation, "ReplayConfirmButton", timeout.Token), "ReplayConfirmButton", timeout.Token);
             var copy = await ReceiveAsync(active, timeout.Token);
             Assert.NotEqual(originalId, copy.MessageId);
             Assert.Equal(original.Body.ToArray(), copy.Body.ToArray());
