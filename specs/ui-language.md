@@ -31,6 +31,23 @@ the existing pale-orange/dark-orange DLQ palette.
 | Compact columns and empty remainder | [Replay 45](message-library/design/proposed/replay-45-v1-history-cleanup-and-columns.png), callouts 4 and 5 only; its history proposal is not authoritative |
 | Replay history | [Replay 47](message-library/design/proposed/replay-47-v1-opus-inline-details.png) and [current contract](replay-history.md) |
 
+## Proposals under consideration
+
+| Proposal | Question |
+| --- | --- |
+| [Refresh 48 v1](message-library/design/proposed/refresh-48-v1-auto-refresh-label.png) | Label-only options A–D for the tab-row auto-refresh control (commit d5db402, made without a proposal). All rejected; superseded by Refresh 49–53. |
+| [Refresh 49 v1](message-library/design/proposed/refresh-49-v1-footer.png) | Option 1: auto-refresh caption, interval and pause in the window footer beside UTC/Local. |
+| [Refresh 50 v1](message-library/design/proposed/refresh-50-v1-refresh-group.png) | Option 2: Refresh joins interval and pause in the tab row; group wraps under the tabs when narrow. |
+| [Refresh 51 v1](message-library/design/proposed/refresh-51-v1-stacked-caption.png) | Option 3: "Auto-refresh" caption stacked above the tab-row control. |
+| [Refresh 52 v1](message-library/design/proposed/refresh-52-v1-split-button.png) | Option 4: Refresh split button carrying interval and pause. |
+| [Refresh 53 v1](message-library/design/proposed/refresh-53-v1-combined-footer.png) | Option 5: footer group plus the existing list-heading refresh marker; Pause disabled when Off. |
+| Refresh 49–53 | All rejected 2026-10-07: they moved the control instead of rethinking the feature. Superseded by Updates 54–58. |
+| [Updates 54 v1](message-library/design/proposed/updates-54-v1-live-alerts.png) | Live + Alerts (claude-fable-5-1): one Live toggle, Alerts replace Watch, live search with "Alert me". |
+| [Updates 55 v1](message-library/design/proposed/updates-55-v1-follow-and-find.png) | Follow and Find (gpt-6.1-sol): per-view Follow, Updates task list, Wait for matches. |
+| [Updates 56 v1](message-library/design/proposed/updates-56-v1-fresh-view-explicit-waits.png) | Fresh view, explicit waits (gpt-6-astra): Updates menu, keep this view fresh, Wait for a message form. |
+| [Updates 57 v1](message-library/design/proposed/updates-57-v1-live-arrivals-feed.png) | Live mode + Arrivals feed (claude-opus-5-5): namespace-wide arrivals list with "Landed in" and notify on match. |
+| [Updates 58 v1](message-library/design/proposed/updates-58-v1-combined-live-and-waits.png) | Combined: Live pill with a panel listing everything kept up to date, per-view freshness line, Alert per place, search that keeps searching. Awaiting choice among 54–58. |
+
 Existing filenames remain stable for retained references. Superseded draft boards, rejected
 alternatives and completed execution ledgers are not part of the current specification.
 Keep future proposals here only while they are being considered; once implemented, retain
