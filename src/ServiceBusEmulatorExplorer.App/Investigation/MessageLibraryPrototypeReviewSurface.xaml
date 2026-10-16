@@ -56,9 +56,18 @@
    </StackPanel>
   </ScrollViewer>
   <StackPanel Grid.Row="1">
+   <ContentControl Focusable="False" Visibility="{Binding Visibility, ElementName=ReviewFooter}">
+   <Border x:Name="ScheduleWarning" Visibility="Collapsed" Style="{StaticResource ValidationWarningFrame}" Margin="0,0,0,12">
+    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+     <Path Style="{StaticResource ValidationWarningIcon}"/>
+     <TextBlock x:Name="ScheduleWarningText" Grid.Column="1" Style="{StaticResource ValidationWarningText}" AutomationProperties.AutomationId="ScheduleWarningText" AutomationProperties.LiveSetting="Polite"/>
+     <Button x:Name="ScheduleWarningAction" Grid.Column="2" Content="Change date" Style="{StaticResource ValidationWarningAction}" Click="ScheduleWarningAction_Click" Margin="12,0,0,0" VerticalAlignment="Center" AutomationProperties.AutomationId="ScheduleWarningAction"/>
+    </Grid>
+   </Border>
+   </ContentControl>
    <Border Visibility="{Binding Visibility, ElementName=ReviewFooter}" Background="{DynamicResource NeutralHoverBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="3" Padding="12" Margin="0,0,0,12"><TextBlock x:Name="ReviewNotice" Text="Subscriptions receive according to their rules." TextWrapping="Wrap"/></Border>
    <Border x:Name="ReviewFooter" Visibility="Collapsed" Background="{DynamicResource RaisedBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="0,12,0,12">
-    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Button Content="Back to preparation" Click="Back_Click" Padding="10,7"/><Button x:Name="ConfirmDispatch" Grid.Column="2" Content="Send 3 messages" Click="Dispatch_Click" Style="{StaticResource PrimaryButton}" Padding="13,8" AutomationProperties.AutomationId="PrototypeConfirmDispatch"/></Grid>
+    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Button Content="Back to preparation" Click="Back_Click" Padding="10,7"/><Button x:Name="ConfirmDispatch" Grid.Column="2" Content="Send 3 messages" Click="Dispatch_Click" Style="{StaticResource PrimaryButton}" Padding="13,8" ToolTipService.ShowOnDisabled="True" AutomationProperties.AutomationId="PrototypeConfirmDispatch"/></Grid>
    </Border>
   </StackPanel>
  </Grid>

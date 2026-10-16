@@ -148,6 +148,32 @@
    <Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="{DynamicResource DisabledBackgroundBrush}"/><Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource DisabledBorderBrush}"/></Trigger>
   </Style.Triggers>
  </Style>
+ <Style x:Key="ValidationWarningIcon" TargetType="Path">
+  <Setter Property="Data" Value="M10,1 L20,19 H0 Z M10,6 V12 M10,15 V16"/><Setter Property="Stroke" Value="{DynamicResource WarningHealthBrush}"/><Setter Property="StrokeThickness" Value="1.5"/>
+  <Setter Property="Width" Value="20"/><Setter Property="Height" Value="20"/><Setter Property="Stretch" Value="Uniform"/><Setter Property="Margin" Value="0,0,12,0"/><Setter Property="VerticalAlignment" Value="Center"/>
+ </Style>
+ <Style x:Key="ValidationWarningText" TargetType="TextBlock">
+  <Setter Property="Foreground" Value="#714900"/><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="VerticalAlignment" Value="Center"/>
+ </Style>
+ <!-- Generated or computed value the user can read and copy but not type into (Prepare 64). -->
+ <Style x:Key="ReadOnlyField" TargetType="TextBox">
+  <Setter Property="IsReadOnly" Value="True"/><Setter Property="IsReadOnlyCaretVisible" Value="False"/>
+  <Setter Property="Background" Value="{DynamicResource DisabledBackgroundBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
+  <Setter Property="Padding" Value="8"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+  <Setter Property="ToolTip" Value="Generated automatically. Read-only."/>
+  <Setter Property="Template">
+   <Setter.Value>
+    <ControlTemplate TargetType="TextBox">
+     <Border Background="{TemplateBinding Background}" CornerRadius="3" Padding="{TemplateBinding Padding}">
+      <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+       <ScrollViewer x:Name="PART_ContentHost" Focusable="False" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+       <Path x:Name="ReadOnlyLock" Grid.Column="1" Data="{StaticResource LockGeometry}" Stroke="{DynamicResource SecondaryBrush}" StrokeThickness="1.4" Width="12" Height="14" Stretch="Uniform" Margin="8,0,0,0" VerticalAlignment="Center"/>
+      </Grid>
+     </Border>
+    </ControlTemplate>
+   </Setter.Value>
+  </Setter>
+ </Style>
  <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
   <Setter Property="MinWidth" Value="28"/><Setter Property="MinHeight" Value="28"/><Setter Property="Padding" Value="6"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
  </Style>

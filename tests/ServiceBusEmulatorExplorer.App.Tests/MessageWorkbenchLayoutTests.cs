@@ -345,6 +345,16 @@ public sealed class MessageWorkbenchLayoutTests
                 TextBox generatedEventId = ByAutomationId<TextBox>(singleInputs, "LibraryGeneratedEventId");
                 TextBox generatedOccurredAt = ByAutomationId<TextBox>(singleInputs, "LibraryGeneratedOccurredAt");
                 Assert.True(generatedEventId.IsReadOnly && generatedOccurredAt.IsReadOnly);
+                // Prepare 64: generated values must not look like inputs.
+                var readOnlyField = (Style)view.FindResource("ReadOnlyField");
+                foreach (TextBox generated in new[] { generatedEventId, generatedOccurredAt })
+                {
+                    Assert.Same(readOnlyField, generated.Style);
+                    Assert.Equal(Visibility.Visible, ((FrameworkElement)generated.Template.FindName("ReadOnlyLock", generated)).Visibility);
+                }
+                TextBlock generatedCaption = ByName<TextBlock>(view, "GeneratedValuesCaption");
+                Assert.True(Bounds(generatedCaption, singleInputs).Top >= Bounds(generatedOccurredAt, singleInputs).Bottom,
+                    "The generated-values caption must sit under the generated fields.");
                 Assert.True(Guid.TryParse(generatedEventId.Text, out _));
                 Assert.True(DateTimeOffset.TryParse(generatedOccurredAt.Text, out _));
                 AssertFullyInside(generatedEventId, singleInputs, "generated EventId");

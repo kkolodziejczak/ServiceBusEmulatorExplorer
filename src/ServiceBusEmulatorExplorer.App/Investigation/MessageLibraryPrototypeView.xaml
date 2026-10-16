@@ -161,8 +161,8 @@
    </Grid>
    <Border x:Name="ComposeDestinationWarning" Grid.Row="2" Visibility="Collapsed" Style="{StaticResource ValidationWarningFrame}" Margin="18,0,18,12">
     <Grid SizeChanged="DestinationNotice_SizeChanged"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-     <Path Data="M10,1 L20,19 H0 Z M10,6 V12 M10,15 V16" Stroke="{DynamicResource WarningHealthBrush}" StrokeThickness="1.5" Width="20" Height="20" Stretch="Uniform" Margin="0,0,12,0" VerticalAlignment="Center"/>
-     <TextBlock x:Name="DestinationWarning" Grid.Column="1" TextWrapping="Wrap" Foreground="#714900" VerticalAlignment="Center" AutomationProperties.AutomationId="LibraryDestinationStatus" AutomationProperties.LiveSetting="Polite"/>
+     <Path Style="{StaticResource ValidationWarningIcon}"/>
+     <TextBlock x:Name="DestinationWarning" Grid.Column="1" Style="{StaticResource ValidationWarningText}" AutomationProperties.AutomationId="LibraryDestinationStatus" AutomationProperties.LiveSetting="Polite"/>
      <Button x:Name="ComposeDestinationAction" Grid.Column="2" Content="Choose destination" Style="{StaticResource ValidationWarningAction}" Click="ChooseDestination_Click" Margin="12,0,0,0" VerticalAlignment="Center" AutomationProperties.Name="Choose destination"/>
     </Grid>
    </Border>
@@ -178,8 +178,9 @@
      <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="132"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="CustomerId *" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,0,12,0"/><TextBox Grid.Column="1" x:Name="CustomerInput" Text="C1001" TextChanged="Input_Changed" AutomationProperties.Name="Customer ID" AutomationProperties.AutomationId="LibraryCustomerId"/></Grid>
      <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="132"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Amount *" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,0,12,0"/><TextBox Grid.Column="1" x:Name="AmountInput" Text="149.90" TextChanged="Input_Changed" AutomationProperties.Name="Amount" AutomationProperties.AutomationId="LibraryAmount"/></Grid>
      <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Margin="0,4,0,12"/>
-      <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="132"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="EventId" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,0,12,0"/><TextBox Grid.Column="1" x:Name="SingleEventId" Text="Waiting for valid inputs" IsReadOnly="True" AutomationProperties.Name="Generated event ID" AutomationProperties.AutomationId="LibraryGeneratedEventId"/></Grid>
-      <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="132"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="OccurredAt (UTC)" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,0,12,0"/><TextBox Grid.Column="1" x:Name="SingleOccurredAt" Text="Waiting for valid inputs" IsReadOnly="True" AutomationProperties.Name="Generated UTC time" AutomationProperties.AutomationId="LibraryGeneratedOccurredAt"/></Grid>
+      <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="132"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="EventId" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,0,12,0"/><TextBox Grid.Column="1" x:Name="SingleEventId" Text="Waiting for valid inputs" Style="{StaticResource ReadOnlyField}" AutomationProperties.Name="Generated event ID" AutomationProperties.AutomationId="LibraryGeneratedEventId"/></Grid>
+      <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="132"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="OccurredAt (UTC)" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0,0,12,0"/><TextBox Grid.Column="1" x:Name="SingleOccurredAt" Text="Waiting for valid inputs" Style="{StaticResource ReadOnlyField}" AutomationProperties.Name="Generated UTC time" AutomationProperties.AutomationId="LibraryGeneratedOccurredAt"/></Grid>
+      <Grid Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="132"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Grid.Column="1" x:Name="GeneratedValuesCaption" Text="Generated automatically for each message. Not editable." Style="{StaticResource Caption}" TextWrapping="Wrap"/></Grid>
     </StackPanel>
     <StackPanel x:Name="CsvInputs">
       <TextBlock Text="CSV file" Style="{StaticResource FieldLabel}"/>
@@ -204,8 +205,8 @@
    </Grid></ScrollViewer>
    <Border x:Name="PrepareDestinationWarning" Grid.Row="2" Visibility="Collapsed" Style="{StaticResource ValidationWarningFrame}" Margin="18,0,18,12">
     <Grid SizeChanged="DestinationNotice_SizeChanged"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-     <Path Data="M10,1 L20,19 H0 Z M10,6 V12 M10,15 V16" Stroke="{DynamicResource WarningHealthBrush}" StrokeThickness="1.5" Width="20" Height="20" Stretch="Uniform" Margin="0,0,12,0" VerticalAlignment="Center"/>
-     <TextBlock x:Name="PrepareDestinationWarningText" Grid.Column="1" TextWrapping="Wrap" Foreground="#714900" VerticalAlignment="Center" AutomationProperties.AutomationId="LibraryPrepareDestinationStatus" AutomationProperties.LiveSetting="Polite"/>
+     <Path Style="{StaticResource ValidationWarningIcon}"/>
+     <TextBlock x:Name="PrepareDestinationWarningText" Grid.Column="1" Style="{StaticResource ValidationWarningText}" AutomationProperties.AutomationId="LibraryPrepareDestinationStatus" AutomationProperties.LiveSetting="Polite"/>
      <Button x:Name="PrepareDestinationAction" Grid.Column="2" Content="Choose destination" Style="{StaticResource ValidationWarningAction}" Click="ChooseDestination_Click" Margin="12,0,0,0" VerticalAlignment="Center" AutomationProperties.Name="Choose destination"/>
     </Grid>
    </Border>

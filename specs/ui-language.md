@@ -30,11 +30,14 @@ the existing pale-orange/dark-orange DLQ palette.
 | Scope header and sidebar selection | [Location 44](message-library/design/proposed/location-44-v1-scope-header.png) |
 | Compact columns and empty remainder | [Replay 45](message-library/design/proposed/replay-45-v1-history-cleanup-and-columns.png), callouts 4 and 5 only; its history proposal is not authoritative |
 | Replay history | [Replay 47](message-library/design/proposed/replay-47-v1-opus-inline-details.png) and [current contract](replay-history.md) |
+| Generated values | [Prepare 64](message-library/design/proposed/prepare-64-v1-generated-readonly.png), DEC-045 |
+| Schedule validation | [Schedule 66](message-library/design/proposed/schedule-66-v1-past-time-validation.png), DEC-046; the notice uses the existing amber validation style, not the red drawn on the board |
 
 ## Proposals under consideration
 
 | Proposal | Question |
 | --- | --- |
+| [Delimiter 67 v1](message-library/design/proposed/delimiter-67-v1-options.png) | Lighter delimiter labels for the Map CSV dialog: A key-cap chip, B character first, C shortcut-style column, D inline dot. Replaces Delimiter 65 "Comma (,)", rejected as too heavy. Awaiting choice. |
 | [Refresh 48 v1](message-library/design/proposed/refresh-48-v1-auto-refresh-label.png) | Label-only options A–D for the tab-row auto-refresh control (commit d5db402, made without a proposal). All rejected; superseded by Refresh 49–53. |
 | [Refresh 49 v1](message-library/design/proposed/refresh-49-v1-footer.png) | Option 1: auto-refresh caption, interval and pause in the window footer beside UTC/Local. |
 | [Refresh 50 v1](message-library/design/proposed/refresh-50-v1-refresh-group.png) | Option 2: Refresh joins interval and pause in the tab row; group wraps under the tabs when narrow. |

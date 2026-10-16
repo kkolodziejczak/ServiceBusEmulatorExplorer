@@ -39,7 +39,7 @@ internal static class Program
         bool namespaceIndicatorsProof = args.Length == 2 && args[1] == "--namespace-indicators";
         bool dialogCapture = args.Length == 2 && args[1] is
             "--message-library-map" or "--message-library-capture" or "--message-library-review" or "--message-library-results"
-            or "--message-library-schedule" or "--message-library-validation"
+            or "--message-library-schedule" or "--message-library-schedule-past-date" or "--message-library-schedule-past-time" or "--message-library-validation"
             or "--message-library-scheduled-results" or "--message-library-cancellation-history";
         int captureWidth = cleanupProposalProof || namespaceIndicatorsProof ? 1500 : dialogCapture ? 760 :
             args.Length == 2 && args[1] is "--message-library-prepare" or "--message-library-properties" or "--message-library-properties-bottom" or "--message-library-properties-selected" or "--message-library-variables" or "--message-library-single" or "--message-library-prepare-log" or "--message-library-wizard-review" or "--message-library-wizard-review-queue" or "--message-library-wizard-review-large-batch" ? 1642 :
@@ -83,8 +83,17 @@ internal static class Program
                         dialog.SetCaptureSource("order-events / billing · Active",
                             "{\n  \"customerId\": \"C1001\",\n  \"amount\": 149.90\n}",
                             "{\n  \"customerId\": \"C1001\",\n  \"amount\": 149.90,\n  \"reviewed\": true\n}", "order-events");
-                    if (args[1] == "--message-library-schedule")
+                    if (args[1] is "--message-library-schedule" or "--message-library-schedule-past-date" or "--message-library-schedule-past-time")
                         ((RadioButton)dialog.FindName("ReviewSchedule")!).IsChecked = true;
+                    // Schedule 66 problem states: a day before today, and an earlier time today (UTC).
+                    if (args[1] == "--message-library-schedule-past-date")
+                        ((DatePicker)dialog.FindName("ScheduleDateInput")!).SelectedDate = DateTime.Today.AddDays(-1);
+                    if (args[1] == "--message-library-schedule-past-time")
+                    {
+                        ((DatePicker)dialog.FindName("ScheduleDateInput")!).SelectedDate = DateTime.UtcNow.Date;
+                        ((ComboBox)dialog.FindName("ScheduleHourInput")!).SelectedItem = "00";
+                        ((ComboBox)dialog.FindName("ScheduleMinuteInput")!).SelectedItem = "00";
+                    }
                     if (mode == PrototypeDialogMode.Validation)
                         dialog.SetValidationRows([(1, "C1001", "Ready"), (2, "C1002", "Amount must be a number"), (3, "C1003", "Ready")]);
                     if (mode == PrototypeDialogMode.Results)
