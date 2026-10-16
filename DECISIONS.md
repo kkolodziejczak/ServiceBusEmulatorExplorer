@@ -61,6 +61,9 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-042 | accepted | Investigation columns | Compact real columns with an empty trailing remainder |
 | DEC-043 | accepted | Replay history | Searchable original and replay IDs with row-local history removal |
 | DEC-044 | accepted | Replay history | Selected-row inline details replace the permanent bottom panel |
+| DEC-045 | accepted | Workbench Prepare | Generated values look read-only |
+| DEC-046 | accepted | Workbench scheduling | Schedule problems use the amber validation notice with a remedy |
+| DEC-047 | accepted | Workbench CSV | Delimiter shown as a key-cap character before its name |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -364,6 +367,27 @@ Copy and the persistent Editable/Read-only indicator overlay the code viewport w
 - Decision: use one table with state counts and selected-row inline details, full IDs and Copy, source/destination and original deletion beside the original. Retain row-local eligible history trash.
 - Because: the permanent selected panel repeated dense information and created a cramped inner scrollbar; the user preferred Opus's inline alternative to the stable-row proposal.
 - Consequences: supersedes only DEC-043 selected-details layout. Preserve modeless searches, truthful observations, existing cleanup safeguards, storage and broker operations. See [Replay history contract](specs/replay-history.md).
+
+## DEC-045 - Generated values look read-only
+
+- Status: accepted, 2026-10-16; user approved Prepare 64 v1.
+- Decision: show generated template values (EventId, OccurredAt) with the shared `ReadOnlyField` style: disabled-background fill, no border, lock icon and a caption saying they are generated for each message.
+- Because: the fields were read-only but looked like normal inputs, so the user tried to type into them.
+- Consequences: keep generated values selectable and copyable; editable inputs keep the normal text box. See [Prepare 64](specs/ui-language.md).
+
+## DEC-046 - Schedule problems explain the cause
+
+- Status: accepted, 2026-10-16; user approved Schedule 66 v1 and asked to reuse the existing amber validation notice instead of the red one drawn on the board.
+- Decision: days before today cannot be picked. Any schedule problem (no date, past day, time already passed, nonexistent or repeated local time, a time that expires while the review is open or at dispatch) shows the shared validation notice above the footer with the cause, the current time and a Change date / Change time action that opens the calendar or focuses the hour. The disabled Schedule button carries the same reason as its tooltip.
+- Because: the Schedule button was disabled with only a grey hint, so the user could not tell why.
+- Consequences: one validation look across the Workbench; no new error colour. While a problem is shown, the "will be scheduled" notice is hidden so only one message sits above the footer (user correction after the first build). Revalidate every 15 seconds and before dispatch. See [Schedule 66](specs/ui-language.md) and the [scheduling contract](specs/message-library/scheduling-controls.md).
+
+## DEC-047 - Delimiter key-cap labels
+
+- Status: accepted, 2026-10-16; user chose Delimiter 67 option B combined with option A's key-cap style.
+- Decision: delimiter selectors list a key-cap character in a fixed leading column followed by its name (", Comma", "; Semicolon"), in both the Prepare page and the Map CSV dialog.
+- Because: "Comma" alone did not say which character splits columns, and "Comma (,)" looked heavy.
+- Consequences: reuse `DelimiterOptionTemplate` for any future delimiter choice; selection logic stays index-based. See [Delimiter 67](specs/ui-language.md).
 
 ### DEC-044 visual correction
 

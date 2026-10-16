@@ -35,6 +35,9 @@ Startup presentation example: `src/ServiceBusEmulatorExplorer.App/Investigation/
 | Vector icon geometries | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Resources/IconResources.xaml` |
 | Profile accent recolouring of the whole brush set at runtime | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Resources/ProfileTheme.cs` `Apply` |
 | Keyboard-only focus cue (no frame after pointer click) | shared | `SharedStyles.xaml` `KeyboardActionFocusVisual`, used by the implicit `Button` style |
+| Read-only field for generated or computed values (fill, no border, lock icon) | shared | `SharedStyles.xaml` `ReadOnlyField` |
+| Dropdown items with a key-cap character before the name | shared | `SharedStyles.xaml` `DelimiterOptionTemplate`, `src/ServiceBusEmulatorExplorer.App/Investigation/DelimiterOption.cs` |
+| Schedule validation that names the cause and the field to fix: missing input, past day, passed time, nonexistent or repeated local time, expiry while reviewing | adapt | `src/ServiceBusEmulatorExplorer.App/Investigation/MessageLibraryPrototypeReviewSurface.xaml.cs` `ResolveSchedule`, `ShowScheduleProblem` |
 | Validation frame with a remedy action that navigates and focuses the field | adapt | `src/ServiceBusEmulatorExplorer.App/Investigation/MessageLibraryPrototypeView.xaml` (`ValidationWarningFrame` usage) and its code-behind partials |
 | Responsive editor with retained draft, inspector choice and focused surface | adapt | `src/ServiceBusEmulatorExplorer.App/Investigation/MessageLibraryPrototypeView.Layout.cs`, `ApplyEditorResponsiveLayout`; same-window resize proof in `tests/ServiceBusEmulatorExplorer.App.Tests/MessageWorkbenchResponsiveComposeTests.cs` |
 | JSON syntax colouring on the dark editor | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Inspection/JsonSyntaxColorizer.cs` |

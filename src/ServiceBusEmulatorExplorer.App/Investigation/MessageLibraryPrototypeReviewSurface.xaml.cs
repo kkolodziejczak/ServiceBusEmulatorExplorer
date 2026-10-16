@@ -5,6 +5,7 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using Microsoft.Win32;
@@ -27,6 +28,12 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     private int dispatchIndex;
     private bool dispatchScheduled;
     private DateTimeOffset? dispatchDueUtc;
+    private readonly DispatcherTimer scheduleClock = new() { Interval = TimeSpan.FromSeconds(15) };
+    private ScheduleProblem? scheduleProblem;
+    private Func<DateTime> utcNow = () => DateTime.UtcNow;
+
+    private enum ScheduleField { Date, Time }
+    private sealed record ScheduleProblem(string Message, ScheduleField Field);
 
     public MessageLibraryPrototypeReviewSurface() : this("Local emulator", "order-events", 3)
     {
@@ -38,7 +45,12 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         InitializeScheduleInputs();
         RefreshDatePresentation();
         dispatchTimer.Tick += DispatchTick;
-        Unloaded += (_, _) => dispatchTimer.Stop();
+        scheduleClock.Tick += (_, _) => UpdateReviewTiming();
+        Unloaded += (_, _) =>
+        {
+            dispatchTimer.Stop();
+            scheduleClock.Stop();
+        };
         SizeChanged += (_, _) => UpdateReviewCardLayout();
         ReviewScroll.SizeChanged += (_, _) => UpdateReviewCardLayout();
         Configure(profile, target, count);
@@ -125,6 +137,9 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         [nameof(ScheduleUtc)] = ScheduleUtc,
         [nameof(ScheduleLocal)] = ScheduleLocal,
         [nameof(ResolvedSchedule)] = ResolvedSchedule,
+        [nameof(ScheduleWarning)] = ScheduleWarning,
+        [nameof(ScheduleWarningText)] = ScheduleWarningText,
+        [nameof(ScheduleWarningAction)] = ScheduleWarningAction,
         [nameof(ReviewMessageCount)] = ReviewMessageCount,
         [nameof(ReviewTotalSize)] = ReviewTotalSize,
         [nameof(ReviewTtl)] = ReviewTtl,
@@ -147,6 +162,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         [nameof(HistorySurface)] = HistorySurface,
         [nameof(HistoryGrid)] = HistoryGrid,
         [nameof(ReviewNotice)] = ReviewNotice,
+        [nameof(ReviewNoticeFrame)] = ReviewNoticeFrame,
         [nameof(ConfirmDispatch)] = ConfirmDispatch
     };
 
@@ -243,7 +259,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
 
     private void UpdateReviewTiming()
     {
-        if (ReviewSchedule is null || ScheduleInputs is null || ConfirmDispatch is null) return;
+        if (ReviewSchedule is null || ScheduleInputs is null || ConfirmDispatch is null || ScheduleWarning is null) return;
         bool schedule = ReviewSchedule.IsChecked == true;
         ScheduleInputs.Visibility = schedule ? Visibility.Visible : Visibility.Collapsed;
         ConfirmDispatch.Content = $"{(schedule ? "Schedule" : "Send")} {messageCount} message{(messageCount == 1 ? "" : "s")}";
@@ -254,35 +270,92 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
                 : $"{messageCount} messages will be sent to the queue."
                 : "Subscriptions receive messages according to their rules.";
         ConfirmDispatch.IsEnabled = !schedule;
-        if (!schedule) return;
-        if (!TryResolveSchedule(out DateTime utc) || utc <= DateTime.UtcNow)
+        if (!schedule)
         {
-            ResolvedSchedule.Text = "Choose a future date and a valid, unambiguous time (HH:mm).";
+            scheduleClock.Stop();
+            ShowScheduleProblem(null);
+            return;
+        }
+        scheduleClock.Start();
+        DateTime nowUtc = utcNow();
+        BlockPastCalendarDays(nowUtc);
+        ScheduleProblem? problem = ResolveSchedule(nowUtc, out DateTime utc);
+        ShowScheduleProblem(problem);
+        if (problem is not null)
+        {
+            ResolvedSchedule.Text = "One time for all messages";
             return;
         }
         ConfirmDispatch.IsEnabled = true;
         ResolvedSchedule.Text = $"Resolved time: {DateDisplay.Timestamp(new DateTimeOffset(utc), DatePresentation.GetFormat(this), seconds: false)} UTC · one time for all messages";
     }
 
-    private bool TryResolveSchedule(out DateTime utc)
+    private void BlockPastCalendarDays(DateTime nowUtc)
+    {
+        // A UTC schedule may still be today in UTC after the local date has moved on, and vice versa.
+        DateTime earliest = DateTime.Today < nowUtc.Date ? DateTime.Today : nowUtc.Date;
+        // Keep an already selected past day inside the range so it stays shown next to the notice that explains it.
+        if (ScheduleDateInput.SelectedDate is DateTime selected && selected.Date < earliest) earliest = selected.Date;
+        ScheduleDateInput.DisplayDateStart = earliest;
+    }
+
+    private ScheduleProblem? ResolveSchedule(DateTime nowUtc, out DateTime utc)
     {
         utc = default;
-        if (ScheduleDateInput?.SelectedDate is not DateTime date ||
-            ScheduleHourInput?.SelectedItem is not string hourText ||
-            ScheduleMinuteInput?.SelectedItem is not string minuteText ||
+        if (ScheduleDateInput.SelectedDate is not DateTime date)
+            return new("Choose a date for the scheduled send.", ScheduleField.Date);
+        if (ScheduleHourInput.SelectedItem is not string hourText || ScheduleMinuteInput.SelectedItem is not string minuteText ||
             !int.TryParse(hourText, NumberStyles.None, CultureInfo.InvariantCulture, out int hour) ||
             !int.TryParse(minuteText, NumberStyles.None, CultureInfo.InvariantCulture, out int minute) ||
             hour is < 0 or > 23 || minute is < 0 or > 59)
-            return false;
-        TimeOnly time = new(hour, minute);
-        DateTime selected = DateTime.SpecifyKind(date.Date.Add(time.ToTimeSpan()), DateTimeKind.Unspecified);
-        if (ScheduleLocal?.IsChecked == true)
+            return new("Choose an hour and a minute for the scheduled send.", ScheduleField.Time);
+
+        bool local = ScheduleLocal.IsChecked == true;
+        string zone = local ? "local time" : "UTC";
+        var format = DatePresentation.GetFormat(this);
+        DateTime wallTime = DateTime.SpecifyKind(date.Date.AddHours(hour).AddMinutes(minute), DateTimeKind.Unspecified);
+        string selected = $"{DateDisplay.Date(date, format)} {wallTime.ToString("HH:mm", CultureInfo.InvariantCulture)} {zone}";
+        if (local)
         {
-            if (TimeZoneInfo.Local.IsInvalidTime(selected) || TimeZoneInfo.Local.IsAmbiguousTime(selected)) return false;
-            utc = TimeZoneInfo.ConvertTimeToUtc(selected, TimeZoneInfo.Local);
+            if (TimeZoneInfo.Local.IsInvalidTime(wallTime))
+                return new($"{selected} does not exist because the clocks move forward. Choose another time or use UTC.", ScheduleField.Time);
+            if (TimeZoneInfo.Local.IsAmbiguousTime(wallTime))
+                return new($"{selected} happens twice because the clocks move back. Choose another time or use UTC.", ScheduleField.Time);
+            utc = TimeZoneInfo.ConvertTimeToUtc(wallTime, TimeZoneInfo.Local);
         }
-        else utc = DateTime.SpecifyKind(selected, DateTimeKind.Utc);
-        return true;
+        else utc = DateTime.SpecifyKind(wallTime, DateTimeKind.Utc);
+        if (utc > nowUtc) return null;
+
+        DateTimeOffset now = local ? new DateTimeOffset(nowUtc).ToLocalTime() : new DateTimeOffset(nowUtc);
+        string nowText = $"{DateDisplay.Timestamp(now, format, seconds: false)} {zone}";
+        return date.Date < now.Date
+            ? new($"{selected} is in the past. It is now {nowText}; choose today or a later date.", ScheduleField.Date)
+            : new($"{selected} has already passed. It is now {nowText}; choose a later time.", ScheduleField.Time);
+    }
+
+    private void ShowScheduleProblem(ScheduleProblem? problem)
+    {
+        scheduleProblem = problem;
+        ScheduleWarning.Visibility = problem is null ? Visibility.Collapsed : Visibility.Visible;
+        // The dispatch notice describes what will happen; it is misleading while a problem blocks it.
+        ReviewNoticeFrame.Visibility = problem is null ? Visibility.Visible : Visibility.Collapsed;
+        ScheduleWarningText.Text = problem?.Message ?? string.Empty;
+        string action = problem?.Field == ScheduleField.Time ? "Change time" : "Change date";
+        ScheduleWarningAction.Content = action;
+        AutomationProperties.SetName(ScheduleWarningAction, action);
+        ConfirmDispatch.ToolTip = problem?.Message;
+    }
+
+    private void ScheduleWarningAction_Click(object sender, RoutedEventArgs e)
+    {
+        ScheduleInputs.BringIntoView();
+        if (scheduleProblem?.Field == ScheduleField.Time)
+        {
+            ScheduleHourInput.Focus();
+            return;
+        }
+        ScheduleDateInput.Focus();
+        ScheduleDateInput.IsDropDownOpen = true;
     }
 
     private void Dispatch_Click(object sender, RoutedEventArgs e)
@@ -296,12 +369,14 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         }
         dispatchScheduled = ReviewSchedule.IsChecked == true;
         DateTime utc = default;
-        if (dispatchScheduled && (!TryResolveSchedule(out utc) || utc <= DateTime.UtcNow))
+        if (dispatchScheduled && ResolveSchedule(utcNow(), out utc) is { } problem)
         {
-            ReviewError.Text = "Choose a future date and a valid time before scheduling.";
-            ReviewError.Visibility = Visibility.Visible;
+            // Time can pass while the review is open, before the schedule clock ticks again.
+            ShowScheduleProblem(problem);
+            ConfirmDispatch.IsEnabled = false;
             return;
         }
+        scheduleClock.Stop();
         dispatchDueUtc = dispatchScheduled ? new DateTimeOffset(utc) : null;
         ReviewError.Visibility = Visibility.Collapsed;
         SetSurface(ProgressSurface);

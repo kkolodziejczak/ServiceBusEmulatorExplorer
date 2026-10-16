@@ -30,6 +30,9 @@ the existing pale-orange/dark-orange DLQ palette.
 | Scope header and sidebar selection | [Location 44](message-library/design/proposed/location-44-v1-scope-header.png) |
 | Compact columns and empty remainder | [Replay 45](message-library/design/proposed/replay-45-v1-history-cleanup-and-columns.png), callouts 4 and 5 only; its history proposal is not authoritative |
 | Replay history | [Replay 47](message-library/design/proposed/replay-47-v1-opus-inline-details.png) and [current contract](replay-history.md) |
+| Generated values | [Prepare 64](message-library/design/proposed/prepare-64-v1-generated-readonly.png), DEC-045 |
+| Delimiter labels | [Delimiter 67](message-library/design/proposed/delimiter-67-v1-options.png), option B layout with option A key-cap chip, DEC-047 |
+| Schedule validation | [Schedule 66](message-library/design/proposed/schedule-66-v1-past-time-validation.png), DEC-046; the notice uses the existing amber validation style, not the red drawn on the board, and replaces the "will be scheduled" notice while shown |
 
 ## Proposals under consideration
 

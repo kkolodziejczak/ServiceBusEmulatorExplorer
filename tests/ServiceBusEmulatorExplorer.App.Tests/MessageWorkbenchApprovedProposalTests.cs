@@ -44,7 +44,10 @@ public sealed class MessageWorkbenchApprovedProposalTests
             Assert.True(Get<RadioButton>(view, "CsvMode").IsChecked);
             Click(view, "ContinueToPrepareButton");
             Assert.Equal(Visibility.Visible, Get<Border>(view, "CsvValidationSummary").Visibility);
-            Get<ComboBox>(view, "CsvDelimiter").SelectedIndex = 1;
+            var delimiter = Get<ComboBox>(view, "CsvDelimiter");
+            Assert.Same(view.FindResource("DelimiterOptionTemplate"), delimiter.ItemTemplate);
+            delimiter.SelectedIndex = 1;
+            Assert.Equal("Semicolon", delimiter.SelectedItem?.ToString());
             window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
             Button validation = Get<Button>(view, "ValidationDetailsButton");
             Assert.Equal("View errors", validation.Content);

@@ -85,7 +85,7 @@ public sealed class MessageWorkbenchReviewTests
             Select(utc);
             date.SelectedDate = DateTime.Today.AddDays(-1);
             Assert.False(confirm.IsEnabled);
-            Assert.Contains("Choose a future date", resolved.Text);
+            Assert.Contains("is in the past", ((TextBlock)dialog.FindName("ScheduleWarningText")!).Text);
 
             Select((RadioButton)dialog.FindName("ReviewSendNow")!);
             Assert.Equal(Visibility.Collapsed, ((FrameworkElement)dialog.FindName("ScheduleInputs")!).Visibility);
@@ -119,23 +119,120 @@ public sealed class MessageWorkbenchReviewTests
                 var hour = (ComboBox)dialog.FindName("ScheduleHourInput")!;
                 var minute = (ComboBox)dialog.FindName("ScheduleMinuteInput")!;
                 var confirm = (Button)dialog.FindName("ConfirmDispatch")!;
-                var resolved = (TextBlock)dialog.FindName("ResolvedSchedule")!;
 
                 date.SelectedDate = invalidTime.Value.Date;
                 SelectComboItem(hour, invalidTime.Value.ToString("HH", System.Globalization.CultureInfo.InvariantCulture));
                 SelectComboItem(minute, invalidTime.Value.ToString("mm", System.Globalization.CultureInfo.InvariantCulture));
                 Assert.False(confirm.IsEnabled);
-                Assert.Contains("unambiguous time", resolved.Text);
+                Assert.Contains("does not exist", ((TextBlock)dialog.FindName("ScheduleWarningText")!).Text);
+                Assert.Equal("Change time", ((Button)dialog.FindName("ScheduleWarningAction")!).Content);
 
                 date.SelectedDate = ambiguousTime.Value.Date;
                 SelectComboItem(hour, ambiguousTime.Value.ToString("HH", System.Globalization.CultureInfo.InvariantCulture));
                 SelectComboItem(minute, ambiguousTime.Value.ToString("mm", System.Globalization.CultureInfo.InvariantCulture));
                 Assert.False(confirm.IsEnabled);
-                Assert.Contains("unambiguous time", resolved.Text);
+                Assert.Contains("happens twice", ((TextBlock)dialog.FindName("ScheduleWarningText")!).Text);
+                Assert.Equal("Change time", ((Button)dialog.FindName("ScheduleWarningAction")!).Content);
             }
             finally { dialog.Close(); }
         });
     }
+
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void Schedule_problem_explains_cause_and_jumps_to_the_field_to_fix() => OnSta(() =>
+    {
+        var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Review, "Local", "orders", 3);
+        try
+        {
+            dialog.Show();
+            Select((RadioButton)dialog.FindName("ReviewSchedule")!);
+            var date = (DatePicker)dialog.FindName("ScheduleDateInput")!;
+            var hour = (ComboBox)dialog.FindName("ScheduleHourInput")!;
+            var minute = (ComboBox)dialog.FindName("ScheduleMinuteInput")!;
+            var confirm = (Button)dialog.FindName("ConfirmDispatch")!;
+            var warning = (FrameworkElement)dialog.FindName("ScheduleWarning")!;
+            var text = (TextBlock)dialog.FindName("ScheduleWarningText")!;
+            var action = (Button)dialog.FindName("ScheduleWarningAction")!;
+
+            Assert.Equal(Visibility.Collapsed, warning.Visibility);
+            Assert.Null(confirm.ToolTip);
+            Assert.True(confirm.IsEnabled);
+            Assert.True(date.DisplayDateStart <= DateTime.Today && date.DisplayDateStart >= DateTime.Today.AddDays(-1),
+                "Only the UTC/local date difference may keep yesterday selectable.");
+
+            date.SelectedDate = DateTime.Today.AddDays(-2);
+            Assert.Equal(Visibility.Visible, warning.Visibility);
+            Assert.Contains("is in the past", text.Text);
+            Assert.Contains("choose today or a later date", text.Text);
+            Assert.Equal(Visibility.Collapsed, ((FrameworkElement)dialog.FindName("ReviewNoticeFrame")!).Visibility);
+            Assert.False(confirm.IsEnabled);
+            Assert.Equal(text.Text, confirm.ToolTip);
+            Assert.True(ToolTipService.GetShowOnDisabled(confirm));
+            Assert.Equal("Change date", action.Content);
+            Invoke(action);
+            Drain(dialog.Dispatcher);
+            Assert.True(date.IsDropDownOpen, "Change date must open the calendar.");
+            date.IsDropDownOpen = false;
+            Drain(dialog.Dispatcher);
+
+            DateTime nowUtc = DateTime.UtcNow;
+            if (nowUtc.Hour > 0)
+            {
+                date.SelectedDate = nowUtc.Date;
+                SelectComboItem(hour, "00");
+                SelectComboItem(minute, "00");
+                Assert.Contains("has already passed", text.Text);
+                Assert.Contains("choose a later time", text.Text);
+                Assert.Equal("Change time", action.Content);
+                Invoke(action);
+                Drain(dialog.Dispatcher);
+                Assert.True(hour.IsKeyboardFocusWithin, "Change time must focus the hour selector.");
+            }
+
+            date.SelectedDate = DateTime.Today.AddDays(2);
+            Assert.Equal(Visibility.Collapsed, warning.Visibility);
+            Assert.Equal(Visibility.Visible, ((FrameworkElement)dialog.FindName("ReviewNoticeFrame")!).Visibility);
+            Assert.Null(confirm.ToolTip);
+            Assert.True(confirm.IsEnabled);
+        }
+        finally { dialog.Close(); }
+    });
+
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void Schedule_that_expires_while_reviewing_is_caught_by_the_clock_and_at_dispatch() => OnSta(() =>
+    {
+        var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Review, "Local", "orders", 1);
+        try
+        {
+            dialog.Show();
+            Select((RadioButton)dialog.FindName("ReviewSchedule")!);
+            var surface = (MessageLibraryPrototypeReviewSurface)dialog.FindName("ReviewSurfaceControl")!;
+            var confirm = (Button)dialog.FindName("ConfirmDispatch")!;
+            var warning = (FrameworkElement)dialog.FindName("ScheduleWarning")!;
+            Assert.True(confirm.IsEnabled);
+
+            // The default is tomorrow 14:30 UTC; move the clock past it without touching the inputs.
+            DateTime later = DateTime.UtcNow.Date.AddDays(3);
+            typeof(MessageLibraryPrototypeReviewSurface)
+                .GetField("utcNow", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .SetValue(surface, new Func<DateTime>(() => later));
+
+            typeof(MessageLibraryPrototypeReviewSurface)
+                .GetMethod("Dispatch_Click", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(surface, [confirm, new RoutedEventArgs()]);
+            Assert.Equal(Visibility.Visible, warning.Visibility);
+            Assert.Contains("is in the past", ((TextBlock)dialog.FindName("ScheduleWarningText")!).Text);
+            Assert.False(confirm.IsEnabled);
+            Assert.Equal(Visibility.Visible, ((FrameworkElement)dialog.FindName("ReviewSurface")!).Visibility);
+
+            var clock = (DispatcherTimer)typeof(MessageLibraryPrototypeReviewSurface)
+                .GetField("scheduleClock", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(surface)!;
+            Assert.True(clock.IsEnabled, "The review keeps rechecking the schedule while it is open.");
+        }
+        finally { dialog.Close(); }
+    });
 
     [Fact]
     [Trait("TestCategory", "UiRender")]
