@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -48,7 +48,7 @@ internal static class Program
             args.Length == 2 && args[1] is "--message-library-prepare-minimum" or "--message-library-author-minimum" or "--message-library-properties-minimum" or "--message-library-single-minimum" or "--message-library-wizard-review-minimum" ? 980 : WpfScreenshot.CaptureWidth;
         int captureHeight = cleanupProposalProof || namespaceIndicatorsProof ? 1000 : dialogCapture ?
             args[1] == "--message-library-capture" ? 925 :
-            args[1] == "--message-library-map" ? 590 : 620 :
+            args[1] == "--message-library-map" ? 461 : 620 :
             captureWidth == 1642 ? 958 : captureWidth == 1500 ? 1000 : captureWidth == 1100 ? 800 : captureWidth == 980 ? 640 : WpfScreenshot.CaptureHeight;
         if ((args.Length != 1 && !prototypeCapture && !dialogCapture && !namespaceTreeProof && !sideBySideProof && !footerStatusProof && !cleanupProposalProof && !namespaceIndicatorsProof) || string.IsNullOrWhiteSpace(args[0]))
         {

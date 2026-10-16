@@ -162,6 +162,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         [nameof(HistorySurface)] = HistorySurface,
         [nameof(HistoryGrid)] = HistoryGrid,
         [nameof(ReviewNotice)] = ReviewNotice,
+        [nameof(ReviewNoticeFrame)] = ReviewNoticeFrame,
         [nameof(ConfirmDispatch)] = ConfirmDispatch
     };
 
@@ -336,6 +337,8 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     {
         scheduleProblem = problem;
         ScheduleWarning.Visibility = problem is null ? Visibility.Collapsed : Visibility.Visible;
+        // The dispatch notice describes what will happen; it is misleading while a problem blocks it.
+        ReviewNoticeFrame.Visibility = problem is null ? Visibility.Visible : Visibility.Collapsed;
         ScheduleWarningText.Text = problem?.Message ?? string.Empty;
         string action = problem?.Field == ScheduleField.Time ? "Change time" : "Change date";
         ScheduleWarningAction.Content = action;

@@ -155,6 +155,15 @@
  <Style x:Key="ValidationWarningText" TargetType="TextBlock">
   <Setter Property="Foreground" Value="#714900"/><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="VerticalAlignment" Value="Center"/>
  </Style>
+ <!-- CSV delimiter option: key-cap character in a fixed column, then the name (Delimiter 67). -->
+ <DataTemplate x:Key="DelimiterOptionTemplate">
+  <StackPanel Orientation="Horizontal">
+   <Border Background="{DynamicResource DisabledBackgroundBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="3" Width="24" Height="20" Margin="0,0,8,0" VerticalAlignment="Center">
+    <TextBlock Text="{Binding Character}" FontFamily="Consolas" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+   </Border>
+   <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+  </StackPanel>
+ </DataTemplate>
  <!-- Generated or computed value the user can read and copy but not type into (Prepare 64). -->
  <Style x:Key="ReadOnlyField" TargetType="TextBox">
   <Setter Property="IsReadOnly" Value="True"/><Setter Property="IsReadOnlyCaretVisible" Value="False"/>

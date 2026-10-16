@@ -165,6 +165,7 @@ public sealed class MessageWorkbenchReviewTests
             Assert.Equal(Visibility.Visible, warning.Visibility);
             Assert.Contains("is in the past", text.Text);
             Assert.Contains("choose today or a later date", text.Text);
+            Assert.Equal(Visibility.Collapsed, ((FrameworkElement)dialog.FindName("ReviewNoticeFrame")!).Visibility);
             Assert.False(confirm.IsEnabled);
             Assert.Equal(text.Text, confirm.ToolTip);
             Assert.True(ToolTipService.GetShowOnDisabled(confirm));
@@ -191,6 +192,7 @@ public sealed class MessageWorkbenchReviewTests
 
             date.SelectedDate = DateTime.Today.AddDays(2);
             Assert.Equal(Visibility.Collapsed, warning.Visibility);
+            Assert.Equal(Visibility.Visible, ((FrameworkElement)dialog.FindName("ReviewNoticeFrame")!).Visibility);
             Assert.Null(confirm.ToolTip);
             Assert.True(confirm.IsEnabled);
         }

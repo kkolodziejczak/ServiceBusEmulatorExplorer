@@ -63,6 +63,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-044 | accepted | Replay history | Selected-row inline details replace the permanent bottom panel |
 | DEC-045 | accepted | Workbench Prepare | Generated values look read-only |
 | DEC-046 | accepted | Workbench scheduling | Schedule problems use the amber validation notice with a remedy |
+| DEC-047 | accepted | Workbench CSV | Delimiter shown as a key-cap character before its name |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -379,7 +380,14 @@ Copy and the persistent Editable/Read-only indicator overlay the code viewport w
 - Status: accepted, 2026-10-16; user approved Schedule 66 v1 and asked to reuse the existing amber validation notice instead of the red one drawn on the board.
 - Decision: days before today cannot be picked. Any schedule problem (no date, past day, time already passed, nonexistent or repeated local time, a time that expires while the review is open or at dispatch) shows the shared validation notice above the footer with the cause, the current time and a Change date / Change time action that opens the calendar or focuses the hour. The disabled Schedule button carries the same reason as its tooltip.
 - Because: the Schedule button was disabled with only a grey hint, so the user could not tell why.
-- Consequences: one validation look across the Workbench; no new error colour. Revalidate every 15 seconds and before dispatch. See [Schedule 66](specs/ui-language.md) and the [scheduling contract](specs/message-library/scheduling-controls.md).
+- Consequences: one validation look across the Workbench; no new error colour. While a problem is shown, the "will be scheduled" notice is hidden so only one message sits above the footer (user correction after the first build). Revalidate every 15 seconds and before dispatch. See [Schedule 66](specs/ui-language.md) and the [scheduling contract](specs/message-library/scheduling-controls.md).
+
+## DEC-047 - Delimiter key-cap labels
+
+- Status: accepted, 2026-10-16; user chose Delimiter 67 option B combined with option A's key-cap style.
+- Decision: delimiter selectors list a key-cap character in a fixed leading column followed by its name (", Comma", "; Semicolon"), in both the Prepare page and the Map CSV dialog.
+- Because: "Comma" alone did not say which character splits columns, and "Comma (,)" looked heavy.
+- Consequences: reuse `DelimiterOptionTemplate` for any future delimiter choice; selection logic stays index-based. See [Delimiter 67](specs/ui-language.md).
 
 ### DEC-044 visual correction
 

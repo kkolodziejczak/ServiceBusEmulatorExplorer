@@ -52,6 +52,10 @@ public sealed class SharedDropdownTests
                 AssertSelectorTemplate(customerValue);
                 Assert.True(customerValue.IsEditable);
                 Assert.False(delimiter.IsEditable);
+                // Delimiter 67: key-cap character first, then the name; automation reads the name.
+                Assert.Same(mapping.FindResource("DelimiterOptionTemplate"), delimiter.ItemTemplate);
+                Assert.Equal([",", ";"], delimiter.Items.Cast<DelimiterOption>().Select(option => option.Character));
+                Assert.Equal("Comma", delimiter.SelectedItem?.ToString());
             }
             finally
             {

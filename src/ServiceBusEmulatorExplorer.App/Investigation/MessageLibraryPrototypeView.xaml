@@ -1,6 +1,7 @@
 <UserControl x:Class="ServiceBusEmulatorExplorer.App.Investigation.MessageLibraryPrototypeView"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:local="clr-namespace:ServiceBusEmulatorExplorer.App.Investigation"
  xmlns:inspection="clr-namespace:ServiceBusEmulatorExplorer.App.Investigation.Inspection"
  Background="{DynamicResource CanvasBrush}" FontFamily="Segoe UI" FontSize="14"
  Foreground="{DynamicResource InkBrush}" AutomationProperties.Name="Message Workbench prototype">
@@ -193,7 +194,7 @@
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="124"/></Grid.ColumnDefinitions>
         <StackPanel>
           <TextBlock Text="Delimiter" Style="{StaticResource FieldLabel}"/>
-          <ComboBox x:Name="CsvDelimiter" SelectedIndex="0" SelectionChanged="CsvDelimiter_Changed" AutomationProperties.Name="CSV delimiter"><ComboBoxItem Content="Comma (,)"/><ComboBoxItem Content="Semicolon (;)"/></ComboBox>
+          <ComboBox x:Name="CsvDelimiter" SelectedIndex="0" SelectionChanged="CsvDelimiter_Changed" ItemTemplate="{StaticResource DelimiterOptionTemplate}" TextSearch.TextPath="Name" AutomationProperties.Name="CSV delimiter"><local:DelimiterOption Character="," Name="Comma"/><local:DelimiterOption Character=";" Name="Semicolon"/></ComboBox>
         </StackPanel>
         <Button Grid.Column="1" Content="Map columns" Click="MapColumns_Click" Margin="16,21,0,0" Padding="10,7" AutomationProperties.AutomationId="LibraryMapColumns"/>
       </Grid>
