@@ -102,8 +102,13 @@ public sealed class InvestigationReadOnlyEndToEndTests
             WaitForAutomationNameContains(window, "SearchStatusText", "Search complete", TimeSpan.FromSeconds(40));
             WaitForCountPrefix(window, "MessageCountSummary", "3 matches", TimeSpan.FromSeconds(10));
             AutomationElement relatedMessageGrid = WaitForAutomationId(window, "MessageGrid", TimeSpan.FromSeconds(10));
-            WaitForTextWithin(relatedMessageGrid, $"{topicName}/{SubscriptionOne}", TimeSpan.FromSeconds(10));
-            WaitForTextWithin(relatedMessageGrid, $"{topicName}/{SubscriptionTwo}", TimeSpan.FromSeconds(10));
+            // The location cell shows the topic and the subscription as separate labels in the same row.
+            foreach (string subscription in new[] { SubscriptionOne, SubscriptionTwo })
+            {
+                AutomationElement row = FindAncestor(
+                    WaitForTextWithin(relatedMessageGrid, subscription, TimeSpan.FromSeconds(10)), ControlType.DataItem);
+                WaitForTextWithin(row, topicName, TimeSpan.FromSeconds(5));
+            }
 
             InvokeButton(window, "ClearSearchButton", TimeSpan.FromSeconds(10));
             WaitForCountPrefix(window, "MessageCountSummary", "1 loaded", TimeSpan.FromSeconds(20));

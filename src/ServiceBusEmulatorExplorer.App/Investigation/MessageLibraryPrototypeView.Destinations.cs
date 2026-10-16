@@ -39,6 +39,22 @@ public partial class MessageLibraryPrototypeView
         }
     }
 
+    // Offline prototype mode can be entered after the window has already published disconnected
+    // discovery, so it must restore the sample destinations rather than rely on startup order.
+    public void UseSampleDestinations()
+    {
+        if (syntheticDestinations) return;
+        var previousStatus = DestinationStatus(currentAssociation, currentDestinationKind);
+        syntheticDestinations = true;
+        destinationProfileId = null;
+        destinationGeneration = -1;
+        destinationSnapshot = null;
+        destinationEndpoint = "localhost";
+        UpdateDestinationControls();
+        RefreshLibraryTree();
+        if (previousStatus != DestinationStatus(currentAssociation, currentDestinationKind)) InvalidatePreview();
+    }
+
     private WorkbenchDestinationStatus DestinationStatus(string name, EntityKind kind)
     {
         if (name.Length == 0) return WorkbenchDestinationStatus.Unset;

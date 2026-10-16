@@ -179,6 +179,7 @@ public partial class InvestigationWindow : Window
     internal void OpenMessageWorkbenchPrototype()
     {
         sampleWorkbenchDestinations = true;
+        if (!workspace.IsConnected) MessageLibraryPrototype.UseSampleDestinations();
         SelectWorkspaceTab(true);
     }
 
