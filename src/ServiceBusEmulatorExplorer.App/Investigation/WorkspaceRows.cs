@@ -28,6 +28,19 @@ public sealed partial class EntityNode : ObservableObject
     public EntityAddress? Address => Observation is null ? null :
         new(Observation.Entity.Kind, Observation.Entity.Name, Observation.Entity.TopicName);
     public ObservableCollection<EntityNode> Children { get; } = [];
+
+    // Removes, inserts and moves only what changed, so bound tree items and their selection survive.
+    internal static void ReconcileChildren(ObservableCollection<EntityNode> target, IReadOnlyList<EntityNode> desired)
+    {
+        for (int index = target.Count - 1; index >= 0; index--)
+            if (!desired.Contains(target[index])) target.RemoveAt(index);
+        for (int index = 0; index < desired.Count; index++)
+        {
+            int currentIndex = target.IndexOf(desired[index]);
+            if (currentIndex < 0) target.Insert(index, desired[index]);
+            else if (currentIndex != index) target.Move(currentIndex, index);
+        }
+    }
     public bool IsExpanded { get => expanded; set => SetProperty(ref expanded, value); }
     public bool IsVisible { get => visible; set => SetProperty(ref visible, value); }
     public string DisplayMessageCount => observedMain?.Display ?? Format(Observation?.Counts.Active);

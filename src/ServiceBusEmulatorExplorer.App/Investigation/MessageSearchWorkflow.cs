@@ -452,14 +452,14 @@ public sealed class MessageSearchWorkflow : ObservableObject
                 }
             }
 
-            ReconcileChildren(topicNode.Children, subscriptionChildren);
+            EntityNode.ReconcileChildren(topicNode.Children, subscriptionChildren);
             if (topicNode.Children.Count > 0) topicChildren.Add(topicNode);
         }
 
-        ReconcileChildren(queues.Children, queueChildren);
-        ReconcileChildren(topics.Children, topicChildren);
+        EntityNode.ReconcileChildren(queues.Children, queueChildren);
+        EntityNode.ReconcileChildren(topics.Children, topicChildren);
         var desiredRoots = new[] { queues, topics }.Where(root => root.Children.Count > 0).ToList();
-        ReconcileChildren(Roots, desiredRoots);
+        EntityNode.ReconcileChildren(Roots, desiredRoots);
     }
 
     private static EntityNode ReconcileNode(
@@ -478,30 +478,6 @@ public sealed class MessageSearchWorkflow : ObservableObject
             observation.Entity.Name,
             observation.Entity.Kind.ToString(),
             WithMatchCounts(observation, matches));
-    }
-
-    private static void ReconcileChildren(
-        ObservableCollection<EntityNode> target,
-        IReadOnlyList<EntityNode> desired)
-    {
-        for (int index = target.Count - 1; index >= 0; index--)
-        {
-            if (!desired.Contains(target[index])) target.RemoveAt(index);
-        }
-
-        for (int index = 0; index < desired.Count; index++)
-        {
-            EntityNode node = desired[index];
-            int currentIndex = target.IndexOf(node);
-            if (currentIndex < 0)
-            {
-                target.Insert(index, node);
-            }
-            else if (currentIndex != index)
-            {
-                target.Move(currentIndex, index);
-            }
-        }
     }
 
     private void MessageRow_PropertyChanged(object? sender, PropertyChangedEventArgs e)
