@@ -53,6 +53,8 @@ Startup presentation example: `src/ServiceBusEmulatorExplorer.App/Investigation/
 
 | Capability | Reuse | Where |
 | --- | --- | --- |
+| Serialized saving for a window whose parts save independently: one queue, each change applied to the latest saved state, committed only on success, with a pending flag for Done and closing | shared | `src/ServiceBusEmulatorExplorer.Presentation/Settings/SettingsPersistence.cs` (`SettingsPersistence.SaveAsync`) |
+| Password fields behind a view model without copying what is typed: the view reports only emptiness and the view model reads the text when it captures, saves or copies | adapt | `src/ServiceBusEmulatorExplorer.Presentation/Settings/IConnectionSecrets.cs`; view `src/ServiceBusEmulatorExplorer.App/Investigation/Settings/SettingsWindow.xaml.cs` |
 | View model behind a thin WPF window: bound text and commands, a completion event the window turns into its dialog result | adapt | `src/ServiceBusEmulatorExplorer.Presentation/Investigation/DeleteMessagesViewModel.cs`; view `src/ServiceBusEmulatorExplorer.App/Investigation/DeleteMessagesWindow.xaml.cs` |
 | Operation failure text without leaking SDK internals | shared | `src/ServiceBusEmulatorExplorer.App/Services/OperationFailureFormatter.cs` |
 | Injected `TimeProvider` for deterministic polling, timeouts, timestamps and automatic refresh | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/MessageWatchWorkflow.cs` (`MessageWatchWorkflow`); `src/ServiceBusEmulatorExplorer.Core/Investigation/DeliverySearch.cs` (`DeliverySearch`); `src/ServiceBusEmulatorExplorer.App/Investigation/AutoRefreshTimer.cs` (`AutoRefreshTimer`, driven by `InvestigationWorkspace.Clock`); tests fire it with `tests/ServiceBusEmulatorExplorer.App.Tests/ManualClock.cs` |

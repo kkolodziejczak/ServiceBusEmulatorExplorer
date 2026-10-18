@@ -1,10 +1,7 @@
-using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using ServiceBusEmulatorExplorer.App.Investigation.Resources;
-using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Presentation.Settings;
 
@@ -14,22 +11,19 @@ public sealed record DateFormatChoice(DateDisplayFormat Format, string Label);
 
 public sealed record ProfileAccent(string Name, string ColorHex);
 
+/// <summary>
+/// The WPF view of <see cref="SettingsViewModel"/>. It keeps what only WPF can do: the profile theme, the password
+/// boxes, focus and scrolling, the code-built choice lists and actually closing (DEC-053).
+/// </summary>
 public partial class SettingsWindow : Window, IConnectionSecrets
 {
-    private readonly SettingsPersistence _persistence;
-    private readonly Action<string> _copyText;
+    private readonly SettingsViewModel viewModel;
 
     public SettingsWindow(WorkspacePreferences preferences, Func<WorkspacePreferences, Task> saveAsync, bool trayAvailable = true,
         Action<string>? copyText = null)
     {
-        ArgumentNullException.ThrowIfNull(preferences);
-        ArgumentNullException.ThrowIfNull(saveAsync);
-
-        _persistence = new SettingsPersistence(preferences, saveAsync);
-        General = new GeneralPreferencesViewModel(_persistence, trayAvailable);
-        _copyText = copyText ?? Clipboard.SetText;
-        Connections = new ConnectionProfilesViewModel(_persistence, this, _copyText);
-        Licences = new SettingsLicencesViewModel(ThirdPartyNotices.Components, _copyText);
+        viewModel = new SettingsViewModel(preferences, saveAsync, trayAvailable, this, copyText ?? Clipboard.SetText,
+            ThirdPartyNotices.Components);
         InitializeComponent();
 
         var activeProfile = preferences.Profiles.FirstOrDefault(profile => profile.Id == preferences.SelectedProfileId);
@@ -50,23 +44,17 @@ public partial class SettingsWindow : Window, IConnectionSecrets
                 _ => "dd MMM yyyy"
             }) + " - " + DateDisplay.Date(new DateTime(2026, 10, 4), format))).ToArray();
         // Bind only once the code-built choices are in place, so each selection finds its item.
-        DataContext = this;
+        DataContext = viewModel;
 
-        Licences.NoticeShown += () => LicenceText.ScrollToHome();
-        _persistence.PropertyChanged += (_, _) => DoneButton.IsEnabled = !_persistence.IsSaving;
-        Connections.ProfileLoaded += ShowSecrets;
-        Connections.ProfileAdded += draft => ProfilesList.ScrollIntoView(draft);
-        Connections.NameFocusRequested += FocusProfileName;
-        Connections.Start();
+        viewModel.CloseRequested += Close;
+        viewModel.Licences.NoticeShown += () => LicenceText.ScrollToHome();
+        viewModel.Connections.ProfileLoaded += ShowSecrets;
+        viewModel.Connections.ProfileAdded += draft => ProfilesList.ScrollIntoView(draft);
+        viewModel.Connections.NameFocusRequested += FocusProfileName;
+        viewModel.Connections.Start();
     }
 
-    public WorkspacePreferences CurrentPreferences => _persistence.Saved;
-
-    public GeneralPreferencesViewModel General { get; }
-
-    public ConnectionProfilesViewModel Connections { get; }
-
-    public SettingsLicencesViewModel Licences { get; }
+    public WorkspacePreferences CurrentPreferences => viewModel.SavedPreferences;
 
     string IConnectionSecrets.Runtime => RuntimeConnection.Password;
 
@@ -87,8 +75,8 @@ public partial class SettingsWindow : Window, IConnectionSecrets
     private void ConnectionString_Changed(object sender, RoutedEventArgs e)
     {
         // Only whether a field is empty crosses to the view model; the text is read when it is needed.
-        Connections.HasRuntimeConnection = HasConnectionString(RuntimeConnection);
-        Connections.HasAdministrationConnection = HasConnectionString(AdministrationConnection);
+        viewModel.Connections.HasRuntimeConnection = HasConnectionString(RuntimeConnection);
+        viewModel.Connections.HasAdministrationConnection = HasConnectionString(AdministrationConnection);
     }
 
     private static bool HasConnectionString(PasswordBox field)
@@ -99,11 +87,6 @@ public partial class SettingsWindow : Window, IConnectionSecrets
 
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
-        if (!_persistence.IsSaving) return;
-
-        e.Cancel = true;
-        General.ShowCloseBlocked();
+        if (!viewModel.CanClose()) e.Cancel = true;
     }
-
-    private void Done_Click(object sender, RoutedEventArgs e) => Close();
 }

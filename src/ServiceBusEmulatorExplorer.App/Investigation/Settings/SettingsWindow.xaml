@@ -351,7 +351,7 @@
         <Border Grid.Row="1" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="0,1,0,0" Padding="24,14" Background="{DynamicResource ChromeBrush}">
             <Grid>
                 <Button x:Name="SaveProfileButton" Content="Save profile" HorizontalAlignment="Left" Margin="0" Command="{Binding Connections.SaveProfileCommand}" AutomationProperties.AutomationId="SaveProfileButton" />
-                <Button x:Name="DoneButton" Content="Done" Style="{StaticResource PrimaryButton}" MinWidth="84" HorizontalAlignment="Right" Click="Done_Click" AutomationProperties.AutomationId="DoneButton" IsCancel="True" />
+                <Button x:Name="DoneButton" Content="Done" Style="{StaticResource PrimaryButton}" MinWidth="84" HorizontalAlignment="Right" Command="{Binding DoneCommand}" AutomationProperties.AutomationId="DoneButton" IsCancel="True" />
             </Grid>
         </Border>
     </Grid>
