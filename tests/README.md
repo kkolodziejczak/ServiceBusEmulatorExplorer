@@ -7,6 +7,7 @@ This directory contains the fast unit, Docker-backed integration, and explicit W
 | Project | Purpose | Default run |
 | --- | --- | --- |
 | `ServiceBusEmulatorExplorer.Core.Tests` | Domain models, projection helpers, replay ID policy, SDK-independent service behavior. | Yes |
+| `ServiceBusEmulatorExplorer.Presentation.Tests` | View models without WPF: state, text, command availability and results (DEC-053). | Yes |
 | `ServiceBusEmulatorExplorer.App.Tests` | View model command states, validation, UTC operation log formatting, shell state transitions with fakes. | Yes |
 | `ServiceBusEmulatorExplorer.Integration.Tests` | Direct Azure SDK behavior against the local Service Bus emulator from `compose.yaml`. | No, gated |
 | `ServiceBusEmulatorExplorer.UiSmoke.Tests` | FlaUI/UIA3 smoke tests that launch the WPF app and verify the Investigation window and Message Workbench. | No, gated |

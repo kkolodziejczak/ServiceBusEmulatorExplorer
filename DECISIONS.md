@@ -69,6 +69,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-050 | accepted | Testing | Visual baselines must match exactly |
 | DEC-051 | accepted | Typography | Bundled Selawik and Cascadia Mono replace system fonts |
 | DEC-052 | accepted | Settings | Third-party licences shown in Settings and kept complete by a test |
+| DEC-053 | accepted | Architecture | View models live in a WPF-free Presentation project, extracted one component at a time |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -434,3 +435,10 @@ DLQ palette clarification: the user explicitly disallowed changing DLQ tag color
 - Decision: Settings has a Licences tab listing every bundled component with its licence and full read-only text, copyable. `ThirdPartyNotices` is the single list; `ThirdPartyNoticesTests` compares it with the app's resolved package closure, its shared frameworks (the portable release bundles the .NET runtime, WPF and Windows Forms, whose third-party notices are included) and the font files compiled into the app, and fails on anything missing, stale or listed twice. CI and the release workflow run that test, so a dependency cannot ship without its notice.
 - Because: the single-file release carries the OFL and MIT notices only inside the executable, and the user wanted "a test case or agents.md inclusion or release step automation so we do not need to keep remembering".
 - Consequences: adding or removing a package or font means editing `ThirdPartyNotices` and adding the licence file from the package or its repository. Rows group packages by licence holder, so the tab shows nine rows rather than the board's six, in a compact row height so the licence text stays visible.
+
+## DEC-053 - View models live in a WPF-free Presentation project
+
+- Status: accepted, 2026-10-18; user approved extracting the Delete confirmation dialog first as the pattern pilot, then Settings, with view models in a new project that cannot use WPF.
+- Decision: view models go into `src/ServiceBusEmulatorExplorer.Presentation`, a plain `net10.0` project that references Core and CommunityToolkit.Mvvm and has no WPF, so a view model cannot depend on a UI framework. WPF windows bind to them and keep only presentation mechanics such as theme, focus and dialog results. Components move one at a time; each extraction keeps every existing test and visual baseline unchanged and adds view-model tests in `tests/ServiceBusEmulatorExplorer.Presentation.Tests`.
+- Because: the user wants reusable components that look identical on every OS (DEC-049), and a later Avalonia UI can only reuse view models that do not touch WPF.
+- Consequences: view models follow the repository's explicit style (`ObservableObject` with `SetProperty`, `RelayCommand` instances, no source generators) and report results through events the view translates, for example `DeleteMessagesViewModel.Completed` to `DialogResult`.

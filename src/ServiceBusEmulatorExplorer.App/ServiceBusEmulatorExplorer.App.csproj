@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ServiceBusEmulatorExplorer.Core\ServiceBusEmulatorExplorer.Core.csproj" />
+    <ProjectReference Include="..\ServiceBusEmulatorExplorer.Presentation\ServiceBusEmulatorExplorer.Presentation.csproj" />
   </ItemGroup>
 
 </Project>
