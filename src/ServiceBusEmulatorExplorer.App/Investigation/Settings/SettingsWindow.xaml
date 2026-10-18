@@ -92,6 +92,8 @@
                 </Setter>
             </Style>
 
+            <BooleanToVisibilityConverter x:Key="VisibleWhenTrue" />
+
             <Style x:Key="ProfileItem" TargetType="ListBoxItem">
                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                 <Setter Property="Foreground" Value="{DynamicResource ActionTextBrush}" />
@@ -290,39 +292,39 @@
                     <StackPanel Margin="4,20,4,12">
                         <TextBlock Text="Connection profiles" FontSize="16" FontWeight="SemiBold" />
                         <TextBlock Text="Profiles and preferences are saved for your next launch. Connection strings are protected for your Windows user." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryBrush}" FontSize="12" Margin="0,8,0,14" />
-                        <ListBox x:Name="ProfilesList" Height="104" BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ItemContainerStyle="{StaticResource ProfileItem}" SelectionChanged="Profile_Selected" AutomationProperties.AutomationId="ProfilesList" AutomationProperties.Name="Connection profiles" />
-                        <Button x:Name="AddConnectionButton" HorizontalAlignment="Left" Margin="0,8,0,0" Click="AddConnection_Click" AutomationProperties.AutomationId="AddConnectionButton" AutomationProperties.Name="Add connection">
+                        <ListBox x:Name="ProfilesList" Height="104" BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ItemContainerStyle="{StaticResource ProfileItem}" ItemsSource="{Binding Connections.Profiles}" SelectedItem="{Binding Connections.SelectedProfile}" IsEnabled="{Binding Connections.IsEditable}" AutomationProperties.AutomationId="ProfilesList" AutomationProperties.Name="Connection profiles" />
+                        <Button x:Name="AddConnectionButton" HorizontalAlignment="Left" Margin="0,8,0,0" Command="{Binding Connections.AddConnectionCommand}" AutomationProperties.AutomationId="AddConnectionButton" AutomationProperties.Name="Add connection">
                             <StackPanel Orientation="Horizontal"><Path Data="M8,1 V15 M1,8 H15" Width="16" Height="16" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Margin="0,0,7,0" /><TextBlock Text="Add connection" VerticalAlignment="Center" /></StackPanel>
                         </Button>
                         <Label Content="Profile name" Target="{Binding ElementName=ProfileName}" Padding="0" Margin="0,16,0,6" />
-                        <TextBox x:Name="ProfileName" AutomationProperties.AutomationId="ProfileName" AutomationProperties.Name="Profile name" />
+                        <TextBox x:Name="ProfileName" Text="{Binding Connections.ProfileName, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Connections.IsEditable}" AutomationProperties.AutomationId="ProfileName" AutomationProperties.Name="Profile name" />
                         <Label Content="Authentication" Target="{Binding ElementName=AuthenticationModeSelector}" Padding="0" Margin="0,14,0,6" />
-                        <ComboBox x:Name="AuthenticationModeSelector" ItemsSource="{Binding AuthenticationModes}" SelectionChanged="AuthenticationMode_Changed" AutomationProperties.AutomationId="AuthenticationModeSelector" AutomationProperties.Name="Authentication mode" />
-                        <StackPanel x:Name="ConnectionStringsPanel">
+                        <ComboBox x:Name="AuthenticationModeSelector" ItemsSource="{Binding Connections.AuthenticationModes}" SelectedIndex="{Binding Connections.AuthenticationModeIndex}" IsEnabled="{Binding Connections.IsEditable}" AutomationProperties.AutomationId="AuthenticationModeSelector" AutomationProperties.Name="Authentication mode" />
+                        <StackPanel x:Name="ConnectionStringsPanel" Visibility="{Binding Connections.UsesConnectionStrings, Converter={StaticResource VisibleWhenTrue}}" IsEnabled="{Binding Connections.IsEditable}">
                             <Label Content="Runtime connection string" Target="{Binding ElementName=RuntimeConnection}" Padding="0" Margin="0,14,0,6" />
                             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                 <PasswordBox x:Name="RuntimeConnection" PasswordChanged="ConnectionString_Changed" AutomationProperties.AutomationId="RuntimeConnection" AutomationProperties.Name="Runtime connection string" />
-                                <Button x:Name="CopyRuntimeConnectionButton" Grid.Column="1" Width="36" Margin="8,0,0,0" Padding="8" IsEnabled="False" Click="CopyRuntimeConnection_Click" ToolTip="Copy runtime connection string" AutomationProperties.AutomationId="CopyRuntimeConnectionButton" AutomationProperties.Name="Copy runtime connection string"><Path Style="{StaticResource CopyIcon}" /></Button>
+                                <Button x:Name="CopyRuntimeConnectionButton" Grid.Column="1" Width="36" Margin="8,0,0,0" Padding="8" Command="{Binding Connections.CopyRuntimeConnectionCommand}" ToolTip="Copy runtime connection string" AutomationProperties.AutomationId="CopyRuntimeConnectionButton" AutomationProperties.Name="Copy runtime connection string"><Path Style="{StaticResource CopyIcon}" /></Button>
                             </Grid>
                             <Label Content="Administration connection string" Target="{Binding ElementName=AdministrationConnection}" Padding="0" Margin="0,14,0,6" />
                             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                 <PasswordBox x:Name="AdministrationConnection" PasswordChanged="ConnectionString_Changed" AutomationProperties.AutomationId="AdministrationConnection" AutomationProperties.Name="Administration connection string" />
-                                <Button x:Name="CopyAdministrationConnectionButton" Grid.Column="1" Width="36" Margin="8,0,0,0" Padding="8" IsEnabled="False" Click="CopyAdministrationConnection_Click" ToolTip="Copy administration connection string" AutomationProperties.AutomationId="CopyAdministrationConnectionButton" AutomationProperties.Name="Copy administration connection string"><Path Style="{StaticResource CopyIcon}" /></Button>
+                                <Button x:Name="CopyAdministrationConnectionButton" Grid.Column="1" Width="36" Margin="8,0,0,0" Padding="8" Command="{Binding Connections.CopyAdministrationConnectionCommand}" ToolTip="Copy administration connection string" AutomationProperties.AutomationId="CopyAdministrationConnectionButton" AutomationProperties.Name="Copy administration connection string"><Path Style="{StaticResource CopyIcon}" /></Button>
                             </Grid>
                         </StackPanel>
-                        <StackPanel x:Name="AzureCliPanel" Visibility="Collapsed">
+                        <StackPanel x:Name="AzureCliPanel" Visibility="{Binding Connections.UsesAzureCli, Converter={StaticResource VisibleWhenTrue}}" IsEnabled="{Binding Connections.IsEditable}">
                             <Label Content="Fully qualified namespace" Target="{Binding ElementName=FullyQualifiedNamespace}" Padding="0" Margin="0,14,0,6" />
-                            <TextBox x:Name="FullyQualifiedNamespace" AutomationProperties.AutomationId="FullyQualifiedNamespace" AutomationProperties.Name="Fully qualified namespace" ToolTip="Service Bus namespace hostname used with the account cached by az login." />
+                            <TextBox x:Name="FullyQualifiedNamespace" Text="{Binding Connections.FullyQualifiedNamespace, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.AutomationId="FullyQualifiedNamespace" AutomationProperties.Name="Fully qualified namespace" ToolTip="Service Bus namespace hostname used with the account cached by az login." />
                             <TextBlock Text="Uses the account cached by Azure CLI (az login)." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryBrush}" FontSize="12" Margin="0,6,0,0" />
                         </StackPanel>
                         <Label Content="Connection color" Target="{Binding ElementName=ColorPicker}" Padding="0" Margin="0,14,0,6" />
-                        <ListBox x:Name="ColorPicker" SelectedValuePath="ColorHex" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ItemContainerStyle="{StaticResource ColorSwatchItem}" AutomationProperties.AutomationId="ColorPicker" AutomationProperties.Name="Connection accent color">
+                        <ListBox x:Name="ColorPicker" SelectedValuePath="ColorHex" SelectedValue="{Binding Connections.ColorHex}" IsEnabled="{Binding Connections.IsEditable}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ItemContainerStyle="{StaticResource ColorSwatchItem}" AutomationProperties.AutomationId="ColorPicker" AutomationProperties.Name="Connection accent color">
                             <ListBox.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ListBox.ItemsPanel>
                         </ListBox>
                         <Label Content="Connection warning (optional)" Target="{Binding ElementName=ConnectionWarning}" Padding="0" Margin="0,14,0,6" />
-                        <TextBox x:Name="ConnectionWarning" MinHeight="72" MaxHeight="144" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="ConnectionWarning" AutomationProperties.Name="Connection warning" />
+                        <TextBox x:Name="ConnectionWarning" Text="{Binding Connections.WarningMessage, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Connections.IsEditable}" MinHeight="72" MaxHeight="144" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="ConnectionWarning" AutomationProperties.Name="Connection warning" />
                         <TextBlock Text="Shown before connecting. Leave empty to connect without a warning." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryBrush}" FontSize="12" Margin="0,6,0,0" />
-                        <TextBlock x:Name="ProfileStatus" TextWrapping="Wrap" Foreground="{DynamicResource ActionTextBrush}" FontSize="12" Margin="0,10,0,0" AutomationProperties.LiveSetting="Polite" />
+                        <TextBlock x:Name="ProfileStatus" Text="{Binding Connections.Status}" TextWrapping="Wrap" Foreground="{DynamicResource ActionTextBrush}" FontSize="12" Margin="0,10,0,0" AutomationProperties.LiveSetting="Polite" />
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -348,7 +350,7 @@
 
         <Border Grid.Row="1" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="0,1,0,0" Padding="24,14" Background="{DynamicResource ChromeBrush}">
             <Grid>
-                <Button x:Name="SaveProfileButton" Content="Save profile" HorizontalAlignment="Left" Margin="0" Click="SaveProfile_Click" AutomationProperties.AutomationId="SaveProfileButton" />
+                <Button x:Name="SaveProfileButton" Content="Save profile" HorizontalAlignment="Left" Margin="0" Command="{Binding Connections.SaveProfileCommand}" AutomationProperties.AutomationId="SaveProfileButton" />
                 <Button x:Name="DoneButton" Content="Done" Style="{StaticResource PrimaryButton}" MinWidth="84" HorizontalAlignment="Right" Click="Done_Click" AutomationProperties.AutomationId="DoneButton" IsCancel="True" />
             </Grid>
         </Border>
