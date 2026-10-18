@@ -41,6 +41,7 @@ the existing pale-orange/dark-orange DLQ palette.
 
 | Proposal | Question |
 | --- | --- |
+| [Settings 70 v1](message-library/design/proposed/settings-70-v1-save-profile-on-connections.png) | Show Save profile in the Settings footer only on the Connections tab; General and Licences keep only Done, which stays in place on every tab. On General it saved the hidden Connections draft. |
 | [Refresh 48 v1](message-library/design/proposed/refresh-48-v1-auto-refresh-label.png) | Label-only options A–D for the tab-row auto-refresh control (commit d5db402, made without a proposal). All rejected; superseded by Refresh 49–53. |
 | [Refresh 49 v1](message-library/design/proposed/refresh-49-v1-footer.png) | Option 1: auto-refresh caption, interval and pause in the window footer beside UTC/Local. |
 | [Refresh 50 v1](message-library/design/proposed/refresh-50-v1-refresh-group.png) | Option 2: Refresh joins interval and pause in the tab row; group wraps under the tabs when narrow. |
