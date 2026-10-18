@@ -13,6 +13,7 @@ using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -254,6 +255,7 @@ public sealed class InvestigationWatchRenderTests
 
     private static void Capture(Window window, string name)
     {
+        VisualBaseline.AssertMatches(window, "global-" + name);
         if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase)) return;
         DirectoryInfo? root = new(AppContext.BaseDirectory);
         while (root is not null && !Directory.Exists(Path.Combine(root.FullName, ".git"))) root = root.Parent;

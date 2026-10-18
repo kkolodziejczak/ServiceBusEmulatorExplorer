@@ -15,6 +15,7 @@ using ServiceBusEmulatorExplorer.App.Investigation.Inspection;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -469,7 +470,7 @@ public sealed class InvestigationSearchRenderTests
             () => new FakeFactory(),
             _ => new FakeBrowser(snapshot ?? CreateSnapshot()),
             _ => messages);
-        return new InvestigationWorkspace(new FakeStore(preferences), workflow);
+        return new InvestigationWorkspace(new FakeStore(preferences), workflow, timeProvider: BaselineClock.Instance);
     }
 
     private static void ShowAndConnect(
@@ -522,7 +523,7 @@ public sealed class InvestigationSearchRenderTests
                     new(entity.Counts.ActiveMessageCount, CountAvailability.Known),
                     new(entity.Counts.DeadLetterMessageCount, CountAvailability.Known),
                     new(entity.Counts.ScheduledMessageCount, CountAvailability.Known)))).ToArray(),
-            DateTimeOffset.UtcNow,
+            BaselineClock.Instance.GetUtcNow(),
             IsComplete: true,
             Issues: []);
     }
@@ -542,7 +543,7 @@ public sealed class InvestigationSearchRenderTests
                     new(entity.Counts.ActiveMessageCount, CountAvailability.Known),
                     new(entity.Counts.DeadLetterMessageCount, CountAvailability.Known),
                     new(entity.Counts.ScheduledMessageCount, CountAvailability.Known)))).ToArray(),
-            DateTimeOffset.UtcNow,
+            BaselineClock.Instance.GetUtcNow(),
             IsComplete: true,
             Issues: []);
     }
@@ -648,6 +649,7 @@ public sealed class InvestigationSearchRenderTests
 
     private static void CaptureIfEnabled(Window window, string name)
     {
+        VisualBaseline.AssertMatches(window, "search-" + name);
         if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase)) return;
 
         string root = FindRepositoryRoot();
@@ -768,7 +770,7 @@ public sealed class InvestigationSearchRenderTests
             $"{{\"messageId\":\"{id}\"}}",
             id,
             id.Length,
-            DateTimeOffset.UtcNow,
+            BaselineClock.Instance.GetUtcNow(),
             null,
             0,
             "application/json",

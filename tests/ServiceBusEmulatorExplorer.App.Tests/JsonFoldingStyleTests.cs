@@ -12,6 +12,7 @@ using ICSharpCode.AvalonEdit.Editing;
 using ICSharpCode.AvalonEdit.Folding;
 using ICSharpCode.AvalonEdit.Rendering;
 using ServiceBusEmulatorExplorer.App.Investigation.Inspection;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -214,6 +215,9 @@ public sealed class JsonFoldingStyleTests
 
     private static BitmapSource Capture(Window window, string name)
     {
+        // The keyboard-focus state shows AvalonEdit's blinking caret, so its pixels depend on timing.
+        if (!name.Contains("keyboard-focus", StringComparison.Ordinal))
+            VisualBaseline.AssertMatches(window, "json-folding-" + Path.GetFileNameWithoutExtension(name));
         int width = Math.Max(1, (int)Math.Ceiling(window.ActualWidth));
         int height = Math.Max(1, (int)Math.Ceiling(window.ActualHeight));
         var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);

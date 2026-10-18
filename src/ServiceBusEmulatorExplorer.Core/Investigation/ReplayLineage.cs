@@ -19,7 +19,8 @@ public static class ReplayLineage
     public const string AttemptProperty = "sbe-explorer.replay.attempt";
     private static readonly string[] LineageProperties = [FamilyProperty, RootProperty, OriginalIdProperty, SourceProperty, AttemptProperty];
 
-    public static ReplayReservation Reserve(MessageDelivery delivery, IReadOnlyList<ReplayFamilyState> families)
+    public static ReplayReservation Reserve(MessageDelivery delivery, IReadOnlyList<ReplayFamilyState> families,
+        Func<Guid>? newId = null)
     {
         ArgumentNullException.ThrowIfNull(delivery);
         ArgumentNullException.ThrowIfNull(families);
@@ -39,7 +40,7 @@ public static class ReplayLineage
         long attempt = checked(Math.Max(family.LastAttempt, lineage?.LastAttempt ?? 0) + 1);
         family = family with { LastAttempt = attempt, RootFingerprint = root.ToUpperInvariant() };
         ValidateFamily(family);
-        string suffix = $"-replay-{attempt}-{Guid.NewGuid():N}";
+        string suffix = $"-replay-{attempt}-{(newId ?? Guid.NewGuid)():N}";
         string prefix = family.OriginalMessageId[..Math.Min(family.OriginalMessageId.Length, 128 - suffix.Length)];
         if (prefix.Length > 0 && char.IsHighSurrogate(prefix[^1])) prefix = prefix[..^1];
         return new(family, prefix + suffix);

@@ -9,6 +9,7 @@ using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation.Settings;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -265,6 +266,7 @@ public sealed class InvestigationSettingsRenderTests
 
     private static void CaptureIfEnabled(Window window, string name)
     {
+        VisualBaseline.AssertMatches(window, name);
         if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase))
         {
             return;

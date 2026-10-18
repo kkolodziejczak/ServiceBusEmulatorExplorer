@@ -81,6 +81,7 @@ Startup presentation example: `src/ServiceBusEmulatorExplorer.App/Investigation/
 | Docker-gated integration tests against the local emulator | adapt | `tests/ServiceBusEmulatorExplorer.Integration.Tests/`; `compose.yaml` |
 | FlaUI UI smoke tests using UI Automation patterns, not physical input | adapt | `tests/ServiceBusEmulatorExplorer.UiSmoke.Tests/`; runner `scripts/Invoke-UiSmoke.ps1` |
 | Headless screenshot of the real window with synthetic services | shared | `tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/Program.cs`; `WpfScreenshot.cs` |
+| Exact-pixel visual baselines checked from the existing render tests (DEC-049), with a frozen clock and repeatable replay IDs | shared | `tests/ServiceBusEmulatorExplorer.App.Tests/VisualBaselines/VisualBaseline.cs` (`VisualBaseline.AssertMatches`); `BaselineClock.cs` |
 | Exact WPF test viewport beyond a hosted desktop size limit | shared | `tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/NativeWindowSizeOverride.cs`, `NativeWindowSizeOverride.Install`; linked into App.Tests through its project file; dispose the window hook after proof |
 | Guarded release tagging and two-flavour Windows publish | shared | `scripts/Push-ReleaseTag.ps1`, `scripts/Publish-Windows.ps1`, `scripts/Test-ReleaseArtifacts.ps1` |
 | Convention check with ratchet baseline | shared | `tools/check-docs.ps1`; config `.agent-kit.json` |

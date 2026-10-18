@@ -13,6 +13,7 @@ using ServiceBusEmulatorExplorer.App.Investigation;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -51,7 +52,7 @@ public sealed class InvestigationDeleteSelectionRenderTests
             ToggleCheckbox(fixture, dlq);
             Assert.Equal(0, fixture.Workspace.Surface.SelectedCount);
             Assert.False(fixture.Delete.IsEnabled);
-            Capture(fixture.Window, width, height, "disabled-" + fixture.Workspace.Surface.SelectedCount);
+            Capture(fixture.Window, width, height, "unchecked-again");
             Assert.Same(dlq.Delivery, fixture.Workspace.Inspector.Current);
 
             ToggleCheckbox(fixture, active);
@@ -71,6 +72,7 @@ public sealed class InvestigationDeleteSelectionRenderTests
 
     private static void Capture(Window window, int width, int height, string state)
     {
+        VisualBaseline.AssertMatches(window, $"delete-selection-{state}-{width}x{height}");
         string? directory = Environment.GetEnvironmentVariable("SBE_DELETE_SELECTION_PROOF");
         if (string.IsNullOrWhiteSpace(directory)) return;
         System.IO.Directory.CreateDirectory(directory);
@@ -182,7 +184,7 @@ public sealed class InvestigationDeleteSelectionRenderTests
         {
             Workspace = new InvestigationWorkspace(new Store(),
                 new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(), _ => new Messages()),
-                null, (_, _) => new Receiver());
+                null, (_, _) => new Receiver(), BaselineClock.Instance);
             Window = new InvestigationWindow(Workspace);
             Window.Show();
             Complete(Workspace.ConnectAsync());
@@ -236,7 +238,7 @@ public sealed class InvestigationDeleteSelectionRenderTests
                 new EntityDiscoverySnapshot([new(new ServiceBusEntityNode(EntityKind.Queue, "orders", null, new(1, 0, 0, 1),
                     new("orders", "Active", null, null, null, null, null, null, null)),
                     new(new(0, CountAvailability.Known), new(1, CountAvailability.Known), new(0, CountAvailability.Known)))],
-                    DateTimeOffset.UtcNow, true, []));
+                    BaselineClock.Instance.GetUtcNow(), true, []));
         }
 
         private sealed class Messages : IServiceBusMessageService

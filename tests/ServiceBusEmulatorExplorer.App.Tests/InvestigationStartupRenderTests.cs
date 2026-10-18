@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
 using ServiceBusEmulatorExplorer.App.Investigation;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
@@ -42,7 +43,7 @@ public sealed class InvestigationStartupRenderTests
         var store = new DelayedStore();
         var factory = new DelayedFactory();
         var workflow = new BrokerConnectionWorkflow(() => factory, _ => new EmptyBrowser(), _ => new EmptyMessages());
-        var workspace = new InvestigationWorkspace(store, workflow);
+        var workspace = new InvestigationWorkspace(store, workflow, timeProvider: BaselineClock.Instance);
         var window = new InvestigationWindow(workspace)
         {
             Width = width,
@@ -66,6 +67,7 @@ public sealed class InvestigationStartupRenderTests
             TextBlock emptyInspectorDescription = emptyInspector.Children.OfType<TextBlock>().First(text => text.Text.StartsWith("Choose a message", StringComparison.Ordinal));
 
             CaptureIfRequested(window, $"startup-preferences-pending-{width}x{height}.png");
+            VisualBaseline.AssertMatches(window, $"investigation-startup-preferences-pending-{width}x{height}");
             Assert.Equal(Visibility.Visible, emptyResults.Visibility);
             Assert.Equal("Connect to browse messages", emptyMessage.Text);
             Assert.Equal(Visibility.Visible, emptyInspector.Visibility);
@@ -87,6 +89,7 @@ public sealed class InvestigationStartupRenderTests
             Drain(dispatcher, window);
 
             CaptureIfRequested(window, $"startup-connecting-{width}x{height}.png");
+            VisualBaseline.AssertMatches(window, $"investigation-startup-connecting-{width}x{height}");
             Assert.Equal("Connecting…", ((TextBlock)window.FindName("ConnectionHealthText")!).Text);
             Assert.Equal("Connecting to Service Bus…", ((TextBlock)window.FindName("LastOperation")!).Text);
             Assert.Equal(Visibility.Visible, emptyResults.Visibility);
@@ -99,6 +102,7 @@ public sealed class InvestigationStartupRenderTests
             Drain(dispatcher, window);
 
             CaptureIfRequested(window, $"startup-connected-empty-{width}x{height}.png");
+            VisualBaseline.AssertMatches(window, $"investigation-startup-connected-empty-{width}x{height}");
             Assert.Equal("Warning", ((TextBlock)window.FindName("ConnectionHealthText")!).Text);
             Assert.Contains("cannot be verified without a queue or subscription", workspace.HealthDetail, StringComparison.OrdinalIgnoreCase);
             Assert.Equal("No messages in this view", emptyMessage.Text);
@@ -122,6 +126,7 @@ public sealed class InvestigationStartupRenderTests
             Complete(dispatcher, workspace.ConnectAsync());
             Drain(dispatcher, window);
             CaptureIfRequested(window, $"startup-connection-failed-{width}x{height}.png");
+            VisualBaseline.AssertMatches(window, $"investigation-startup-connection-failed-{width}x{height}");
             Assert.False(workspace.IsConnected);
             Assert.False(workspace.IsConnecting);
             Assert.Equal("Disconnected", ((TextBlock)window.FindName("ConnectionHealthText")!).Text);

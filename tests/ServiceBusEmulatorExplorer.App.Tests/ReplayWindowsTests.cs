@@ -14,6 +14,7 @@ using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using ServiceBusEmulatorExplorer.ReadmeScreenshot;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -198,15 +199,17 @@ public sealed partial class ReplayWindowsTests
         var snapshot = new EntityDiscoverySnapshot(
             [new EntityObservation(queue, new EntityCountObservation(
                 new(null, CountAvailability.Known), new(null, CountAvailability.Known), new(null, CountAvailability.Known)))],
-            DateTimeOffset.UtcNow, true, []);
+            BaselineClock.Instance.GetUtcNow(), true, []);
         messages ??= new FakeMessages();
         var workflow = new BrokerConnectionWorkflow(() => new FakeFactory(), _ => new FakeBrowser(snapshot), _ => messages);
         return new InvestigationWorkspace(new FakeStore(preferences), workflow, _ => sender,
-            deleteReceiver is null ? null : (_, _) => deleteReceiver);
+            deleteReceiver is null ? null : (_, _) => deleteReceiver, BaselineClock.Instance,
+            BaselineClock.ReplayIds());
     }
 
     private static void Capture(Window window, string filename)
     {
+        VisualBaseline.AssertMatches(window, "replay-" + Path.GetFileNameWithoutExtension(filename));
         if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase)) return;
         var content = (FrameworkElement)window.Content;
         SettleLayout(window.Dispatcher, content);
@@ -284,7 +287,7 @@ public sealed partial class ReplayWindowsTests
         public static readonly EntityAddress Queue = new(EntityKind.Queue, "orders");
         public static readonly ExplorerMessage Message = new("original-order-10482", 11,
             "{\"eventType\":\"OrderPlaced\",\"data\":{\"orderId\":\"ORD-10482\"}}",
-            "OrderPlaced · ORD-10482", 60, DateTimeOffset.UtcNow, null, 0,
+            "OrderPlaced · ORD-10482", 60, BaselineClock.Instance.GetUtcNow(), null, 0,
             "application/json", "ORD-10482", null, "OrderPlaced", new Dictionary<string, object?>(), new Dictionary<string, object?>())
         { RawBody = BinaryData.FromString("{\"eventType\":\"OrderPlaced\",\"data\":{\"orderId\":\"ORD-10482\"}}") };
 
@@ -305,7 +308,7 @@ public sealed partial class ReplayWindowsTests
         }
 
         public void AddReplay(string id, BinaryData body) => deliveries.Add((Queue, MessageBucket.Active,
-            new ExplorerMessage(id, nextSequence++, body.ToString(), id, body.ToMemory().Length, DateTimeOffset.UtcNow,
+            new ExplorerMessage(id, nextSequence++, body.ToString(), id, body.ToMemory().Length, BaselineClock.Instance.GetUtcNow(),
                 null, 0, "application/json", null, null, "OrderPlaced", new Dictionary<string, object?>(),
                 new Dictionary<string, object?>()) { RawBody = body, BrokerState = ServiceBusMessageState.Active }));
 
@@ -325,7 +328,7 @@ public sealed partial class ReplayWindowsTests
             .Where(item => item.Bucket == MessageBucket.DeadLetter && item.Message.SequenceNumber == sequence)
             .Select(item => ServiceBusModelFactory.ServiceBusReceivedMessage(
                 body: item.Message.RawBody ?? BinaryData.FromString(item.Message.Body), messageId: item.Message.MessageId,
-                sequenceNumber: item.Message.SequenceNumber, enqueuedTime: item.Message.EnqueuedTime ?? DateTimeOffset.UtcNow,
+                sequenceNumber: item.Message.SequenceNumber, enqueuedTime: item.Message.EnqueuedTime ?? BaselineClock.Instance.GetUtcNow(),
                 correlationId: item.Message.CorrelationId, subject: item.Message.Subject, contentType: item.Message.ContentType))
             .FirstOrDefault();
 

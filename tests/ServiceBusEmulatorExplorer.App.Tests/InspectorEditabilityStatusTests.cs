@@ -13,6 +13,7 @@ using ServiceBusEmulatorExplorer.App.Investigation.Inspection;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -40,7 +41,8 @@ public sealed class InspectorEditabilityStatusTests
         };
         var workspace = new InvestigationWorkspace(
             new TablePreferencesStore(preferences),
-            new BrokerConnectionWorkflow(() => null!, _ => null!, _ => null!));
+            new BrokerConnectionWorkflow(() => null!, _ => null!, _ => null!),
+            timeProvider: BaselineClock.Instance);
         var window = new InvestigationWindow(workspace)
         {
             Width = width,
@@ -161,7 +163,7 @@ public sealed class InspectorEditabilityStatusTests
     private static MessageRow CreateRow(EntityAddress source, MessageBucket bucket, string id)
     {
         var message = new ExplorerMessage(
-            id, 1, "{\"body\":true}", "{\"body\":true}", 1, DateTimeOffset.UtcNow, null, 0,
+            id, 1, "{\"body\":true}", "{\"body\":true}", 1, BaselineClock.Instance.GetUtcNow(), null, 0,
             "application/json", "correlation-" + id, null, null, new Dictionary<string, object?>(),
             new Dictionary<string, object?>());
         return new MessageRow(new MessageDelivery(
@@ -170,6 +172,7 @@ public sealed class InspectorEditabilityStatusTests
 
     private static void CaptureIfEnabled(Window window, int width, int height, string state)
     {
+        VisualBaseline.AssertMatches(window, $"inspector-status-{state}-{width}x{height}");
         if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INSPECTOR_STATUS"), "true", StringComparison.OrdinalIgnoreCase))
             return;
 

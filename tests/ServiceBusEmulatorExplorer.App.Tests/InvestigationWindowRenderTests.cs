@@ -13,6 +13,7 @@ using ServiceBusEmulatorExplorer.App.Investigation;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -354,7 +355,7 @@ public sealed class InvestigationWindowRenderTests
             () => new FakeFactory(),
             _ => new FakeBrowser(CreateSnapshot()),
             _ => new FakeMessages());
-        return new InvestigationWorkspace(store, workflow);
+        return new InvestigationWorkspace(store, workflow, timeProvider: BaselineClock.Instance);
     }
 
     private static EntityDiscoverySnapshot CreateSnapshot()
@@ -369,7 +370,7 @@ public sealed class InvestigationWindowRenderTests
                     new(entity.Counts.ActiveMessageCount, CountAvailability.Known),
                     new(entity.Counts.DeadLetterMessageCount, CountAvailability.Known),
                     new(entity.Counts.ScheduledMessageCount, CountAvailability.Known)))).ToArray(),
-            DateTimeOffset.UtcNow,
+            BaselineClock.Instance.GetUtcNow(),
             IsComplete: true,
             Issues: []);
     }
@@ -470,6 +471,7 @@ public sealed class InvestigationWindowRenderTests
 
     private static void CaptureIfEnabled(FrameworkElement window, string name)
     {
+        VisualBaseline.AssertMatches(window, "window-render-" + name);
         if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase))
         {
             return;
@@ -595,7 +597,7 @@ public sealed class InvestigationWindowRenderTests
                 body,
                 body,
                 System.Text.Encoding.UTF8.GetByteCount(body),
-                DateTimeOffset.UtcNow,
+                BaselineClock.Instance.GetUtcNow(),
                 null,
                 0,
                 "application/json",

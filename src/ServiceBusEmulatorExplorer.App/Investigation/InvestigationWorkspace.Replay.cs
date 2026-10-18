@@ -22,7 +22,7 @@ public sealed partial class InvestigationWorkspace
         foreach (var delivery in deliveries)
         {
             RequireCurrentReplay(delivery);
-            var reservation = ReplayLineage.Reserve(delivery, families);
+            var reservation = ReplayLineage.Reserve(delivery, families, newReplayId);
             // Freeze payload bytes and metadata at review time, rather than rereading an editor on send.
             var original = delivery.Message;
             var snapshot = original with
@@ -90,7 +90,7 @@ public sealed partial class InvestigationWorkspace
                     .Append(reservation.Family).ToArray();
                 attempt = new(prepared.AttemptId, profile.Id, prepared.NamespaceFingerprint, reservation,
                     delivery.Identity.Source, delivery.Identity.SequenceNumber, prepared.OriginalFingerprint,
-                    delivery.Message.MessageId, DateTimeOffset.UtcNow, ReplaySendStatus.Uncertain);
+                    delivery.Message.MessageId, clock.GetUtcNow(), ReplaySendStatus.Uncertain);
                 var updated = preferences with { ReplayFamilies = updatedFamilies,
                     ReplayAttempts = preferences.ReplayAttempts.Append(attempt).ToArray() };
                 await store.SaveAsync(updated, operation.Token);
@@ -130,7 +130,7 @@ public sealed partial class InvestigationWorkspace
                 }
             }
             bool persisted = await SaveReplayOutcomeAsync(attempt with { SendStatus = status, SendFailure = sendFailure,
-                SentAtUtc = status == ReplaySendStatus.Confirmed ? DateTimeOffset.UtcNow : null });
+                SentAtUtc = status == ReplaySendStatus.Confirmed ? clock.GetUtcNow() : null });
             return new(reservation, status, !persisted);
         }
         finally { mutationCancellation = null; mutationGate.Release(); StartReplayCleanup(); }

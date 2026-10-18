@@ -14,6 +14,7 @@ using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using ServiceBusEmulatorExplorer.ReadmeScreenshot;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -395,7 +396,7 @@ public sealed class InvestigationInspectorSearchTests
             () => new FakeFactory(),
             _ => new FakeBrowser(CreateSnapshot()),
             _ => new FakeMessages());
-        return new InvestigationWorkspace(new FakeStore(preferences), workflow);
+        return new InvestigationWorkspace(new FakeStore(preferences), workflow, timeProvider: BaselineClock.Instance);
     }
 
     private static EntityDiscoverySnapshot CreateSnapshot()
@@ -411,7 +412,7 @@ public sealed class InvestigationInspectorSearchTests
                 new(queue.Counts.ActiveMessageCount, CountAvailability.Known),
                 new(queue.Counts.DeadLetterMessageCount, CountAvailability.Known),
                 new(queue.Counts.ScheduledMessageCount, CountAvailability.Known)))],
-            DateTimeOffset.UtcNow,
+            BaselineClock.Instance.GetUtcNow(),
             IsComplete: true,
             Issues: []);
     }
@@ -422,7 +423,7 @@ public sealed class InvestigationInspectorSearchTests
         body,
         id,
         body.Length,
-        DateTimeOffset.UtcNow,
+        BaselineClock.Instance.GetUtcNow(),
         null,
         0,
         "application/json",
@@ -437,6 +438,7 @@ public sealed class InvestigationInspectorSearchTests
 
     private static void Capture(Window window, string filename)
     {
+        if (!filename.StartsWith("capture-", StringComparison.Ordinal)) VisualBaseline.AssertMatches(window, "inspector-" + Path.GetFileNameWithoutExtension(filename));
         if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase)) return;
         window.UpdateLayout();
         var content = (FrameworkElement)window.Content;

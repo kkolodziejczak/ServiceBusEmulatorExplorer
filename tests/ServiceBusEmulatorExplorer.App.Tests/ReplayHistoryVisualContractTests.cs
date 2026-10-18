@@ -5,6 +5,7 @@ using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -18,7 +19,7 @@ public sealed partial class ReplayWindowsTests
         {
             var dispatcher = Dispatcher.CurrentDispatcher;
             var preferences = CreateStatusStatePreferences();
-            var now = DateTimeOffset.UtcNow;
+            var now = BaselineClock.Instance.GetUtcNow();
             var source = new EntityAddress(EntityKind.Subscription, "billing", "retail-order-events-1005-190340");
             var topic = preferences.ReplayAttempts[4] with
             {

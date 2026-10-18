@@ -3,7 +3,8 @@ using ServiceBusEmulatorExplorer.Core.ServiceBus;
 namespace ServiceBusEmulatorExplorer.Core.Investigation;
 
 /// <summary>Fresh, bounded, non-consuming namespace observations for exact replay IDs.</summary>
-public sealed class ReplayObserver(IInvestigationEntityBrowser browser, IServiceBusMessageService messages)
+public sealed class ReplayObserver(IInvestigationEntityBrowser browser, IServiceBusMessageService messages,
+    TimeProvider? timeProvider = null)
 {
     public async Task<ReplayObservationBatch> ObserveAsync(IReadOnlyList<string> ids, long generation,
         int maxDeliveries, TimeSpan timeBudget, CancellationToken cancellationToken)
@@ -39,7 +40,7 @@ public sealed class ReplayObserver(IInvestigationEntityBrowser browser, IService
         catch (OperationCanceledException) { limitation = "The scan was canceled or reached its time limit."; }
         catch (Exception) { limitation = "The namespace or a receiving source was unavailable."; }
 
-        var checkedAt = DateTimeOffset.UtcNow;
+        var checkedAt = (timeProvider ?? TimeProvider.System).GetUtcNow();
         return new(exactIds.ToDictionary(id => id, id => new ReplayObservation(checkedAt, complete, sourceCount, scanned,
             matches.Where(delivery => delivery.Message.MessageId == id)
                 .Select(delivery => new ReplayLocation(delivery.Identity.Source, delivery.Identity.Bucket,

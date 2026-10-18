@@ -17,6 +17,7 @@ using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using ServiceBusEmulatorExplorer.ReadmeScreenshot;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -47,7 +48,8 @@ public sealed class InvestigationReplayRenderTests
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(dispatcher));
         var sender = new Sender();
         var workspace = new InvestigationWorkspace(new Store(),
-            new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(true), _ => new Messages()), _ => sender);
+            new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(true), _ => new Messages()), _ => sender,
+            timeProvider: BaselineClock.Instance, replayIdSource: BaselineClock.ReplayIds());
         var window = new InvestigationWindow(workspace);
         try
         {
@@ -55,6 +57,7 @@ public sealed class InvestigationReplayRenderTests
             Complete(dispatcher, workspace.ConnectAsync());
             Complete(dispatcher, workspace.Browse.SelectAsync(workspace.Browse.AllEntities().Single(node => node.Kind == "Subscription"), true));
             var replay = (Button)window.FindName("ReplayButton");
+            int reviews = 0;
             Respond(false);
             Assert.Empty(sender.Sends);
             Respond(true);
@@ -95,7 +98,7 @@ public sealed class InvestigationReplayRenderTests
                             var bounds = button.TransformToAncestor(dialog).TransformBounds(new Rect(button.RenderSize));
                             Assert.True(bounds.Width > 0 && bounds.Right <= dialog.ActualWidth && bounds.Bottom <= dialog.ActualHeight);
                         }
-                        Capture(dialog, "replay-topic-review");
+                        Capture(dialog, $"replay-topic-review-{++reviews}");
                         Invoke((Button)dialog.FindName(confirm ? "ReplayConfirmButton" : "CancelButton"));
                         handled = true;
                         timer.Stop();
@@ -127,7 +130,8 @@ public sealed class InvestigationReplayRenderTests
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(dispatcher));
         var sender = new Sender();
         var workspace = new InvestigationWorkspace(new Store(),
-            new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(), _ => new Messages()), _ => sender);
+            new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(), _ => new Messages()), _ => sender,
+            timeProvider: BaselineClock.Instance, replayIdSource: BaselineClock.ReplayIds());
         var window = new InvestigationWindow(workspace);
         try
         {
@@ -239,7 +243,8 @@ public sealed class InvestigationReplayRenderTests
         var dispatcher = Dispatcher.CurrentDispatcher;
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(dispatcher));
         var workspace = new InvestigationWorkspace(new Store(),
-            new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(), _ => new Messages()));
+            new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(), _ => new Messages()),
+            timeProvider: BaselineClock.Instance, replayIdSource: BaselineClock.ReplayIds());
         var window = new InvestigationWindow(workspace);
         try
         {
@@ -348,6 +353,7 @@ public sealed class InvestigationReplayRenderTests
 
     private static void CaptureInspectorActionLayoutIfEnabled(Window window, string name)
     {
+        VisualBaseline.AssertMatches(window, "replay-actions-" + name);
         string? directory = Environment.GetEnvironmentVariable("SBE_INSPECTOR_ACTION_PROOF_DIR");
         if (string.IsNullOrWhiteSpace(directory)) return;
 
@@ -429,6 +435,7 @@ public sealed class InvestigationReplayRenderTests
 
     private static void Capture(Window window, string name)
     {
+        VisualBaseline.AssertMatches(window, "replay-render-" + name);
         window.UpdateLayout();
         if (window.FindName("ReplayButton") is FrameworkElement replay)
         {
@@ -496,7 +503,7 @@ public sealed class InvestigationReplayRenderTests
             if (subscription) observations.Add(Observation(EntityKind.Topic, "order-events", null));
             observations.Add(Observation(subscription ? EntityKind.Subscription : EntityKind.Queue,
                 "orders-with-a-long-operational-queue-name-for-investigation", subscription ? "order-events" : null));
-            return Task.FromResult(new EntityDiscoverySnapshot(observations, DateTimeOffset.UtcNow, true, []));
+            return Task.FromResult(new EntityDiscoverySnapshot(observations, BaselineClock.Instance.GetUtcNow(), true, []));
         }
 
         private static EntityObservation Observation(EntityKind kind, string name, string? topic) => new(
@@ -511,7 +518,7 @@ public sealed class InvestigationReplayRenderTests
             long? fromSequenceNumber, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ExplorerMessage>>(
             Enumerable.Range(1, 2).Where(sequence => fromSequenceNumber is null || sequence >= fromSequenceNumber).Take(take)
                 .Select(sequence => new ExplorerMessage("checkout-original-with-long-message-id-for-order-correlation-" + sequence,
-                    sequence, "{\"order\":80341}", "{\"order\":80341}", 15, DateTimeOffset.UtcNow, null, 1, "application/json", "checkout-80341",
+                    sequence, "{\"order\":80341}", "{\"order\":80341}", 15, BaselineClock.Instance.GetUtcNow(), null, 1, "application/json", "checkout-80341",
                     null, "Order submitted", new Dictionary<string, object?>(), new Dictionary<string, object?>())
                     { RawBody = BinaryData.FromString("{\"order\":80341}") }).ToArray());
         public Task SendMessageAsync(SendMessageCommand command, CancellationToken cancellationToken) => throw new InvalidOperationException();
