@@ -28,6 +28,7 @@ public sealed class EmulatorObservedCountTests
 
     [Theory]
     [InlineData(999, "999*")]
+    [InlineData(1_000, "1k+*")]
     [InlineData(1_234, "1k+*")]
     [InlineData(10_000, "10k+*")]
     public async Task Totals_from_a_thousand_show_a_bracket_and_the_tooltip_keeps_the_exact_total(int total, string display)
@@ -212,6 +213,116 @@ public sealed class EmulatorObservedCountTests
         Assert.Contains("incomplete", fixture.Node().ActiveCountDetail);
     }
 
+    [Fact]
+    public async Task Topic_shows_a_total_only_after_every_subscription_is_counted()
+    {
+        var fixture = new Fixture(topic: true);
+        var first = new EntityAddress(EntityKind.Subscription, "first", "events");
+        var second = new EntityAddress(EntityKind.Subscription, "second", "events");
+        fixture.Set(first, MessageBucket.Active, 1, 2);
+        fixture.Set(second, MessageBucket.Active, 1);
+        var gate = fixture.Messages.CountGates[(second, MessageBucket.Active)] = new();
+        await fixture.Workflow.SelectAsync(fixture.Node("events"), false);
+        Assert.Equal("2*", fixture.Node("first").DisplayMessageCount);
+        Assert.Equal("—", fixture.Node("events").DisplayMessageCount);
+        Assert.EndsWith("· counting…", fixture.Workflow.CountSummary);
+        gate.SetResult();
+        Assert.Equal("1*", fixture.Node("second").DisplayMessageCount);
+        Assert.Equal("3*", fixture.Node("events").DisplayMessageCount);
+    }
+
+    [Fact]
+    public async Task Reconnecting_during_a_count_drops_its_result_and_failure()
+    {
+        var fixture = new Fixture();
+        fixture.Set(fixture.Queue, MessageBucket.Active, 1);
+        var gate = fixture.Messages.CountGates[(fixture.Queue, MessageBucket.Active)] = new();
+        var warnings = new List<string>();
+        fixture.Workflow.BackgroundRefreshWarning += warnings.Add;
+        await fixture.Workflow.SelectAsync(fixture.Node(), false);
+        fixture.Workflow.SetSession(fixture.Session, 2);
+        gate.SetException(new InvalidOperationException("old client disposed"));
+        Assert.Equal("—", fixture.Node().DisplayMessageCount);
+        Assert.Empty(warnings);
+    }
+
+    [Fact]
+    public async Task Refresh_does_not_requeue_a_count_that_is_still_running()
+    {
+        var fixture = new Fixture();
+        fixture.Set(fixture.Queue, MessageBucket.Active, 1);
+        var gate = fixture.Messages.CountGates[(fixture.Queue, MessageBucket.Active)] = new();
+        await fixture.Workflow.SelectAsync(fixture.Node(), false);
+        await fixture.Workflow.RefreshAsync();
+        await fixture.Workflow.RefreshAsync();
+        gate.SetResult();
+        Assert.Equal("1*", fixture.Node().DisplayMessageCount);
+        // One count is two peeks (the message, then the empty end); a re-queued count would add two more.
+        Assert.Equal(2, fixture.Messages.CountPeeks[(fixture.Queue, MessageBucket.Active)]);
+    }
+
+    [Fact]
+    public async Task Refresh_retries_a_failed_first_count_after_another_entity_is_opened()
+    {
+        var fixture = new Fixture(topic: true);
+        var first = new EntityAddress(EntityKind.Subscription, "first", "events");
+        fixture.Set(first, MessageBucket.Active, 1);
+        fixture.Messages.Failure = new InvalidOperationException("unavailable");
+        await Assert.ThrowsAnyAsync<Exception>(() => fixture.Workflow.SelectAsync(fixture.Node("first"), false));
+        Assert.Equal("—", fixture.Node("first").DisplayMessageCount);
+        fixture.Messages.Failure = null;
+        await fixture.Workflow.SelectAsync(fixture.Node("second"), false);
+        await fixture.Workflow.RefreshAsync();
+        Assert.Equal("1*", fixture.Node("first").DisplayMessageCount);
+    }
+
+    [Fact]
+    public async Task Removed_subscription_leaves_the_kept_topic_total()
+    {
+        var fixture = new Fixture(topic: true);
+        var first = new EntityAddress(EntityKind.Subscription, "first", "events");
+        var second = new EntityAddress(EntityKind.Subscription, "second", "events");
+        fixture.Set(first, MessageBucket.Active, 1, 2);
+        fixture.Set(second, MessageBucket.Active, 1);
+        await fixture.Workflow.SelectAsync(fixture.Node("events"), false);
+        Assert.Equal("3*", fixture.Node("events").DisplayMessageCount);
+        var third = new DiscoveredEntity(EntityKind.Subscription, "third", "events", new EntityMetadata("third", "Active", null, null, null, null, null, null, null));
+        var unknown = new CountObservation(null, CountAvailability.Unavailable);
+        fixture.Workflow.ApplySnapshot(fixture.Session.Snapshot with
+        {
+            Entities = fixture.Session.Snapshot.Entities.Where(item => item.Entity.Name != "second")
+                .Append(new EntityObservation(third, new(unknown, unknown, unknown))).ToArray()
+        });
+        Assert.Equal("2*", fixture.Node("events").DisplayMessageCount);
+    }
+
+    [Fact]
+    public async Task Incomplete_discovery_missing_a_subscription_clears_the_topic_total()
+    {
+        var fixture = new Fixture(topic: true);
+        fixture.Set(new EntityAddress(EntityKind.Subscription, "first", "events"), MessageBucket.Active, 1);
+        await fixture.Workflow.SelectAsync(fixture.Node("events"), false);
+        Assert.Equal("1*", fixture.Node("events").DisplayMessageCount);
+        fixture.Workflow.ApplySnapshot(fixture.Session.Snapshot with
+        {
+            Entities = fixture.Session.Snapshot.Entities.Where(item => item.Entity.Name != "second").ToArray(),
+            IsComplete = false
+        });
+        Assert.Equal("—", fixture.Node("events").DisplayMessageCount);
+    }
+
+    [Fact]
+    public async Task Changing_timestamp_preferences_refreshes_the_count_summary()
+    {
+        var fixture = new Fixture();
+        await fixture.Workflow.SelectAsync(fixture.Node(), false);
+        var changed = new List<string?>();
+        fixture.Workflow.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        fixture.Workflow.SetPreferences(new WorkspacePreferences { TimestampDisplay = TimestampDisplay.Local });
+        Assert.Contains(nameof(MessageBrowseWorkflow.CountSummary), changed);
+        Assert.DoesNotContain("UTC", fixture.Workflow.CountSummary);
+    }
+
     private sealed class Fixture
     {
         public EntityAddress Queue { get; } = new(EntityKind.Queue, "orders");
@@ -251,15 +362,24 @@ public sealed class EmulatorObservedCountTests
     }
     private sealed class FakeMessages : IServiceBusMessageService
     {
+        public const int CountPeekSize = 100;
         public Dictionary<(EntityAddress, MessageBucket), ExplorerMessage[]> Values { get; } = [];
+        // Holds full-count peeks (take 100) for one source until released; page loads (take 50) pass.
+        public Dictionary<(EntityAddress, MessageBucket), TaskCompletionSource> CountGates { get; } = [];
+        public Dictionary<(EntityAddress, MessageBucket), int> CountPeeks { get; } = [];
         public int Calls { get; private set; }
         public Exception? Failure { get; set; }
-        public Task<IReadOnlyList<ExplorerMessage>> PeekMessagesAsync(EntityAddress address, MessageBucket bucket, int take, long? fromSequenceNumber, CancellationToken cancellationToken)
+        public async Task<IReadOnlyList<ExplorerMessage>> PeekMessagesAsync(EntityAddress address, MessageBucket bucket, int take, long? fromSequenceNumber, CancellationToken cancellationToken)
         {
             Calls++;
+            if (take == CountPeekSize)
+            {
+                CountPeeks[(address, bucket)] = CountPeeks.GetValueOrDefault((address, bucket)) + 1;
+                if (CountGates.TryGetValue((address, bucket), out var gate)) await gate.Task;
+            }
             if (Failure is not null) throw Failure;
-            return Task.FromResult<IReadOnlyList<ExplorerMessage>>(Values.GetValueOrDefault((address, bucket), [])
-                .Where(message => fromSequenceNumber is null || message.SequenceNumber >= fromSequenceNumber).Take(take).ToArray());
+            return Values.GetValueOrDefault((address, bucket), [])
+                .Where(message => fromSequenceNumber is null || message.SequenceNumber >= fromSequenceNumber).Take(take).ToArray();
         }
         public Task SendMessageAsync(SendMessageCommand command, CancellationToken cancellationToken) => Task.CompletedTask;
     }

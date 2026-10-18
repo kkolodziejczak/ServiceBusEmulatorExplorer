@@ -55,6 +55,7 @@ public sealed partial class MessageBrowseWorkflow : ObservableObject
         preferences = value;
         foreach (var row in Messages) row.SetTimeDisplay(value.TimestampDisplay, value.DateFormat);
         foreach (var node in AllEntities()) node.SetDateFormat(value.DateFormat);
+        OnPropertyChanged(nameof(CountSummary));
     }
 
     public void SetSession(BrokerSession? value, long connectionGeneration)
@@ -67,6 +68,8 @@ public sealed partial class MessageBrowseWorkflow : ObservableObject
         DiscoverySnapshot = null;
         session = value;
         counter?.Stop();
+        opened.Clear();
+        countedNodes.Clear();
         counter = value is not null && UsesObservedCounts
             ? new(value.Messages, connectionGeneration, PublishCount, CountFailed) : null;
         OnPropertyChanged(nameof(DiscoverySnapshot));

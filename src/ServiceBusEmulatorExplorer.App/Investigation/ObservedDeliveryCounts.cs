@@ -30,18 +30,30 @@ internal sealed record ObservedDeliveryCount(
 /// <summary>Observations are kept on session-owned tree nodes, never persisted or inferred from broker zeroes.</summary>
 internal static class ObservedDeliveryCounts
 {
-    /// <summary>A topic shows a total only once every subscription has one; until then it keeps its last total.</summary>
+    /// <summary>
+    /// A topic shows a new total only once every subscription has one. Until then it keeps its last
+    /// total, minus deliveries of subscriptions that no longer exist; a subscription missing from an
+    /// incomplete discovery clears it, since the last total can no longer be trusted.
+    /// </summary>
     public static void AggregateTopics(IEnumerable<EntityNode> nodes)
     {
         foreach (EntityNode topic in nodes.Where(node => node.Kind == nameof(EntityKind.Topic) && node.Children.Count > 0))
         {
+            bool staleChild = topic.Children.Any(child => child.Observation?.Counts.Active.Availability == CountAvailability.Stale);
             foreach (MessageBucket bucket in new[] { MessageBucket.Active, MessageBucket.DeadLetter })
             {
                 var counts = topic.Children.Select(child => child.GetObservedCount(bucket)).ToArray();
-                if (counts.Any(count => count is null)) continue;
-                topic.SetObservedCount(bucket, new(
-                    counts.SelectMany(count => count!.Deliveries).ToHashSet(),
-                    counts.Min(count => count!.CheckedAtUtc)));
+                if (staleChild)
+                    topic.SetObservedCount(bucket, null);
+                else if (counts.All(count => count is not null))
+                    topic.SetObservedCount(bucket, new(
+                        counts.SelectMany(count => count!.Deliveries).ToHashSet(),
+                        counts.Min(count => count!.CheckedAtUtc)));
+                else if (topic.GetObservedCount(bucket) is { } last)
+                {
+                    var current = topic.Children.Select(child => child.Address).ToHashSet();
+                    topic.SetObservedCount(bucket, last with { Deliveries = last.Deliveries.Where(delivery => current.Contains(delivery.Source)).ToHashSet() });
+                }
             }
         }
     }
