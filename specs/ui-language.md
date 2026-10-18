@@ -35,12 +35,12 @@ the existing pale-orange/dark-orange DLQ palette.
 | Schedule validation | [Schedule 66](message-library/design/proposed/schedule-66-v1-past-time-validation.png), DEC-046; the notice uses the existing amber validation style, not the red drawn on the board, and replaces the "will be scheduled" notice while shown |
 | Namespace tree counts | [Counts 68 v4](message-library/design/proposed/counts-68-v4-namespace-totals.png), DEC-048; supersedes v1–v3 (kept under ignored `artifacts/counts-68`) |
 | Typography | [Fonts 68 v1](message-library/design/proposed/fonts-68-v1-bundled-fonts.png), option A, DEC-051; the board redraws its screenshots, so judge glyphs from the [real option A render](message-library/design/proposed/fonts-68-v1-real-A-selawik-cascadia.png) |
+| Third-party licences | [Licences 69 v1](message-library/design/proposed/licences-69-v1-third-party.png), option with fonts and MIT libraries, DEC-052; one row per licence holder (nine rows) in a compact row height so the licence text stays visible, and the copy status sits beside the button |
 
 ## Proposals under consideration
 
 | Proposal | Question |
 | --- | --- |
-| [Licences 69 v1](message-library/design/proposed/licences-69-v1-third-party.png) | A Licences tab in Settings lists every bundled component with its licence and shows the full read-only text with a copy action, so each copy of the single-file exe carries the OFL notices (DEC-051). Callout 4: keep or drop the MIT library rows. The board misspells "Emulator" in the caption; the real text is unchanged. |
 | [Refresh 48 v1](message-library/design/proposed/refresh-48-v1-auto-refresh-label.png) | Label-only options A–D for the tab-row auto-refresh control (commit d5db402, made without a proposal). All rejected; superseded by Refresh 49–53. |
 | [Refresh 49 v1](message-library/design/proposed/refresh-49-v1-footer.png) | Option 1: auto-refresh caption, interval and pause in the window footer beside UTC/Local. |
 | [Refresh 50 v1](message-library/design/proposed/refresh-50-v1-refresh-group.png) | Option 2: Refresh joins interval and pause in the tab row; group wraps under the tabs when narrow. |

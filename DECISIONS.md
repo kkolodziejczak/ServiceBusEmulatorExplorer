@@ -68,6 +68,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-049 | accepted | Architecture | Cross-platform migration waits for a safety net and an approved Workbench |
 | DEC-050 | accepted | Testing | Visual baselines must match exactly |
 | DEC-051 | accepted | Typography | Bundled Selawik and Cascadia Mono replace system fonts |
+| DEC-052 | accepted | Settings | Third-party licences shown in Settings and kept complete by a test |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -426,3 +427,10 @@ DLQ palette clarification: the user explicitly disallowed changing DLQ tag color
 - Decision: the app ships its two typefaces as resources, unmodified and with their SIL Open Font Licence texts: Selawik for all interface text and Cascadia Mono for JSON and the activity log. Views and code reference them only through `AppFonts`; nothing names a system font. Visual baselines compare only what renders the same on every machine: window content without the OS frame, no hover, en-US and 96 DPI, and text drawn only from the bundled fonts. A baseline fails when visible text would fall back to an installed font.
 - Because: the user asked to make rendering independent of the machine "and we should just compare the things that are comparable"; Segoe UI and Consolas exist only on Windows and may not be redistributed. Selawik has the same widths as Segoe UI, so layouts keep their sizes.
 - Consequences: supersedes the "Segoe UI everywhere; Consolas for JSON" typography rule. Cascadia Mono is about 6% wider than Consolas, so JSON wraps slightly earlier in narrow inspectors. Characters missing from the bundled fonts, such as the Workbench's text warning sign, still fall back to system fonts; icons stay vector geometry (DEC-015). Glyph rasterisation still comes from the operating system, so a different Windows build can still shift pixels.
+
+## DEC-052 - Third-party licences in Settings, kept complete by a test
+
+- Status: accepted, 2026-10-18; user chose an in-app view over a notices file beside the release executables, approved Licences 69 with both fonts and MIT libraries, and asked for the list to maintain itself.
+- Decision: Settings has a Licences tab listing every bundled component with its licence and full read-only text, copyable. `ThirdPartyNotices` is the single list; `ThirdPartyNoticesTests` compares it with the app's resolved package closure and the font files compiled into the app, and fails on anything missing, stale or listed twice. CI and the release workflow run that test, so a dependency cannot ship without its notice.
+- Because: the single-file release carries the OFL and MIT notices only inside the executable, and the user wanted "a test case or agents.md inclusion or release step automation so we do not need to keep remembering".
+- Consequences: adding or removing a package or font means editing `ThirdPartyNotices` and adding the licence file from the package or its repository. Rows group packages by licence holder, so the tab shows nine rows rather than the board's six, in a compact row height so the licence text stays visible.

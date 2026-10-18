@@ -73,6 +73,8 @@ public partial class SettingsWindow : Window
 
         Profiles = new ObservableCollection<EditableProfile>(preferences.Profiles.Select(EditableProfile.From));
         ProfilesList.ItemsSource = Profiles;
+        LicencesList.ItemsSource = ThirdPartyNotices.Components;
+        LicencesList.SelectedIndex = 0;
         ProfilesList.SelectedItem = Profiles.FirstOrDefault(profile => profile.Id == preferences.SelectedProfileId) ?? Profiles.FirstOrDefault();
         _ready = true;
         if (ProfilesList.SelectedItem is EditableProfile initialProfile)
@@ -236,6 +238,27 @@ public partial class SettingsWindow : Window
         catch (ExternalException)
         {
             ProfileStatus.Text = "Clipboard is unavailable. Try copying again.";
+        }
+    }
+
+    private void Licence_Selected(object sender, SelectionChangedEventArgs e)
+    {
+        LicenceStatus.Text = string.Empty;
+        LicenceText.Text = (LicencesList.SelectedItem as ThirdPartyComponent)?.Notice ?? string.Empty;
+        LicenceText.ScrollToHome();
+    }
+
+    private void CopyLicence_Click(object sender, RoutedEventArgs e)
+    {
+        if (LicencesList.SelectedItem is not ThirdPartyComponent component) return;
+        try
+        {
+            _copyText(LicenceText.Text);
+            LicenceStatus.Text = $"{component.Name} licence copied.";
+        }
+        catch (ExternalException)
+        {
+            LicenceStatus.Text = "Clipboard is unavailable. Try copying again.";
         }
     }
 

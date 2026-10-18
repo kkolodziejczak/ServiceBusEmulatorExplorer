@@ -16,6 +16,8 @@
     <!-- Bundled typefaces and their SIL Open Font Licence texts, which must travel with every copy (DEC-051). -->
     <Resource Include="Assets\Fonts\*.ttf" />
     <Resource Include="Assets\Fonts\*-OFL.txt" />
+    <!-- Licence texts of bundled libraries, shown in Settings > Licences (DEC-052). -->
+    <Resource Include="Assets\Licenses\*.txt" />
   </ItemGroup>
 
   <ItemGroup>

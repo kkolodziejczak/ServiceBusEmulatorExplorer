@@ -33,6 +33,7 @@ Startup presentation example: `src/ServiceBusEmulatorExplorer.App/Investigation/
 | Dropdown with compact and table-editing variants | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Resources/DropdownStyles.xaml` (`AppComboBox`, `CompactComboBox`) |
 | Calendar-only date selection with release-to-open pointer capture, keyboard opening, read-only UI Automation value and calendar children synchronized with popup state | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/CalendarOnlyDatePicker.cs` (`CalendarOnlyDatePicker`); use with the shared `ScheduleDatePicker` style |
 | Vector icon geometries | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Resources/IconResources.xaml` |
+| Third-party notices kept complete by a test against the shipped package closure and bundled fonts | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Settings/ThirdPartyNotices.cs` (`ThirdPartyNotices.Components`); `tests/ServiceBusEmulatorExplorer.App.Tests/ThirdPartyNoticesTests.cs` |
 | Bundled fonts that render the same on every machine | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Resources/AppFonts.cs` (`AppFonts.Ui`, `AppFonts.Code`); XAML uses `{x:Static res:AppFonts.Ui}` |
 | Profile accent recolouring of the whole brush set at runtime | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Resources/ProfileTheme.cs` `Apply` |
 | Keyboard-only focus cue (no frame after pointer click) | shared | `SharedStyles.xaml` `KeyboardActionFocusVisual`, used by the implicit `Button` style |

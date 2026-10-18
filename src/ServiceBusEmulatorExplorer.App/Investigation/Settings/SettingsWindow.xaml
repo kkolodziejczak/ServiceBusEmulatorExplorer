@@ -135,6 +135,46 @@
                 </Setter>
             </Style>
 
+            <!-- Licences 69: a compact profile-style row with the component and its licence name. -->
+            <Style x:Key="LicenceItem" TargetType="ListBoxItem">
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="Foreground" Value="{DynamicResource ActionTextBrush}" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ListBoxItem">
+                            <Border x:Name="LicenceBorder" Background="{DynamicResource RaisedBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12,7" Margin="0,0,0,4">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Licence}" Style="{StaticResource DialogCaption}" Margin="12,0,0,0" VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter TargetName="LicenceBorder" Property="Background" Value="{DynamicResource SelectionBrush}" />
+                                    <Setter TargetName="LicenceBorder" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
+                                </Trigger>
+                                <MultiTrigger>
+                                    <MultiTrigger.Conditions>
+                                        <Condition Property="IsMouseOver" Value="True" />
+                                        <Condition Property="IsSelected" Value="False" />
+                                    </MultiTrigger.Conditions>
+                                    <Setter TargetName="LicenceBorder" Property="Background" Value="{DynamicResource NeutralHoverBrush}" />
+                                </MultiTrigger>
+                                <Trigger Property="IsKeyboardFocused" Value="True">
+                                    <Setter TargetName="LicenceBorder" Property="BorderBrush" Value="{DynamicResource InkBrush}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <Style x:Key="ColorSwatchItem" TargetType="ListBoxItem">
                 <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />
                 <Setter Property="Cursor" Value="Hand" />
@@ -283,6 +323,24 @@
                         <TextBox x:Name="ConnectionWarning" MinHeight="72" MaxHeight="144" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="ConnectionWarning" AutomationProperties.Name="Connection warning" />
                         <TextBlock Text="Shown before connecting. Leave empty to connect without a warning." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryBrush}" FontSize="12" Margin="0,6,0,0" />
                         <TextBlock x:Name="ProfileStatus" TextWrapping="Wrap" Foreground="{DynamicResource ActionTextBrush}" FontSize="12" Margin="0,10,0,0" AutomationProperties.LiveSetting="Polite" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem x:Name="LicencesTab" Header="Licences" AutomationProperties.AutomationId="LicencesTab">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Foreground="{DynamicResource InkBrush}" FontWeight="Normal">
+                    <StackPanel Margin="4,24,4,12">
+                        <TextBlock Text="Third-party licences" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Text="These components are bundled with Service Bus Emulator Explorer." Style="{StaticResource DialogCaption}" TextWrapping="Wrap" Margin="0,8,0,12" />
+                        <ListBox x:Name="LicencesList" BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Disabled" ItemContainerStyle="{StaticResource LicenceItem}" SelectionChanged="Licence_Selected" AutomationProperties.AutomationId="LicencesList" AutomationProperties.Name="Third-party components" />
+                        <TextBlock Text="Licence text" Style="{StaticResource DialogLabel}" Margin="0,16,0,8" />
+                        <TextBox x:Name="LicenceText" Height="136" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="LicenceText" AutomationProperties.Name="Licence text" />
+                        <Grid Margin="0,12,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Button x:Name="CopyLicenceButton" Margin="0" Click="CopyLicence_Click" AutomationProperties.AutomationId="CopyLicenceButton" AutomationProperties.Name="Copy licence text">
+                                <StackPanel Orientation="Horizontal"><Path Style="{StaticResource CopyIcon}" Margin="0,0,7,0" /><TextBlock Text="Copy licence text" VerticalAlignment="Center" /></StackPanel>
+                            </Button>
+                            <TextBlock x:Name="LicenceStatus" Grid.Column="1" Style="{StaticResource DialogCaption}" Foreground="{DynamicResource ActionTextBrush}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="12,0,0,0" AutomationProperties.LiveSetting="Polite" />
+                        </Grid>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
