@@ -64,6 +64,8 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-045 | accepted | Workbench Prepare | Generated values look read-only |
 | DEC-046 | accepted | Workbench scheduling | Schedule problems use the amber validation notice with a remedy |
 | DEC-047 | accepted | Workbench CSV | Delimiter shown as a key-cap character before its name |
+| DEC-048 | accepted | Architecture | Cross-platform migration waits for a safety net and an approved Workbench |
+| DEC-049 | accepted | Testing | Visual baselines must match exactly |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -276,7 +278,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 - Consequences: original DLQ messages remain until explicit deletion. Absence is labelled as a last complete Active/DLQ observation, never confirmed API processing. Incomplete observations cannot qualify for history cleanup. [Replay contract](specs/replay-history.md) preserves the implemented identity, persistence, observation and deletion safeguards.
 - Follow-up approved 2026-10-05: reopen history through a compact Investigation toolbar action; retain attempts until their connection profile is removed. No separate clear-history action is in scope.
 
-## DEC-032 � Replay identity and themed folding
+## DEC-032 — Replay identity and themed folding
 
 - Status: accepted, 2026-10-05, Scope: Investigation presentation.
 - Decision: place the outlined history-clock Replay history action immediately left of Settings. Mark exact saved replay IDs with a compact Replay badge, independently of Active/DLQ, and keep delivery state visible when source paths are long. Use app-themed chevrons and quiet dark collapsed placeholders in the shared JSON editor.
@@ -394,3 +396,17 @@ Copy and the persistent Editable/Read-only indicator overlay the code viewport w
 The user rejected the first implementation because it did not visually follow Replay 47. The approved image is a visual contract, not only a structural guide: use prominent filled state badges, readable typography, Copy beside each full ID, and a compact horizontal source row. Remove the redundant Destination row while retaining its information in a tooltip. Existing replay safety behavior stays unchanged.
 
 DLQ palette clarification: the user explicitly disallowed changing DLQ tag colors. Preserve DeadLetterBrush and DeadLetterTextBrush for original-source and observed-copy DLQ tags, regardless of generated mockup coloring.
+
+## DEC-048 - Cross-platform migration waits for a safety net
+
+- Status: accepted, 2026-10-18; user chose MVVM-first and approved safety-net phase A after a cross-platform analysis that recommended Avalonia.
+- Decision: the app moves to reusable MVVM components, then to a cross-platform UI for Linux and macOS (Avalonia recommended, not yet chosen), component by component, and must look identical on every operating system. No migration starts until the phase A safety net exists. The Message Workbench migrates only after it is implemented and approved.
+- Because: "the whole premise was that we should have reusable components and they should look exactly like everywhere", and for the Workbench, "I'm worried that before I am done it will change and migrating the code base will be a nightmare".
+- Consequences: icons stay vector geometry (DEC-015), not an icon font. Workbench screens stay out of pixel baselines and new characterization contracts until approved.
+
+## DEC-049 - Visual baselines must match exactly
+
+- Status: accepted, 2026-10-18; user chose exact matching over a tolerance.
+- Decision: visual regression baselines compare rendered screens pixel for pixel. A refactor or migration step must leave every baseline unchanged; an intended visual change goes through a mockup approval and updates its baselines explicitly in the same change.
+- Because: the migration must prove the app still looks exactly the same (DEC-048).
+- Consequences: baselines cover stable screens only; screens still in design are added once approved.
