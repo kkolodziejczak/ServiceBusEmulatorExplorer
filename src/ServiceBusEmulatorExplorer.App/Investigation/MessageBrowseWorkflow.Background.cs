@@ -78,6 +78,7 @@ public sealed partial class MessageBrowseWorkflow
             cancellation.Token.ThrowIfCancellationRequested();
             if (session != capturedSession || generation != capturedGeneration) return;
             ApplySnapshot(discovery);
+            Recount();
             var scopes = watchedScopes.ToDictionary(pair => pair.Key, pair => pair.Value);
             if (refreshSelected && !busy && selectedEntity?.Address is { } address)
                 scopes.TryAdd(new(address, bucket), selectedEntity.Kind == nameof(EntityKind.Topic)
@@ -114,7 +115,6 @@ public sealed partial class MessageBrowseWorkflow
                     if (watchedScopes.TryGetValue(key, out var currentSources) && currentSources.SequenceEqual(sources))
                     {
                         backgroundPages[key] = new(refreshed, deliveries);
-                        CaptureBackgroundCounts(key, deliveries, !refreshed.HasMore);
                     }
                     if (refreshSelected && visible && selectionVersion == version && !busy)
                     {
@@ -139,16 +139,6 @@ public sealed partial class MessageBrowseWorkflow
         {
             if (ReferenceEquals(backgroundCancellation, cancellation)) backgroundCancellation = null;
         }
-    }
-
-    private void CaptureBackgroundCounts(WatchTarget target, IReadOnlyList<MessageDelivery> deliveries, bool complete)
-    {
-        if (!UsesObservedCounts || target.Address.Kind == EntityKind.Topic) return;
-        var nodes = AllEntities().ToArray();
-        var node = nodes.FirstOrDefault(candidate => candidate.Address == target.Address);
-        if (node is null) return;
-        node.SetObservedCount(target.Bucket, new(deliveries.Select(delivery => delivery.Identity).ToHashSet(), complete, DateTimeOffset.UtcNow));
-        ObservedDeliveryCounts.AggregateTopics(nodes);
     }
 
     public void CancelBackgroundRefresh() => backgroundCancellation?.Cancel();

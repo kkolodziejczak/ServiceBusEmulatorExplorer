@@ -42,7 +42,7 @@ public sealed class DailyWindowAuditTests
         // Existing tooltip caveats do not change the visible numeric assertion.
         Assert.DoesNotContain("· 0 Active", fixture.Element("MessageCountSummary").Name);
         Assert.Contains("1 observed", fixture.Element("MessageCountSummary").Name);
-        Assert.Contains("scan complete", fixture.Element("MessageCountSummary").Name);
+        Assert.Contains("scanned", fixture.Element("MessageCountSummary").Name);
         fixture.AssertObservedTreeCountsAtSupportedSizes("active");
     }
 
@@ -63,7 +63,7 @@ public sealed class DailyWindowAuditTests
         fixture.WaitLoaded(1);
         Assert.DoesNotContain("· 0 DLQ", fixture.Element("MessageCountSummary").Name);
         Assert.Contains("1 observed", fixture.Element("MessageCountSummary").Name);
-        Assert.Contains("scan complete", fixture.Element("MessageCountSummary").Name);
+        Assert.Contains("scanned", fixture.Element("MessageCountSummary").Name);
         fixture.AssertObservedTreeCountsAtSupportedSizes("dlq");
     }
 
@@ -123,12 +123,11 @@ public sealed class DailyWindowAuditTests
             new ServiceBusMessage("{\"observed\":true}") { MessageId = $"observed-{index}" }), fixture.Token);
         fixture.Open();
         fixture.WaitLoaded(50);
-        Assert.Contains("50 observed", fixture.Element("MessageCountSummary").Name);
-        Assert.Contains("partial scan", fixture.Element("MessageCountSummary").Name);
+        Assert.Contains("50 loaded · 65 observed", fixture.Element("MessageCountSummary").Name);
         fixture.Invoke("LoadMoreButton");
         fixture.WaitLoaded(65);
         Assert.Contains("65 observed", fixture.Element("MessageCountSummary").Name);
-        Assert.Contains("scan complete", fixture.Element("MessageCountSummary").Name);
+        Assert.Contains("scanned", fixture.Element("MessageCountSummary").Name);
         string focused = fixture.Element("InspectorMessageId").Name;
         await using var receiver = fixture.Client.CreateReceiver(fixture.Queue);
         var removed = await receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(5), fixture.Token);

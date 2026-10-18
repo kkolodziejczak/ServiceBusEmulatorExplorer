@@ -46,12 +46,12 @@ public sealed partial class EntityNode : ObservableObject
     public string DisplayMessageCount => observedMain?.Display ?? Format(Observation?.Counts.Active);
     public string DisplayDlqCount => observedDlq?.Display ?? Format(Observation?.Counts.DeadLetter);
     public string DisplayScheduledCount => Format(Observation?.Counts.Scheduled);
-    public string ActiveCountDetail => CountDetail("Messages", DisplayMessageCount,
+    public string ActiveCountDetail => CountDetail("Messages", observedMain?.Exact ?? DisplayMessageCount,
         observedMain?.Detail(MessageBucket.Active, dateFormat) ?? Detail(Observation?.Counts.Active,
             "Active messages reported by the broker.\nEmulator counts may be inaccurate.")) + WatchDetail(IsActiveWatched, "Active");
     public string ScheduledCountDetail => CountDetail("Scheduled", DisplayScheduledCount,
         Detail(Observation?.Counts.Scheduled, "Scheduled messages reported by the broker."));
-    public string DlqCountDetail => CountDetail("DLQ", DisplayDlqCount,
+    public string DlqCountDetail => CountDetail("DLQ", observedDlq?.Exact ?? DisplayDlqCount,
         observedDlq?.Detail(MessageBucket.DeadLetter, dateFormat) ?? Detail(Observation?.Counts.DeadLetter,
             "Dead-letter messages reported by the broker.\nEmulator counts may be inaccurate.")) + WatchDetail(IsDlqWatched, "Dead letter");
     private string CountDetail(string label, string value, string detail)
@@ -59,7 +59,7 @@ public sealed partial class EntityNode : ObservableObject
         if (IsGroup) return string.Empty;
         string entity = Kind == nameof(EntityKind.Subscription)
             ? $"Subscription: {Name}\nTopic: {Observation!.Entity.TopicName}" : $"{Kind}: {Name}";
-        return $"{label}: {value}\n{entity}\n\n{detail}\n\n* Observed while browsing\n\u2014 Count unavailable";
+        return $"{label}: {value}\n{entity}\n\n{detail}\n\n* Counted by peeking every message\n\u2014 Count unavailable";
     }
     internal ObservedDeliveryCount? GetObservedCount(MessageBucket bucket) => bucket == MessageBucket.Active ? observedMain : observedDlq;
     internal void SetObservedCount(MessageBucket bucket, ObservedDeliveryCount? count)
