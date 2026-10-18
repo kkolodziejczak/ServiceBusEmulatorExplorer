@@ -40,6 +40,7 @@ the existing pale-orange/dark-orange DLQ palette.
 
 | Proposal | Question |
 | --- | --- |
+| [Licences 69 v1](message-library/design/proposed/licences-69-v1-third-party.png) | A Licences tab in Settings lists every bundled component with its licence and shows the full read-only text with a copy action, so each copy of the single-file exe carries the OFL notices (DEC-051). Callout 4: keep or drop the MIT library rows. The board misspells "Emulator" in the caption; the real text is unchanged. |
 | [Refresh 48 v1](message-library/design/proposed/refresh-48-v1-auto-refresh-label.png) | Label-only options A–D for the tab-row auto-refresh control (commit d5db402, made without a proposal). All rejected; superseded by Refresh 49–53. |
 | [Refresh 49 v1](message-library/design/proposed/refresh-49-v1-footer.png) | Option 1: auto-refresh caption, interval and pause in the window footer beside UTC/Local. |
 | [Refresh 50 v1](message-library/design/proposed/refresh-50-v1-refresh-group.png) | Option 2: Refresh joins interval and pause in the tab row; group wraps under the tabs when narrow. |
