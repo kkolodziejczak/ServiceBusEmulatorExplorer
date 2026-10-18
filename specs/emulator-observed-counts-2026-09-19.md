@@ -4,9 +4,11 @@
 
 The emulator profile uses fetched deliveries as a navigation-count workaround. Azure profiles retain broker counts. A fresh preferences store selects the built-in Local emulator profile and attempts connection automatically; existing saved startup choices and corrupt-file recovery behavior are preserved.
 
-Counts marked `*` are browsing observations, not live totals. Unvisited buckets show `—`; scheduled totals stay unavailable. The tooltip gives the observation time in UTC and partial/complete scan status. Main-queue peeks may include scheduled, deferred and expired messages. Topics count subscription deliveries, including separate copies with identical message IDs or sequence numbers.
+Superseded on 2026-10-18 by DEC-048 (Counts 68 v4): counts are full peek totals, not the loaded page.
 
-Refresh replaces the observation, Load more extends it, and confirmed deletion adjusts cached observations. Retained rows absent from the latest peek do not contribute. Reobserving such a row clears its stale marker. Reconnect discards the cache. Removed entities and incomplete discovery invalidate affected observations; an empty topic retains its successful zero observation across unchanged discovery.
+Counts marked `*` are peek totals, not live broker totals. Opening an entity counts every delivery in both buckets in the background (`ObservedCountScanner`); a topic counts all its subscriptions and shows a total only once each has one. Unopened entities show `—`; scheduled totals stay unavailable. The tree shows exact values below 1,000 and then `1k+`, `10k+`, `100k+`; the tooltip gives the exact total and scan time in UTC. Main-queue peeks may include scheduled, deferred and expired messages. Topics count subscription deliveries, including separate copies with identical message IDs or sequence numbers.
+
+Refresh and auto-refresh recount every counted, open or watched entity; the last total stays until the new one is ready. Paging and Load more no longer change counts. Confirmed deletion adjusts cached totals. Reconnect discards them. Removed entities and incomplete discovery invalidate affected observations; an empty topic retains its zero total across unchanged discovery.
 
 ## Verification
 

@@ -107,6 +107,9 @@ public sealed class InspectorEditabilityStatusTests
         }
         finally
         {
+            // A failed assertion can leave an unsaved edit; closing would then wait on the discard prompt
+            // and hide the failure behind the thread time bound.
+            if (workspace.Inspector.IsDirty) workspace.Inspector.DiscardCurrent();
             window.Close();
             workspace.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }

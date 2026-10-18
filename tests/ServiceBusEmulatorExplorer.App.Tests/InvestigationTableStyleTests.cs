@@ -215,6 +215,51 @@ public sealed class InvestigationTableStyleTests
             workspace.DisposeAsync().AsTask().GetAwaiter().GetResult();
         });
 
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void Investigation_message_table_highlights_the_selected_row_at_every_position()
+        => RunSta(() =>
+        {
+            var profile = new InvestigationProfile("selection-proof",
+                new ConnectionProfile("Selection proof", "runtime", "admin"));
+            var workspace = new InvestigationWorkspace(
+                new TablePreferencesStore(new WorkspacePreferences { Profiles = [profile], SelectedProfileId = profile.Id }),
+                new BrokerConnectionWorkflow(() => null!, _ => null!, _ => null!));
+            var window = new InvestigationWindow(workspace)
+            {
+                Width = 1200,
+                Height = 800,
+                ShowInTaskbar = false,
+                WindowStyle = WindowStyle.None
+            };
+            window.Show();
+            Drain(window.Dispatcher);
+
+            var source = new EntityAddress(EntityKind.Queue, "orders");
+            for (int sequence = 1; sequence <= 3; sequence++)
+                workspace.Browse.Messages.Add(new MessageRow(new MessageDelivery(
+                    new DeliveryIdentity(1, source, MessageBucket.Active, sequence),
+                    new ExplorerMessage($"message-{sequence}", sequence, "{}", "{}", 2, DateTimeOffset.UtcNow, null, 0,
+                        "application/json", null, null, "OrderCreated", new Dictionary<string, object?>(),
+                        new Dictionary<string, object?>())), TimestampDisplay.Utc));
+            Drain(window.Dispatcher);
+
+            // Odd rows used to keep the grid's alternating colour, which outranks the row style's selection trigger.
+            var grid = (DataGrid)window.FindName("MessageGrid")!;
+            int[] unhighlighted = Enumerable.Range(0, 3).Where(index =>
+            {
+                grid.SelectedIndex = index;
+                Drain(window.Dispatcher);
+                DataGridRow selected = Row(grid, index);
+                return !selected.IsSelected || Hex(selected.Background) != "#DBEDFF"
+                    || Descendants<DataGridCell>(selected).Any(cell => cell.IsVisible && Hex(cell.Background) != "#DBEDFF")
+                    || Hex(Row(grid, (index + 1) % 3).Background) != "#FFFFFF";
+            }).ToArray();
+            Assert.Empty(unhighlighted);
+            window.Close();
+            workspace.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        });
+
     private static void AssertTable(DataGrid grid, int expectedRows, DataGridColumn[]? stretchedColumns = null)
     {
         Assert.Equal(expectedRows, grid.Items.Cast<object>().Count(item =>
@@ -271,10 +316,12 @@ public sealed class InvestigationTableStyleTests
     private static TextBlock? FindText(DependencyObject root, string text) =>
         Descendants<TextBlock>(root).FirstOrDefault(block => block.Text == text);
 
-    private static void AssertBrush(Brush brush, string expected)
+    private static void AssertBrush(Brush brush, string expected) => Assert.Equal(expected, Hex(brush));
+
+    private static string Hex(Brush brush)
     {
         var solid = Assert.IsType<SolidColorBrush>(brush);
-        Assert.Equal(expected, $"#{solid.Color.R:X2}{solid.Color.G:X2}{solid.Color.B:X2}");
+        return $"#{solid.Color.R:X2}{solid.Color.G:X2}{solid.Color.B:X2}";
     }
 
     private static void CaptureFocusedCorrelationCellIfRequested(Window window, string fileName)

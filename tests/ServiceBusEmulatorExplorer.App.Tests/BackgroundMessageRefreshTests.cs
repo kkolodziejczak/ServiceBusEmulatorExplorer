@@ -253,7 +253,7 @@ public sealed class BackgroundMessageRefreshTests
         Assert.Equal("1*", workflow.AllEntities().Single(node => node.Address == secondAddress).DisplayMessageCount);
         EntityNode topic = workflow.AllEntities().Single(node => node.Name == "events" && node.Kind == nameof(EntityKind.Topic));
         Assert.Equal("3*", topic.DisplayMessageCount);
-        Assert.Contains("scan complete", topic.ActiveCountDetail, StringComparison.Ordinal);
+        Assert.Contains("Scanned:", topic.ActiveCountDetail, StringComparison.Ordinal);
     }
 
     private static MessageBrowseWorkflow Browse(EntityDiscoverySnapshot snapshot, FakeMessages messages)

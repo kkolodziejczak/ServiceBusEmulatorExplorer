@@ -43,10 +43,10 @@ public sealed partial class MessageBrowseWorkflow : ObservableObject
 
     private string ObservedCountSummary()
     {
-        var count = selectedEntity!.GetObservedCount(bucket);
-        string observation = count is null ? "not observed" :
-            $"{count.Deliveries.Count:N0} observed · {(count.IsComplete ? "scan complete" : "partial scan")}";
-        return $"{Messages.Count} loaded · {observation} ({(IsDeadLetter ? "DLQ" : "main queue")})";
+        if (selectedEntity!.GetObservedCount(bucket) is not { } count) return $"{Messages.Count} loaded · counting…";
+        var scanned = preferences.TimestampDisplay == TimestampDisplay.Local ? count.CheckedAtUtc.ToLocalTime() : count.CheckedAtUtc;
+        string zone = preferences.TimestampDisplay == TimestampDisplay.Local ? "" : " UTC";
+        return $"{Messages.Count} loaded · {count.Deliveries.Count:N0} observed · scanned {DateDisplay.Timestamp(scanned, preferences.DateFormat)}{zone}";
     }
     public bool ShowsSource => selectedEntity?.Kind == nameof(EntityKind.Topic);
 
@@ -55,6 +55,7 @@ public sealed partial class MessageBrowseWorkflow : ObservableObject
         preferences = value;
         foreach (var row in Messages) row.SetTimeDisplay(value.TimestampDisplay, value.DateFormat);
         foreach (var node in AllEntities()) node.SetDateFormat(value.DateFormat);
+        OnPropertyChanged(nameof(CountSummary));
     }
 
     public void SetSession(BrokerSession? value, long connectionGeneration)
@@ -66,6 +67,11 @@ public sealed partial class MessageBrowseWorkflow : ObservableObject
         generation = connectionGeneration;
         DiscoverySnapshot = null;
         session = value;
+        counter?.Stop();
+        opened.Clear();
+        countedNodes.Clear();
+        counter = value is not null && UsesObservedCounts
+            ? new(value.Messages, connectionGeneration, PublishCount, CountFailed) : null;
         OnPropertyChanged(nameof(DiscoverySnapshot));
         OnPropertyChanged(nameof(IsConnected));
         deleted.Clear();
@@ -188,6 +194,7 @@ public sealed partial class MessageBrowseWorkflow : ObservableObject
         Cancel();
         selectedEntity = node;
         bucket = deadLetter ? MessageBucket.DeadLetter : MessageBucket.Active;
+        CountFirstTime(node);
         FocusedMessage = null;
         ReplaceMessages([]);
         if (backgroundPages.TryGetValue(new(node.Address!, bucket), out var cached))
@@ -263,7 +270,6 @@ public sealed partial class MessageBrowseWorkflow : ObservableObject
                 }
             }
             FocusedMessage ??= Messages.FirstOrDefault();
-            CaptureObservedCounts();
             RememberWatchedPage();
         }
         finally
@@ -301,6 +307,7 @@ public sealed partial class MessageBrowseWorkflow : ObservableObject
             var address = selectedEntity?.Address;
             var target = Math.Max(PageSize(), Messages.Count);
             ApplySnapshot(snapshot);
+            Recount();
             if (selectedEntity is null || address is null)
             {
                 pager = null;
@@ -365,7 +372,6 @@ public sealed partial class MessageBrowseWorkflow : ObservableObject
         }
 
         ReconcileMessages(rows);
-        CaptureObservedCounts();
         FocusedMessage = oldFocusedKey is not null
             ? Messages.FirstOrDefault(row => row.Key == oldFocusedKey) ?? Messages.FirstOrDefault()
             : Messages.FirstOrDefault();
@@ -387,13 +393,6 @@ public sealed partial class MessageBrowseWorkflow : ObservableObject
         if (FocusedMessage is not null && deleted.Contains(FocusedMessage.Key)) FocusedMessage = Messages.FirstOrDefault();
         if (UsesObservedCounts) ObservedDeliveryCounts.ForgetDeleted(AllEntities().ToArray(), deleted);
         NotifyScope();
-    }
-
-    private void CaptureObservedCounts()
-    {
-        if (UsesObservedCounts && selectedEntity is not null && pager is not null)
-            ObservedDeliveryCounts.Capture(AllEntities().ToArray(), selectedEntity, Messages,
-                bucket, !pager.HasMore, DateTimeOffset.UtcNow);
     }
 
     public void Cancel()
