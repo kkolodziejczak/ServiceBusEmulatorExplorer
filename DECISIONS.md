@@ -64,6 +64,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-045 | accepted | Workbench Prepare | Generated values look read-only |
 | DEC-046 | accepted | Workbench scheduling | Schedule problems use the amber validation notice with a remedy |
 | DEC-047 | accepted | Workbench CSV | Delimiter shown as a key-cap character before its name |
+| DEC-048 | accepted | Namespace tree | Emulator counts are full peek totals with 1k+/10k+/100k+ brackets |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -394,3 +395,10 @@ Copy and the persistent Editable/Read-only indicator overlay the code viewport w
 The user rejected the first implementation because it did not visually follow Replay 47. The approved image is a visual contract, not only a structural guide: use prominent filled state badges, readable typography, Copy beside each full ID, and a compact horizontal source row. Remove the redundant Destination row while retaining its information in a tooltip. Existing replay safety behavior stays unchanged.
 
 DLQ palette clarification: the user explicitly disallowed changing DLQ tag colors. Preserve DeadLetterBrush and DeadLetterTextBrush for original-source and observed-copy DLQ tags, regardless of generated mockup coloring.
+
+## DEC-048 - Emulator counts are full totals
+
+- Status: accepted, 2026-10-18; user approved Counts 68 v4.
+- Decision: on the emulator, the namespace tree shows the full peek total of each opened entity, both Active and DLQ, never the loaded page. Exact below 1,000, then `1k+`, `10k+`, `100k+`; the tooltip and grid summary give the exact total and scan time ("50 loaded · 103 observed · scanned …"). No cap; counting starts when an entity is opened (a topic counts all its subscriptions) and refresh recounts. While a recount runs, the last total stays; unopened entities show `—`. Count columns size to the widest value.
+- Because: page-limited counts looked like totals (a topic showed 50* and 67* for 103 messages), and partial or "scan complete" wording was noise; the user wants totals, always.
+- Consequences: supersedes the paging rules in [emulator observed counts](specs/emulator-observed-counts-2026-09-19.md). Counting costs one peek per 100 messages per entity on every refresh. See [Counts 68](specs/ui-language.md).

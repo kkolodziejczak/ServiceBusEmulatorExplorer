@@ -10,38 +10,61 @@ namespace ServiceBusEmulatorExplorer.App.Tests;
 public sealed class EmulatorObservedCountTests
 {
     [Fact]
-    public async Task Browse_counts_only_fetched_deliveries_and_load_more_completes_the_observation()
+    public async Task Opening_an_entity_counts_every_delivery_in_both_buckets_not_just_the_loaded_page()
     {
         var fixture = new Fixture();
         fixture.Set(fixture.Queue, MessageBucket.Active, 1, 2, 3);
+        fixture.Set(fixture.Queue, MessageBucket.DeadLetter, 7);
         fixture.Workflow.SetPreferences(new WorkspacePreferences { QueuePageSize = 2 });
         await fixture.Workflow.SelectAsync(fixture.Node(), false);
-        Assert.Equal("2*", fixture.Node().DisplayMessageCount);
-        Assert.Contains("partial scan", fixture.Node().ActiveCountDetail);
-        Assert.Contains("observed", fixture.Workflow.CountSummary);
-        Assert.Equal(1, fixture.Messages.Calls);
-        await fixture.Workflow.LoadMoreAsync();
+        Assert.Equal(2, fixture.Workflow.Messages.Count);
         Assert.Equal("3*", fixture.Node().DisplayMessageCount);
-        Assert.Contains("scan complete", fixture.Node().ActiveCountDetail);
-        Assert.Contains("UTC", fixture.Node().ActiveCountDetail);
+        Assert.Equal("1*", fixture.Node().DisplayDlqCount);
         Assert.Equal("—", fixture.Node().DisplayScheduledCount);
-        Assert.Equal("—", fixture.Node().DisplayDlqCount);
+        Assert.Contains("Scanned:", fixture.Node().ActiveCountDetail);
+        Assert.Contains("UTC", fixture.Node().ActiveCountDetail);
+        Assert.StartsWith("2 loaded · 3 observed · scanned ", fixture.Workflow.CountSummary);
+    }
+
+    [Theory]
+    [InlineData(999, "999*")]
+    [InlineData(1_234, "1k+*")]
+    [InlineData(10_000, "10k+*")]
+    public async Task Totals_from_a_thousand_show_a_bracket_and_the_tooltip_keeps_the_exact_total(int total, string display)
+    {
+        var fixture = new Fixture();
+        fixture.Set(fixture.Queue, MessageBucket.Active, Enumerable.Range(1, total).Select(sequence => (long)sequence).ToArray());
+        await fixture.Workflow.SelectAsync(fixture.Node(), false);
+        Assert.Equal(display, fixture.Node().DisplayMessageCount);
+        Assert.StartsWith($"Messages: {total:N0}*", fixture.Node().ActiveCountDetail);
     }
 
     [Fact]
-    public async Task Later_page_reobserves_a_retained_row_without_losing_it_from_the_count()
+    public async Task Refresh_recounts_the_full_total()
     {
         var fixture = new Fixture();
         fixture.Workflow.SetPreferences(new WorkspacePreferences { QueuePageSize = 2 });
         fixture.Set(fixture.Queue, MessageBucket.Active, 1, 3);
         await fixture.Workflow.SelectAsync(fixture.Node(), false);
-        fixture.Workflow.Messages.Single(row => row.Key.SequenceNumber == 3).IsSelected = true;
+        Assert.Equal("2*", fixture.Node().DisplayMessageCount);
         fixture.Set(fixture.Queue, MessageBucket.Active, 1, 2, 3);
         await fixture.Workflow.RefreshAsync();
-        Assert.Equal("2*", fixture.Node().DisplayMessageCount);
-        await fixture.Workflow.LoadMoreAsync();
         Assert.Equal("3*", fixture.Node().DisplayMessageCount);
-        Assert.All(fixture.Workflow.Messages, row => Assert.Empty(row.ObservationDetail));
+    }
+
+    [Fact]
+    public async Task Browsing_a_topic_page_keeps_complete_subscription_totals()
+    {
+        var fixture = new Fixture(topic: true);
+        fixture.Set(new EntityAddress(EntityKind.Subscription, "first", "events"), MessageBucket.Active, 1, 2, 3);
+        fixture.Set(new EntityAddress(EntityKind.Subscription, "second", "events"), MessageBucket.Active, 1, 2);
+        fixture.Workflow.SetPreferences(new WorkspacePreferences { TopicPageSize = 2, SubscriptionPageSize = 2 });
+        await fixture.Workflow.SelectAsync(fixture.Node("first"), false);
+        await fixture.Workflow.SelectAsync(fixture.Node("events"), false);
+        Assert.Equal(2, fixture.Workflow.Messages.Count);
+        Assert.Equal("3*", fixture.Node("first").DisplayMessageCount);
+        Assert.Equal("2*", fixture.Node("second").DisplayMessageCount);
+        Assert.Equal("5*", fixture.Node("events").DisplayMessageCount);
     }
 
     [Fact]
@@ -75,14 +98,13 @@ public sealed class EmulatorObservedCountTests
     }
 
     [Fact]
-    public async Task Empty_successful_scan_is_zero_observed_and_does_not_populate_unvisited_bucket()
+    public async Task Unopened_entity_shows_no_count_and_an_empty_one_counts_zero()
     {
         var fixture = new Fixture();
         Assert.Equal("—", fixture.Node().DisplayMessageCount);
         await fixture.Workflow.SelectAsync(fixture.Node(), false);
         Assert.Equal("0*", fixture.Node().DisplayMessageCount);
-        Assert.Contains("scan complete", fixture.Node().ActiveCountDetail);
-        Assert.Equal("—", fixture.Node().DisplayDlqCount);
+        Assert.Equal("0*", fixture.Node().DisplayDlqCount);
     }
 
     [Fact]
@@ -151,15 +173,10 @@ public sealed class EmulatorObservedCountTests
         fixture.Set(second, MessageBucket.Active, 1);
         fixture.Workflow.SetPreferences(new WorkspacePreferences { TopicPageSize = 1 });
         await fixture.Workflow.SelectAsync(fixture.Node("events"), false);
-        Assert.Equal("1*", fixture.Node("events").DisplayMessageCount);
-        Assert.Equal("—", fixture.Node("second").DisplayMessageCount);
-        Assert.Contains("partial scan", fixture.Node("events").ActiveCountDetail);
-        await fixture.Workflow.LoadMoreAsync();
-        await fixture.Workflow.LoadMoreAsync();
+        Assert.Single(fixture.Workflow.Messages);
         Assert.Equal("2*", fixture.Node("events").DisplayMessageCount);
         Assert.Equal("1*", fixture.Node("first").DisplayMessageCount);
         Assert.Equal("1*", fixture.Node("second").DisplayMessageCount);
-        Assert.Contains("scan complete", fixture.Node("events").ActiveCountDetail);
     }
 
     [Fact]
