@@ -1,4 +1,5 @@
 using ServiceBusEmulatorExplorer.Core.Connection;
+using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using ServiceBusEmulatorExplorer.Integration.Tests.Infrastructure;
 
@@ -18,13 +19,14 @@ public sealed class AzureRbacProofTests
         await clientFactory.ConnectAsync(
             new ConnectionProfile("Azure RBAC proof", "", "", ConnectionAuthenticationMode.AzureCli, fullyQualifiedNamespace),
             timeout.Token);
-        var administrationService = new ServiceBusAdministrationService(clientFactory);
+        var browser = new InvestigationEntityBrowser(clientFactory);
         var messageService = new ServiceBusMessageService(clientFactory);
 
-        IReadOnlyList<ServiceBusEntityNode> entities = await administrationService.GetEntityTreeAsync(timeout.Token);
-        ServiceBusEntityNode topic = Assert.Single(entities, entity =>
+        EntityDiscoverySnapshot snapshot = await browser.DiscoverAsync(timeout.Token);
+        IReadOnlyList<DiscoveredEntity> entities = snapshot.Entities.Select(observation => observation.Entity).ToArray();
+        DiscoveredEntity topic = Assert.Single(entities, entity =>
             entity.Kind == EntityKind.Topic && string.Equals(entity.Name, topicName, StringComparison.OrdinalIgnoreCase));
-        ServiceBusEntityNode subscription = Assert.Single(entities, entity =>
+        DiscoveredEntity subscription = Assert.Single(entities, entity =>
             entity.Kind == EntityKind.Subscription
             && string.Equals(entity.TopicName, topic.Name, StringComparison.OrdinalIgnoreCase)
             && string.Equals(entity.Name, subscriptionName, StringComparison.OrdinalIgnoreCase));
