@@ -149,9 +149,9 @@ if ([string]::IsNullOrWhiteSpace($env:SBE_APP_EXE)) {
 }
 
 if ($FullSuite) {
-    $Filter = "TestCategory=UiSmoke"
+    $Filter = "TestCategory=UiSmoke|TestCategory=DailyAudit"
     if (-not $PSBoundParameters.ContainsKey("TimeoutSeconds")) {
-        $TimeoutSeconds = 300
+        $TimeoutSeconds = 1200
     }
 }
 

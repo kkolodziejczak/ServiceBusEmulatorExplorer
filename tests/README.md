@@ -48,11 +48,13 @@ $env:SBE_APP_EXE = "$PWD\..\src\ServiceBusEmulatorExplorer.App\bin\Debug\net10.0
 ..\scripts\Invoke-UiSmoke.ps1 -NoBuild
 ```
 
-The script checks progress every 15 seconds and stops the test process plus WPF app instances it launched after 60 seconds by default. Its default filter runs the launch smoke test. To run the full UI smoke suite explicitly, use:
+The script checks progress every 15 seconds and stops the test process plus WPF app instances it launched after 60 seconds by default. Its default filter runs the launch smoke test. To run the full UI smoke suite explicitly, including the `DailyAudit` workspace and window tests, use:
 
 ```powershell
 ..\scripts\Invoke-UiSmoke.ps1 -NoBuild -FullSuite
 ```
+
+The full suite allows 1200 seconds by default. Like the navigation cases, the `DailyAudit` cases are reported as skipped unless the connection strings below are set.
 
 Navigation and DLQ UI smoke tests also require `SBE_CONNECTION_STRING` or `SBE_RUNTIME_CONNECTION_STRING`, plus `SBE_ADMIN_CONNECTION_STRING`.
 
