@@ -1,11 +1,13 @@
 using System.IO;
 using System.Windows;
+using ServiceBusEmulatorExplorer.Presentation.Settings;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation.Settings;
 
 /// <summary>A bundled third-party component and the licence that must travel with every copy of the app.</summary>
 /// <param name="Includes">NuGet package IDs, shared framework names or font file names this licence covers.</param>
 public sealed record ThirdPartyComponent(string Name, string Licence, string LicenceResource, IReadOnlyList<string> Includes)
+    : ILicensedComponent
 {
     /// <summary>What the component covers, then its full licence text.</summary>
     public string Notice

@@ -29,6 +29,7 @@ public partial class SettingsWindow : Window, IConnectionSecrets
         General = new GeneralPreferencesViewModel(_persistence, trayAvailable);
         _copyText = copyText ?? Clipboard.SetText;
         Connections = new ConnectionProfilesViewModel(_persistence, this, _copyText);
+        Licences = new SettingsLicencesViewModel(ThirdPartyNotices.Components, _copyText);
         InitializeComponent();
 
         var activeProfile = preferences.Profiles.FirstOrDefault(profile => profile.Id == preferences.SelectedProfileId);
@@ -51,8 +52,7 @@ public partial class SettingsWindow : Window, IConnectionSecrets
         // Bind only once the code-built choices are in place, so each selection finds its item.
         DataContext = this;
 
-        LicencesList.ItemsSource = ThirdPartyNotices.Components;
-        LicencesList.SelectedIndex = 0;
+        Licences.NoticeShown += () => LicenceText.ScrollToHome();
         _persistence.PropertyChanged += (_, _) => DoneButton.IsEnabled = !_persistence.IsSaving;
         Connections.ProfileLoaded += ShowSecrets;
         Connections.ProfileAdded += draft => ProfilesList.ScrollIntoView(draft);
@@ -65,6 +65,8 @@ public partial class SettingsWindow : Window, IConnectionSecrets
     public GeneralPreferencesViewModel General { get; }
 
     public ConnectionProfilesViewModel Connections { get; }
+
+    public SettingsLicencesViewModel Licences { get; }
 
     string IConnectionSecrets.Runtime => RuntimeConnection.Password;
 
@@ -93,27 +95,6 @@ public partial class SettingsWindow : Window, IConnectionSecrets
     {
         using var password = field.SecurePassword;
         return password.Length > 0;
-    }
-
-    private void Licence_Selected(object sender, SelectionChangedEventArgs e)
-    {
-        LicenceStatus.Text = string.Empty;
-        LicenceText.Text = (LicencesList.SelectedItem as ThirdPartyComponent)?.Notice ?? string.Empty;
-        LicenceText.ScrollToHome();
-    }
-
-    private void CopyLicence_Click(object sender, RoutedEventArgs e)
-    {
-        if (LicencesList.SelectedItem is not ThirdPartyComponent component) return;
-        try
-        {
-            _copyText(LicenceText.Text);
-            LicenceStatus.Text = $"{component.Name} licence copied.";
-        }
-        catch (ExternalException)
-        {
-            LicenceStatus.Text = "Clipboard is unavailable. Try copying again.";
-        }
     }
 
     private void Window_Closing(object? sender, CancelEventArgs e)

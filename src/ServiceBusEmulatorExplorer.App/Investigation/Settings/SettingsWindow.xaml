@@ -333,15 +333,15 @@
                     <StackPanel Margin="4,24,4,12">
                         <TextBlock Text="Third-party licences" Style="{StaticResource SectionTitle}" />
                         <TextBlock Text="These components are bundled with Service Bus Emulator Explorer." Style="{StaticResource DialogCaption}" TextWrapping="Wrap" Margin="0,8,0,12" />
-                        <ListBox x:Name="LicencesList" BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Disabled" ItemContainerStyle="{StaticResource LicenceItem}" SelectionChanged="Licence_Selected" AutomationProperties.AutomationId="LicencesList" AutomationProperties.Name="Third-party components" />
+                        <ListBox x:Name="LicencesList" BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Disabled" ItemContainerStyle="{StaticResource LicenceItem}" ItemsSource="{Binding Licences.Components}" SelectedItem="{Binding Licences.SelectedComponent}" AutomationProperties.AutomationId="LicencesList" AutomationProperties.Name="Third-party components" />
                         <TextBlock Text="Licence text" Style="{StaticResource DialogLabel}" Margin="0,16,0,8" />
-                        <TextBox x:Name="LicenceText" Height="136" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="LicenceText" AutomationProperties.Name="Licence text" />
+                        <TextBox x:Name="LicenceText" Text="{Binding Licences.NoticeText, Mode=OneWay}" Height="136" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" AutomationProperties.AutomationId="LicenceText" AutomationProperties.Name="Licence text" />
                         <Grid Margin="0,12,0,0">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                            <Button x:Name="CopyLicenceButton" Margin="0" Click="CopyLicence_Click" AutomationProperties.AutomationId="CopyLicenceButton" AutomationProperties.Name="Copy licence text">
+                            <Button x:Name="CopyLicenceButton" Margin="0" Command="{Binding Licences.CopyCommand}" AutomationProperties.AutomationId="CopyLicenceButton" AutomationProperties.Name="Copy licence text">
                                 <StackPanel Orientation="Horizontal"><Path Style="{StaticResource CopyIcon}" Margin="0,0,7,0" /><TextBlock Text="Copy licence text" VerticalAlignment="Center" /></StackPanel>
                             </Button>
-                            <TextBlock x:Name="LicenceStatus" Grid.Column="1" Style="{StaticResource DialogCaption}" Foreground="{DynamicResource ActionTextBrush}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="12,0,0,0" AutomationProperties.LiveSetting="Polite" />
+                            <TextBlock x:Name="LicenceStatus" Grid.Column="1" Text="{Binding Licences.Status}" Style="{StaticResource DialogCaption}" Foreground="{DynamicResource ActionTextBrush}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="12,0,0,0" AutomationProperties.LiveSetting="Polite" />
                         </Grid>
                     </StackPanel>
                 </ScrollViewer>
