@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ServiceBusEmulatorExplorer.ReadmeScreenshot;
@@ -56,15 +57,32 @@ internal static class VisualBaseline
             EnvironmentNote());
     }
 
+    /// <summary>
+    /// Renders without hover styling: the test window sits on the real desktop, so wherever the physical cursor
+    /// happens to rest would otherwise change the pixels.
+    /// </summary>
     private static BitmapSource Render(FrameworkElement element, Popup? popup)
     {
-        if (element is Window window) return WpfScreenshot.RenderWindowContent(window, popup);
-        element.UpdateLayout();
-        var bitmap = new RenderTargetBitmap(Math.Max(1, (int)Math.Ceiling(element.ActualWidth)),
-            Math.Max(1, (int)Math.Ceiling(element.ActualHeight)), 96, 96, PixelFormats.Pbgra32);
-        bitmap.Render(element);
-        bitmap.Freeze();
-        return bitmap;
+        UIElement[] surfaces = new UIElement?[] { element is Window { Content: UIElement content } ? content : element, popup?.Child }
+            .OfType<UIElement>().ToArray();
+        bool[] hitTestVisible = surfaces.Select(surface => surface.IsHitTestVisible).ToArray();
+        foreach (UIElement surface in surfaces) surface.IsHitTestVisible = false;
+        Mouse.Synchronize();
+        try
+        {
+            if (element is Window window) return WpfScreenshot.RenderWindowContent(window, popup);
+            element.UpdateLayout();
+            var bitmap = new RenderTargetBitmap(Math.Max(1, (int)Math.Ceiling(element.ActualWidth)),
+                Math.Max(1, (int)Math.Ceiling(element.ActualHeight)), 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(element);
+            bitmap.Freeze();
+            return bitmap;
+        }
+        finally
+        {
+            for (int index = 0; index < surfaces.Length; index++) surfaces[index].IsHitTestVisible = hitTestVisible[index];
+            Mouse.Synchronize();
+        }
     }
 
     private static byte[] EncodePng(BitmapSource bitmap)
