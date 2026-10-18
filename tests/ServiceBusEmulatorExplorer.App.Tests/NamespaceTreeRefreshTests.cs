@@ -1,8 +1,10 @@
 ﻿using System.Diagnostics;
-using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using Azure.Messaging.ServiceBus;
@@ -27,10 +29,11 @@ public sealed class NamespaceTreeRefreshTests
     {
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
         var messages = new FakeMessages();
+        var clock = new ManualClock();
         messages.Set(new EntityAddress(EntityKind.Subscription, "store", "inv"), 1, 2);
         messages.Set(new EntityAddress(EntityKind.Subscription, "wh", "inv"), 3, 4);
         var workspace = new InvestigationWorkspace(new Store(),
-            new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(), _ => messages));
+            new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(), _ => messages), timeProvider: clock);
         var window = new InvestigationWindow(workspace);
         window.Show();
         try
@@ -51,15 +54,14 @@ public sealed class NamespaceTreeRefreshTests
 
             var popup = (System.Windows.Controls.Primitives.Popup)window.FindName("ColumnsPopup");
             popup.StaysOpen = true; // headless runs lose focus; only code-driven closes matter here
-            typeof(InvestigationWindow).GetMethod("Columns_Click", BindingFlags.Instance | BindingFlags.NonPublic)!
-                .Invoke(window, [window.FindName("ColumnsButton"), new RoutedEventArgs()]);
+            ((IInvokeProvider)new ButtonAutomationPeer((Button)window.FindName("ColumnsButton")).GetPattern(PatternInterface.Invoke)!).Invoke();
             Wait(() => popup.IsOpen);
 
             for (int tick = 0; tick < 2; tick++)
             {
                 int peeks = messages.Calls;
-                Tick(window);
-                Wait(() => messages.Calls > peeks && BackgroundRefresh(workspace).IsCompleted && !workspace.Browse.IsBusy);
+                clock.Fire();
+                Wait(() => messages.Calls > peeks && workspace.Browse.CurrentBackgroundRefresh.IsCompleted && !workspace.Browse.IsBusy);
             }
             workspace.Browse.ApplySnapshot(new Browser().DiscoverAsync(default).Result);
             Wait(() => false, TimeSpan.FromMilliseconds(200), throwOnTimeout: false);
@@ -105,14 +107,6 @@ public sealed class NamespaceTreeRefreshTests
             Thread.Sleep(5);
         }
     }
-
-    private static void Tick(InvestigationWindow window) =>
-        typeof(InvestigationWindow).GetMethod("RefreshTimerTick", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .Invoke(window, [null, EventArgs.Empty]);
-
-    private static Task BackgroundRefresh(InvestigationWorkspace workspace) =>
-        (Task)typeof(MessageBrowseWorkflow).GetField("backgroundRefresh", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .GetValue(workspace.Browse)!;
 
     private static IEnumerable<TreeViewItem> TreeItems(ItemsControl parent)
     {

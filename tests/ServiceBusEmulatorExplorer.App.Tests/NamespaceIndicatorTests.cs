@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows;
@@ -96,9 +95,9 @@ public sealed class NamespaceIndicatorTests
         interval.SelectedIndex = 0;
         Wait(() => subscription.RefreshIndicator == "None" && queue.RefreshIndicator == "None");
         Invoke(pause);
-        Assert.False(fixture.Timer.IsEnabled);
+        Assert.False(fixture.RefreshScheduled);
         interval.SelectedIndex = 3;
-        Wait(() => fixture.Timer.IsEnabled && subscription.RefreshIndicator == "Running");
+        Wait(() => fixture.RefreshScheduled && subscription.RefreshIndicator == "Running");
         Assert.Equal("Running", subscription.RefreshIndicator);
         Assert.True(subscription.IsActiveWatched);
     });
@@ -136,20 +135,20 @@ public sealed class NamespaceIndicatorTests
         public Browser Browser { get; } = new();
         public InvestigationWorkspace Workspace { get; }
         public InvestigationWindow Window { get; }
-        public DispatcherTimer Timer => (DispatcherTimer)typeof(InvestigationWindow)
-            .GetField("refreshTimer", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(Window)!;
+        public ManualClock Clock { get; } = new();
+        public bool RefreshScheduled => Clock.ScheduledInterval is not null;
 
         public Fixture()
         {
             SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
             Workspace = new InvestigationWorkspace(new Store(),
-                new BrokerConnectionWorkflow(() => new Factory(), _ => Browser, _ => new Messages()));
+                new BrokerConnectionWorkflow(() => new Factory(), _ => Browser, _ => new Messages()), timeProvider: Clock);
             Window = new InvestigationWindow(Workspace);
             Window.Show();
             Complete(Workspace.ConnectAsync());
             Complete(Workspace.Browse.SelectAsync(Entity("orders-in"), deadLetter: false));
             Assert.True(Workspace.IsConnected);
-            Assert.True(Timer.IsEnabled);
+            Assert.True(RefreshScheduled);
         }
 
         public EntityNode Entity(string name) => Workspace.Browse.AllEntities().Single(node => node.Name == name);

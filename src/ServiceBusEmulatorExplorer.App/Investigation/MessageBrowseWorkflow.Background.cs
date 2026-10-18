@@ -12,6 +12,8 @@ public sealed partial class MessageBrowseWorkflow
     private CancellationTokenSource? backgroundCancellation;
     private Task backgroundRefresh = Task.CompletedTask;
     public bool HasWatchedTargets => watchedScopes.Count > 0;
+    /// <summary>The background refresh in progress, or a completed task when none is running.</summary>
+    public Task CurrentBackgroundRefresh => backgroundRefresh;
     public event Action<string>? BackgroundRefreshWarning;
 
     public void SetWatchRules(IReadOnlyList<WatchPreference> rules)

@@ -14,7 +14,7 @@ namespace ServiceBusEmulatorExplorer.App.Investigation;
 public partial class InvestigationWindow : Window
 {
     private readonly InvestigationWorkspace workspace;
-    private readonly DispatcherTimer refreshTimer = new();
+    private readonly AutoRefreshTimer refreshTimer;
     private bool ready;
     private bool updating;
     private bool paused;
@@ -31,6 +31,7 @@ public partial class InvestigationWindow : Window
     public InvestigationWindow(InvestigationWorkspace workspace)
     {
         this.workspace = workspace;
+        refreshTimer = new(workspace.Clock, tick => Dispatcher.BeginInvoke(DispatcherPriority.Background, tick));
         InitializeComponent();
         MessageLibraryPrototype.ConnectionRepairRequested += () => ConnectionButton.Focus();
         lastNamespaceConnectionState = workspace.IsConnected;
@@ -441,12 +442,10 @@ public partial class InvestigationWindow : Window
             workspace.Browse.CancelBackgroundRefresh();
             return;
         }
-        var interval = TimeSpan.FromSeconds(workspace.Preferences.AutoRefreshSeconds);
-        if (refreshTimer.Interval != interval) refreshTimer.Interval = interval;
-        if (!refreshTimer.IsEnabled) refreshTimer.Start();
+        refreshTimer.Start(TimeSpan.FromSeconds(workspace.Preferences.AutoRefreshSeconds));
     }
 
-    private async void RefreshTimerTick(object? sender, EventArgs e)
+    private async void RefreshTimerTick()
     {
         if (workspace.Browse.HasWatchedTargets)
         {

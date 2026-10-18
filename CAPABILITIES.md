@@ -51,7 +51,7 @@ Startup presentation example: `src/ServiceBusEmulatorExplorer.App/Investigation/
 | Capability | Reuse | Where |
 | --- | --- | --- |
 | Operation failure text without leaking SDK internals | shared | `src/ServiceBusEmulatorExplorer.App/Services/OperationFailureFormatter.cs` |
-| Injected `TimeProvider` for deterministic polling, timeouts and timestamps | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/MessageWatchWorkflow.cs` (`MessageWatchWorkflow`); `src/ServiceBusEmulatorExplorer.Core/Investigation/DeliverySearch.cs` (`DeliverySearch`) |
+| Injected `TimeProvider` for deterministic polling, timeouts, timestamps and automatic refresh | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/MessageWatchWorkflow.cs` (`MessageWatchWorkflow`); `src/ServiceBusEmulatorExplorer.Core/Investigation/DeliverySearch.cs` (`DeliverySearch`); `src/ServiceBusEmulatorExplorer.App/Investigation/AutoRefreshTimer.cs` (`AutoRefreshTimer`, driven by `InvestigationWorkspace.Clock`); tests fire it with `tests/ServiceBusEmulatorExplorer.App.Tests/ManualClock.cs` |
 | Protected per-user preferences store with an overridable path for tests | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Settings/ProtectedWorkspacePreferencesStore.cs` |
 | Entity tree built from administration listings | shared | `src/ServiceBusEmulatorExplorer.Core/ServiceBus/EntityTreeBuilder.cs` |
 | Refresh the namespace tree in place so selection, expansion and open popups survive | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/WorkspaceRows.cs` `EntityNode.ReconcileChildren`; used by `MessageBrowseWorkflow.ApplySnapshot` and `MessageSearchWorkflow` |
