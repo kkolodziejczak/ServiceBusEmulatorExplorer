@@ -1,6 +1,6 @@
 <Window x:Class="ServiceBusEmulatorExplorer.App.Investigation.Settings.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:res="clr-namespace:ServiceBusEmulatorExplorer.App.Investigation.Resources"
         Title="Settings"
         Width="520"
         Height="820"
@@ -10,7 +10,7 @@
         Icon="../../Assets/AppIcon.png"
         Background="{DynamicResource CanvasBrush}"
         Foreground="{DynamicResource InkBrush}"
-        FontFamily="Segoe UI"
+        FontFamily="{x:Static res:AppFonts.Ui}"
         FontSize="14"
         Closing="Window_Closing"
         AutomationProperties.Name="Settings">

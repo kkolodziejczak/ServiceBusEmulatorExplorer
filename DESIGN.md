@@ -1,6 +1,7 @@
 ---
 # Machine-readable tokens. Every value below has exactly one implementation key in
-# src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SharedStyles.xaml (x:Key).
+# src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SharedStyles.xaml (x:Key);
+# fonts are the exception and live in AppFonts.cs beside it.
 # Reference tokens in prose as {colors.primary}. Sizes are WPF DIPs.
 version: 1
 name: Service Bus Emulator Explorer
@@ -46,6 +47,9 @@ colors:
   dark-button-hover: "#344B63"
   dark-button-pressed: "#182432"
   dark-button-disabled-text: "#99A9BB"
+fonts:
+  ui: Selawik
+  code: Cascadia Mono
 typography:
   body: { size: 14, weight: 400 }
   meta: { size: 12, weight: 400 }
@@ -105,8 +109,12 @@ validation warning pair (#FFF5E3 / #D9A441) used by `ValidationWarningFrame`.
 
 ## Typography
 
-Segoe UI everywhere; Consolas for JSON and the console. Sizes are role-based; a view never picks
-a size, it picks a style.
+Two bundled fonts, never an installed one (DEC-050): Selawik (`AppFonts.Ui`) everywhere and
+Cascadia Mono (`AppFonts.Code`) for JSON and the console. XAML references them as
+`{x:Static res:AppFonts.Ui}`; a font family name in a view is a defect. Both live in
+[AppFonts](src/ServiceBusEmulatorExplorer.App/Investigation/Resources/AppFonts.cs) with their
+licences in `src/ServiceBusEmulatorExplorer.App/Assets/Fonts/`. Sizes are role-based; a view
+never picks a size, it picks a style.
 
 | Token | Resource key | Size / weight | Use |
 | --- | --- | --- | --- |

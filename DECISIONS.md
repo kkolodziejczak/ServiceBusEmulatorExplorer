@@ -66,6 +66,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-047 | accepted | Workbench CSV | Delimiter shown as a key-cap character before its name |
 | DEC-048 | accepted | Architecture | Cross-platform migration waits for a safety net and an approved Workbench |
 | DEC-049 | accepted | Testing | Visual baselines must match exactly |
+| DEC-050 | accepted | Typography | Bundled Selawik and Cascadia Mono replace system fonts |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -410,3 +411,10 @@ DLQ palette clarification: the user explicitly disallowed changing DLQ tag color
 - Decision: visual regression baselines compare rendered screens pixel for pixel. A refactor or migration step must leave every baseline unchanged; an intended visual change goes through a mockup approval and updates its baselines explicitly in the same change.
 - Because: the migration must prove the app still looks exactly the same (DEC-048).
 - Consequences: baselines cover stable screens only; screens still in design are added once approved.
+
+## DEC-050 - Bundled open fonts replace system fonts
+
+- Status: accepted, 2026-10-18; user chose option A of Fonts 68 (Selawik and Cascadia Mono) over option B (Inter and JetBrains Mono).
+- Decision: the app ships its two typefaces as resources, unmodified and with their SIL Open Font Licence texts: Selawik for all interface text and Cascadia Mono for JSON and the activity log. Views and code reference them only through `AppFonts`; nothing names a system font. Visual baselines compare only what renders the same on every machine: window content without the OS frame, no hover, en-US and 96 DPI, and text drawn only from the bundled fonts. A baseline fails when visible text would fall back to an installed font.
+- Because: the user asked to make rendering independent of the machine "and we should just compare the things that are comparable"; Segoe UI and Consolas exist only on Windows and may not be redistributed. Selawik has the same widths as Segoe UI, so layouts keep their sizes.
+- Consequences: supersedes the "Segoe UI everywhere; Consolas for JSON" typography rule. Cascadia Mono is about 6% wider than Consolas, so JSON wraps slightly earlier in narrow inspectors. Characters missing from the bundled fonts, such as the Workbench's text warning sign, still fall back to system fonts; icons stay vector geometry (DEC-015). Glyph rasterisation still comes from the operating system, so a different Windows build can still shift pixels.

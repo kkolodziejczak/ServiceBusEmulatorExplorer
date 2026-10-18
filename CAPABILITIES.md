@@ -33,6 +33,7 @@ Startup presentation example: `src/ServiceBusEmulatorExplorer.App/Investigation/
 | Dropdown with compact and table-editing variants | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Resources/DropdownStyles.xaml` (`AppComboBox`, `CompactComboBox`) |
 | Calendar-only date selection with release-to-open pointer capture, keyboard opening, read-only UI Automation value and calendar children synchronized with popup state | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/CalendarOnlyDatePicker.cs` (`CalendarOnlyDatePicker`); use with the shared `ScheduleDatePicker` style |
 | Vector icon geometries | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Resources/IconResources.xaml` |
+| Bundled fonts that render the same on every machine | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Resources/AppFonts.cs` (`AppFonts.Ui`, `AppFonts.Code`); XAML uses `{x:Static res:AppFonts.Ui}` |
 | Profile accent recolouring of the whole brush set at runtime | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Resources/ProfileTheme.cs` `Apply` |
 | Keyboard-only focus cue (no frame after pointer click) | shared | `SharedStyles.xaml` `KeyboardActionFocusVisual`, used by the implicit `Button` style |
 | Read-only field for generated or computed values (fill, no border, lock icon) | shared | `SharedStyles.xaml` `ReadOnlyField` |
@@ -83,6 +84,7 @@ Startup presentation example: `src/ServiceBusEmulatorExplorer.App/Investigation/
 | Headless screenshot of the real window with synthetic services | shared | `tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/Program.cs`; `WpfScreenshot.cs` |
 | Behaviour contracts that drive controls through UI Automation Invoke and Toggle, so they hold when Click handlers become view-model commands | shared | `tests/ServiceBusEmulatorExplorer.App.Tests/AutomationPress.cs` (`AutomationPress.Press`); contracts in `InvestigationWindowContractTests.cs` and `SettingsPersistenceContractTests.cs` |
 | Exact-pixel visual baselines checked from the existing render tests (DEC-049), with a frozen clock and repeatable replay IDs | shared | `tests/ServiceBusEmulatorExplorer.App.Tests/VisualBaselines/VisualBaseline.cs` (`VisualBaseline.AssertMatches`); `BaselineClock.cs` |
+| Fail a baseline when visible text would fall back to an installed font | shared | `tests/ServiceBusEmulatorExplorer.App.Tests/VisualBaselines/BundledFontCheck.cs` (`BundledFontCheck.AssertBundledOnly`), called by `VisualBaseline.AssertMatches` |
 | Exact WPF test viewport beyond a hosted desktop size limit | shared | `tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/NativeWindowSizeOverride.cs`, `NativeWindowSizeOverride.Install`; linked into App.Tests through its project file; dispose the window hook after proof |
 | Guarded release tagging and two-flavour Windows publish | shared | `scripts/Push-ReleaseTag.ps1`, `scripts/Publish-Windows.ps1`, `scripts/Test-ReleaseArtifacts.ps1` |
 | Convention check with ratchet baseline | shared | `tools/check-docs.ps1`; config `.agent-kit.json` |

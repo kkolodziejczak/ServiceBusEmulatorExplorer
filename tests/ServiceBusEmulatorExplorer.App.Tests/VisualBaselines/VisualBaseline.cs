@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls.Primitives;
@@ -27,6 +26,7 @@ internal static class VisualBaseline
     {
         lock (CheckedNames)
             Assert.True(CheckedNames.Add(name), $"Visual baseline '{name}' was checked twice in one run; give each captured state its own name.");
+        BundledFontCheck.AssertBundledOnly(element, popup, name);
         byte[] actualPng = EncodePng(Render(element, popup));
         string baselinePath = Path.Combine(BaselineDirectory(), name + ".png");
         if (UpdateRequested())
@@ -104,17 +104,8 @@ internal static class VisualBaseline
     {
         windows = Environment.OSVersion.VersionString,
         culture = CultureInfo.CurrentCulture.Name,
-        dpi = 96,
-        segoeUi = FontFingerprint("segoeui.ttf"),
-        consolas = FontFingerprint("consola.ttf")
+        dpi = 96
     }, new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine;
-
-    private static string FontFingerprint(string fileName)
-    {
-        string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), fileName);
-        if (!File.Exists(path)) return "missing";
-        return Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)))[..16];
-    }
 
     /// <summary>Decodes through the same PNG round trip as the baseline, so only real rendering differences remain.</summary>
     private static Pixels Decode(byte[] png)

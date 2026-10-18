@@ -12,6 +12,7 @@ using ICSharpCode.AvalonEdit.Editing;
 using ICSharpCode.AvalonEdit.Folding;
 using ICSharpCode.AvalonEdit.Rendering;
 using ServiceBusEmulatorExplorer.App.Investigation.Inspection;
+using ServiceBusEmulatorExplorer.App.Investigation.Resources;
 using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
@@ -37,7 +38,7 @@ public sealed class JsonFoldingStyleTests
         => OnSta(() =>
         {
             var document = new TextDocument(NestedJson);
-            var editor = new JsonEditor { FontSize = 14, ShowLineNumbers = true };
+            var editor = new JsonEditor { FontFamily = AppFonts.Code, FontSize = 14, ShowLineNumbers = true };
             editor.SetInspectionDocument(document);
             var window = CreateWindow(editor);
             try

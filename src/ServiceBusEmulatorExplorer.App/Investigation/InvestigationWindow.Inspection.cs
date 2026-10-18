@@ -5,6 +5,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using ServiceBusEmulatorExplorer.App.Investigation.Inspection;
+using ServiceBusEmulatorExplorer.App.Investigation.Resources;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
@@ -286,7 +287,7 @@ public partial class InvestigationWindow
         var document = new FlowDocument
         {
             PagePadding = new Thickness(0),
-            FontFamily = new FontFamily("Consolas"),
+            FontFamily = AppFonts.Code,
             FontSize = 14,
             Foreground = JsonSyntaxColorizer.TextBrush,
             PageWidth = double.NaN

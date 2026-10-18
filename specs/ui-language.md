@@ -33,12 +33,12 @@ the existing pale-orange/dark-orange DLQ palette.
 | Generated values | [Prepare 64](message-library/design/proposed/prepare-64-v1-generated-readonly.png), DEC-045 |
 | Delimiter labels | [Delimiter 67](message-library/design/proposed/delimiter-67-v1-options.png), option B layout with option A key-cap chip, DEC-047 |
 | Schedule validation | [Schedule 66](message-library/design/proposed/schedule-66-v1-past-time-validation.png), DEC-046; the notice uses the existing amber validation style, not the red drawn on the board, and replaces the "will be scheduled" notice while shown |
+| Typography | [Fonts 68 v1](message-library/design/proposed/fonts-68-v1-bundled-fonts.png), option A, DEC-050; the board redraws its screenshots, so judge glyphs from the [real option A render](message-library/design/proposed/fonts-68-v1-real-A-selawik-cascadia.png) |
 
 ## Proposals under consideration
 
 | Proposal | Question |
 | --- | --- |
-| [Fonts 68 v1](message-library/design/proposed/fonts-68-v1-bundled-fonts.png) | Bundle open fonts so every OS renders the same glyphs (DEC-048, DEC-049). A: Selawik + Cascadia Mono, metric-compatible with Segoe UI and close to Consolas; B: Inter + JetBrains Mono, wider. The board's screenshots are redrawn by image generation; judge glyphs from the real renders: [current](message-library/design/proposed/fonts-68-v1-real-current.png), [A](message-library/design/proposed/fonts-68-v1-real-A-selawik-cascadia.png), [B](message-library/design/proposed/fonts-68-v1-real-B-inter-jetbrains.png). |
 | [Refresh 48 v1](message-library/design/proposed/refresh-48-v1-auto-refresh-label.png) | Label-only options A–D for the tab-row auto-refresh control (commit d5db402, made without a proposal). All rejected; superseded by Refresh 49–53. |
 | [Refresh 49 v1](message-library/design/proposed/refresh-49-v1-footer.png) | Option 1: auto-refresh caption, interval and pause in the window footer beside UTC/Local. |
 | [Refresh 50 v1](message-library/design/proposed/refresh-50-v1-refresh-group.png) | Option 2: Refresh joins interval and pause in the tab row; group wraps under the tabs when narrow. |

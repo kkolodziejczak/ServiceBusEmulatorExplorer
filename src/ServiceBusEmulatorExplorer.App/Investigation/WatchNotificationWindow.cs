@@ -5,6 +5,7 @@ using System.Windows.Media.Imaging;
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
 using System.Windows.Automation;
+using ServiceBusEmulatorExplorer.App.Investigation.Resources;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
@@ -20,7 +21,7 @@ public sealed class WatchNotificationWindow : Window
         this.anchor = anchor;
         Title = "Service Bus Explorer notification";
         Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("/ServiceBusEmulatorExplorer.App;component/Investigation/Resources/SharedStyles.xaml", UriKind.RelativeOrAbsolute) });
-        FontFamily = new FontFamily("Segoe UI"); FontSize = 14;
+        FontFamily = AppFonts.Ui; FontSize = 14;
         SetResourceReference(ForegroundProperty, "InkBrush");
         source.SetResourceReference(TextBlock.ForegroundProperty, "SecondaryBrush");
         Width = 360; SizeToContent = SizeToContent.Height;
