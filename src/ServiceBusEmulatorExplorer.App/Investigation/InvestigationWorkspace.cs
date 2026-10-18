@@ -15,6 +15,8 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
     private readonly BrokerConnectionWorkflow connections;
     private readonly Func<ConnectionProfile, IReplayCopySender> createReplaySender;
     private readonly Func<ConnectionProfile, EntityAddress, IDlqDeleteReceiver> createDeleteReceiver;
+    private readonly TimeProvider clock;
+    private readonly Func<Guid> newReplayId;
     private readonly SemaphoreSlim saveGate = new(1, 1);
     private readonly SemaphoreSlim lifecycleGate = new(1, 1);
     private readonly object disposeSync = new();
@@ -39,6 +41,8 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
     public WorkspacePreferences Preferences => preferences;
     public InvestigationProfile SelectedProfile => preferences.Profiles.First(profile => profile.Id == preferences.SelectedProfileId);
     public bool IsConnected => session is not null;
+    /// <summary>The clock behind activity timestamps, replay times and the automatic refresh.</summary>
+    public TimeProvider Clock => clock;
     public long ConnectionGeneration => generation;
     public bool IsConnecting => connecting;
     public string HealthText => connecting ? "Connecting…" : !IsConnected ? "Disconnected" : readinessWarning is null ? "Connected" : "Warning";
@@ -54,12 +58,15 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
 
     public InvestigationWorkspace(IWorkspacePreferencesStore store, BrokerConnectionWorkflow connections,
         Func<ConnectionProfile, IReplayCopySender>? createReplaySender = null,
-        Func<ConnectionProfile, EntityAddress, IDlqDeleteReceiver>? createDeleteReceiver = null)
+        Func<ConnectionProfile, EntityAddress, IDlqDeleteReceiver>? createDeleteReceiver = null,
+        TimeProvider? timeProvider = null, Func<Guid>? replayIdSource = null)
     {
         this.store = store;
         this.connections = connections;
         this.createReplaySender = createReplaySender ?? (profile => new ReplayCopySender(profile));
         this.createDeleteReceiver = createDeleteReceiver ?? ((profile, source) => new DlqDeleteReceiver(profile, source));
+        clock = timeProvider ?? TimeProvider.System;
+        newReplayId = replayIdSource ?? Guid.NewGuid;
         Surface = new(Browse, Search);
         Surface.PropertyChanged += SurfaceChanged;
         Watch.Warning += WatchWarning;
@@ -352,7 +359,7 @@ public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDis
 
     public void Log(string message, bool warning = false, bool watch = false, string? statusSummary = null)
     {
-        Activity.Add(new(DateTimeOffset.UtcNow, message, warning, watch, statusSummary));
+        Activity.Add(new(clock.GetUtcNow(), message, warning, watch, statusSummary));
         while (Activity.Count > 100) Activity.RemoveAt(0);
         OnPropertyChanged(nameof(Status));
     }

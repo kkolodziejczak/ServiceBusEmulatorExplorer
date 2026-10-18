@@ -9,6 +9,7 @@ using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation.Settings;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -126,7 +127,7 @@ public sealed class InvestigationSettingsRenderTests
             warning.Text = "Use the staging tenant before connecting.";
             Button saveProfile = (Button)window.FindName("SaveProfileButton")!;
             TextBlock profileStatus = (TextBlock)window.FindName("ProfileStatus")!;
-            saveProfile.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            AutomationPress.Press(saveProfile);
             WaitUntil(dispatcher, () => profileStatus.Text == "Profile saved. No connection was attempted.",
                 TimeSpan.FromSeconds(5));
 
@@ -146,7 +147,7 @@ public sealed class InvestigationSettingsRenderTests
 
             failNextSave = true;
             warning.Text = "This edit should fail to persist.";
-            saveProfile.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            AutomationPress.Press(saveProfile);
             WaitUntil(dispatcher, () => profileStatus.Text.StartsWith("Could not save profile:", StringComparison.Ordinal),
                 TimeSpan.FromSeconds(5));
             Assert.Equal("Use the staging tenant before connecting.", saved[^1].Profiles.Single(profile => profile.Id == "primary").WarningMessage);
@@ -265,6 +266,7 @@ public sealed class InvestigationSettingsRenderTests
 
     private static void CaptureIfEnabled(Window window, string name)
     {
+        VisualBaseline.AssertMatches(window, name);
         if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase))
         {
             return;

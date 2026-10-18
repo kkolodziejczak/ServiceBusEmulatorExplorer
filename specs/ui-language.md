@@ -34,6 +34,8 @@ the existing pale-orange/dark-orange DLQ palette.
 | Delimiter labels | [Delimiter 67](message-library/design/proposed/delimiter-67-v1-options.png), option B layout with option A key-cap chip, DEC-047 |
 | Schedule validation | [Schedule 66](message-library/design/proposed/schedule-66-v1-past-time-validation.png), DEC-046; the notice uses the existing amber validation style, not the red drawn on the board, and replaces the "will be scheduled" notice while shown |
 | Namespace tree counts | [Counts 68 v4](message-library/design/proposed/counts-68-v4-namespace-totals.png), DEC-048; supersedes v1–v3 (kept under ignored `artifacts/counts-68`) |
+| Typography | [Fonts 68 v1](message-library/design/proposed/fonts-68-v1-bundled-fonts.png), option A, DEC-051; the board redraws its screenshots, so judge glyphs from the [real option A render](message-library/design/proposed/fonts-68-v1-real-A-selawik-cascadia.png) |
+| Third-party licences | [Licences 69 v1](message-library/design/proposed/licences-69-v1-third-party.png), option with fonts and MIT libraries, DEC-052; one row per licence holder (nine rows) in a compact row height so the licence text stays visible, and the copy status sits beside the button |
 
 ## Proposals under consideration
 

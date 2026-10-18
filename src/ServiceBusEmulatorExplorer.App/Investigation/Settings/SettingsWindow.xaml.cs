@@ -17,13 +17,15 @@ public partial class SettingsWindow : Window
 {
     private readonly Func<WorkspacePreferences, Task> _saveAsync;
     private readonly bool _trayAvailable;
+    private readonly Action<string> _copyText;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     private bool _ready;
     private bool _generalSavePending;
     private int _persistencePendingCount;
     private EditableProfile? _selectedEditor;
 
-    public SettingsWindow(WorkspacePreferences preferences, Func<WorkspacePreferences, Task> saveAsync, bool trayAvailable = true)
+    public SettingsWindow(WorkspacePreferences preferences, Func<WorkspacePreferences, Task> saveAsync, bool trayAvailable = true,
+        Action<string>? copyText = null)
     {
         ArgumentNullException.ThrowIfNull(preferences);
         ArgumentNullException.ThrowIfNull(saveAsync);
@@ -31,6 +33,7 @@ public partial class SettingsWindow : Window
         CurrentPreferences = preferences;
         _saveAsync = saveAsync;
         _trayAvailable = trayAvailable;
+        _copyText = copyText ?? Clipboard.SetText;
         InitializeComponent();
         CloseToTrayToggle.IsEnabled = trayAvailable;
         if (!trayAvailable) CloseToTrayDescription.Text = "System tray is unavailable in this session.";
@@ -70,6 +73,8 @@ public partial class SettingsWindow : Window
 
         Profiles = new ObservableCollection<EditableProfile>(preferences.Profiles.Select(EditableProfile.From));
         ProfilesList.ItemsSource = Profiles;
+        LicencesList.ItemsSource = ThirdPartyNotices.Components;
+        LicencesList.SelectedIndex = 0;
         ProfilesList.SelectedItem = Profiles.FirstOrDefault(profile => profile.Id == preferences.SelectedProfileId) ?? Profiles.FirstOrDefault();
         _ready = true;
         if (ProfilesList.SelectedItem is EditableProfile initialProfile)
@@ -227,12 +232,33 @@ public partial class SettingsWindow : Window
         if (!HasConnectionString(field)) return;
         try
         {
-            Clipboard.SetText(field.Password);
+            _copyText(field.Password);
             ProfileStatus.Text = $"{label} connection string copied.";
         }
         catch (ExternalException)
         {
             ProfileStatus.Text = "Clipboard is unavailable. Try copying again.";
+        }
+    }
+
+    private void Licence_Selected(object sender, SelectionChangedEventArgs e)
+    {
+        LicenceStatus.Text = string.Empty;
+        LicenceText.Text = (LicencesList.SelectedItem as ThirdPartyComponent)?.Notice ?? string.Empty;
+        LicenceText.ScrollToHome();
+    }
+
+    private void CopyLicence_Click(object sender, RoutedEventArgs e)
+    {
+        if (LicencesList.SelectedItem is not ThirdPartyComponent component) return;
+        try
+        {
+            _copyText(LicenceText.Text);
+            LicenceStatus.Text = $"{component.Name} licence copied.";
+        }
+        catch (ExternalException)
+        {
+            LicenceStatus.Text = "Clipboard is unavailable. Try copying again.";
         }
     }
 

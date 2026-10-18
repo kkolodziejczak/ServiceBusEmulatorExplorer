@@ -176,7 +176,7 @@ dotnet tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/bin/Debug/net10.0-windo
 ## WPF Architecture Lessons
 
 - Styling lives in `SharedStyles.xaml` and is migrated incrementally (DEC-006); the rules and the component registry are in [DESIGN.md](DESIGN.md). Preserve bindings, automation names, keyboard behavior, and profile themes when migrating a component, and verify its states including a regression check that new instances inherit the shared style.
-- Keep `ShellViewModel` as orchestration, not the owner of every feature workflow. Prior quality gates forced extraction into `EntityManagementWorkflow` and `MessageInspectionViewModel`.
+- Keep window code as orchestration, not the owner of every feature workflow. Feature workflows live in focused classes such as `InvestigationWorkspace`, `MessageBrowseWorkflow` and `MessageSearchWorkflow`.
 - Put domain and SDK mapping rules in focused core classes such as request factories, mappers, projections, and validators. Keep dialogs as input collectors, not Service Bus address builders.
 - Profile-load failures should be surfaced through operation/log state rather than crashing before the main window appears.
 - Keep operation-log timestamps UTC and explicit; timestamp display matters for message troubleshooting.
@@ -194,6 +194,7 @@ dotnet tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/bin/Debug/net10.0-windo
 
 ## Packaging And Manual Proof
 
+- Every package in the app's dependency closure, every shared framework the portable release bundles and every bundled font has a notice in `ThirdPartyNotices` (Settings > Licences, DEC-052). When `ThirdPartyNoticesTests` fails after adding, upgrading or removing a package or font, update that list and add the licence file from the package or its source repository under `src/ServiceBusEmulatorExplorer.App/Assets/Licenses/`; do not weaken the test.
 - Manual proof:
 
 ```powershell

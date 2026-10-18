@@ -65,6 +65,10 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-046 | accepted | Workbench scheduling | Schedule problems use the amber validation notice with a remedy |
 | DEC-047 | accepted | Workbench CSV | Delimiter shown as a key-cap character before its name |
 | DEC-048 | accepted | Namespace tree | Emulator counts are full peek totals with 1k+/10k+/100k+ brackets |
+| DEC-049 | accepted | Architecture | Cross-platform migration waits for a safety net and an approved Workbench |
+| DEC-050 | accepted | Testing | Visual baselines must match exactly |
+| DEC-051 | accepted | Typography | Bundled Selawik and Cascadia Mono replace system fonts |
+| DEC-052 | accepted | Settings | Third-party licences shown in Settings and kept complete by a test |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -277,7 +281,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 - Consequences: original DLQ messages remain until explicit deletion. Absence is labelled as a last complete Active/DLQ observation, never confirmed API processing. Incomplete observations cannot qualify for history cleanup. [Replay contract](specs/replay-history.md) preserves the implemented identity, persistence, observation and deletion safeguards.
 - Follow-up approved 2026-10-05: reopen history through a compact Investigation toolbar action; retain attempts until their connection profile is removed. No separate clear-history action is in scope.
 
-## DEC-032 � Replay identity and themed folding
+## DEC-032 — Replay identity and themed folding
 
 - Status: accepted, 2026-10-05, Scope: Investigation presentation.
 - Decision: place the outlined history-clock Replay history action immediately left of Settings. Mark exact saved replay IDs with a compact Replay badge, independently of Active/DLQ, and keep delivery state visible when source paths are long. Use app-themed chevrons and quiet dark collapsed placeholders in the shared JSON editor.
@@ -402,3 +406,31 @@ DLQ palette clarification: the user explicitly disallowed changing DLQ tag color
 - Decision: on the emulator, the namespace tree shows the full peek total of each opened entity, both Active and DLQ, never the loaded page. Exact below 1,000, then `1k+`, `10k+`, `100k+`; the tooltip and grid summary give the exact total and scan time ("50 loaded · 103 observed · scanned …"). No cap; counting starts when an entity is opened (a topic counts all its subscriptions) and refresh recounts. While a recount runs, the last total stays; unopened entities show `—`. Count columns size to the widest value, capped at the width of `100k+*` (uncapped shared-size columns looped WPF layout).
 - Because: page-limited counts looked like totals (a topic showed 50* and 67* for 103 messages), and partial or "scan complete" wording was noise; the user wants totals, always.
 - Consequences: supersedes the paging rules in [emulator observed counts](specs/emulator-observed-counts-2026-09-19.md). Counting costs one peek per 100 messages per entity on every refresh. See [Counts 68](specs/ui-language.md).
+
+## DEC-049 - Cross-platform migration waits for a safety net
+
+- Status: accepted, 2026-10-18; user chose MVVM-first and approved safety-net phase A after a cross-platform analysis that recommended Avalonia.
+- Decision: the app moves to reusable MVVM components, then to a cross-platform UI for Linux and macOS (Avalonia recommended, not yet chosen), component by component, and must look identical on every operating system. No migration starts until the phase A safety net exists. The Message Workbench migrates only after it is implemented and approved.
+- Because: "the whole premise was that we should have reusable components and they should look exactly like everywhere", and for the Workbench, "I'm worried that before I am done it will change and migrating the code base will be a nightmare".
+- Consequences: icons stay vector geometry (DEC-015), not an icon font. Workbench screens stay out of pixel baselines and new characterization contracts until approved.
+
+## DEC-050 - Visual baselines must match exactly
+
+- Status: accepted, 2026-10-18; user chose exact matching over a tolerance.
+- Decision: visual regression baselines compare rendered screens pixel for pixel. A refactor or migration step must leave every baseline unchanged; an intended visual change goes through a mockup approval and updates its baselines explicitly in the same change.
+- Because: the migration must prove the app still looks exactly the same (DEC-049).
+- Consequences: baselines cover stable screens only; screens still in design are added once approved.
+
+## DEC-051 - Bundled open fonts replace system fonts
+
+- Status: accepted, 2026-10-18; user chose option A of Fonts 68 (Selawik and Cascadia Mono) over option B (Inter and JetBrains Mono).
+- Decision: the app ships its two typefaces as resources, unmodified and with their SIL Open Font Licence texts: Selawik for all interface text and Cascadia Mono for JSON and the activity log. Views and code reference them only through `AppFonts`; nothing names a system font. Visual baselines compare only what renders the same on every machine: window content without the OS frame, no hover, en-US and 96 DPI, and text drawn only from the bundled fonts. A baseline fails when visible text would fall back to an installed font.
+- Because: the user asked to make rendering independent of the machine "and we should just compare the things that are comparable"; Segoe UI and Consolas exist only on Windows and may not be redistributed. Selawik has the same widths as Segoe UI, so layouts keep their sizes.
+- Consequences: supersedes the "Segoe UI everywhere; Consolas for JSON" typography rule. Cascadia Mono is about 6% wider than Consolas, so JSON wraps slightly earlier in narrow inspectors. Characters missing from the bundled fonts, such as the Workbench's text warning sign, still fall back to system fonts; icons stay vector geometry (DEC-015). Glyph rasterisation still comes from the operating system, so a different Windows build can still shift pixels.
+
+## DEC-052 - Third-party licences in Settings, kept complete by a test
+
+- Status: accepted, 2026-10-18; user chose an in-app view over a notices file beside the release executables, approved Licences 69 with both fonts and MIT libraries, and asked for the list to maintain itself.
+- Decision: Settings has a Licences tab listing every bundled component with its licence and full read-only text, copyable. `ThirdPartyNotices` is the single list; `ThirdPartyNoticesTests` compares it with the app's resolved package closure, its shared frameworks (the portable release bundles the .NET runtime, WPF and Windows Forms, whose third-party notices are included) and the font files compiled into the app, and fails on anything missing, stale or listed twice. CI and the release workflow run that test, so a dependency cannot ship without its notice.
+- Because: the single-file release carries the OFL and MIT notices only inside the executable, and the user wanted "a test case or agents.md inclusion or release step automation so we do not need to keep remembering".
+- Consequences: adding or removing a package or font means editing `ThirdPartyNotices` and adding the licence file from the package or its repository. Rows group packages by licence holder, so the tab shows nine rows rather than the board's six, in a compact row height so the licence text stays visible.

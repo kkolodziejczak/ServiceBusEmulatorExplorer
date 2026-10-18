@@ -15,6 +15,7 @@ using ServiceBusEmulatorExplorer.App.Investigation.Inspection;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -182,7 +183,7 @@ public sealed class InvestigationSearchRenderTests
             RaisePreviewKey(suggestions, Key.Escape);
             PumpUntil(dispatcher, () => !popup.IsOpen && search.IsKeyboardFocusWithin, TimeSpan.FromSeconds(5));
             Assert.False(popup.IsOpen);
-            clear.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, clear));
+            AutomationPress.Press(clear);
             PumpUntil(dispatcher, () => !popup.IsOpen && search.Text.Length == 0, TimeSpan.FromSeconds(5));
             Assert.Equal(destinationValue, destination.SelectedValue?.ToString());
             Assert.All(workspace.Browse.Roots.SelectMany(root => root.Children), entity => Assert.True(entity.IsVisible));
@@ -257,7 +258,7 @@ public sealed class InvestigationSearchRenderTests
                 CaptureIfEnabled(window, name);
             }
 
-            clearButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            AutomationPress.Press(clearButton);
             PumpUntil(dispatcher, () => !suggestionsPopup.IsOpen && searchBox.IsKeyboardFocusWithin,
                 TimeSpan.FromSeconds(5));
             Assert.Equal(string.Empty, searchBox.Text);
@@ -384,7 +385,7 @@ public sealed class InvestigationSearchRenderTests
             Assert.True(topicItem.IsSelected, "The selected search scope must remain selected in the rendered tree.");
             Assert.All(workspace.Search.Messages, row => Assert.StartsWith("events/", row.Source, StringComparison.Ordinal));
 
-            continueButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            AutomationPress.Press(continueButton);
             PumpUntil(dispatcher, () => !workspace.Search.IsBusy && workspace.Search.Messages.Count == 2,
                 TimeSpan.FromSeconds(5));
             window.UpdateLayout();
@@ -396,10 +397,10 @@ public sealed class InvestigationSearchRenderTests
             AssertSourceBadges(messageGrid);
 
             messages.BlockNextPeek();
-            continueButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            AutomationPress.Press(continueButton);
             PumpUntil(dispatcher, () => messages.PeekStarted.Task.IsCompleted && workspace.Search.IsBusy && stopButton.IsEnabled,
                 TimeSpan.FromSeconds(5));
-            stopButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            AutomationPress.Press(stopButton);
             PumpUntil(dispatcher, () => !workspace.Search.IsBusy && workspace.Search.Status.StartsWith("Search stopped", StringComparison.Ordinal),
                 TimeSpan.FromSeconds(5));
             Assert.Equal(2, workspace.Search.Messages.Count);
@@ -420,7 +421,7 @@ public sealed class InvestigationSearchRenderTests
                 CaptureIfEnabled(window, name);
             }
 
-            clearButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            AutomationPress.Press(clearButton);
             PumpUntil(dispatcher, () => !workspace.Search.IsActive && workspace.Surface.FocusedMessage is not null,
                 TimeSpan.FromSeconds(5));
             window.UpdateLayout();
@@ -469,7 +470,7 @@ public sealed class InvestigationSearchRenderTests
             () => new FakeFactory(),
             _ => new FakeBrowser(snapshot ?? CreateSnapshot()),
             _ => messages);
-        return new InvestigationWorkspace(new FakeStore(preferences), workflow);
+        return new InvestigationWorkspace(new FakeStore(preferences), workflow, timeProvider: BaselineClock.Instance);
     }
 
     private static void ShowAndConnect(
@@ -500,7 +501,7 @@ public sealed class InvestigationSearchRenderTests
     }
 
     private static void ClearSearch(Button clearButton) =>
-        clearButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        AutomationPress.Press(clearButton);
 
     private static void CloseWindow(Dispatcher dispatcher, Window window)
     {
@@ -522,7 +523,7 @@ public sealed class InvestigationSearchRenderTests
                     new(entity.Counts.ActiveMessageCount, CountAvailability.Known),
                     new(entity.Counts.DeadLetterMessageCount, CountAvailability.Known),
                     new(entity.Counts.ScheduledMessageCount, CountAvailability.Known)))).ToArray(),
-            DateTimeOffset.UtcNow,
+            BaselineClock.Instance.GetUtcNow(),
             IsComplete: true,
             Issues: []);
     }
@@ -542,7 +543,7 @@ public sealed class InvestigationSearchRenderTests
                     new(entity.Counts.ActiveMessageCount, CountAvailability.Known),
                     new(entity.Counts.DeadLetterMessageCount, CountAvailability.Known),
                     new(entity.Counts.ScheduledMessageCount, CountAvailability.Known)))).ToArray(),
-            DateTimeOffset.UtcNow,
+            BaselineClock.Instance.GetUtcNow(),
             IsComplete: true,
             Issues: []);
     }
@@ -648,6 +649,7 @@ public sealed class InvestigationSearchRenderTests
 
     private static void CaptureIfEnabled(Window window, string name)
     {
+        VisualBaseline.AssertMatches(window, "search-" + name);
         if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase)) return;
 
         string root = FindRepositoryRoot();
@@ -768,7 +770,7 @@ public sealed class InvestigationSearchRenderTests
             $"{{\"messageId\":\"{id}\"}}",
             id,
             id.Length,
-            DateTimeOffset.UtcNow,
+            BaselineClock.Instance.GetUtcNow(),
             null,
             0,
             "application/json",

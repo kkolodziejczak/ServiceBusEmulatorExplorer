@@ -1,5 +1,4 @@
 using System.IO;
-using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows;
@@ -13,6 +12,7 @@ using ServiceBusEmulatorExplorer.App.Investigation.Inspection;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -40,7 +40,8 @@ public sealed class InspectorEditabilityStatusTests
         };
         var workspace = new InvestigationWorkspace(
             new TablePreferencesStore(preferences),
-            new BrokerConnectionWorkflow(() => null!, _ => null!, _ => null!));
+            new BrokerConnectionWorkflow(() => null!, _ => null!, _ => null!),
+            timeProvider: BaselineClock.Instance);
         var window = new InvestigationWindow(workspace)
         {
             Width = width,
@@ -90,7 +91,7 @@ public sealed class InspectorEditabilityStatusTests
             Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("ModifiedBadge")!).Visibility);
             AssertStatus(window, status, statusText, statusIcon, "Editable");
             CaptureIfEnabled(window, width, height, "editable");
-            ((Button)window.FindName("DiscardButton")!).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            AutomationPress.Press(((Button)window.FindName("DiscardButton")!));
             Drain(window.Dispatcher);
             Assert.False(workspace.Inspector.IsDirty);
             Assert.Equal(Visibility.Collapsed, ((FrameworkElement)window.FindName("ModifiedBadge")!).Visibility);
@@ -102,27 +103,13 @@ public sealed class InspectorEditabilityStatusTests
             Assert.True(bodyViewer.IsReadOnly);
             AssertNoOverlap(window, status, bodyViewer);
             CaptureIfEnabled(window, width, height, "properties");
-
-            ((ToggleButton)window.FindName("JsonTab")!).IsChecked = true;
-            Drain(window.Dispatcher);
-            FieldInfo replayPending = typeof(InvestigationWindow).GetField(
-                "replayPending", BindingFlags.Instance | BindingFlags.NonPublic)
-                ?? throw new MissingFieldException(typeof(InvestigationWindow).FullName, "replayPending");
-            MethodInfo updateInspector = typeof(InvestigationWindow).GetMethod(
-                "UpdateInspector", BindingFlags.Instance | BindingFlags.NonPublic)
-                ?? throw new MissingMethodException(typeof(InvestigationWindow).FullName, "UpdateInspector");
-            replayPending.SetValue(window, true);
-            updateInspector.Invoke(window, null);
-            Drain(window.Dispatcher);
-            AssertStatus(window, status, statusText, statusIcon, "Read-only");
-            Assert.True(bodyEditor.IsReadOnly);
-            string replayHelp = System.Windows.Automation.AutomationProperties.GetHelpText(status);
-            Assert.Contains("replay", replayHelp, StringComparison.OrdinalIgnoreCase);
-            AssertNoOverlap(window, status, bodyEditor);
-            CaptureIfEnabled(window, width, height, "replay-pending");
+            // The read-only state during a pending replay is pinned by the real replay flow in InvestigationReplayRenderTests.
         }
         finally
         {
+            // A failed assertion can leave an unsaved edit; closing would then wait on the discard prompt
+            // and hide the failure behind the thread time bound.
+            if (workspace.Inspector.IsDirty) workspace.Inspector.DiscardCurrent();
             window.Close();
             workspace.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
@@ -161,7 +148,7 @@ public sealed class InspectorEditabilityStatusTests
     private static MessageRow CreateRow(EntityAddress source, MessageBucket bucket, string id)
     {
         var message = new ExplorerMessage(
-            id, 1, "{\"body\":true}", "{\"body\":true}", 1, DateTimeOffset.UtcNow, null, 0,
+            id, 1, "{\"body\":true}", "{\"body\":true}", 1, BaselineClock.Instance.GetUtcNow(), null, 0,
             "application/json", "correlation-" + id, null, null, new Dictionary<string, object?>(),
             new Dictionary<string, object?>());
         return new MessageRow(new MessageDelivery(
@@ -170,6 +157,7 @@ public sealed class InspectorEditabilityStatusTests
 
     private static void CaptureIfEnabled(Window window, int width, int height, string state)
     {
+        VisualBaseline.AssertMatches(window, $"inspector-status-{state}-{width}x{height}");
         if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INSPECTOR_STATUS"), "true", StringComparison.OrdinalIgnoreCase))
             return;
 

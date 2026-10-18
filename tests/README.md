@@ -9,7 +9,7 @@ This directory contains the fast unit, Docker-backed integration, and explicit W
 | `ServiceBusEmulatorExplorer.Core.Tests` | Domain models, projection helpers, replay ID policy, SDK-independent service behavior. | Yes |
 | `ServiceBusEmulatorExplorer.App.Tests` | View model command states, validation, UTC operation log formatting, shell state transitions with fakes. | Yes |
 | `ServiceBusEmulatorExplorer.Integration.Tests` | Direct Azure SDK behavior against the local Service Bus emulator from `compose.yaml`. | No, gated |
-| `ServiceBusEmulatorExplorer.UiSmoke.Tests` | FlaUI/UIA3 smoke tests that launch the WPF app and verify the rendered shell. | No, gated |
+| `ServiceBusEmulatorExplorer.UiSmoke.Tests` | FlaUI/UIA3 smoke tests that launch the WPF app and verify the Investigation window and Message Workbench. | No, gated |
 
 ## Commands
 
@@ -48,13 +48,15 @@ $env:SBE_APP_EXE = "$PWD\..\src\ServiceBusEmulatorExplorer.App\bin\Debug\net10.0
 ..\scripts\Invoke-UiSmoke.ps1 -NoBuild
 ```
 
-The script checks progress every 15 seconds and stops the test process plus WPF app instances it launched after 60 seconds by default. Its default filter runs the launch smoke test. To run the full UI smoke suite explicitly, use:
+The script checks progress every 15 seconds and stops the test process plus WPF app instances it launched after 60 seconds by default. Its default filter runs the launch smoke test. To run the full UI smoke suite explicitly, including the `DailyAudit` workspace and window tests, use:
 
 ```powershell
 ..\scripts\Invoke-UiSmoke.ps1 -NoBuild -FullSuite
 ```
 
-Navigation and DLQ UI smoke tests also require `SBE_CONNECTION_STRING` or `SBE_RUNTIME_CONNECTION_STRING`, plus `SBE_ADMIN_CONNECTION_STRING`.
+The full suite allows 1200 seconds by default. Like the navigation cases, the `DailyAudit` cases are reported as skipped unless the connection strings below are set.
+
+The broker-backed UI smoke tests (`DailyAudit` and the end-to-end cases) also require `SBE_CONNECTION_STRING` or `SBE_RUNTIME_CONNECTION_STRING`, plus `SBE_ADMIN_CONNECTION_STRING`.
 
 Azure RBAC proof tests are a separate, opt-in E2E layer. They require Azure CLI to be installed and signed in, plus pre-provisioned inputs; they do not create/update/delete resources or settle/delete messages:
 
@@ -82,6 +84,18 @@ Packaging proof:
 ..\scripts\Publish-Windows.ps1
 ```
 
+## Visual baselines
+
+Render tests compare each captured screen state, pixel for pixel, with a PNG in `ServiceBusEmulatorExplorer.App.Tests/VisualBaselines/` (DEC-050). A refactor must leave every baseline unchanged. After an approved visual change, rerun the affected render tests with `SBE_UPDATE_VISUAL_BASELINES=true` and commit the updated PNGs with the change. A mismatch writes `<name>.actual.png` and `<name>.diff.png` (changed pixels in magenta) to `artifacts/visual-baselines/`. All App tests run under the en-US culture (`TestCulture`), so dates and numbers render the same on every machine. Baselines compare only what renders the same on every machine (DEC-051): windows render without their OS frame and without hover, and every visible character must come from the bundled fonts, or the check names the text that would fall back to an installed font. Run them on a desktop of at least 1920x1080 at 100% scale: Windows shrinks windows that do not fit the screen, so a smaller desktop reports a size mismatch. The CI and release workflows set that resolution before testing. `environment.json` records the Windows version and culture the baselines were rendered with; the failure message says whether the current environment differs. Use `BaselineClock` for timestamps and generated replay IDs in captured states, and give each captured state its own name. Message Workbench screens are not baselined until approved (DEC-049).
+
+## Third-party notices
+
+`ThirdPartyNoticesTests` compares Settings > Licences (`ThirdPartyNotices`) with the packages in the app's generated `deps.json`, the shared frameworks in its `runtimeconfig.json` (bundled by the portable release) and the font files compiled into the app. It names any package or font that is missing, stale or listed twice (DEC-052).
+
+## Behaviour contracts
+
+`SettingsPersistenceContractTests` and `InvestigationWindowContractTests` pin behaviour that moving window logic into view models must keep: failed saves roll back, pending saves block closing, actions run once when enabled and are refused when disabled, copies are exact, and closing drops late broker results. They act only through control names and UI Automation, so a refactor should pass them without editing them. In new tests, press buttons with `AutomationPress.Press` rather than raising `Click`, and drive automatic refresh with `ManualClock` rather than waiting for real time.
+
 ## Investigation workspace checks
 
 From the repository root, run the focused production-workspace tests:
@@ -104,7 +118,7 @@ With `SBE_RUN_UI_TESTS=true` and the same broker environment, the current invest
 .\scripts\Invoke-UiSmoke.ps1 -NoBuild -Filter "FullyQualifiedName~InvestigationReadOnlyEndToEndTests" -TimeoutSeconds 180
 ```
 
-This creates unique queue/topic fixtures and an isolated protected profile, verifies 25/50/52-row paging, DLQ inspection, related-message search across two subscriptions, Clear and normal shutdown, then compares complete broker peek observations before and after. The generated entities and profile are cleaned up. The older navigation/administration/mutation cases in `MainWindowSmokeTests` still target the previous shell and need migration; this focused pass does not establish a full-suite pass.
+This creates unique queue/topic fixtures and an isolated protected profile, verifies 25/50/52-row paging, DLQ inspection, related-message search across two subscriptions, Clear and normal shutdown, then compares complete broker peek observations before and after. The generated entities and profile are cleaned up.
 
 The remaining investigation E2E filters use the same runner and isolated profiles:
 

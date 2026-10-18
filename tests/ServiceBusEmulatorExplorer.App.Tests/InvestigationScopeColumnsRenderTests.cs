@@ -12,6 +12,7 @@ using ServiceBusEmulatorExplorer.App.Investigation;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -295,7 +296,7 @@ public sealed class InvestigationScopeColumnsRenderTests
             MessageColumnOrder = columnOrder is null ? null : [.. columnOrder]
         };
         var workflow = new BrokerConnectionWorkflow(() => new FakeFactory(), _ => browser, _ => new FakeMessages());
-        return new InvestigationWorkspace(new FakeStore(preferences), workflow);
+        return new InvestigationWorkspace(new FakeStore(preferences), workflow, timeProvider: BaselineClock.Instance);
     }
 
     private static EntityDiscoverySnapshot Snapshot()
@@ -310,7 +311,7 @@ public sealed class InvestigationScopeColumnsRenderTests
                 new(new(entity.Counts.ActiveMessageCount, CountAvailability.Known),
                     new(entity.Counts.DeadLetterMessageCount, CountAvailability.Known),
                     new(entity.Counts.ScheduledMessageCount, CountAvailability.Known)))).ToArray(),
-            DateTimeOffset.UtcNow,
+            BaselineClock.Instance.GetUtcNow(),
             IsComplete: true,
             Issues: []);
     }
@@ -386,6 +387,7 @@ public sealed class InvestigationScopeColumnsRenderTests
 
     private static void CaptureIfRequested(Window window, string fileName)
     {
+        VisualBaseline.AssertMatches(window, "scope-" + Path.GetFileNameWithoutExtension(fileName));
         string? directory = Environment.GetEnvironmentVariable("SBE_SCOPE_PROOF");
         if (string.IsNullOrWhiteSpace(directory)) return;
         Directory.CreateDirectory(directory);
@@ -458,7 +460,7 @@ public sealed class InvestigationScopeColumnsRenderTests
             int take, long? fromSequenceNumber, CancellationToken cancellationToken)
         {
             if (bucket != MessageBucket.Active) return Task.FromResult<IReadOnlyList<ExplorerMessage>>([]);
-            ExplorerMessage message = new("billing-1", 1, "{}", "{}", 2, DateTimeOffset.UtcNow, null, 0,
+            ExplorerMessage message = new("billing-1", 1, "{}", "{}", 2, BaselineClock.Instance.GetUtcNow(), null, 0,
                 "application/json", "order-1", null, "OrderCreated", new Dictionary<string, object?>(), new Dictionary<string, object?>());
             return Task.FromResult<IReadOnlyList<ExplorerMessage>>([message]);
         }

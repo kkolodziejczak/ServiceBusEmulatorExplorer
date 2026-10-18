@@ -65,73 +65,6 @@ public sealed record ExplorerMessage(
     public Azure.Messaging.ServiceBus.ServiceBusMessageState? BrokerState { get; init; }
 }
 
-public sealed record ReplayRequest(
-    EntityAddress Source,
-    EntityAddress Destination,
-    long SequenceNumber,
-    string? EditedBody,
-    string? ContentType,
-    string? CorrelationId,
-    string? SessionId,
-    string? Subject,
-    IReadOnlyDictionary<string, object?>? ApplicationProperties,
-    ReplayIdPolicy IdPolicy,
-    bool DeleteOriginal);
-
-public sealed record ReplayMessageEdits(
-    string? EditedBody,
-    string? ContentType,
-    string? CorrelationId,
-    string? SessionId,
-    string? Subject,
-    IReadOnlyDictionary<string, object?>? ApplicationProperties);
-
-public sealed record ReplayResult(string NewMessageId, bool OriginalDeleted);
-
-public sealed record DeleteDeadLetterMessagesRequest(
-    EntityAddress Source,
-    IReadOnlyList<long> SequenceNumbers);
-
-public sealed record DeleteDeadLetterMessagesResult(int DeletedCount);
-
-public sealed record CreateQueueCommand(
-    string Name,
-    TimeSpan? LockDuration = null,
-    int? MaxDeliveryCount = null,
-    TimeSpan? DefaultMessageTimeToLive = null,
-    bool RequiresSession = false,
-    bool RequiresDuplicateDetection = false);
-
-public sealed record UpdateQueueCommand(
-    string Name,
-    TimeSpan? LockDuration = null,
-    int? MaxDeliveryCount = null,
-    TimeSpan? DefaultMessageTimeToLive = null);
-
-public sealed record CreateTopicCommand(
-    string Name,
-    TimeSpan? DefaultMessageTimeToLive = null,
-    bool RequiresDuplicateDetection = false);
-
-public sealed record UpdateTopicCommand(
-    string Name,
-    TimeSpan? DefaultMessageTimeToLive = null);
-
-public sealed record CreateSubscriptionCommand(
-    string TopicName,
-    string SubscriptionName,
-    TimeSpan? LockDuration = null,
-    int? MaxDeliveryCount = null,
-    TimeSpan? DefaultMessageTimeToLive = null,
-    bool RequiresSession = false);
-
-public sealed record UpdateSubscriptionCommand(
-    string TopicName,
-    string SubscriptionName,
-    TimeSpan? LockDuration = null,
-    int? MaxDeliveryCount = null,
-    TimeSpan? DefaultMessageTimeToLive = null);
-
 public sealed record SendMessageCommand(
     EntityAddress Destination,
     string Body,
@@ -157,32 +90,6 @@ public interface IServiceBusClientFactory : IAsyncDisposable
     ServiceBusClient RuntimeClient { get; }
 }
 
-public interface IServiceBusEntityBrowser
-{
-    Task<IReadOnlyList<ServiceBusEntityNode>> GetEntityTreeAsync(CancellationToken cancellationToken);
-}
-
-public interface IServiceBusAdministrationService : IServiceBusEntityBrowser
-{
-    Task CreateQueueAsync(CreateQueueCommand command, CancellationToken cancellationToken);
-
-    Task UpdateQueueAsync(UpdateQueueCommand command, CancellationToken cancellationToken);
-
-    Task DeleteQueueAsync(string name, CancellationToken cancellationToken);
-
-    Task CreateTopicAsync(CreateTopicCommand command, CancellationToken cancellationToken);
-
-    Task UpdateTopicAsync(UpdateTopicCommand command, CancellationToken cancellationToken);
-
-    Task DeleteTopicAsync(string name, CancellationToken cancellationToken);
-
-    Task CreateSubscriptionAsync(CreateSubscriptionCommand command, CancellationToken cancellationToken);
-
-    Task UpdateSubscriptionAsync(UpdateSubscriptionCommand command, CancellationToken cancellationToken);
-
-    Task DeleteSubscriptionAsync(string topicName, string subscriptionName, CancellationToken cancellationToken);
-}
-
 public interface IServiceBusMessageService
 {
     Task<IReadOnlyList<ExplorerMessage>> PeekMessagesAsync(
@@ -193,13 +100,4 @@ public interface IServiceBusMessageService
         CancellationToken cancellationToken);
 
     Task SendMessageAsync(SendMessageCommand command, CancellationToken cancellationToken);
-}
-
-public interface IDeadLetterReplayService
-{
-    Task<ReplayResult> ReplayAsync(ReplayRequest request, CancellationToken cancellationToken);
-
-    Task<DeleteDeadLetterMessagesResult> DeleteAsync(
-        DeleteDeadLetterMessagesRequest request,
-        CancellationToken cancellationToken);
 }

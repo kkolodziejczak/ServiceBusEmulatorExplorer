@@ -63,6 +63,16 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Use a 1920x1080 desktop for visual baselines
+        shell: pwsh
+        run: |
+          # Windows shrinks test windows to fit the screen; hosted runners start at 1024x768 (DEC-050).
+          Set-DisplayResolution -Width 1920 -Height 1080 -Force
+          Add-Type -AssemblyName System.Windows.Forms
+          $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          "Desktop: $($bounds.Width)x$($bounds.Height)"
+          if ($bounds.Width -lt 1920 -or $bounds.Height -lt 1080) { throw "Visual baselines need a 1920x1080 desktop; got $($bounds.Width)x$($bounds.Height)." }
+
       - name: Run fast tests
         shell: pwsh
         run: dotnet test ServiceBusEmulatorExplorer.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"

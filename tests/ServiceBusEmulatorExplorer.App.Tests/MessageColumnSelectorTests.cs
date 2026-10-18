@@ -16,6 +16,7 @@ using ServiceBusEmulatorExplorer.App.Investigation;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -107,7 +108,8 @@ public sealed class MessageColumnSelectorTests
         var store = new TablePreferencesStore(initial);
         var workspace = new InvestigationWorkspace(
             store,
-            new BrokerConnectionWorkflow(() => null!, _ => null!, _ => null!));
+            new BrokerConnectionWorkflow(() => null!, _ => null!, _ => null!),
+            timeProvider: BaselineClock.Instance);
         var window = new InvestigationWindow(workspace)
         {
             Width = width,
@@ -360,7 +362,7 @@ public sealed class MessageColumnSelectorTests
         if (!popup.IsOpen)
         {
             button.Focus();
-            button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, button));
+            AutomationPress.Press(button);
         }
         Drain(window.Dispatcher);
         window.UpdateLayout();
@@ -504,7 +506,7 @@ public sealed class MessageColumnSelectorTests
     }
 
     private static void Click(Button button) =>
-        button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, button));
+        AutomationPress.Press(button);
 
     private static void RaiseSorting(DataGrid grid, DataGridColumn column)
     {
@@ -547,6 +549,7 @@ public sealed class MessageColumnSelectorTests
 
     private static void CapturePopupIfEnabled(Popup popup, int width, int height)
     {
+        if (popup.Child is FrameworkElement popupContent) VisualBaseline.AssertMatches(popupContent, $"columns-popup-{width}x{height}");
         if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_MESSAGE_COLUMNS"), "true", StringComparison.OrdinalIgnoreCase)
             || popup.Child is not FrameworkElement child)
             return;
@@ -575,6 +578,7 @@ public sealed class MessageColumnSelectorTests
 
     private static void CaptureWindowIfEnabled(Window window, int width, int height, string state)
     {
+        VisualBaseline.AssertMatches(window, $"columns-{state}-{width}x{height}");
         if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_MESSAGE_COLUMNS"), "true", StringComparison.OrdinalIgnoreCase))
             return;
 

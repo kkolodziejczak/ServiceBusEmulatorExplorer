@@ -12,6 +12,8 @@ using ICSharpCode.AvalonEdit.Editing;
 using ICSharpCode.AvalonEdit.Folding;
 using ICSharpCode.AvalonEdit.Rendering;
 using ServiceBusEmulatorExplorer.App.Investigation.Inspection;
+using ServiceBusEmulatorExplorer.App.Investigation.Resources;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -36,7 +38,7 @@ public sealed class JsonFoldingStyleTests
         => OnSta(() =>
         {
             var document = new TextDocument(NestedJson);
-            var editor = new JsonEditor { FontSize = 14, ShowLineNumbers = true };
+            var editor = new JsonEditor { FontFamily = AppFonts.Code, FontSize = 14, ShowLineNumbers = true };
             editor.SetInspectionDocument(document);
             var window = CreateWindow(editor);
             try
@@ -65,7 +67,7 @@ public sealed class JsonFoldingStyleTests
                 Assert.True(PixelDifferenceCount(expanded, focused, BoundsInWindow(innerButton, window)) > 0,
                     "The keyboard-focus render should visibly change the focused chevron surface.");
 
-                innerButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, innerButton));
+                AutomationPress.Press(innerButton);
                 Layout(window, editor);
                 Assert.True(innermostFold.IsFolded);
                 Assert.Equal(4, MarginButtons(margin).Length);
@@ -75,7 +77,7 @@ public sealed class JsonFoldingStyleTests
 
                 FoldingSection outerFold = editor.JsonFoldings.MaxBy(fold => fold.EndOffset - fold.StartOffset)!;
                 Button outerButton = ButtonForFold(editor, margin, outerFold);
-                outerButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, outerButton));
+                AutomationPress.Press(outerButton);
                 Layout(window, editor);
                 Assert.True(outerFold.IsFolded);
                 Assert.Single(MarginButtons(margin));
@@ -214,6 +216,9 @@ public sealed class JsonFoldingStyleTests
 
     private static BitmapSource Capture(Window window, string name)
     {
+        // The keyboard-focus state shows AvalonEdit's blinking caret, so its pixels depend on timing.
+        if (!name.Contains("keyboard-focus", StringComparison.Ordinal))
+            VisualBaseline.AssertMatches(window, "json-folding-" + Path.GetFileNameWithoutExtension(name));
         int width = Math.Max(1, (int)Math.Ceiling(window.ActualWidth));
         int height = Math.Max(1, (int)Math.Ceiling(window.ActualHeight));
         var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);

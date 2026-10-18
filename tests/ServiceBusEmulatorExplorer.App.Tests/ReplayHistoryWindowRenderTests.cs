@@ -14,6 +14,7 @@ using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using ServiceBusEmulatorExplorer.ReadmeScreenshot;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -302,7 +303,7 @@ public sealed partial class ReplayWindowsTests
                         var dialog = history.OwnedWindows.OfType<ProfileWarningWindow>().Single();
                         Assert.Contains(target.Reservation.MessageId, ((TextBlock)dialog.FindName("WarningMessageText")).Text);
                         Assert.Contains("No Service Bus messages", ((TextBlock)dialog.FindName("WarningMessageText")).Text);
-                        Capture(dialog, "Replay-45-remove-confirmation.png");
+                        Capture(dialog, $"Replay-45-remove-confirmation-{(confirm ? "continue" : "cancel")}.png");
                         Click((Button)dialog.FindName(confirm ? "ContinueButton" : "CancelButton"));
                     }));
                     Click(remove);
@@ -593,7 +594,7 @@ public sealed partial class ReplayWindowsTests
         ReplayReservation reserved = ReplayLineage.Reserve(delivery, []);
         ReplayFamilyState family = reserved.Family with { LastAttempt = 3 };
         string namespaceFingerprint = ReplayNamespace.Fingerprint(ConnectionProfileDefaults.LocalEmulator);
-        DateTimeOffset now = DateTimeOffset.UtcNow;
+        DateTimeOffset now = BaselineClock.Instance.GetUtcNow();
         ReplayAttempt Create(string id, long sequence, ReplaySendStatus sendStatus, ReplayObservation? observation) =>
             new(Guid.NewGuid(), "replay-windows", namespaceFingerprint,
                 new ReplayReservation(family, id), FakeMessages.Queue, sequence, reserved.Family.RootFingerprint,

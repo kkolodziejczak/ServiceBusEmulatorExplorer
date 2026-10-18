@@ -20,7 +20,7 @@ public sealed partial class InvestigationWorkspace
         long observedGeneration = generation;
         var ids = attempts.Where(attempt => attempt.SendStatus != ReplaySendStatus.NotSent)
             .Select(attempt => attempt.Reservation.MessageId).Distinct(StringComparer.Ordinal).ToArray();
-        var observation = await new ReplayObserver(currentSession.Browser, currentSession.Messages)
+        var observation = await new ReplayObserver(currentSession.Browser, currentSession.Messages, clock)
             .ObserveAsync(ids, observedGeneration, preferences.SearchDeliveryBudget,
                 TimeSpan.FromSeconds(preferences.SearchTimeBudgetSeconds), token);
         if (generation != observedGeneration || !ReferenceEquals(session, currentSession))

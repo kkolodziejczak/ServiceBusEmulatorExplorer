@@ -1,8 +1,5 @@
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
-using ServiceBusEmulatorExplorer.App.Services;
-using ServiceBusEmulatorExplorer.App.ViewModels;
-using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.App.Investigation;
@@ -40,18 +37,6 @@ public partial class App : Application
 
     private static void ConfigureServices(IServiceCollection services, string[] args)
     {
-        services.AddSingleton<IClock, SystemClock>();
-        services.AddSingleton<IConnectionProfileStore>(_ => CreateConnectionProfileStore(args));
-        services.AddSingleton<IServiceBusClientFactory, DirectServiceBusClientFactory>();
-        services.AddSingleton<IServiceBusAdministrationService, ServiceBusAdministrationService>();
-        services.AddSingleton<IServiceBusMessageService, ServiceBusMessageService>();
-        services.AddSingleton<IDeadLetterReplayService, DeadLetterReplayService>();
-        services.AddSingleton<IEntityManagementDialogService, WpfEntityManagementDialogService>();
-        services.AddSingleton<IEntityManagementWorkflow, EntityManagementWorkflow>();
-        services.AddSingleton<ITopicSubscriptionRefreshWorkflow, TopicSubscriptionRefreshWorkflow>();
-        services.AddSingleton<IMessageDialogService, WpfMessageDialogService>();
-        services.AddSingleton<ShellViewModel>();
-        services.AddSingleton<MainWindow>();
         services.AddSingleton<IWorkspacePreferencesStore>(_ =>
         {
             var path = FindOptionValue(args, ProfileStorePathOption);
@@ -62,14 +47,6 @@ public partial class App : Application
             factory => new InvestigationEntityBrowser(factory), factory => new ServiceBusMessageService(factory)));
         services.AddSingleton<InvestigationWorkspace>();
         services.AddSingleton<InvestigationWindow>();
-    }
-
-    private static IConnectionProfileStore CreateConnectionProfileStore(string[] args)
-    {
-        string? profileStorePath = FindOptionValue(args, ProfileStorePathOption);
-        return string.IsNullOrWhiteSpace(profileStorePath)
-            ? JsonConnectionProfileStore.CreateDefault()
-            : new JsonConnectionProfileStore(profileStorePath);
     }
 
     private static string? FindOptionValue(string[] args, string optionName)

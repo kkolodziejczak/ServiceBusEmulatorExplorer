@@ -1,7 +1,7 @@
 <Window x:Class="ServiceBusEmulatorExplorer.App.Investigation.GlobalWatchWindow"
- xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:res="clr-namespace:ServiceBusEmulatorExplorer.App.Investigation.Resources"
  Title="Watch" Width="540" Height="640" MinWidth="460" MinHeight="520" WindowStartupLocation="CenterOwner"
- Icon="/ServiceBusEmulatorExplorer.App;component/Assets/AppIcon.png" Background="{DynamicResource CanvasBrush}" Foreground="{DynamicResource InkBrush}" FontFamily="Segoe UI" FontSize="14">
+ Icon="/ServiceBusEmulatorExplorer.App;component/Assets/AppIcon.png" Background="{DynamicResource CanvasBrush}" Foreground="{DynamicResource InkBrush}" FontFamily="{x:Static res:AppFonts.Ui}" FontSize="14">
  <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Resources/SharedStyles.xaml"/></ResourceDictionary.MergedDictionaries></ResourceDictionary></Window.Resources>
  <Border Background="{DynamicResource CanvasBrush}" Padding="22"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
   <StackPanel Margin="0,0,0,20"><TextBlock Text="Watch" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,18"/>

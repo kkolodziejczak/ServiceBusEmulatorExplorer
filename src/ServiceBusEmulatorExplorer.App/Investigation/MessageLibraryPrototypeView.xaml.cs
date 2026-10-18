@@ -1,4 +1,5 @@
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.App.Investigation.Resources;
 using System.Globalization;
 using System.Text.Json;
 using System.Windows;
@@ -429,7 +430,7 @@ public partial class MessageLibraryPrototypeView : UserControl
             WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = Window.GetWindow(this),
             Background = (System.Windows.Media.Brush)FindResource("CanvasBrush"),
             Foreground = (System.Windows.Media.Brush)FindResource("InkBrush"),
-            FontFamily = new System.Windows.Media.FontFamily("Segoe UI"), FontSize = 14
+            FontFamily = AppFonts.Ui, FontSize = 14
         };
         dialog.Resources.MergedDictionaries.Add(new ResourceDictionary
         {

@@ -33,6 +33,8 @@ Startup presentation example: `src/ServiceBusEmulatorExplorer.App/Investigation/
 | Dropdown with compact and table-editing variants | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Resources/DropdownStyles.xaml` (`AppComboBox`, `CompactComboBox`) |
 | Calendar-only date selection with release-to-open pointer capture, keyboard opening, read-only UI Automation value and calendar children synchronized with popup state | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/CalendarOnlyDatePicker.cs` (`CalendarOnlyDatePicker`); use with the shared `ScheduleDatePicker` style |
 | Vector icon geometries | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Resources/IconResources.xaml` |
+| Third-party notices kept complete by a test against the shipped package closure and bundled fonts | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Settings/ThirdPartyNotices.cs` (`ThirdPartyNotices.Components`); `tests/ServiceBusEmulatorExplorer.App.Tests/ThirdPartyNoticesTests.cs` |
+| Bundled fonts that render the same on every machine | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Resources/AppFonts.cs` (`AppFonts.Ui`, `AppFonts.Code`); XAML uses `{x:Static res:AppFonts.Ui}` |
 | Profile accent recolouring of the whole brush set at runtime | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Resources/ProfileTheme.cs` `Apply` |
 | Keyboard-only focus cue (no frame after pointer click) | shared | `SharedStyles.xaml` `KeyboardActionFocusVisual`, used by the implicit `Button` style |
 | Read-only field for generated or computed values (fill, no border, lock icon) | shared | `SharedStyles.xaml` `ReadOnlyField` |
@@ -50,15 +52,13 @@ Startup presentation example: `src/ServiceBusEmulatorExplorer.App/Investigation/
 
 | Capability | Reuse | Where |
 | --- | --- | --- |
-| Shell view model as orchestration with extracted feature workflows | adapt | `src/ServiceBusEmulatorExplorer.App/ViewModels/ShellViewModel.cs`; `src/ServiceBusEmulatorExplorer.App/Services/EntityManagementWorkflow.cs`; `src/ServiceBusEmulatorExplorer.App/ViewModels/MessageInspectionViewModel.cs` |
-| Dialogs as input collectors behind interfaces (testable without WPF) | adapt | `src/ServiceBusEmulatorExplorer.App/Services/IEntityManagementDialogService.cs`, `IMessageDialogService.cs` and their `Wpf*` implementations |
 | Operation failure text without leaking SDK internals | shared | `src/ServiceBusEmulatorExplorer.App/Services/OperationFailureFormatter.cs` |
-| Injected clock for UTC operation-log timestamps | shared | `src/ServiceBusEmulatorExplorer.App/Services/IClock.cs`, `SystemClock.cs` |
+| Injected `TimeProvider` for deterministic polling, timeouts, timestamps and automatic refresh | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/MessageWatchWorkflow.cs` (`MessageWatchWorkflow`); `src/ServiceBusEmulatorExplorer.Core/Investigation/DeliverySearch.cs` (`DeliverySearch`); `src/ServiceBusEmulatorExplorer.App/Investigation/AutoRefreshTimer.cs` (`AutoRefreshTimer`, driven by `InvestigationWorkspace.Clock`); tests fire it with `tests/ServiceBusEmulatorExplorer.App.Tests/ManualClock.cs` |
 | Protected per-user preferences store with an overridable path for tests | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Settings/ProtectedWorkspacePreferencesStore.cs` |
 | Entity tree built from administration listings | shared | `src/ServiceBusEmulatorExplorer.Core/ServiceBus/EntityTreeBuilder.cs` |
 | Refresh the namespace tree in place so selection, expansion and open popups survive | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/WorkspaceRows.cs` `EntityNode.ReconcileChildren`; used by `MessageBrowseWorkflow.ApplySnapshot` and `MessageSearchWorkflow` |
 | Count every delivery of an entity bucket in the background by peeking to its end (queued, newest first, cancellable) | adapt | `src/ServiceBusEmulatorExplorer.App/Investigation/ObservedCountScanner.cs` `ObservedCountScanner`; driven by `MessageBrowseWorkflow.Counts.cs`; compact display in `ObservedDeliveryCount.Display` |
-| Non-destructive DLQ replay (new message, original left in DLQ) | shared | `src/ServiceBusEmulatorExplorer.Core/ServiceBus/DeadLetterReplayService.cs`, `ReplayCopySender.cs`, `DeadLetterReplayRequestFactory.cs` |
+| Non-destructive DLQ replay (new message, original left in DLQ) | shared | `src/ServiceBusEmulatorExplorer.Core/Investigation/ReplayLineage.cs` (`ReplayLineage.Reserve`, `CreateMessage`); `src/ServiceBusEmulatorExplorer.Core/ServiceBus/ReplayCopySender.cs` (`ReplayCopySender`) |
 | Exact reviewed replay ID/body with durable pre-send attempt history | adapt | `src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWorkspace.Replay.cs`, `PrepareReplays`, `SendReplayAsync`; `PreparedReplay.cs`; `src/ServiceBusEmulatorExplorer.App/Investigation/Settings/ProtectedWorkspacePreferencesStore.ReplayHistory.cs` |
 | Bounded complete Active/DLQ observations for exact replay IDs | shared | `src/ServiceBusEmulatorExplorer.Core/Investigation/ReplayObserver.cs`, `ObserveAsync`; `ReplayObservation.cs` |
 | Modeless replay history with main-window exact-ID filtering | adapt | `src/ServiceBusEmulatorExplorer.App/Investigation/ReplayHistoryWindow.xaml.cs`; `InvestigationWindow.ReplayHistory.cs`, `FindReplayIdsAsync` |
@@ -84,6 +84,9 @@ Startup presentation example: `src/ServiceBusEmulatorExplorer.App/Investigation/
 | Docker-gated integration tests against the local emulator | adapt | `tests/ServiceBusEmulatorExplorer.Integration.Tests/`; `compose.yaml` |
 | FlaUI UI smoke tests using UI Automation patterns, not physical input | adapt | `tests/ServiceBusEmulatorExplorer.UiSmoke.Tests/`; runner `scripts/Invoke-UiSmoke.ps1` |
 | Headless screenshot of the real window with synthetic services | shared | `tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/Program.cs`; `WpfScreenshot.cs` |
+| Behaviour contracts that drive controls through UI Automation Invoke and Toggle, so they hold when Click handlers become view-model commands | shared | `tests/ServiceBusEmulatorExplorer.App.Tests/AutomationPress.cs` (`AutomationPress.Press`); contracts in `InvestigationWindowContractTests.cs` and `SettingsPersistenceContractTests.cs` |
+| Exact-pixel visual baselines checked from the existing render tests (DEC-050), with a frozen clock and repeatable replay IDs | shared | `tests/ServiceBusEmulatorExplorer.App.Tests/VisualBaselines/VisualBaseline.cs` (`VisualBaseline.AssertMatches`); `BaselineClock.cs` |
+| Fail a baseline when visible text would fall back to an installed font | shared | `tests/ServiceBusEmulatorExplorer.App.Tests/VisualBaselines/BundledFontCheck.cs` (`BundledFontCheck.AssertBundledOnly`), called by `VisualBaseline.AssertMatches` |
 | Exact WPF test viewport beyond a hosted desktop size limit | shared | `tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/NativeWindowSizeOverride.cs`, `NativeWindowSizeOverride.Install`; linked into App.Tests through its project file; dispose the window hook after proof |
 | Guarded release tagging and two-flavour Windows publish | shared | `scripts/Push-ReleaseTag.ps1`, `scripts/Publish-Windows.ps1`, `scripts/Test-ReleaseArtifacts.ps1` |
 | Convention check with ratchet baseline | shared | `tools/check-docs.ps1`; config `.agent-kit.json` |

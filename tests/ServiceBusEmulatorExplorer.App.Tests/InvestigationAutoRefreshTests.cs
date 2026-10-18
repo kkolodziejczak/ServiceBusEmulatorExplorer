@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows;
@@ -23,34 +22,29 @@ public sealed class InvestigationAutoRefreshTests
 {
     [Fact]
     [Trait("TestCategory", "UiRender")]
-    public void ThirtySecondRefreshStillRunsWhileWatchDiscoveryUpdatesTheBrowseTree() => OnSta(() =>
+    public void WatchDiscoveryUpdatesKeepTheRefreshCountdownAndTheNextTickRefreshesOnce() => OnSta(() =>
     {
         using var fixture = new Fixture();
         int initialDiscoveries = fixture.Browser.Discoveries;
-        int appliedSnapshots = 0;
-        bool eligibleThroughout = true;
-        var watchUpdates = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        watchUpdates.Tick += (_, _) =>
+        int startedTimers = fixture.Clock.StartedTimers;
+        for (int update = 0; update < 25; update++)
         {
             // This is the public Browse operation performed by the workspace's Watch discovery callback.
             fixture.Workspace.Browse.ApplySnapshot(Browser.Snapshot());
-            appliedSnapshots++;
-            eligibleThroughout &= fixture.Timer.IsEnabled && fixture.Timer.Interval == TimeSpan.FromSeconds(30)
-                && !fixture.Workspace.Browse.IsBusy && !fixture.Workspace.Search.IsActive;
-        };
-        var elapsed = Stopwatch.StartNew();
-        watchUpdates.Start();
-        try
-        {
-            Wait(() => fixture.Browser.Discoveries > initialDiscoveries || elapsed.Elapsed >= TimeSpan.FromSeconds(35), TimeSpan.FromSeconds(36));
-            Assert.True(appliedSnapshots >= 20, "Repeated Watch discovery updates must overlap the actual refresh interval.");
-            Assert.True(eligibleThroughout, "The enabled 30-second refresh must remain eligible while the dispatcher applies discovery updates.");
-            Assert.True(fixture.Browser.Discoveries > initialDiscoveries,
-                $"No automatic broker discovery occurred in {elapsed.Elapsed.TotalSeconds:F1}s despite {appliedSnapshots} dispatcher updates and an enabled, idle 30-second timer.");
-            Assert.InRange(elapsed.Elapsed.TotalSeconds, 28, 35);
-            Assert.Equal(initialDiscoveries + 1, fixture.Browser.Discoveries);
+            Pump();
+            Assert.Equal(TimeSpan.FromSeconds(30), fixture.Clock.ScheduledInterval);
+            Assert.False(fixture.Workspace.Browse.IsBusy);
+            Assert.False(fixture.Workspace.Search.IsActive);
         }
-        finally { watchUpdates.Stop(); }
+
+        Assert.Equal(startedTimers, fixture.Clock.StartedTimers);
+        Assert.Equal(TimeSpan.FromSeconds(30), fixture.Clock.ScheduledInterval);
+        Assert.Equal(initialDiscoveries, fixture.Browser.Discoveries);
+
+        fixture.Clock.Fire();
+        Wait(() => fixture.Browser.Discoveries > initialDiscoveries && !fixture.Workspace.Browse.IsBusy);
+        Pump();
+        Assert.Equal(initialDiscoveries + 1, fixture.Browser.Discoveries);
     });
 
     [Fact]
@@ -58,29 +52,29 @@ public sealed class InvestigationAutoRefreshTests
     public void PauseAndIntervalControlsStopResumeAndChangeTheTimer() => OnSta(() =>
     {
         using var fixture = new Fixture();
-        Assert.True(fixture.Timer.IsEnabled);
-        Assert.Equal(TimeSpan.FromSeconds(30), fixture.Timer.Interval);
+        Assert.True(fixture.RefreshScheduled);
+        Assert.Equal(TimeSpan.FromSeconds(30), fixture.Clock.ScheduledInterval);
         var pause = (Button)fixture.Window.FindName("PauseButton");
         Invoke(pause);
-        Wait(() => !fixture.Timer.IsEnabled);
+        Wait(() => !fixture.RefreshScheduled);
         Assert.Equal("Resume automatic refresh", AutomationProperties.GetName(pause));
         fixture.Workspace.Browse.ApplySnapshot(Browser.Snapshot());
-        Assert.False(fixture.Timer.IsEnabled);
+        Assert.False(fixture.RefreshScheduled);
         Invoke(pause);
-        Wait(() => fixture.Timer.IsEnabled);
+        Wait(() => fixture.RefreshScheduled);
         Assert.Equal("Pause automatic refresh", AutomationProperties.GetName(pause));
 
         var interval = (ComboBox)fixture.Window.FindName("AutoInterval");
         interval.SelectedIndex = 1;
-        Wait(() => fixture.Timer.Interval == TimeSpan.FromSeconds(5));
+        Wait(() => fixture.Clock.ScheduledInterval == TimeSpan.FromSeconds(5));
         Assert.Equal(5, fixture.Workspace.Preferences.AutoRefreshSeconds);
         interval.SelectedIndex = 0;
-        Wait(() => !fixture.Timer.IsEnabled);
+        Wait(() => !fixture.RefreshScheduled);
         fixture.Workspace.Browse.ApplySnapshot(Browser.Snapshot());
-        Assert.False(fixture.Timer.IsEnabled);
+        Assert.False(fixture.RefreshScheduled);
         interval.SelectedIndex = 3;
-        Wait(() => fixture.Timer.IsEnabled);
-        Assert.Equal(TimeSpan.FromSeconds(30), fixture.Timer.Interval);
+        Wait(() => fixture.RefreshScheduled);
+        Assert.Equal(TimeSpan.FromSeconds(30), fixture.Clock.ScheduledInterval);
     });
 
     [Fact]
@@ -90,16 +84,16 @@ public sealed class InvestigationAutoRefreshTests
         using var fixture = new Fixture();
         Complete(fixture.Workspace.Search.StartAsync("checkout"));
         Assert.True(fixture.Workspace.Search.IsActive);
-        Assert.False(fixture.Timer.IsEnabled);
+        Assert.False(fixture.RefreshScheduled);
         fixture.Workspace.Browse.ApplySnapshot(Browser.Snapshot());
-        Assert.False(fixture.Timer.IsEnabled);
+        Assert.False(fixture.RefreshScheduled);
         Invoke((Button)fixture.Window.FindName("ClearSearchButton"));
-        Wait(() => !fixture.Workspace.Search.IsActive && fixture.Timer.IsEnabled);
+        Wait(() => !fixture.Workspace.Search.IsActive && fixture.RefreshScheduled);
         Complete(fixture.Workspace.DisconnectAsync());
-        Assert.False(fixture.Timer.IsEnabled);
+        Assert.False(fixture.RefreshScheduled);
         Complete(fixture.Workspace.ConnectAsync());
-        Assert.True(fixture.Timer.IsEnabled);
-        Assert.Equal(TimeSpan.FromSeconds(30), fixture.Timer.Interval);
+        Assert.True(fixture.RefreshScheduled);
+        Assert.Equal(TimeSpan.FromSeconds(30), fixture.Clock.ScheduledInterval);
     });
 
     [Fact]
@@ -112,26 +106,25 @@ public sealed class InvestigationAutoRefreshTests
         ((TextBox)fixture.Window.FindName("SearchBox")).Text = "checkout";
         Complete(fixture.Workspace.Search.StartAsync("checkout"));
         Assert.True(fixture.Workspace.Search.IsActive);
-        Assert.False(fixture.Timer.IsEnabled);
+        Assert.False(fixture.RefreshScheduled);
 
         int discoveries = fixture.Browser.Discoveries;
         OpenWorkbench(fixture.Window);
         Assert.Same(fixture.Workspace.Browse.Roots, tree.ItemsSource);
         Assert.True(fixture.Workspace.Search.IsActive);
-        Assert.True(fixture.Timer.IsEnabled);
+        Assert.True(fixture.RefreshScheduled);
         Assert.Equal("", ((TextBox)fixture.Window.FindName("SearchBox")).Text);
         fixture.Workspace.Browse.ApplySnapshot(Browser.Snapshot(42));
         Assert.Equal("42", fixture.Workspace.Browse.AllEntities().Single().DisplayMessageCount);
 
-        typeof(InvestigationWindow).GetMethod("RefreshTimerTick", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .Invoke(fixture.Window, [null, EventArgs.Empty]);
+        fixture.Clock.Fire();
         Wait(() => fixture.Browser.Discoveries > discoveries);
 
         ((System.Windows.Controls.Primitives.ToggleButton)fixture.Window.FindName("InvestigationWorkspaceTab")).IsChecked = true;
         Assert.Same(fixture.Workspace.Search.Roots, tree.ItemsSource);
         Assert.True(fixture.Workspace.Search.IsActive);
         Assert.Equal("checkout", ((TextBox)fixture.Window.FindName("SearchBox")).Text);
-        Assert.False(fixture.Timer.IsEnabled);
+        Assert.False(fixture.RefreshScheduled);
     });
 
     [Fact]
@@ -150,18 +143,18 @@ public sealed class InvestigationAutoRefreshTests
         fixture.Messages.Set(new(EntityKind.Queue, "orders"), 1, 2);
         Complete(fixture.Workspace.Search.StartAsync("invoices"));
         Assert.True(fixture.Workspace.Search.IsActive);
-        Assert.True(fixture.Timer.IsEnabled, "Watch must keep the shared timer active during Investigation search.");
+        Assert.True(fixture.RefreshScheduled, "Watch must keep the shared timer active during Investigation search.");
         int searchPeeks = fixture.Messages.CallsFor(new(EntityKind.Queue, "orders"));
-        TickRefresh(fixture.Window);
+        fixture.Clock.Fire();
         Wait(() => fixture.Messages.CallsFor(new(EntityKind.Queue, "orders")) > searchPeeks);
         Assert.Equal("invoices", fixture.Workspace.Browse.SelectedEntity?.Name);
         Assert.Same(focused, fixture.Workspace.Browse.FocusedMessage);
 
         fixture.Messages.Set(new(EntityKind.Queue, "orders"), 1, 2, 3);
         OpenWorkbench(fixture.Window);
-        Assert.True(fixture.Timer.IsEnabled, "Watch must keep the shared timer active in Message Workbench.");
+        Assert.True(fixture.RefreshScheduled, "Watch must keep the shared timer active in Message Workbench.");
         int workbenchPeeks = fixture.Messages.CallsFor(new(EntityKind.Queue, "orders"));
-        TickRefresh(fixture.Window);
+        fixture.Clock.Fire();
         Wait(() => fixture.Messages.CallsFor(new(EntityKind.Queue, "orders")) > workbenchPeeks);
         Assert.Equal("invoices", fixture.Workspace.Browse.SelectedEntity?.Name);
         Assert.Same(focused, fixture.Workspace.Browse.FocusedMessage);
@@ -177,9 +170,9 @@ public sealed class InvestigationAutoRefreshTests
         OpenWorkbench(fixture.Window);
         fixture.Messages.Set(new(EntityKind.Queue, "orders"), 1, 2, 3, 4);
         int beforeWorkbenchReturn = fixture.Messages.CallsFor(new(EntityKind.Queue, "orders"));
-        TickRefresh(fixture.Window);
+        fixture.Clock.Fire();
         Wait(() => fixture.Messages.CallsFor(new(EntityKind.Queue, "orders")) > beforeWorkbenchReturn
-            && BackgroundRefresh(fixture.Workspace).IsCompleted);
+            && fixture.Workspace.Browse.CurrentBackgroundRefresh.IsCompleted);
         Assert.Equal(new long[] { 1, 2, 3 }, fixture.Workspace.Browse.Messages.Select(row => row.Key.SequenceNumber));
         Assert.Same(watchedFocus, fixture.Workspace.Browse.FocusedMessage);
 
@@ -190,9 +183,9 @@ public sealed class InvestigationAutoRefreshTests
         fixture.Messages.Set(new(EntityKind.Queue, "orders"), 1, 2, 3, 4, 5);
         Complete(fixture.Workspace.Search.StartAsync("orders"));
         int beforeSearchClear = fixture.Messages.CallsFor(new(EntityKind.Queue, "orders"));
-        TickRefresh(fixture.Window);
+        fixture.Clock.Fire();
         Wait(() => fixture.Messages.CallsFor(new(EntityKind.Queue, "orders")) > beforeSearchClear
-            && BackgroundRefresh(fixture.Workspace).IsCompleted);
+            && fixture.Workspace.Browse.CurrentBackgroundRefresh.IsCompleted);
         Assert.Equal(new long[] { 1, 2, 3, 4 }, fixture.Workspace.Browse.Messages.Select(row => row.Key.SequenceNumber));
         Assert.Same(watchedFocus, fixture.Workspace.Browse.FocusedMessage);
 
@@ -241,9 +234,7 @@ public sealed class InvestigationAutoRefreshTests
         OpenWorkbench(fixture.Window);
         var tree = (TreeView)fixture.Window.FindName("NamespaceTree");
         var entity = fixture.Workspace.Browse.AllEntities().Single();
-        var args = new RoutedPropertyChangedEventArgs<object>(new object(), entity, TreeView.SelectedItemChangedEvent);
-        typeof(InvestigationWindow).GetMethod("Tree_Selected", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .Invoke(fixture.Window, [tree, args]);
+        SelectTreeItem(tree, entity);
 
         var view = (MessageLibraryPrototypeView)fixture.Window.FindName("MessageLibraryPrototype");
         Assert.Equal("orders", ((TextBox)fixture.Window.FindName("SearchBox")).Text);
@@ -268,8 +259,8 @@ public sealed class InvestigationAutoRefreshTests
         public Messages Messages { get; } = new();
         public InvestigationWorkspace Workspace { get; }
         public InvestigationWindow Window { get; }
-        public DispatcherTimer Timer => (DispatcherTimer)typeof(InvestigationWindow)
-            .GetField("refreshTimer", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(Window)!;
+        public ManualClock Clock { get; } = new();
+        public bool RefreshScheduled => Clock.ScheduledInterval is not null;
         public Fixture(bool includeSecondQueue = false)
         {
             SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
@@ -277,13 +268,13 @@ public sealed class InvestigationAutoRefreshTests
             Messages.Set(new(EntityKind.Queue, "orders"), 1);
             Messages.Set(new(EntityKind.Queue, "invoices"), 10);
             Workspace = new InvestigationWorkspace(new Store(),
-                new BrokerConnectionWorkflow(() => new Factory(), _ => Browser, _ => Messages));
+                new BrokerConnectionWorkflow(() => new Factory(), _ => Browser, _ => Messages), timeProvider: Clock);
             Window = new InvestigationWindow(Workspace);
             Window.Show();
             Complete(Workspace.ConnectAsync());
             Complete(Workspace.Browse.SelectAsync(Workspace.Browse.AllEntities().Single(node => node.Name == "orders"), false));
             Assert.True(Workspace.IsConnected);
-            Assert.True(Timer.IsEnabled);
+            Assert.True(RefreshScheduled);
         }
         public void Dispose()
         {
@@ -323,13 +314,32 @@ public sealed class InvestigationAutoRefreshTests
     private static void OpenWorkbench(InvestigationWindow window) =>
         ((System.Windows.Controls.Primitives.ToggleButton)window.FindName("MessageLibraryTab")).IsChecked = true;
 
-    private static void TickRefresh(InvestigationWindow window) =>
-        typeof(InvestigationWindow).GetMethod("RefreshTimerTick", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .Invoke(window, [null, EventArgs.Empty]);
+    private static void Pump()
+    {
+        var frame = new DispatcherFrame();
+        Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() => frame.Continue = false));
+        Dispatcher.PushFrame(frame);
+    }
 
-    private static Task BackgroundRefresh(InvestigationWorkspace workspace) =>
-        (Task)typeof(MessageBrowseWorkflow).GetField("backgroundRefresh", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .GetValue(workspace.Browse)!;
+    /// <summary>Selects the entity's tree item the way a click does, raising the tree's own selection change.</summary>
+    private static void SelectTreeItem(TreeView tree, EntityNode entity)
+    {
+        Containers(tree).First(item => ReferenceEquals(item.DataContext, entity)).IsSelected = true;
+        Pump();
+    }
+
+    /// <summary>Generated containers of a data-bound tree, expanding each level so the next one exists.</summary>
+    private static IEnumerable<TreeViewItem> Containers(ItemsControl parent)
+    {
+        parent.UpdateLayout();
+        foreach (object item in parent.Items)
+        {
+            if (parent.ItemContainerGenerator.ContainerFromItem(item) is not TreeViewItem container) continue;
+            yield return container;
+            container.IsExpanded = true;
+            foreach (TreeViewItem child in Containers(container)) yield return child;
+        }
+    }
 
     private static IEnumerable<TreeViewItem> TreeItems(TreeView tree)
     {

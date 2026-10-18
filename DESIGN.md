@@ -1,6 +1,7 @@
 ---
 # Machine-readable tokens. Every value below has exactly one implementation key in
-# src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SharedStyles.xaml (x:Key).
+# src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SharedStyles.xaml (x:Key);
+# fonts are the exception and live in AppFonts.cs beside it.
 # Reference tokens in prose as {colors.primary}. Sizes are WPF DIPs.
 version: 1
 name: Service Bus Emulator Explorer
@@ -46,6 +47,9 @@ colors:
   dark-button-hover: "#344B63"
   dark-button-pressed: "#182432"
   dark-button-disabled-text: "#99A9BB"
+fonts:
+  ui: Selawik
+  code: Cascadia Mono
 typography:
   body: { size: 14, weight: 400 }
   meta: { size: 12, weight: 400 }
@@ -105,15 +109,19 @@ validation warning pair (#FFF5E3 / #D9A441) used by `ValidationWarningFrame`.
 
 ## Typography
 
-Segoe UI everywhere; Consolas for JSON and the console. Sizes are role-based; a view never picks
-a size, it picks a style.
+Two bundled fonts, never an installed one (DEC-051): Selawik (`AppFonts.Ui`) everywhere and
+Cascadia Mono (`AppFonts.Code`) for JSON and the console. XAML references them as
+`{x:Static res:AppFonts.Ui}`; a font family name in a view is a defect. Both live in
+[AppFonts](src/ServiceBusEmulatorExplorer.App/Investigation/Resources/AppFonts.cs) with their
+licences in `src/ServiceBusEmulatorExplorer.App/Assets/Fonts/`. Sizes are role-based; a view
+never picks a size, it picks a style.
 
 | Token | Resource key | Size / weight | Use |
 | --- | --- | --- | --- |
 | `{typography.body}` | implicit `Button`, `TabToggle`, default `TextBlock` | 14 / 400 | Controls, body text, table values, JSON |
 | `{typography.meta}` | `DialogCaption`, console text | 12 / 400, secondary colour | Metadata, timestamps, captions, console |
 | `{typography.badge}` | (no style yet) | 11 / 400 | Badges and timestamps inside rows only |
-| `{typography.section-title}` | (no style yet) | 16 / 600 | Section titles inside a pane, notification summary |
+| `{typography.section-title}` | `SectionTitle` | 16 / 600 | Section titles inside a pane, notification summary |
 | `{typography.compact-title}` | (no style yet) | 18 / 600 | Titles at the compact window size |
 | `{typography.dialog-title}` | `DialogHeading`, `WorkbenchHeading` (bold) | 24 / 600 | One per dialog or inspector |
 | label | `DialogLabel` | 14 / 600 | Form field labels |
@@ -172,6 +180,7 @@ result.
 | Data table | implicit `DataGrid`; `CompactDataGridColumnHeader`, `CompactDataGridRow`, `CompactDataGridCell`, `CompactDataGridText`, `CompactDataGridEditingText`, `CompactDataGridCombo`, `CompactDataGridCheckBox` | header, row hover, selected, keyboard-only bottom focus cue (no cell frame on pointer focus), editing, empty; never set `AlternatingRowBackground` on a styled grid, because WPF forces it over the row's hover and selected colours on every second row | Message lists, Workbench properties and variables | Approved (left-aligned refinement 2026-10-02) |
 | Validation notice | `ValidationWarningFrame` + `ValidationWarningIcon` + `ValidationWarningText` + `ValidationWarningAction` | warning, with remedy action, unresolved, cleared | Workbench destination warnings, Workbench schedule; all new validation | Approved; Schedule 66 reuse (DEC-046) |
 | Delimiter option | `DelimiterOptionTemplate` with `DelimiterOption` items | key-cap character in a fixed column, then the name; closed and open states identical; automation and type-ahead use the name | Workbench Prepare and Map CSV delimiter selectors | Approved Delimiter 67 (B layout, A chip), DEC-047 |
+| Third-party licences | `SettingsWindow.xaml` Licences tab: `LicenceItem` rows, `SectionTitle`, `DialogCaption`, read-only TextBox, outlined copy Button; `ThirdPartyNotices` | selected, hover, keyboard focus, copied, clipboard unavailable | Settings | Approved Licences 69, DEC-052 |
 | Read-only field | `ReadOnlyField` | read-only value on a disabled-background fill without a border, lock icon, tooltip, focusable for copy | Workbench Prepare generated values | Approved Prepare 64, DEC-045 |
 | Dialog text | `DialogHeading`, `WorkbenchHeading`, `DialogLabel`, `DialogCaption` | — | Dialogs, Workbench | Approved |
 | Entity icon | `EntityIcon`, `CopyIcon` paths; `IconResources.xaml` geometries | — | Namespace tree, correlation copy | Approved |

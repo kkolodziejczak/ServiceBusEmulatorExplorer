@@ -12,6 +12,7 @@ using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -91,7 +92,7 @@ public sealed class InvestigationDeleteDialogTests
                     Assert.DoesNotContain("WWWW", summary.Text);
                     Assert.Equal(TextWrapping.Wrap, summary.TextWrapping);
                     Bounds(window, heading, summary, input, cancel, confirm);
-                    Capture(window, $"delete-dialog-{width}-initial");
+                    Capture(window, $"delete-dialog-{width}-{(accept ? "accept" : "cancel")}-initial");
                     foreach (string text in new[] { "wrong", "delete", "Delete", "DELETE ", " DELETE", "DELETE\n", "" })
                     {
                         input.Text = text;
@@ -104,7 +105,7 @@ public sealed class InvestigationDeleteDialogTests
                     input.Text = "DELETE";
                     window.UpdateLayout();
                     Bounds(window, input, cancel, confirm);
-                    Capture(window, $"delete-dialog-{width}-ready");
+                    Capture(window, $"delete-dialog-{width}-{(accept ? "accept" : "cancel")}-ready");
                     var peer = new ButtonAutomationPeer(accept ? confirm : cancel);
                     ((IInvokeProvider)peer.GetPattern(PatternInterface.Invoke)!).Invoke();
                 }
@@ -156,6 +157,7 @@ public sealed class InvestigationDeleteDialogTests
 
     private static void Capture(Window window, string name)
     {
+        VisualBaseline.AssertMatches(window, name);
         if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase)) return;
         DirectoryInfo? root = new(AppContext.BaseDirectory);
         while (root is not null && !Directory.Exists(Path.Combine(root.FullName, ".git"))) root = root.Parent;

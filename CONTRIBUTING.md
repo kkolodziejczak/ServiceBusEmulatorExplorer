@@ -71,7 +71,7 @@ docker compose down
 
 - Keep nullable reference types enabled and resolve warnings intentionally.
 - Keep Azure SDK and domain behavior in `ServiceBusEmulatorExplorer.Core`; keep WPF orchestration and presentation in the app project.
-- Keep `ShellViewModel` focused on orchestration. Put feature workflows and mapping rules in focused classes.
+- Keep window code focused on orchestration. Put feature workflows and mapping rules in focused classes.
 - Preserve cancellation and bounded timeouts around SDK operations.
 - Treat Service Bus message operations as message creation or settlement; messages are not updated in place.
 - Keep DLQ replay non-destructive by default and keep deletion as a separate, confirmed command.

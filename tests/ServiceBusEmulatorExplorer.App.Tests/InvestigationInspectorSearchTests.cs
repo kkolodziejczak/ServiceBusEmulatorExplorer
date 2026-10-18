@@ -14,6 +14,7 @@ using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using ServiceBusEmulatorExplorer.ReadmeScreenshot;
+using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -87,12 +88,12 @@ public sealed class InvestigationInspectorSearchTests
             Assert.Equal(firstAlpha, editor.SelectionStart);
             Assert.DoesNotContain(editor.JsonFoldings, fold => fold.IsFolded && fold.StartOffset < firstAlpha && fold.EndOffset > firstAlpha);
 
-            findNext.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, findNext));
+            AutomationPress.Press(findNext);
             Assert.Equal("alpha", editor.SelectedText);
             Assert.Equal(secondAlpha, editor.SelectionStart);
-            findNext.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, findNext));
+            AutomationPress.Press(findNext);
             Assert.Equal(firstAlpha, editor.SelectionStart);
-            findPrevious.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, findPrevious));
+            AutomationPress.Press(findPrevious);
             Assert.Equal(secondAlpha, editor.SelectionStart);
 
             findBox.Focus();
@@ -154,10 +155,10 @@ public sealed class InvestigationInspectorSearchTests
             Assert.Equal(1, copy.Opacity, 3);
             editor.Focus();
 
-            findNext.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, findNext));
+            AutomationPress.Press(findNext);
             Assert.Equal("1 of 2", matchCount.Text);
             Assert.Equal("alpha", editor.SelectedText);
-            findPrevious.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, findPrevious));
+            AutomationPress.Press(findPrevious);
             Assert.Equal("2 of 2", matchCount.Text);
             Assert.Equal(secondAlpha + 2, editor.SelectionStart);
 
@@ -190,7 +191,7 @@ public sealed class InvestigationInspectorSearchTests
             Assert.Equal("No matches", matchCount.Text);
             AssertVisibleInside(findBox, (FrameworkElement)window.FindName("InspectorPane")!);
             Capture(window, "inspector-narrow-long-query-no-match-980x640.png");
-            closeFind.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, closeFind));
+            AutomationPress.Press(closeFind);
             Assert.Equal(Visibility.Collapsed, findPanel.Visibility);
             Capture(window, "inspector-find-closed-980x640.png");
 
@@ -238,7 +239,7 @@ public sealed class InvestigationInspectorSearchTests
             Assert.Equal("1 of 2", matchCount.Text);
             Assert.Contains("alpha", editor.SelectedText, StringComparison.OrdinalIgnoreCase);
 
-            discard.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, discard));
+            AutomationPress.Press(discard);
             Assert.DoesNotContain("alphaxy", editor.Text, StringComparison.Ordinal);
             Assert.Equal(Visibility.Collapsed, modifiedBadge.Visibility);
             Assert.Equal(Visibility.Collapsed, discard.Visibility);
@@ -395,7 +396,7 @@ public sealed class InvestigationInspectorSearchTests
             () => new FakeFactory(),
             _ => new FakeBrowser(CreateSnapshot()),
             _ => new FakeMessages());
-        return new InvestigationWorkspace(new FakeStore(preferences), workflow);
+        return new InvestigationWorkspace(new FakeStore(preferences), workflow, timeProvider: BaselineClock.Instance);
     }
 
     private static EntityDiscoverySnapshot CreateSnapshot()
@@ -411,7 +412,7 @@ public sealed class InvestigationInspectorSearchTests
                 new(queue.Counts.ActiveMessageCount, CountAvailability.Known),
                 new(queue.Counts.DeadLetterMessageCount, CountAvailability.Known),
                 new(queue.Counts.ScheduledMessageCount, CountAvailability.Known)))],
-            DateTimeOffset.UtcNow,
+            BaselineClock.Instance.GetUtcNow(),
             IsComplete: true,
             Issues: []);
     }
@@ -422,7 +423,7 @@ public sealed class InvestigationInspectorSearchTests
         body,
         id,
         body.Length,
-        DateTimeOffset.UtcNow,
+        BaselineClock.Instance.GetUtcNow(),
         null,
         0,
         "application/json",
@@ -437,6 +438,8 @@ public sealed class InvestigationInspectorSearchTests
 
     private static void Capture(Window window, string filename)
     {
+        // "capture-" states belong to the Message Workbench capture dialog, which is not baselined until approved (DEC-049).
+        if (!filename.StartsWith("capture-", StringComparison.Ordinal)) VisualBaseline.AssertMatches(window, "inspector-" + Path.GetFileNameWithoutExtension(filename));
         if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase)) return;
         window.UpdateLayout();
         var content = (FrameworkElement)window.Content;

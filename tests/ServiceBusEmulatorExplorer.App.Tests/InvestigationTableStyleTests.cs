@@ -352,7 +352,7 @@ public sealed class InvestigationTableStyleTests
     }
 
     private static void Click(FrameworkElement root, string name) =>
-        ((Button)root.FindName(name)!).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        AutomationPress.Press(((Button)root.FindName(name)!));
 
     private static Window Show(FrameworkElement content, double width, double height)
     {

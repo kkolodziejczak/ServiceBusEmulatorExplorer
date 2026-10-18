@@ -3,7 +3,8 @@ using Forms = System.Windows.Forms;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
-internal sealed class InvestigationTray : IDisposable
+/// <summary>The Windows notification-area icon with Open and Exit menu items.</summary>
+public sealed class InvestigationTray : IDisposable
 {
     private readonly System.Drawing.Icon image;
     private readonly Forms.ContextMenuStrip menu;
