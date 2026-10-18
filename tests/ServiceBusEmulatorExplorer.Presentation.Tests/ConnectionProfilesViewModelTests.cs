@@ -276,6 +276,121 @@ public sealed class ConnectionProfilesViewModelTests
         Assert.Equal("Clipboard is unavailable. Try copying again.", connections.Status);
     }
 
+    [Fact]
+    public void Nothing_is_captured_or_loaded_before_start_and_starting_twice_loads_once()
+    {
+        var (connections, secrets, _, _) = Create();
+        int loads = 0;
+        connections.ProfileLoaded += draft => { loads++; secrets.Show(draft); };
+
+        connections.SelectedProfile = connections.Profiles[0];
+        Assert.Equal(0, loads);
+        Assert.Equal(string.Empty, connections.ProfileName);
+
+        connections.Start();
+        connections.Start();
+        Assert.Equal(1, loads);
+    }
+
+    [Fact]
+    public void Clearing_the_selection_keeps_the_editor_on_the_last_profile()
+    {
+        var (connections, secrets, _, _) = Create(Start with { SelectedProfileId = "primary" });
+        connections.ProfileLoaded += secrets.Show;
+        connections.Start();
+        connections.ProfileName = "Edited";
+
+        connections.SelectedProfile = null;
+
+        Assert.Equal("Edited", connections.Profiles[0].Name);
+        Assert.Equal("Edited", connections.ProfileName);
+    }
+
+    [Fact]
+    public async Task Saving_without_a_chosen_colour_keeps_the_profile_colour_and_trims_the_namespace()
+    {
+        var (connections, secrets, saves, _) = Create();
+        connections.ProfileLoaded += secrets.Show;
+        connections.Start();
+        connections.ColorHex = null;
+        connections.FullyQualifiedNamespace = "  orders.servicebus.windows.net  ";
+
+        connections.SaveProfileCommand.Execute(null);
+        await saves.CompleteNext();
+
+        InvestigationProfile saved = Assert.Single(saves.Requested).Profiles.Single(profile => profile.Id == "secondary");
+        Assert.Equal("#7540BF", saved.ColorHex);
+        Assert.Equal("orders.servicebus.windows.net", saved.Connection.FullyQualifiedNamespace);
+    }
+
+    [Fact]
+    public async Task A_save_finished_after_switching_updates_the_saved_profile_not_the_shown_one()
+    {
+        var (connections, secrets, saves, _) = Create(Start with { SelectedProfileId = "primary" });
+        connections.ProfileLoaded += secrets.Show;
+        connections.Start();
+        ProfileDraft primary = connections.SelectedProfile!;
+        connections.WarningMessage = "Saved warning";
+
+        connections.SaveProfileCommand.Execute(null);
+        connections.SelectedProfile = connections.Profiles[1];
+        await saves.CompleteNext();
+
+        Assert.Equal("Saved warning", primary.WarningMessage);
+        Assert.Equal(string.Empty, connections.Profiles[1].WarningMessage);
+        Assert.Equal("Secondary", connections.ProfileName);
+    }
+
+    [Fact]
+    public async Task A_save_failure_after_switching_is_not_shown_on_the_other_profile()
+    {
+        var (connections, secrets, saves, _) = Create(Start with { SelectedProfileId = "primary" });
+        connections.ProfileLoaded += secrets.Show;
+        connections.Start();
+
+        connections.SaveProfileCommand.Execute(null);
+        connections.SelectedProfile = connections.Profiles[1];
+        await saves.FailNext("disk full");
+
+        Assert.Equal(string.Empty, connections.Status);
+    }
+
+    [Fact]
+    public void Copying_an_empty_field_does_nothing()
+    {
+        var copied = new List<string>();
+        var (connections, secrets, _, _) = Create(Start with { SelectedProfileId = "primary" }, copied.Add);
+        connections.ProfileLoaded += secrets.Show;
+        connections.Start();
+        connections.HasRuntimeConnection = true;
+        secrets.Runtime = string.Empty;
+
+        connections.CopyRuntimeConnectionCommand.Execute(null);
+
+        Assert.Empty(copied);
+        Assert.Equal(string.Empty, connections.Status);
+    }
+
+    [Fact]
+    public async Task Buttons_are_told_when_their_availability_changes()
+    {
+        var (connections, secrets, saves, _) = Create(Start with { SelectedProfileId = "primary" });
+        connections.ProfileLoaded += secrets.Show;
+        connections.Start();
+        var told = new List<string>();
+        connections.AddConnectionCommand.CanExecuteChanged += (_, _) => told.Add("add");
+        connections.SaveProfileCommand.CanExecuteChanged += (_, _) => told.Add("save");
+        connections.CopyRuntimeConnectionCommand.CanExecuteChanged += (_, _) => told.Add("runtime");
+        connections.CopyAdministrationConnectionCommand.CanExecuteChanged += (_, _) => told.Add("administration");
+
+        connections.HasRuntimeConnection = true;
+        connections.HasAdministrationConnection = true;
+        connections.SaveProfileCommand.Execute(null);
+        await saves.CompleteNext();
+
+        Assert.Equal(["runtime", "administration", "add", "save", "save", "add"], told);
+    }
+
     private static (ConnectionProfilesViewModel Connections, FakeSecrets Secrets, SaveScript Saves, SettingsPersistence Persistence) Create(
         WorkspacePreferences? preferences = null, Action<string>? copy = null)
     {

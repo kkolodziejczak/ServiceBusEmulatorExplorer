@@ -35,6 +35,20 @@ public sealed class SettingsLicencesViewModelTests
     }
 
     [Fact]
+    public void Selecting_the_shown_component_again_keeps_the_copy_status()
+    {
+        var licences = new SettingsLicencesViewModel([Font, Library], _ => { });
+        int shown = 0;
+        licences.NoticeShown += () => shown++;
+        licences.CopyCommand.Execute(null);
+
+        licences.SelectedComponent = Font;
+
+        Assert.Equal("Selawik licence copied.", licences.Status);
+        Assert.Equal(0, shown);
+    }
+
+    [Fact]
     public void Copying_puts_the_shown_notice_on_the_clipboard_exactly()
     {
         var copied = new List<string>();

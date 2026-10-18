@@ -36,11 +36,12 @@ public sealed class GeneralPreferencesViewModelTests
     public void Saved_values_outside_the_choices_show_the_default_choice_without_saving_it()
     {
         var saves = new SaveScript();
-        var odd = Start with { QueuePageSize = 37, SearchTimeBudgetSeconds = 5, SearchDeliveryBudget = 7 };
+        var odd = Start with { QueuePageSize = 37, TopicPageSize = 1, SubscriptionPageSize = 999, SearchTimeBudgetSeconds = 5, SearchDeliveryBudget = 7 };
 
         var general = new GeneralPreferencesViewModel(new SettingsPersistence(odd, saves.SaveAsync), trayAvailable: true);
 
-        Assert.Equal((50, 30, 10000), (general.QueuePageSize, general.SearchTimeBudgetSeconds, general.SearchDeliveryBudget));
+        Assert.Equal((50, 50, 50, 30, 10000), (general.QueuePageSize, general.TopicPageSize, general.SubscriptionPageSize,
+            general.SearchTimeBudgetSeconds, general.SearchDeliveryBudget));
         Assert.Empty(saves.Requested);
     }
 
@@ -156,10 +157,14 @@ public sealed class GeneralPreferencesViewModelTests
         var saves = new SaveScript();
         var general = new GeneralPreferencesViewModel(new SettingsPersistence(Start, saves.SaveAsync), trayAvailable: true);
 
+        var told = new List<string?>();
+        ((System.ComponentModel.INotifyPropertyChanged)general).PropertyChanged += (_, e) => told.Add(e.PropertyName);
+
         Assert.True(general.CanChangeCloseToTray);
         Assert.Equal("Keep watches running when you close the window.", general.CloseToTrayDescription);
         general.NotificationsEnabled = true;
         Assert.False(general.CanChangeCloseToTray);
+        Assert.Contains(nameof(GeneralPreferencesViewModel.CanChangeCloseToTray), told);
     }
 
     [Fact]
