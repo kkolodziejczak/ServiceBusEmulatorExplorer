@@ -19,6 +19,7 @@ internal static class BundledFontCheck
 
     public static void AssertBundledOnly(FrameworkElement element, Popup? popup, string name)
     {
+        element.UpdateLayout();
         var problems = new SortedSet<string>(StringComparer.Ordinal);
         foreach (DependencyObject root in new DependencyObject?[] { element, popup?.Child }.OfType<DependencyObject>())
             foreach (DependencyObject visible in VisibleDescendants(root))
