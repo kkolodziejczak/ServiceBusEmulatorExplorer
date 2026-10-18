@@ -28,9 +28,11 @@ public partial class InvestigationWindow : Window
     private bool lastNamespaceConnectionState;
     private bool sampleWorkbenchDestinations;
 
-    public InvestigationWindow(InvestigationWorkspace workspace)
+    /// <param name="createTray">Creates the notification-area icon from its Open and Exit actions; the real tray by default.</param>
+    public InvestigationWindow(InvestigationWorkspace workspace, Func<Action, Action, IDisposable>? createTray = null)
     {
         this.workspace = workspace;
+        this.createTray = createTray ?? ((open, exit) => new InvestigationTray(open, exit));
         refreshTimer = new(workspace.Clock, tick => Dispatcher.BeginInvoke(DispatcherPriority.Background, tick));
         InitializeComponent();
         MessageLibraryPrototype.ConnectionRepairRequested += () => ConnectionButton.Focus();

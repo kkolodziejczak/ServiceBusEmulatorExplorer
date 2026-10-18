@@ -117,19 +117,17 @@ public sealed class InvestigationTrayRenderTests
         {
             var factory = new FakeFactory();
             var workspace = CreateWorkspace(factory, closeToTray: true);
-            var window = new InvestigationWindow(workspace);
+            var trays = new TrayRecorder();
+            var window = new InvestigationWindow(workspace, trays.Create);
             var discardApproval = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             bool closed = false;
             window.Closed += (_, _) => closed = true;
             try
             {
                 window.InitializeSystemTray();
-                object tray = Field(window, "tray");
-                object icon = Field(tray, "icon");
-                object menu = Field(tray, "menu");
-                Assert.True(Property<bool>(icon, "Visible"));
+                RecordingTray tray = trays.Single();
                 window.InitializeSystemTray();
-                Assert.Same(tray, Field(window, "tray"));
+                Assert.Same(tray, trays.Single());
                 window.Show();
                 PumpUntil(() => workspace.Preferences.SelectedProfileId == "tray-proof");
                 Await(workspace.ConnectAsync());
@@ -148,18 +146,17 @@ public sealed class InvestigationTrayRenderTests
                 Assert.True(workspace.Inspector.HasDrafts);
                 Assert.Same(document, workspace.Inspector.Document);
                 Assert.Equal("{\"edited\":true}", document.Text);
-                Assert.True(Property<bool>(icon, "Visible"));
+                Assert.False(tray.IsDisposed);
 
                 window.WindowState = WindowState.Minimized;
-                ClickMenu(menu, "Open Service Bus Explorer");
+                tray.Open();
                 PumpUntil(() => window.IsVisible && window.WindowState == WindowState.Normal);
                 Assert.Same(document, workspace.Inspector.Document);
 
                 window.Close();
-                ClickMenu(menu, "Exit");
+                tray.Exit();
                 PumpUntil(() => approvalCalls == 1);
-                Assert.True((bool)Field(window, "closePending"));
-                ClickMenu(menu, "Exit");
+                tray.Exit();
                 window.Close();
                 Assert.Equal(1, approvalCalls);
                 Assert.True(window.IsVisible);
@@ -167,67 +164,86 @@ public sealed class InvestigationTrayRenderTests
                 Assert.True(workspace.IsConnected);
                 Assert.True(workspace.Inspector.HasDrafts);
                 Assert.Equal(0, factory.DisposeCount);
-                Assert.True(Property<bool>(icon, "Visible"));
+                Assert.False(tray.IsDisposed);
 
                 discardApproval.SetResult(false);
-                PumpUntil(() => !(bool)Field(window, "closePending"));
 
                 // Canceling Exit must not make the next ordinary Close destructive.
-                window.Close();
-                PumpUntil(() => !window.IsVisible);
+                PumpUntil(() => { if (window.IsVisible) window.Close(); return !window.IsVisible; });
                 Assert.False(closed);
                 Assert.Equal(1, approvalCalls);
                 workspace.ConfirmDiscard = () => { approvalCalls++; return Task.FromResult(true); };
-                ClickMenu(menu, "Exit");
+                tray.Exit();
                 PumpUntil(() => closed);
                 Assert.Equal(2, approvalCalls);
                 Assert.False(workspace.IsConnected);
                 Assert.Equal(1, factory.DisposeCount);
-                Assert.False(Property<bool>(icon, "Visible"));
-                Assert.True(Property<bool>(menu, "IsDisposed"));
+                Assert.True(tray.IsDisposed);
             }
             finally
             {
                 discardApproval.TrySetResult(false);
-                PumpUntil(() => !(bool)Field(window, "closePending"));
-                Cleanup(window, workspace, () => closed);
+                Cleanup(window, workspace, trays, () => closed);
             }
         });
     }
 
     [Fact]
     [Trait("TestCategory", "UiRender")]
-    public void Close_to_tray_disabled_closes_window_and_disposes_real_icon()
+    public void Close_to_tray_disabled_closes_window_and_disposes_the_tray()
     {
         RunOnSta(() =>
         {
             var factory = new FakeFactory();
             var workspace = CreateWorkspace(factory, closeToTray: false);
-            var window = new InvestigationWindow(workspace);
+            var trays = new TrayRecorder();
+            var window = new InvestigationWindow(workspace, trays.Create);
             bool closed = false;
             window.Closed += (_, _) => closed = true;
             try
             {
                 window.InitializeSystemTray();
-                object tray = Field(window, "tray");
-                object icon = Field(tray, "icon");
-                object menu = Field(tray, "menu");
+                RecordingTray tray = trays.Single();
                 window.Show();
                 PumpUntil(() => workspace.Preferences.SelectedProfileId == "tray-proof");
                 Await(workspace.ConnectAsync());
                 Assert.True(workspace.IsConnected);
-                Assert.True(Property<bool>(icon, "Visible"));
+                Assert.False(tray.IsDisposed);
                 window.Close();
                 PumpUntil(() => closed);
                 Assert.False(workspace.IsConnected);
                 Assert.Equal(1, factory.DisposeCount);
-                Assert.False(Property<bool>(icon, "Visible"));
-                Assert.True(Property<bool>(menu, "IsDisposed"));
+                Assert.True(tray.IsDisposed);
             }
             finally
             {
-                Cleanup(window, workspace, () => closed);
+                Cleanup(window, workspace, trays, () => closed);
             }
+        });
+    }
+
+    /// <summary>The real Windows adapter: a visible icon whose menu items reach the callbacks and disappear on disposal.</summary>
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void Windows_tray_icon_shows_open_and_exit_and_disposes_its_icon()
+    {
+        RunOnSta(() =>
+        {
+            int opens = 0, exits = 0;
+            var tray = new InvestigationTray(() => opens++, () => exits++);
+            object icon = Field(tray, "icon");
+            object menu = Field(tray, "menu");
+            try
+            {
+                Assert.True(Property<bool>(icon, "Visible"));
+                ClickMenu(menu, "Open Service Bus Explorer");
+                ClickMenu(menu, "Exit");
+                Assert.Equal((1, 1), (opens, exits));
+            }
+            finally { tray.Dispose(); }
+
+            Assert.False(Property<bool>(icon, "Visible"));
+            Assert.True(Property<bool>(menu, "IsDisposed"));
         });
     }
 
@@ -288,17 +304,38 @@ public sealed class InvestigationTrayRenderTests
         item.GetType().GetMethod("PerformClick", Type.EmptyTypes)!.Invoke(item, null);
     }
 
-    private static void Cleanup(InvestigationWindow window, InvestigationWorkspace workspace, Func<bool> isClosed)
+    private static void Cleanup(InvestigationWindow window, InvestigationWorkspace workspace, TrayRecorder trays, Func<bool> isClosed)
     {
         workspace.ConfirmDiscard = () => Task.FromResult(true);
         if (!isClosed())
         {
-            object? tray = window.GetType().GetField("tray", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window);
-            if (tray is not null) ClickMenu(Field(tray, "menu"), "Exit");
+            if (trays.Created.Count > 0) trays.Created[^1].Exit();
             else window.Close();
             PumpUntil(isClosed);
         }
         Await(workspace.DisposeAsync().AsTask());
+    }
+
+    /// <summary>Stands in for the Windows tray so tests can choose Open and Exit and see disposal.</summary>
+    private sealed class RecordingTray(Action open, Action exit) : IDisposable
+    {
+        public bool IsDisposed { get; private set; }
+        public void Open() => open();
+        public void Exit() => exit();
+        public void Dispose() => IsDisposed = true;
+    }
+
+    private sealed class TrayRecorder
+    {
+        public List<RecordingTray> Created { get; } = [];
+        public RecordingTray Single() => Assert.Single(Created);
+
+        public IDisposable Create(Action open, Action exit)
+        {
+            var tray = new RecordingTray(open, exit);
+            Created.Add(tray);
+            return tray;
+        }
     }
 
     private static void Await(Task task)

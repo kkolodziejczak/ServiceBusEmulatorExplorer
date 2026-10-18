@@ -5,7 +5,8 @@ namespace ServiceBusEmulatorExplorer.App.Investigation;
 
 public partial class InvestigationWindow
 {
-    private InvestigationTray? tray;
+    private readonly Func<Action, Action, IDisposable> createTray;
+    private IDisposable? tray;
     private bool exitRequested;
     private bool closePending;
 
@@ -14,7 +15,7 @@ public partial class InvestigationWindow
         if (tray is not null || closing || closePending) return;
         try
         {
-            tray = new InvestigationTray(RestoreFromTray, ExitFromTray);
+            tray = createTray(RestoreFromTray, ExitFromTray);
             Closed += (_, _) => { tray?.Dispose(); tray = null; };
         }
         catch (Exception)
