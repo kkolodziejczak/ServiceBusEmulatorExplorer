@@ -88,6 +88,10 @@ Packaging proof:
 
 Render tests compare each captured screen state, pixel for pixel, with a PNG in `ServiceBusEmulatorExplorer.App.Tests/VisualBaselines/` (DEC-049). A refactor must leave every baseline unchanged. After an approved visual change, rerun the affected render tests with `SBE_UPDATE_VISUAL_BASELINES=true` and commit the updated PNGs with the change. A mismatch writes `<name>.actual.png` and `<name>.diff.png` (changed pixels in magenta) to `artifacts/visual-baselines/`. `environment.json` records the Windows version, culture and font hashes the baselines were rendered with; the failure message says whether the current environment differs. Use `BaselineClock` for timestamps and generated replay IDs in captured states, and give each captured state its own name. Message Workbench screens are not baselined until approved (DEC-048).
 
+## Behaviour contracts
+
+`SettingsPersistenceContractTests` and `InvestigationWindowContractTests` pin behaviour that moving window logic into view models must keep: failed saves roll back, pending saves block closing, actions run once when enabled and are refused when disabled, copies are exact, and closing drops late broker results. They act only through control names and UI Automation, so a refactor should pass them without editing them.
+
 ## Investigation workspace checks
 
 From the repository root, run the focused production-workspace tests:
