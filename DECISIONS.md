@@ -70,6 +70,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-051 | accepted | Typography | Bundled Selawik and Cascadia Mono replace system fonts |
 | DEC-052 | accepted | Settings | Third-party licences shown in Settings and kept complete by a test |
 | DEC-053 | accepted | Architecture | View models live in a WPF-free Presentation project, extracted one component at a time |
+| DEC-054 | accepted | Settings | Settings runs on view models; Save profile waits until no save is pending |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -442,3 +443,10 @@ DLQ palette clarification: the user explicitly disallowed changing DLQ tag color
 - Decision: view models go into `src/ServiceBusEmulatorExplorer.Presentation`, a plain `net10.0` project that references Core and CommunityToolkit.Mvvm and has no WPF, so a view model cannot depend on a UI framework. WPF windows bind to them and keep only presentation mechanics such as theme, focus and dialog results. Components move one at a time; each extraction keeps every existing test and visual baseline unchanged and adds view-model tests in `tests/ServiceBusEmulatorExplorer.Presentation.Tests`.
 - Because: the user wants reusable components that look identical on every OS (DEC-049), and a later Avalonia UI can only reuse view models that do not touch WPF.
 - Consequences: view models follow the repository's explicit style (`ObservableObject` with `SetProperty`, `RelayCommand` instances, no source generators) and report results through events the view translates, for example `DeleteMessagesViewModel.Completed` to `DialogResult`.
+
+## DEC-054 - Settings runs on view models; Save profile waits for every pending save
+
+- Status: accepted, 2026-10-18; user approved the Settings extraction plan and chose to fix, in the same change, the quirk found while planning it.
+- Decision: `SettingsViewModel` composes one `SettingsPersistence` (one save at a time, each applied to the latest saved preferences, committed only on success) with the General, Connections and Licences tab view models. Connection strings stay in the window's password boxes; view models read them through `IConnectionSecrets` only when they capture, save or copy a profile. Save profile, like Done, is available again only when no save of any kind is pending.
+- Because: the user wants Settings reusable by a later cross-platform UI (DEC-053), and before the fix Save profile came back while a queued general save still ran.
+- Consequences: the extraction kept every existing test and the five Settings baselines unchanged; `SettingsBehaviourContractTests` pins the previously untested behaviour, with the one assertion the fix changed.
