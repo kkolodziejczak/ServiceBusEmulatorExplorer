@@ -13,7 +13,7 @@
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
     <Resource Include="Assets\AppIcon.ico" />
     <Resource Include="Assets\AppIcon.png" />
-    <!-- Bundled typefaces and their SIL Open Font Licence texts, which must travel with every copy (DEC-050). -->
+    <!-- Bundled typefaces and their SIL Open Font Licence texts, which must travel with every copy (DEC-051). -->
     <Resource Include="Assets\Fonts\*.ttf" />
     <Resource Include="Assets\Fonts\*-OFL.txt" />
   </ItemGroup>

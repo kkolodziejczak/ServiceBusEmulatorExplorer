@@ -118,7 +118,7 @@
  <Style TargetType="DataGridRow" BasedOn="{StaticResource CompactDataGridRow}"/>
  <Style TargetType="DataGridCell" BasedOn="{StaticResource CompactDataGridCell}"/>
  <!-- Tooltips and context menus open in their own popup and do not inherit the window's font. These implicit styles
-      reach them through App.xaml's application resources; a keyed tooltip or menu style sets the font itself (DEC-050). -->
+      reach them through App.xaml's application resources; a keyed tooltip or menu style sets the font itself (DEC-051). -->
  <Style TargetType="ToolTip"><Setter Property="FontFamily" Value="{x:Static res:AppFonts.Ui}"/></Style>
  <Style TargetType="ContextMenu"><Setter Property="FontFamily" Value="{x:Static res:AppFonts.Ui}"/></Style>
 

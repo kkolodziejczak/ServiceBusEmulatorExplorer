@@ -10,7 +10,7 @@ using ServiceBusEmulatorExplorer.App.Investigation.Resources;
 namespace ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 /// <summary>
-/// Baselines compare only what renders the same on every machine (DEC-050): visible text must use a bundled font,
+/// Baselines compare only what renders the same on every machine (DEC-051): visible text must use a bundled font,
 /// and every character must exist in it, because WPF silently substitutes an installed system font otherwise.
 /// </summary>
 internal static class BundledFontCheck

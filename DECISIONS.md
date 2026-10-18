@@ -64,9 +64,9 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-045 | accepted | Workbench Prepare | Generated values look read-only |
 | DEC-046 | accepted | Workbench scheduling | Schedule problems use the amber validation notice with a remedy |
 | DEC-047 | accepted | Workbench CSV | Delimiter shown as a key-cap character before its name |
-| DEC-048 | accepted | Architecture | Cross-platform migration waits for a safety net and an approved Workbench |
-| DEC-049 | accepted | Testing | Visual baselines must match exactly |
-| DEC-050 | accepted | Typography | Bundled Selawik and Cascadia Mono replace system fonts |
+| DEC-049 | accepted | Architecture | Cross-platform migration waits for a safety net and an approved Workbench |
+| DEC-050 | accepted | Testing | Visual baselines must match exactly |
+| DEC-051 | accepted | Typography | Bundled Selawik and Cascadia Mono replace system fonts |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -398,21 +398,21 @@ The user rejected the first implementation because it did not visually follow Re
 
 DLQ palette clarification: the user explicitly disallowed changing DLQ tag colors. Preserve DeadLetterBrush and DeadLetterTextBrush for original-source and observed-copy DLQ tags, regardless of generated mockup coloring.
 
-## DEC-048 - Cross-platform migration waits for a safety net
+## DEC-049 - Cross-platform migration waits for a safety net
 
 - Status: accepted, 2026-10-18; user chose MVVM-first and approved safety-net phase A after a cross-platform analysis that recommended Avalonia.
 - Decision: the app moves to reusable MVVM components, then to a cross-platform UI for Linux and macOS (Avalonia recommended, not yet chosen), component by component, and must look identical on every operating system. No migration starts until the phase A safety net exists. The Message Workbench migrates only after it is implemented and approved.
 - Because: "the whole premise was that we should have reusable components and they should look exactly like everywhere", and for the Workbench, "I'm worried that before I am done it will change and migrating the code base will be a nightmare".
 - Consequences: icons stay vector geometry (DEC-015), not an icon font. Workbench screens stay out of pixel baselines and new characterization contracts until approved.
 
-## DEC-049 - Visual baselines must match exactly
+## DEC-050 - Visual baselines must match exactly
 
 - Status: accepted, 2026-10-18; user chose exact matching over a tolerance.
 - Decision: visual regression baselines compare rendered screens pixel for pixel. A refactor or migration step must leave every baseline unchanged; an intended visual change goes through a mockup approval and updates its baselines explicitly in the same change.
-- Because: the migration must prove the app still looks exactly the same (DEC-048).
+- Because: the migration must prove the app still looks exactly the same (DEC-049).
 - Consequences: baselines cover stable screens only; screens still in design are added once approved.
 
-## DEC-050 - Bundled open fonts replace system fonts
+## DEC-051 - Bundled open fonts replace system fonts
 
 - Status: accepted, 2026-10-18; user chose option A of Fonts 68 (Selawik and Cascadia Mono) over option B (Inter and JetBrains Mono).
 - Decision: the app ships its two typefaces as resources, unmodified and with their SIL Open Font Licence texts: Selawik for all interface text and Cascadia Mono for JSON and the activity log. Views and code reference them only through `AppFonts`; nothing names a system font. Visual baselines compare only what renders the same on every machine: window content without the OS frame, no hover, en-US and 96 DPI, and text drawn only from the bundled fonts. A baseline fails when visible text would fall back to an installed font.

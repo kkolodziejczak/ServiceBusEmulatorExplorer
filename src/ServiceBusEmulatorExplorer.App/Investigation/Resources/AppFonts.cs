@@ -6,7 +6,7 @@ namespace ServiceBusEmulatorExplorer.App.Investigation.Resources;
 
 /// <summary>
 /// The two typefaces the app ships with, so text renders the same on every machine instead of depending
-/// on installed system fonts (DEC-050). XAML references them with <c>{x:Static res:AppFonts.Ui}</c>.
+/// on installed system fonts (DEC-051). XAML references them with <c>{x:Static res:AppFonts.Ui}</c>.
 /// </summary>
 public static class AppFonts
 {

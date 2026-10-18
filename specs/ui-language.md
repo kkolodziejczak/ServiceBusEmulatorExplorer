@@ -33,7 +33,7 @@ the existing pale-orange/dark-orange DLQ palette.
 | Generated values | [Prepare 64](message-library/design/proposed/prepare-64-v1-generated-readonly.png), DEC-045 |
 | Delimiter labels | [Delimiter 67](message-library/design/proposed/delimiter-67-v1-options.png), option B layout with option A key-cap chip, DEC-047 |
 | Schedule validation | [Schedule 66](message-library/design/proposed/schedule-66-v1-past-time-validation.png), DEC-046; the notice uses the existing amber validation style, not the red drawn on the board, and replaces the "will be scheduled" notice while shown |
-| Typography | [Fonts 68 v1](message-library/design/proposed/fonts-68-v1-bundled-fonts.png), option A, DEC-050; the board redraws its screenshots, so judge glyphs from the [real option A render](message-library/design/proposed/fonts-68-v1-real-A-selawik-cascadia.png) |
+| Typography | [Fonts 68 v1](message-library/design/proposed/fonts-68-v1-bundled-fonts.png), option A, DEC-051; the board redraws its screenshots, so judge glyphs from the [real option A render](message-library/design/proposed/fonts-68-v1-real-A-selawik-cascadia.png) |
 
 ## Proposals under consideration
 

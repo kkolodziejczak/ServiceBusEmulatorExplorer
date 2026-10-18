@@ -12,7 +12,7 @@ using ServiceBusEmulatorExplorer.ReadmeScreenshot;
 namespace ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 /// <summary>
-/// Compares a rendered window, pixel for pixel, with its committed baseline (DEC-049).
+/// Compares a rendered window, pixel for pixel, with its committed baseline (DEC-050).
 /// Set SBE_UPDATE_VISUAL_BASELINES=true to rewrite baselines after an approved visual change.
 /// </summary>
 internal static class VisualBaseline

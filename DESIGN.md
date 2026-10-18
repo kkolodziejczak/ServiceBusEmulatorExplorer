@@ -109,7 +109,7 @@ validation warning pair (#FFF5E3 / #D9A441) used by `ValidationWarningFrame`.
 
 ## Typography
 
-Two bundled fonts, never an installed one (DEC-050): Selawik (`AppFonts.Ui`) everywhere and
+Two bundled fonts, never an installed one (DEC-051): Selawik (`AppFonts.Ui`) everywhere and
 Cascadia Mono (`AppFonts.Code`) for JSON and the console. XAML references them as
 `{x:Static res:AppFonts.Ui}`; a font family name in a view is a defect. Both live in
 [AppFonts](src/ServiceBusEmulatorExplorer.App/Investigation/Resources/AppFonts.cs) with their
