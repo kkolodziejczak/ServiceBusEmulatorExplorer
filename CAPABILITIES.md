@@ -56,6 +56,7 @@ Startup presentation example: `src/ServiceBusEmulatorExplorer.App/Investigation/
 | Injected clock for UTC operation-log timestamps | shared | `src/ServiceBusEmulatorExplorer.App/Services/IClock.cs`, `SystemClock.cs` |
 | Protected per-user preferences store with an overridable path for tests | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Settings/ProtectedWorkspacePreferencesStore.cs` |
 | Entity tree built from administration listings | shared | `src/ServiceBusEmulatorExplorer.Core/ServiceBus/EntityTreeBuilder.cs` |
+| Refresh the namespace tree in place so selection, expansion and open popups survive | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/WorkspaceRows.cs` `EntityNode.ReconcileChildren`; used by `MessageBrowseWorkflow.ApplySnapshot` and `MessageSearchWorkflow` |
 | Non-destructive DLQ replay (new message, original left in DLQ) | shared | `src/ServiceBusEmulatorExplorer.Core/ServiceBus/DeadLetterReplayService.cs`, `ReplayCopySender.cs`, `DeadLetterReplayRequestFactory.cs` |
 | Exact reviewed replay ID/body with durable pre-send attempt history | adapt | `src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWorkspace.Replay.cs`, `PrepareReplays`, `SendReplayAsync`; `PreparedReplay.cs`; `src/ServiceBusEmulatorExplorer.App/Investigation/Settings/ProtectedWorkspacePreferencesStore.ReplayHistory.cs` |
 | Bounded complete Active/DLQ observations for exact replay IDs | shared | `src/ServiceBusEmulatorExplorer.Core/Investigation/ReplayObserver.cs`, `ObserveAsync`; `ReplayObservation.cs` |

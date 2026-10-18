@@ -95,28 +95,31 @@ public sealed partial class MessageBrowseWorkflow : ObservableObject
                 .Where(node => node.Observation is not null && !observedAddresses.Contains(node.Address!))
                 .Select(node => CreateStaleObservation(node.Observation!)));
         }
+        // Update the tree in place: replacing the selected node makes WPF select its parent,
+        // which would reload the list and close open popups on every refresh.
         var queues = ReuseGroup("Queues");
         var topics = ReuseGroup("Topics");
-        foreach (var item in observations.Where(item => item.Entity.Kind == EntityKind.Queue))
-            queues.Children.Add(ReconcileNode(item, existingNodes));
+        EntityNode.ReconcileChildren(queues.Children, observations
+            .Where(item => item.Entity.Kind == EntityKind.Queue)
+            .Select(item => ReconcileNode(item, existingNodes)).ToList());
+        var topicNodes = new List<EntityNode>();
         foreach (var item in observations.Where(item => item.Entity.Kind == EntityKind.Topic))
         {
             var topic = ReconcileNode(item, existingNodes);
             bool hadSubscriptions = topic.Children.Count > 0;
-            topic.Children.Clear();
-            foreach (var child in observations.Where(child => child.Entity.Kind == EntityKind.Subscription &&
-                string.Equals(child.Entity.TopicName, item.Entity.Name, StringComparison.OrdinalIgnoreCase)))
-                topic.Children.Add(ReconcileNode(child, existingNodes));
+            EntityNode.ReconcileChildren(topic.Children, observations
+                .Where(child => child.Entity.Kind == EntityKind.Subscription &&
+                    string.Equals(child.Entity.TopicName, item.Entity.Name, StringComparison.OrdinalIgnoreCase))
+                .Select(child => ReconcileNode(child, existingNodes)).ToList());
             if (hadSubscriptions && topic.Children.Count == 0)
             {
                 topic.SetObservedCount(MessageBucket.Active, null);
                 topic.SetObservedCount(MessageBucket.DeadLetter, null);
             }
-            topics.Children.Add(topic);
+            topicNodes.Add(topic);
         }
-        Roots.Clear();
-        Roots.Add(queues);
-        Roots.Add(topics);
+        EntityNode.ReconcileChildren(topics.Children, topicNodes);
+        EntityNode.ReconcileChildren(Roots, [queues, topics]);
         selectedEntity = AllEntities().FirstOrDefault(node => node.Address == previousAddress);
         if (UsesObservedCounts) ObservedDeliveryCounts.AggregateTopics(AllEntities());
         ApplyEntityFilter();
@@ -176,17 +179,8 @@ public sealed partial class MessageBrowseWorkflow : ObservableObject
         return node;
     }
 
-    private EntityNode ReuseGroup(string name)
-    {
-        EntityNode? existing = Roots.FirstOrDefault(root => root.IsGroup && root.Name == name);
-        var group = new EntityNode(name, "Group");
-        if (existing is not null)
-        {
-            group.IsExpanded = existing.IsExpanded;
-            group.IsVisible = existing.IsVisible;
-        }
-        return group;
-    }
+    private EntityNode ReuseGroup(string name) =>
+        Roots.FirstOrDefault(root => root.IsGroup && root.Name == name) ?? new EntityNode(name, "Group");
 
     public async Task SelectAsync(EntityNode node, bool deadLetter)
     {
