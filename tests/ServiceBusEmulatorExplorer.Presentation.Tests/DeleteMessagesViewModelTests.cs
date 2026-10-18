@@ -53,8 +53,7 @@ public sealed class DeleteMessagesViewModelTests
 
         Assert.Equal(heading, viewModel.Heading);
         Assert.Equal(confirmLabel, viewModel.ConfirmLabel);
-        Assert.StartsWith(summaryStart, viewModel.Summary, StringComparison.Ordinal);
-        Assert.EndsWith("including any unsaved edits to them.", viewModel.Summary, StringComparison.Ordinal);
+        Assert.Equal($"{summaryStart} Only these selected deliveries will be removed, including any unsaved edits to them.", viewModel.Summary);
     }
 
     [Theory]
@@ -82,13 +81,16 @@ public sealed class DeleteMessagesViewModelTests
     {
         var viewModel = new DeleteMessagesViewModel([Delivery(1)]);
         var availability = new List<bool>();
+        var results = new List<bool>();
         viewModel.ConfirmCommand.CanExecuteChanged += (_, _) => availability.Add(viewModel.ConfirmCommand.CanExecute(null));
+        viewModel.Completed += results.Add;
 
         Assert.False(viewModel.ConfirmCommand.CanExecute(null));
         viewModel.ConfirmationText = DeleteMessagesViewModel.ConfirmationWord;
         viewModel.ConfirmationText = "DELET";
 
         Assert.Equal([true, false], availability);
+        Assert.Empty(results);
     }
 
     [Fact]
@@ -115,11 +117,14 @@ public sealed class DeleteMessagesViewModelTests
         Assert.Equal([true], results);
     }
 
-    [Fact]
-    public void Cancelling_completes_with_rejection_and_keeps_the_targets()
+    [Theory]
+    [InlineData("")]
+    [InlineData("wrong")]
+    [InlineData("DELETE")]
+    public void Cancelling_is_always_possible_completes_with_rejection_and_keeps_the_targets(string typed)
     {
         MessageDelivery target = Delivery(1);
-        var viewModel = new DeleteMessagesViewModel([target]) { ConfirmationText = DeleteMessagesViewModel.ConfirmationWord };
+        var viewModel = new DeleteMessagesViewModel([target]) { ConfirmationText = typed };
         var results = new List<bool>();
         viewModel.Completed += results.Add;
 
