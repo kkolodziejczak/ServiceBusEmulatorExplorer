@@ -17,6 +17,7 @@ dead paths.
 | Module | What it is | Depends on |
 | --- | --- | --- |
 | `src/ServiceBusEmulatorExplorer.Core/` | Service Bus SDK access, entity discovery, message projection, replay and delete services, watch and search queries | Azure SDK |
+| `src/ServiceBusEmulatorExplorer.Presentation/` | View models with no WPF dependency, shared by any UI (DEC-053) | Core |
 | `src/ServiceBusEmulatorExplorer.App/` | WPF shell: Investigation workspace, Message Workbench prototype, dialogs, shared styles, settings | Core |
 | `tests/` | Core and App unit tests (default), Docker-gated integration tests, gated FlaUI UI smoke tests | — |
 | `tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/` | Headless screenshot harness for proof images | App |
@@ -52,6 +53,7 @@ Startup presentation example: `src/ServiceBusEmulatorExplorer.App/Investigation/
 
 | Capability | Reuse | Where |
 | --- | --- | --- |
+| View model behind a thin WPF window: bound text and commands, a completion event the window turns into its dialog result | adapt | `src/ServiceBusEmulatorExplorer.Presentation/Investigation/DeleteMessagesViewModel.cs`; view `src/ServiceBusEmulatorExplorer.App/Investigation/DeleteMessagesWindow.xaml.cs` |
 | Operation failure text without leaking SDK internals | shared | `src/ServiceBusEmulatorExplorer.App/Services/OperationFailureFormatter.cs` |
 | Injected `TimeProvider` for deterministic polling, timeouts, timestamps and automatic refresh | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/MessageWatchWorkflow.cs` (`MessageWatchWorkflow`); `src/ServiceBusEmulatorExplorer.Core/Investigation/DeliverySearch.cs` (`DeliverySearch`); `src/ServiceBusEmulatorExplorer.App/Investigation/AutoRefreshTimer.cs` (`AutoRefreshTimer`, driven by `InvestigationWorkspace.Clock`); tests fire it with `tests/ServiceBusEmulatorExplorer.App.Tests/ManualClock.cs` |
 | Protected per-user preferences store with an overridable path for tests | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/Settings/ProtectedWorkspacePreferencesStore.cs` |

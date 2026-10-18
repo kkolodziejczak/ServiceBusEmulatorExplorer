@@ -43,8 +43,9 @@ before designing anything; update them in the same change as the code.
 - Main solution: `ServiceBusEmulatorExplorer.slnx`.
 - App: WPF desktop app in `src/ServiceBusEmulatorExplorer.App`.
 - Domain/SDK layer: `src/ServiceBusEmulatorExplorer.Core`.
+- View models: `src/ServiceBusEmulatorExplorer.Presentation`, plain `net10.0` without WPF (DEC-053).
 - Test layers:
-  - fast unit/view-model tests in `tests/ServiceBusEmulatorExplorer.Core.Tests` and `tests/ServiceBusEmulatorExplorer.App.Tests`;
+  - fast unit/view-model tests in `tests/ServiceBusEmulatorExplorer.Core.Tests`, `tests/ServiceBusEmulatorExplorer.Presentation.Tests` and `tests/ServiceBusEmulatorExplorer.App.Tests`;
   - Docker-backed Service Bus emulator tests in `tests/ServiceBusEmulatorExplorer.Integration.Tests`;
   - explicit FlaUI/UIA3 WPF smoke tests in `tests/ServiceBusEmulatorExplorer.UiSmoke.Tests`.
 - `Lessons/` has been used for planning notes and may be untracked. Do not stage or rewrite it unless the task explicitly asks for lesson work.
@@ -176,6 +177,7 @@ dotnet tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/bin/Debug/net10.0-windo
 ## WPF Architecture Lessons
 
 - Styling lives in `SharedStyles.xaml` and is migrated incrementally (DEC-006); the rules and the component registry are in [DESIGN.md](DESIGN.md). Preserve bindings, automation names, keyboard behavior, and profile themes when migrating a component, and verify its states including a regression check that new instances inherit the shared style.
+- New or extracted view models go into the Presentation project and must not need WPF; the window binds to them and keeps only theme, focus, dialog results and other presentation mechanics. Extract one component at a time, keep every existing test and visual baseline unchanged, and add view-model tests (DEC-053). `DeleteMessagesViewModel` is the reference.
 - Keep window code as orchestration, not the owner of every feature workflow. Feature workflows live in focused classes such as `InvestigationWorkspace`, `MessageBrowseWorkflow` and `MessageSearchWorkflow`.
 - Put domain and SDK mapping rules in focused core classes such as request factories, mappers, projections, and validators. Keep dialogs as input collectors, not Service Bus address builders.
 - Profile-load failures should be surfaced through operation/log state rather than crashing before the main window appears.
