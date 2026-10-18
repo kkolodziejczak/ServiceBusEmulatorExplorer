@@ -2,9 +2,6 @@
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows;
-using System.Windows.Automation;
-using System.Windows.Automation.Peers;
-using System.Windows.Automation.Provider;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using Azure.Messaging.ServiceBus;
@@ -54,7 +51,7 @@ public sealed class NamespaceTreeRefreshTests
 
             var popup = (System.Windows.Controls.Primitives.Popup)window.FindName("ColumnsPopup");
             popup.StaysOpen = true; // headless runs lose focus; only code-driven closes matter here
-            ((IInvokeProvider)new ButtonAutomationPeer((Button)window.FindName("ColumnsButton")).GetPattern(PatternInterface.Invoke)!).Invoke();
+            AutomationPress.Press((Button)window.FindName("ColumnsButton"));
             Wait(() => popup.IsOpen);
 
             for (int tick = 0; tick < 2; tick++)

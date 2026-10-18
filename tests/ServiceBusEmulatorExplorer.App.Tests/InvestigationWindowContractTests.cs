@@ -31,7 +31,7 @@ public sealed class InvestigationWindowContractTests
         try
         {
             Button refresh = (Button)window.FindName("RefreshButton")!;
-            Assert.Throws<ElementNotEnabledException>(() => Invoke(refresh));
+            Assert.Throws<ElementNotEnabledException>(() => AutomationPress.Press(refresh));
             Assert.Equal(0, messages.Calls);
 
             Connect(workspace);
@@ -40,13 +40,13 @@ public sealed class InvestigationWindowContractTests
             WaitUntil(() => select.IsCompleted && !workspace.Browse.IsBusy);
             int callsBeforeRefresh = messages.Calls;
 
-            Invoke(refresh);
+            AutomationPress.Press(refresh);
             WaitUntil(() => messages.Calls > callsBeforeRefresh && !workspace.Browse.IsBusy);
             PumpFor(TimeSpan.FromMilliseconds(200));
             Assert.Equal(callsBeforeRefresh + 1, messages.Calls);
 
-            Assert.Throws<ElementNotEnabledException>(() => Invoke((Button)window.FindName("DeleteButton")!));
-            Assert.Throws<ElementNotEnabledException>(() => Invoke((Button)window.FindName("LoadMoreButton")!));
+            Assert.Throws<ElementNotEnabledException>(() => AutomationPress.Press((Button)window.FindName("DeleteButton")!));
+            Assert.Throws<ElementNotEnabledException>(() => AutomationPress.Press((Button)window.FindName("LoadMoreButton")!));
             Assert.Equal(callsBeforeRefresh + 1, messages.Calls);
         }
         finally { Close(workspace, window); }
@@ -69,15 +69,15 @@ public sealed class InvestigationWindowContractTests
             WaitUntil(() => workspace.Inspector.Current is not null);
             Button copy = (Button)window.FindName("CopyButton")!;
 
-            CopyAndExpect(() => Invoke(copy), workspace.Inspector.Document.Text);
+            CopyAndExpect(() => AutomationPress.Press(copy), workspace.Inspector.Document.Text);
             Assert.Contains("\"order\"", workspace.Inspector.Document.Text);
 
             var properties = (IToggleProvider)new ToggleButtonAutomationPeer((ToggleButton)window.FindName("PropertiesTab")!)
                 .GetPattern(PatternInterface.Toggle)!;
             properties.Toggle();
             WaitUntil(() => ((ToggleButton)window.FindName("PropertiesTab")!).IsChecked == true);
-            CopyAndExpect(() => Invoke(copy), workspace.Inspector.PropertiesText);
-            CopyAndExpect(() => Invoke((Button)window.FindName("CopyCorrelationButton")!), "correlation-1");
+            CopyAndExpect(() => AutomationPress.Press(copy), workspace.Inspector.PropertiesText);
+            CopyAndExpect(() => AutomationPress.Press((Button)window.FindName("CopyCorrelationButton")!), "correlation-1");
         }
         finally
         {
@@ -101,7 +101,7 @@ public sealed class InvestigationWindowContractTests
             workspace.Browse.FocusedMessage = workspace.Browse.Messages.Single();
             WaitUntil(() => workspace.Inspector.Current is not null);
 
-            Invoke((Button)window.FindName("CopyButton")!);
+            AutomationPress.Press((Button)window.FindName("CopyButton")!);
             WaitUntil(() => workspace.Activity.Any(entry => entry.Message == "Clipboard could not be accessed. Try Copy again."));
 
             Assert.True(workspace.Activity.Last().Warning);
@@ -162,13 +162,6 @@ public sealed class InvestigationWindowContractTests
         Task connect = workspace.ConnectAsync();
         WaitUntil(() => connect.IsCompleted);
         connect.GetAwaiter().GetResult();
-    }
-
-    /// <summary>Clicks through UI Automation, the route a user or screen reader takes; disabled buttons refuse it.</summary>
-    private static void Invoke(Button button)
-    {
-        var invoke = (IInvokeProvider)new ButtonAutomationPeer(button).GetPattern(PatternInterface.Invoke)!;
-        invoke.Invoke();
     }
 
     private static void Close(InvestigationWorkspace workspace, InvestigationWindow window)

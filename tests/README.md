@@ -90,7 +90,7 @@ Render tests compare each captured screen state, pixel for pixel, with a PNG in 
 
 ## Behaviour contracts
 
-`SettingsPersistenceContractTests` and `InvestigationWindowContractTests` pin behaviour that moving window logic into view models must keep: failed saves roll back, pending saves block closing, actions run once when enabled and are refused when disabled, copies are exact, and closing drops late broker results. They act only through control names and UI Automation, so a refactor should pass them without editing them.
+`SettingsPersistenceContractTests` and `InvestigationWindowContractTests` pin behaviour that moving window logic into view models must keep: failed saves roll back, pending saves block closing, actions run once when enabled and are refused when disabled, copies are exact, and closing drops late broker results. They act only through control names and UI Automation, so a refactor should pass them without editing them. In new tests, press buttons with `AutomationPress.Press` rather than raising `Click`, and drive automatic refresh with `ManualClock` rather than waiting for real time.
 
 ## Investigation workspace checks
 

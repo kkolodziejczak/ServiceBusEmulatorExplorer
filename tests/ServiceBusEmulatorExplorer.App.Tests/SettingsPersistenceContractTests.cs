@@ -2,8 +2,6 @@ using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Automation;
-using System.Windows.Automation.Peers;
-using System.Windows.Automation.Provider;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation.Settings;
@@ -68,7 +66,7 @@ public sealed class SettingsPersistenceContractTests
             topic.SelectedItem = 25;
             WaitUntil(() => persistence.Held is not null);
             Assert.False(done.IsEnabled);
-            Assert.Throws<ElementNotEnabledException>(() => Invoke(done));
+            Assert.Throws<ElementNotEnabledException>(() => AutomationPress.Press(done));
 
             window.Close();
             Drain();
@@ -79,7 +77,7 @@ public sealed class SettingsPersistenceContractTests
             WaitUntil(() => status.Text == "General preferences saved." && done.IsEnabled);
             Assert.Equal(25, Assert.Single(persistence.Saved).TopicPageSize);
 
-            Invoke(done);
+            AutomationPress.Press(done);
             WaitUntil(() => !window.IsVisible);
         }
         finally { Close(window, persistence); }
@@ -101,7 +99,7 @@ public sealed class SettingsPersistenceContractTests
             Button copy = Find<Button>(window, buttonName);
             WaitUntil(() => copy.IsEnabled);
 
-            Invoke(copy);
+            AutomationPress.Press(copy);
             WaitUntil(() => Find<TextBlock>(window, "ProfileStatus").Text == message);
 
             Assert.Equal(expected, Clipboard.GetText());
@@ -127,7 +125,7 @@ public sealed class SettingsPersistenceContractTests
             Button copy = Find<Button>(window, "CopyRuntimeConnectionButton");
             WaitUntil(() => copy.IsEnabled);
 
-            Invoke(copy);
+            AutomationPress.Press(copy);
             WaitUntil(() => Find<TextBlock>(window, "ProfileStatus").Text == "Clipboard is unavailable. Try copying again.");
 
             Assert.True(copy.IsEnabled);
@@ -156,14 +154,6 @@ public sealed class SettingsPersistenceContractTests
 
     private static T Find<T>(Window window, string name) where T : class =>
         Assert.IsAssignableFrom<T>(window.FindName(name));
-
-    /// <summary>Clicks through UI Automation, the same route a user or screen reader takes; disabled buttons refuse it.</summary>
-    private static void Invoke(Button button)
-    {
-        var invoke = (IInvokeProvider)new ButtonAutomationPeer(button).GetPattern(PatternInterface.Invoke)!;
-        invoke.Invoke();
-        Drain();
-    }
 
     private static void Close(SettingsWindow window, ScriptedPersistence persistence)
     {
