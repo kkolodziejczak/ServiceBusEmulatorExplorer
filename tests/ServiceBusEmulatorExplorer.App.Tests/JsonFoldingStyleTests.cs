@@ -66,7 +66,7 @@ public sealed class JsonFoldingStyleTests
                 Assert.True(PixelDifferenceCount(expanded, focused, BoundsInWindow(innerButton, window)) > 0,
                     "The keyboard-focus render should visibly change the focused chevron surface.");
 
-                innerButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, innerButton));
+                AutomationPress.Press(innerButton);
                 Layout(window, editor);
                 Assert.True(innermostFold.IsFolded);
                 Assert.Equal(4, MarginButtons(margin).Length);
@@ -76,7 +76,7 @@ public sealed class JsonFoldingStyleTests
 
                 FoldingSection outerFold = editor.JsonFoldings.MaxBy(fold => fold.EndOffset - fold.StartOffset)!;
                 Button outerButton = ButtonForFold(editor, margin, outerFold);
-                outerButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, outerButton));
+                AutomationPress.Press(outerButton);
                 Layout(window, editor);
                 Assert.True(outerFold.IsFolded);
                 Assert.Single(MarginButtons(margin));

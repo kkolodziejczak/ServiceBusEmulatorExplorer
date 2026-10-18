@@ -197,7 +197,7 @@ public sealed class ReplayBadgeTests
                 EntityKind.Subscription, TopicName, SubscriptionName);
             CaptureIfEnabled(window, $"location37-{width}x{height}-dlq.png");
 
-            ((Button)window.FindName("ClearSearchButton")!).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            AutomationPress.Press(((Button)window.FindName("ClearSearchButton")!));
             SettleLayout(dispatcher, window);
             Assert.False(fixture.Workspace.Search.IsActive);
             AssertViewColumns(window, showsSource: false);

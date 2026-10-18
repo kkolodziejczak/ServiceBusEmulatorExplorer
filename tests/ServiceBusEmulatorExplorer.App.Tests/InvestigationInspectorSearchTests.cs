@@ -88,12 +88,12 @@ public sealed class InvestigationInspectorSearchTests
             Assert.Equal(firstAlpha, editor.SelectionStart);
             Assert.DoesNotContain(editor.JsonFoldings, fold => fold.IsFolded && fold.StartOffset < firstAlpha && fold.EndOffset > firstAlpha);
 
-            findNext.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, findNext));
+            AutomationPress.Press(findNext);
             Assert.Equal("alpha", editor.SelectedText);
             Assert.Equal(secondAlpha, editor.SelectionStart);
-            findNext.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, findNext));
+            AutomationPress.Press(findNext);
             Assert.Equal(firstAlpha, editor.SelectionStart);
-            findPrevious.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, findPrevious));
+            AutomationPress.Press(findPrevious);
             Assert.Equal(secondAlpha, editor.SelectionStart);
 
             findBox.Focus();
@@ -155,10 +155,10 @@ public sealed class InvestigationInspectorSearchTests
             Assert.Equal(1, copy.Opacity, 3);
             editor.Focus();
 
-            findNext.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, findNext));
+            AutomationPress.Press(findNext);
             Assert.Equal("1 of 2", matchCount.Text);
             Assert.Equal("alpha", editor.SelectedText);
-            findPrevious.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, findPrevious));
+            AutomationPress.Press(findPrevious);
             Assert.Equal("2 of 2", matchCount.Text);
             Assert.Equal(secondAlpha + 2, editor.SelectionStart);
 
@@ -191,7 +191,7 @@ public sealed class InvestigationInspectorSearchTests
             Assert.Equal("No matches", matchCount.Text);
             AssertVisibleInside(findBox, (FrameworkElement)window.FindName("InspectorPane")!);
             Capture(window, "inspector-narrow-long-query-no-match-980x640.png");
-            closeFind.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, closeFind));
+            AutomationPress.Press(closeFind);
             Assert.Equal(Visibility.Collapsed, findPanel.Visibility);
             Capture(window, "inspector-find-closed-980x640.png");
 
@@ -239,7 +239,7 @@ public sealed class InvestigationInspectorSearchTests
             Assert.Equal("1 of 2", matchCount.Text);
             Assert.Contains("alpha", editor.SelectedText, StringComparison.OrdinalIgnoreCase);
 
-            discard.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, discard));
+            AutomationPress.Press(discard);
             Assert.DoesNotContain("alphaxy", editor.Text, StringComparison.Ordinal);
             Assert.Equal(Visibility.Collapsed, modifiedBadge.Visibility);
             Assert.Equal(Visibility.Collapsed, discard.Visibility);

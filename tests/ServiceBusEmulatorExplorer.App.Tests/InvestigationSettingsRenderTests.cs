@@ -127,7 +127,7 @@ public sealed class InvestigationSettingsRenderTests
             warning.Text = "Use the staging tenant before connecting.";
             Button saveProfile = (Button)window.FindName("SaveProfileButton")!;
             TextBlock profileStatus = (TextBlock)window.FindName("ProfileStatus")!;
-            saveProfile.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            AutomationPress.Press(saveProfile);
             WaitUntil(dispatcher, () => profileStatus.Text == "Profile saved. No connection was attempted.",
                 TimeSpan.FromSeconds(5));
 
@@ -147,7 +147,7 @@ public sealed class InvestigationSettingsRenderTests
 
             failNextSave = true;
             warning.Text = "This edit should fail to persist.";
-            saveProfile.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            AutomationPress.Press(saveProfile);
             WaitUntil(dispatcher, () => profileStatus.Text.StartsWith("Could not save profile:", StringComparison.Ordinal),
                 TimeSpan.FromSeconds(5));
             Assert.Equal("Use the staging tenant before connecting.", saved[^1].Profiles.Single(profile => profile.Id == "primary").WarningMessage);

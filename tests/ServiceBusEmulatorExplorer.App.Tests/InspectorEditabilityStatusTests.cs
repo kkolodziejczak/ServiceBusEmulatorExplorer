@@ -91,7 +91,7 @@ public sealed class InspectorEditabilityStatusTests
             Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("ModifiedBadge")!).Visibility);
             AssertStatus(window, status, statusText, statusIcon, "Editable");
             CaptureIfEnabled(window, width, height, "editable");
-            ((Button)window.FindName("DiscardButton")!).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            AutomationPress.Press(((Button)window.FindName("DiscardButton")!));
             Drain(window.Dispatcher);
             Assert.False(workspace.Inspector.IsDirty);
             Assert.Equal(Visibility.Collapsed, ((FrameworkElement)window.FindName("ModifiedBadge")!).Visibility);

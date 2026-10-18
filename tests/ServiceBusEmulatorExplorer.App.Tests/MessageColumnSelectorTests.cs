@@ -362,7 +362,7 @@ public sealed class MessageColumnSelectorTests
         if (!popup.IsOpen)
         {
             button.Focus();
-            button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, button));
+            AutomationPress.Press(button);
         }
         Drain(window.Dispatcher);
         window.UpdateLayout();
@@ -506,7 +506,7 @@ public sealed class MessageColumnSelectorTests
     }
 
     private static void Click(Button button) =>
-        button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, button));
+        AutomationPress.Press(button);
 
     private static void RaiseSorting(DataGrid grid, DataGridColumn column)
     {

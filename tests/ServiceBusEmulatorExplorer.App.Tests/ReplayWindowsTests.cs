@@ -160,16 +160,15 @@ public sealed partial class ReplayWindowsTests
                 done = true;
             }
         };
-        // Queue before the routed action. ShowDialog pumps this dispatcher work after the review is loaded.
-        dispatcher.BeginInvoke(DispatcherPriority.Normal, inspect);
-        var button = (Button)owner.FindName("ReplayButton")!;
-        button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, button));
+        // Queued below the press, so ShowDialog pumps this work once the review has loaded.
+        dispatcher.BeginInvoke(DispatcherPriority.Background, inspect);
+        AutomationPress.Press((Button)owner.FindName("ReplayButton")!);
         PumpUntil(dispatcher, () => done, "replay review or the prior direct-send route");
         if (callbackFailure is not null) ExceptionDispatchInfo.Capture(callbackFailure).Throw();
         return review;
     }
 
-    private static void Click(Button button) => button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, button));
+    private static void Click(Button button) => AutomationPress.Press(button);
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
     {
