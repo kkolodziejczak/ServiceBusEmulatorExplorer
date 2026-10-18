@@ -90,7 +90,7 @@ Render tests compare each captured screen state, pixel for pixel, with a PNG in 
 
 ## Third-party notices
 
-`ThirdPartyNoticesTests` compares Settings > Licences (`ThirdPartyNotices`) with the packages in the app's generated `deps.json` and the font files compiled into the app. It names any package or font that is missing, stale or listed twice (DEC-052).
+`ThirdPartyNoticesTests` compares Settings > Licences (`ThirdPartyNotices`) with the packages in the app's generated `deps.json`, the shared frameworks in its `runtimeconfig.json` (bundled by the portable release) and the font files compiled into the app. It names any package or font that is missing, stale or listed twice (DEC-052).
 
 ## Behaviour contracts
 

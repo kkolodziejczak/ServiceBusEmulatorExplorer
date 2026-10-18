@@ -7,27 +7,25 @@ using ServiceBusEmulatorExplorer.App.Investigation.Settings;
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
 /// <summary>
-/// Keeps Settings > Licences complete without anyone remembering to (DEC-052): every package the app ships and every
-/// bundled font must have exactly one notice, and no notice may name something that no longer ships.
+/// Keeps Settings > Licences complete without anyone remembering to (DEC-052): every package and shared framework the
+/// app ships and every bundled font must have exactly one notice, and no notice may name something that no longer ships.
 /// </summary>
 public sealed class ThirdPartyNoticesTests
 {
-    private const string FontSuffix = ".ttf";
+    private static readonly string[] FontExtensions = [".ttf", ".otf", ".ttc"];
 
     [Fact]
-    public void Every_shipped_package_has_one_notice_and_no_notice_is_stale()
+    public void Every_shipped_package_and_framework_has_one_notice_and_no_notice_is_stale()
     {
-        string[] noticed = ThirdPartyNotices.Components.SelectMany(component => component.Includes)
-            .Where(item => !item.EndsWith(FontSuffix, StringComparison.OrdinalIgnoreCase)).ToArray();
+        string[] noticed = ThirdPartyNotices.Components.SelectMany(component => component.Includes).Where(item => !IsFont(item)).ToArray();
 
-        AssertSameItems(ShippedPackages(), noticed, "package");
+        AssertSameItems([.. ShippedPackages(), .. ShippedFrameworks()], noticed, "package or framework");
     }
 
     [Fact]
     public void Every_bundled_font_file_has_one_notice_and_no_notice_is_stale()
     {
-        string[] noticed = ThirdPartyNotices.Components.SelectMany(component => component.Includes)
-            .Where(item => item.EndsWith(FontSuffix, StringComparison.OrdinalIgnoreCase)).ToArray();
+        string[] noticed = ThirdPartyNotices.Components.SelectMany(component => component.Includes).Where(IsFont).ToArray();
 
         AssertSameItems(BundledFontFiles(), noticed, "font file");
     }
@@ -45,6 +43,16 @@ public sealed class ThirdPartyNoticesTests
         }
     }
 
+    [Fact]
+    public void The_bundled_runtime_carries_its_third_party_notices()
+    {
+        string notice = ThirdPartyNotices.Components.Single(component => component.Includes.Contains("Microsoft.NETCore.App")).Notice;
+
+        Assert.Contains(".NET runtime third-party notices", notice, StringComparison.Ordinal);
+        Assert.Contains("WPF third-party notices", notice, StringComparison.Ordinal);
+        Assert.Contains("Windows Forms third-party notices", notice, StringComparison.Ordinal);
+    }
+
     /// <summary>The app's own package closure, as the build resolved it for the shipped executable.</summary>
     private static string[] ShippedPackages()
     {
@@ -56,17 +64,30 @@ public sealed class ThirdPartyNoticesTests
             .ToArray();
     }
 
-    /// <summary>Font files compiled into the app's resources, so a font added through the project glob counts too.</summary>
+    /// <summary>Shared frameworks the app runs on; the portable release bundles them.</summary>
+    private static string[] ShippedFrameworks()
+    {
+        string configPath = Path.Combine(AppContext.BaseDirectory, "ServiceBusEmulatorExplorer.App.runtimeconfig.json");
+        using JsonDocument config = JsonDocument.Parse(File.ReadAllText(configPath));
+        return config.RootElement.GetProperty("runtimeOptions").GetProperty("frameworks").EnumerateArray()
+            .Select(framework => framework.GetProperty("name").GetString()!)
+            .ToArray();
+    }
+
+    /// <summary>Font files compiled anywhere into the app's resources, so a font added through the project counts too.</summary>
     private static string[] BundledFontFiles()
     {
         var app = typeof(ThirdPartyNotices).Assembly;
         using Stream resources = app.GetManifestResourceStream("ServiceBusEmulatorExplorer.App.g.resources")!;
         using var reader = new ResourceReader(resources);
         return reader.Cast<DictionaryEntry>().Select(entry => (string)entry.Key)
-            .Where(key => key.StartsWith("assets/fonts/", StringComparison.Ordinal) && key.EndsWith(FontSuffix, StringComparison.Ordinal))
+            .Where(IsFont)
             .Select(Path.GetFileName).OfType<string>()
             .ToArray();
     }
+
+    private static bool IsFont(string name) =>
+        FontExtensions.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase);
 
     private static void AssertSameItems(string[] shipped, string[] noticed, string kind)
     {

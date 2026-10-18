@@ -4,7 +4,7 @@ using System.Windows;
 namespace ServiceBusEmulatorExplorer.App.Investigation.Settings;
 
 /// <summary>A bundled third-party component and the licence that must travel with every copy of the app.</summary>
-/// <param name="Includes">NuGet package IDs or font file names this licence covers.</param>
+/// <param name="Includes">NuGet package IDs, shared framework names or font file names this licence covers.</param>
 public sealed record ThirdPartyComponent(string Name, string Licence, string LicenceResource, IReadOnlyList<string> Includes)
 {
     /// <summary>What the component covers, then its full licence text.</summary>
@@ -38,9 +38,10 @@ public static class ThirdPartyNotices
         new("Microsoft Authentication Library (MSAL.NET)", "MIT", "Assets/Licenses/Msal-MIT.txt",
             ["Microsoft.Identity.Client", "Microsoft.Identity.Client.Extensions.Msal"]),
         new("Microsoft IdentityModel", "MIT", "Assets/Licenses/IdentityModel-MIT.txt", ["Microsoft.IdentityModel.Abstractions"]),
-        new("CommunityToolkit.Mvvm", "MIT", "Assets/Licenses/CommunityToolkit-MIT.txt", ["CommunityToolkit.Mvvm"]),
-        new(".NET libraries", "MIT", "Assets/Licenses/DotNet-MIT.txt",
-            ["Microsoft.Bcl.AsyncInterfaces", "Microsoft.Extensions.DependencyInjection",
+        new("CommunityToolkit.Mvvm", "MIT", "Assets/Licenses/CommunityToolkit.txt", ["CommunityToolkit.Mvvm"]),
+        // The portable release bundles both shared frameworks, so their third-party notices travel with it too.
+        new(".NET runtime and libraries", "MIT", "Assets/Licenses/DotNet.txt",
+            ["Microsoft.NETCore.App", "Microsoft.WindowsDesktop.App", "Microsoft.Bcl.AsyncInterfaces", "Microsoft.Extensions.DependencyInjection",
              "Microsoft.Extensions.DependencyInjection.Abstractions", "Microsoft.Extensions.Logging.Abstractions", "System.Memory.Data"]),
     ];
 }

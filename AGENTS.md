@@ -194,7 +194,7 @@ dotnet tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/bin/Debug/net10.0-windo
 
 ## Packaging And Manual Proof
 
-- Every package in the app's dependency closure and every bundled font has a notice in `ThirdPartyNotices` (Settings > Licences, DEC-052). When `ThirdPartyNoticesTests` fails after adding, upgrading or removing a package or font, update that list and add the licence file from the package or its source repository under `src/ServiceBusEmulatorExplorer.App/Assets/Licenses/`; do not weaken the test.
+- Every package in the app's dependency closure, every shared framework the portable release bundles and every bundled font has a notice in `ThirdPartyNotices` (Settings > Licences, DEC-052). When `ThirdPartyNoticesTests` fails after adding, upgrading or removing a package or font, update that list and add the licence file from the package or its source repository under `src/ServiceBusEmulatorExplorer.App/Assets/Licenses/`; do not weaken the test.
 - Manual proof:
 
 ```powershell
