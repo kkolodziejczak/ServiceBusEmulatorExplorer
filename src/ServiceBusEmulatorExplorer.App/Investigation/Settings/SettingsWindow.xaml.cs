@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using ServiceBusEmulatorExplorer.App.Investigation.Resources;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
+using ServiceBusEmulatorExplorer.Presentation.Settings;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation.Settings;
 
@@ -15,13 +16,11 @@ public sealed record ProfileAccent(string Name, string ColorHex);
 
 public partial class SettingsWindow : Window
 {
-    private readonly Func<WorkspacePreferences, Task> _saveAsync;
+    private readonly SettingsPersistence _persistence;
     private readonly bool _trayAvailable;
     private readonly Action<string> _copyText;
-    private readonly SemaphoreSlim _saveGate = new(1, 1);
     private bool _ready;
     private bool _generalSavePending;
-    private int _persistencePendingCount;
     private EditableProfile? _selectedEditor;
 
     public SettingsWindow(WorkspacePreferences preferences, Func<WorkspacePreferences, Task> saveAsync, bool trayAvailable = true,
@@ -30,8 +29,7 @@ public partial class SettingsWindow : Window
         ArgumentNullException.ThrowIfNull(preferences);
         ArgumentNullException.ThrowIfNull(saveAsync);
 
-        CurrentPreferences = preferences;
-        _saveAsync = saveAsync;
+        _persistence = new SettingsPersistence(preferences, saveAsync);
         _trayAvailable = trayAvailable;
         _copyText = copyText ?? Clipboard.SetText;
         InitializeComponent();
@@ -76,6 +74,7 @@ public partial class SettingsWindow : Window
         LicencesList.ItemsSource = ThirdPartyNotices.Components;
         LicencesList.SelectedIndex = 0;
         ProfilesList.SelectedItem = Profiles.FirstOrDefault(profile => profile.Id == preferences.SelectedProfileId) ?? Profiles.FirstOrDefault();
+        _persistence.PropertyChanged += (_, _) => SaveProfileButton.IsEnabled = DoneButton.IsEnabled = !_persistence.IsSaving;
         _ready = true;
         if (ProfilesList.SelectedItem is EditableProfile initialProfile)
         {
@@ -83,7 +82,7 @@ public partial class SettingsWindow : Window
         }
     }
 
-    public WorkspacePreferences CurrentPreferences { get; private set; }
+    public WorkspacePreferences CurrentPreferences => _persistence.Saved;
 
     public IReadOnlyList<int> PageSizeChoices { get; }
 
@@ -293,9 +292,8 @@ public partial class SettingsWindow : Window
 
         try
         {
-            BeginPersistence();
             SetProfileEditorEnabled(false);
-            await PersistAsync(current => current with
+            await _persistence.SaveAsync(current => current with
             {
                 Profiles = current.Profiles.Any(profile => profile.Id == savedProfile.Id)
                     ? current.Profiles.Select(profile => profile.Id == savedProfile.Id ? savedProfile : profile).ToArray()
@@ -318,8 +316,6 @@ public partial class SettingsWindow : Window
         finally
         {
             SetProfileEditorEnabled(true);
-            // Save profile comes back only when no save of any kind is pending, like Done.
-            EndPersistence();
         }
     }
 
@@ -327,12 +323,11 @@ public partial class SettingsWindow : Window
     {
         if (_generalSavePending) return;
         _generalSavePending = true;
-        BeginPersistence();
         SetGeneralControlsEnabled(false);
         GeneralStatus.Text = "Saving…";
         try
         {
-            await PersistAsync(update);
+            await _persistence.SaveAsync(update);
             GeneralStatus.Text = "General preferences saved.";
         }
         catch (Exception exception)
@@ -344,7 +339,6 @@ public partial class SettingsWindow : Window
         {
             _generalSavePending = false;
             SetGeneralControlsEnabled(true);
-            EndPersistence();
         }
     }
 
@@ -360,26 +354,9 @@ public partial class SettingsWindow : Window
         ConnectionWarning.IsEnabled = enabled;
     }
 
-    private void BeginPersistence()
-    {
-        _persistencePendingCount++;
-        SaveProfileButton.IsEnabled = false;
-        DoneButton.IsEnabled = false;
-    }
-
-    private void EndPersistence()
-    {
-        _persistencePendingCount = Math.Max(0, _persistencePendingCount - 1);
-        if (_persistencePendingCount == 0)
-        {
-            SaveProfileButton.IsEnabled = true;
-            DoneButton.IsEnabled = true;
-        }
-    }
-
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
-        if (_persistencePendingCount == 0) return;
+        if (!_persistence.IsSaving) return;
 
         e.Cancel = true;
         GeneralStatus.Text = "Saving preferences. Wait for the save to finish before closing.";
@@ -409,21 +386,6 @@ public partial class SettingsWindow : Window
         SubscriptionPageSizeSelector.SelectedItem = NormalizePageSize(preferences.SubscriptionPageSize);
         SearchTimeBudgetSelector.SelectedItem = NormalizeSearchTimeBudget(preferences.SearchTimeBudgetSeconds);
         SearchDeliveryBudgetSelector.SelectedItem = NormalizeSearchDeliveryBudget(preferences.SearchDeliveryBudget);
-    }
-
-    private async Task PersistAsync(Func<WorkspacePreferences, WorkspacePreferences> update)
-    {
-        await _saveGate.WaitAsync();
-        try
-        {
-            WorkspacePreferences next = update(CurrentPreferences);
-            await _saveAsync(next);
-            CurrentPreferences = next;
-        }
-        finally
-        {
-            _saveGate.Release();
-        }
     }
 
     private static int NormalizePageSize(int value) => value is 25 or 50 or 100 or 200 ? value : 50;
