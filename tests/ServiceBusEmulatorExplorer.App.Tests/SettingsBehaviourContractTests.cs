@@ -127,7 +127,7 @@ public sealed class SettingsBehaviourContractTests
 
     [Fact]
     [Trait("TestCategory", "UiRender")]
-    public void A_general_change_during_a_profile_save_waits_for_it_and_keeps_both_changes() => OnSta(() =>
+    public void A_general_change_during_a_profile_save_waits_for_it_keeps_both_changes_and_blocks_saving_until_done() => OnSta(() =>
     {
         var persistence = new HeldPersistence();
         var window = Open(persistence);
@@ -151,8 +151,7 @@ public sealed class SettingsBehaviourContractTests
             Assert.Equal("Saved with the profile", persistence.Requested[1].Profiles.Single(profile => profile.Id == "primary").WarningMessage);
             Assert.Equal(200, persistence.Requested[1].QueuePageSize);
             Assert.False(done.IsEnabled);
-            // Current behaviour, fixed in the next commit: Save profile re-enables while the general save still runs.
-            Assert.True(saveProfile.IsEnabled);
+            Assert.False(saveProfile.IsEnabled);
 
             persistence.Release(1);
             WaitUntil(() => Find<TextBlock>(window, "GeneralStatus").Text == "General preferences saved." && done.IsEnabled);

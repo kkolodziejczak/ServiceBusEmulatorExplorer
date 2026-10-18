@@ -295,7 +295,6 @@ public partial class SettingsWindow : Window
         {
             BeginPersistence();
             SetProfileEditorEnabled(false);
-            SaveProfileButton.IsEnabled = false;
             await PersistAsync(current => current with
             {
                 Profiles = current.Profiles.Any(profile => profile.Id == savedProfile.Id)
@@ -319,7 +318,7 @@ public partial class SettingsWindow : Window
         finally
         {
             SetProfileEditorEnabled(true);
-            SaveProfileButton.IsEnabled = true;
+            // Save profile comes back only when no save of any kind is pending, like Done.
             EndPersistence();
         }
     }
