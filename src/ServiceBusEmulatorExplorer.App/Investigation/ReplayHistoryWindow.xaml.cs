@@ -13,11 +13,13 @@ public partial class ReplayHistoryWindow : Window
     private readonly Func<ReplayAttempt, Task> findOriginal;
     private readonly Func<ReplayAttempt, Task> deleteOriginal;
     private readonly Func<Task> checkStatus;
+    private readonly Action<string> copyText;
     private bool busy;
     private string? actionNotice;
 
     public ReplayHistoryWindow(InvestigationWorkspace workspace, Func<IReadOnlyList<string>, Task> find,
-        Func<ReplayAttempt, Task> findOriginal, Func<ReplayAttempt, Task> deleteOriginal, Func<Task> checkStatus)
+        Func<ReplayAttempt, Task> findOriginal, Func<ReplayAttempt, Task> deleteOriginal, Func<Task> checkStatus,
+        Action<string>? copyText = null)
     {
         InitializeComponent();
         this.workspace = workspace;
@@ -25,6 +27,7 @@ public partial class ReplayHistoryWindow : Window
         this.findOriginal = findOriginal;
         this.deleteOriginal = deleteOriginal;
         this.checkStatus = checkStatus;
+        this.copyText = copyText ?? Clipboard.SetText;
         workspace.PropertyChanged += WorkspaceChanged;
         Closed += (_, _) => workspace.PropertyChanged -= WorkspaceChanged;
         RefreshRows();
@@ -107,7 +110,7 @@ public partial class ReplayHistoryWindow : Window
         if (((FrameworkElement)sender).DataContext is not ReplayHistoryRow row) return;
         try
         {
-            Clipboard.SetText(selectId(row));
+            copyText(selectId(row));
             HistoryNotice.Text = "Message ID copied.";
         }
         catch (Exception)

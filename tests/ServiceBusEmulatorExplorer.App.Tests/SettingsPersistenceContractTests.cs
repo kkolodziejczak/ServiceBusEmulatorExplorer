@@ -1,4 +1,5 @@
 using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Automation.Peers;
@@ -113,9 +114,31 @@ public sealed class SettingsPersistenceContractTests
         }
     });
 
-    private static SettingsWindow Open(ScriptedPersistence persistence)
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void Copying_while_the_clipboard_is_unavailable_says_so_and_saves_nothing() => OnSta(() =>
     {
-        var window = new SettingsWindow(CreatePreferences(), persistence.SaveAsync);
+        var persistence = new ScriptedPersistence();
+        var window = Open(persistence, _ => throw new ExternalException("The clipboard is held by another application."));
+        try
+        {
+            Find<TabControl>(window, "SettingsTabs").SelectedItem = Find<TabItem>(window, "ConnectionsTab");
+            Drain();
+            Button copy = Find<Button>(window, "CopyRuntimeConnectionButton");
+            WaitUntil(() => copy.IsEnabled);
+
+            Invoke(copy);
+            WaitUntil(() => Find<TextBlock>(window, "ProfileStatus").Text == "Clipboard is unavailable. Try copying again.");
+
+            Assert.True(copy.IsEnabled);
+            Assert.Empty(persistence.Saved);
+        }
+        finally { Close(window, persistence); }
+    });
+
+    private static SettingsWindow Open(ScriptedPersistence persistence, Action<string>? copyText = null)
+    {
+        var window = new SettingsWindow(CreatePreferences(), persistence.SaveAsync, copyText: copyText);
         window.Show();
         WaitUntil(() => window.IsVisible && window.ActualWidth > 0);
         return window;

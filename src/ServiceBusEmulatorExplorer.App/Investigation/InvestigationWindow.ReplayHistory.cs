@@ -13,7 +13,7 @@ public partial class InvestigationWindow
     {
         if (replayHistoryWindow is not null) { replayHistoryWindow.Activate(); return; }
         replayHistoryWindow = new ReplayHistoryWindow(workspace, FindReplayIdsAsync, FindReplayOriginalIdAsync,
-            DeleteReplayOriginalAsync, () => workspace.CheckReplayStatusAsync()) { Owner = this };
+            DeleteReplayOriginalAsync, () => workspace.CheckReplayStatusAsync(), copyText) { Owner = this };
         replayHistoryWindow.Closed += (_, _) => replayHistoryWindow = null;
         replayHistoryWindow.Show();
     }

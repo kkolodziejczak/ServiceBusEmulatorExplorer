@@ -1,4 +1,5 @@
 using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Automation.Peers;
@@ -87,6 +88,31 @@ public sealed class InvestigationWindowContractTests
 
     [Fact]
     [Trait("TestCategory", "UiRender")]
+    public void Inspector_copy_with_an_unavailable_clipboard_logs_a_warning_and_keeps_working() => OnSta(() =>
+    {
+        var messages = new HeldMessages { Page = [CreateMessage("orders-1", "correlation-1", "{\"order\":1}")] };
+        var (workspace, window) = Open(messages, _ => throw new ExternalException("The clipboard is held by another application."));
+        try
+        {
+            Connect(workspace);
+            EntityNode queue = workspace.Browse.AllEntities().Single(node => node.Kind == nameof(EntityKind.Queue));
+            Task select = workspace.Browse.SelectAsync(queue, deadLetter: false);
+            WaitUntil(() => select.IsCompleted && workspace.Browse.Messages.Count == 1);
+            workspace.Browse.FocusedMessage = workspace.Browse.Messages.Single();
+            WaitUntil(() => workspace.Inspector.Current is not null);
+
+            Invoke((Button)window.FindName("CopyButton")!);
+            WaitUntil(() => workspace.Activity.Any(entry => entry.Message == "Clipboard could not be accessed. Try Copy again."));
+
+            Assert.True(workspace.Activity.Last().Warning);
+            Assert.True(window.IsVisible);
+            Assert.NotNull(workspace.Inspector.Current);
+        }
+        finally { Close(workspace, window); }
+    });
+
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
     public void Closing_the_window_drops_a_late_peek_result_and_stops_broker_work() => OnSta(() =>
     {
         var messages = new HeldMessages();
@@ -113,12 +139,13 @@ public sealed class InvestigationWindowContractTests
         Assert.Equal(callsAtClose, messages.Calls);
     });
 
-    private static (InvestigationWorkspace Workspace, InvestigationWindow Window) Open(HeldMessages messages)
+    private static (InvestigationWorkspace Workspace, InvestigationWindow Window) Open(HeldMessages messages,
+        Action<string>? copyText = null)
     {
         var workspace = new InvestigationWorkspace(new Store(),
             new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(), _ => messages),
             timeProvider: BaselineClock.Instance);
-        var window = new InvestigationWindow(workspace)
+        var window = new InvestigationWindow(workspace, copyText: copyText)
         {
             Width = 1100,
             Height = 800,

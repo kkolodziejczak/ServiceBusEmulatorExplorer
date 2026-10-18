@@ -15,6 +15,7 @@ public partial class InvestigationWindow : Window
 {
     private readonly InvestigationWorkspace workspace;
     private readonly AutoRefreshTimer refreshTimer;
+    private readonly Action<string> copyText;
     private bool ready;
     private bool updating;
     private bool paused;
@@ -29,10 +30,13 @@ public partial class InvestigationWindow : Window
     private bool sampleWorkbenchDestinations;
 
     /// <param name="createTray">Creates the notification-area icon from its Open and Exit actions; the real tray by default.</param>
-    public InvestigationWindow(InvestigationWorkspace workspace, Func<Action, Action, IDisposable>? createTray = null)
+    /// <param name="copyText">Puts text on the clipboard, for this window and the windows it opens; the system clipboard by default.</param>
+    public InvestigationWindow(InvestigationWorkspace workspace, Func<Action, Action, IDisposable>? createTray = null,
+        Action<string>? copyText = null)
     {
         this.workspace = workspace;
         this.createTray = createTray ?? ((open, exit) => new InvestigationTray(open, exit));
+        this.copyText = copyText ?? Clipboard.SetText;
         refreshTimer = new(workspace.Clock, tick => Dispatcher.BeginInvoke(DispatcherPriority.Background, tick));
         InitializeComponent();
         MessageLibraryPrototype.ConnectionRepairRequested += () => ConnectionButton.Focus();
@@ -174,7 +178,7 @@ public partial class InvestigationWindow : Window
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e) =>
-        new SettingsWindow(workspace.Preferences, workspace.ApplyPreferencesAsync, tray is not null) { Owner = this }.ShowDialog();
+        new SettingsWindow(workspace.Preferences, workspace.ApplyPreferencesAsync, tray is not null, copyText) { Owner = this }.ShowDialog();
 
     private void InvestigationWorkspace_Checked(object sender, RoutedEventArgs e) => SelectWorkspaceTab(false);
     private void MessageLibrary_Checked(object sender, RoutedEventArgs e) => SelectWorkspaceTab(true);

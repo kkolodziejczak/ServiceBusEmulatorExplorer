@@ -1,5 +1,4 @@
 using System.IO;
-using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows;
@@ -104,24 +103,7 @@ public sealed class InspectorEditabilityStatusTests
             Assert.True(bodyViewer.IsReadOnly);
             AssertNoOverlap(window, status, bodyViewer);
             CaptureIfEnabled(window, width, height, "properties");
-
-            ((ToggleButton)window.FindName("JsonTab")!).IsChecked = true;
-            Drain(window.Dispatcher);
-            FieldInfo replayPending = typeof(InvestigationWindow).GetField(
-                "replayPending", BindingFlags.Instance | BindingFlags.NonPublic)
-                ?? throw new MissingFieldException(typeof(InvestigationWindow).FullName, "replayPending");
-            MethodInfo updateInspector = typeof(InvestigationWindow).GetMethod(
-                "UpdateInspector", BindingFlags.Instance | BindingFlags.NonPublic)
-                ?? throw new MissingMethodException(typeof(InvestigationWindow).FullName, "UpdateInspector");
-            replayPending.SetValue(window, true);
-            updateInspector.Invoke(window, null);
-            Drain(window.Dispatcher);
-            AssertStatus(window, status, statusText, statusIcon, "Read-only");
-            Assert.True(bodyEditor.IsReadOnly);
-            string replayHelp = System.Windows.Automation.AutomationProperties.GetHelpText(status);
-            Assert.Contains("replay", replayHelp, StringComparison.OrdinalIgnoreCase);
-            AssertNoOverlap(window, status, bodyEditor);
-            CaptureIfEnabled(window, width, height, "replay-pending");
+            // The read-only state during a pending replay is pinned by the real replay flow in InvestigationReplayRenderTests.
         }
         finally
         {

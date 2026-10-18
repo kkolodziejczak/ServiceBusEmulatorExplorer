@@ -187,6 +187,10 @@ public sealed class InvestigationReplayRenderTests
             Assert.False(replay.IsEnabled);
             Assert.Equal("Replaying…", AutomationProperties.GetName(replay));
             Assert.False(((Button)window.FindName("DiscardButton")).IsEnabled);
+            var editability = (FrameworkElement)window.FindName("InspectorEditabilityStatus");
+            Assert.Equal("Read-only", ((TextBlock)window.FindName("InspectorEditabilityText")).Text);
+            Assert.True(((ICSharpCode.AvalonEdit.TextEditor)window.FindName("BodyEditor")).IsReadOnly);
+            Assert.Contains("replay", AutomationProperties.GetHelpText(editability), StringComparison.OrdinalIgnoreCase);
             Capture(window, $"replay-pending-{width}x{height}");
             workspace.Browse.FocusedMessage = workspace.Browse.Messages[1];
             Assert.True(workspace.Inspector.HasDraft(original.Key));

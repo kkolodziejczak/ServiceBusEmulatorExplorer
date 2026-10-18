@@ -337,7 +337,7 @@ public partial class InvestigationWindow
     {
         try
         {
-            Clipboard.SetText(text);
+            copyText(text);
             workspace.Log("Copied displayed text to clipboard.");
         }
         catch (Exception)
