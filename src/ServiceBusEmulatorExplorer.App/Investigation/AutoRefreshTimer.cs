@@ -1,9 +1,10 @@
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
 /// <summary>
-/// Raises the automatic refresh at a fixed interval through the workspace clock, delivering each tick through
-/// <paramref name="deliver"/> (the UI dispatcher in the app). Starting again with the same interval keeps the
-/// running countdown, so frequent reconfiguration never postpones a refresh.
+/// Raises the automatic refresh through the workspace clock, delivering each tick through <paramref name="deliver"/>
+/// (the UI dispatcher in the app). Like a dispatcher timer, the next countdown starts only after a tick has been
+/// handled, so a busy UI thread gets one late refresh rather than a queue of them. Starting again with the same
+/// interval keeps the running countdown, so frequent reconfiguration never postpones a refresh.
 /// </summary>
 internal sealed class AutoRefreshTimer(TimeProvider clock, Action<Action> deliver) : IDisposable
 {
@@ -21,8 +22,10 @@ internal sealed class AutoRefreshTimer(TimeProvider clock, Action<Action> delive
         ITimer? started = null;
         started = clock.CreateTimer(_ => deliver(() =>
         {
-            if (ReferenceEquals(timer, started)) Tick?.Invoke();
-        }), null, interval, interval);
+            if (!ReferenceEquals(timer, started)) return;
+            Tick?.Invoke();
+            if (timer is { } current && ReferenceEquals(current, started)) current.Change(interval, Timeout.InfiniteTimeSpan);
+        }), null, interval, Timeout.InfiniteTimeSpan);
         timer = started;
     }
 

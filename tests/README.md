@@ -9,7 +9,7 @@ This directory contains the fast unit, Docker-backed integration, and explicit W
 | `ServiceBusEmulatorExplorer.Core.Tests` | Domain models, projection helpers, replay ID policy, SDK-independent service behavior. | Yes |
 | `ServiceBusEmulatorExplorer.App.Tests` | View model command states, validation, UTC operation log formatting, shell state transitions with fakes. | Yes |
 | `ServiceBusEmulatorExplorer.Integration.Tests` | Direct Azure SDK behavior against the local Service Bus emulator from `compose.yaml`. | No, gated |
-| `ServiceBusEmulatorExplorer.UiSmoke.Tests` | FlaUI/UIA3 smoke tests that launch the WPF app and verify the rendered shell. | No, gated |
+| `ServiceBusEmulatorExplorer.UiSmoke.Tests` | FlaUI/UIA3 smoke tests that launch the WPF app and verify the Investigation window and Message Workbench. | No, gated |
 
 ## Commands
 
@@ -56,7 +56,7 @@ The script checks progress every 15 seconds and stops the test process plus WPF 
 
 The full suite allows 1200 seconds by default. Like the navigation cases, the `DailyAudit` cases are reported as skipped unless the connection strings below are set.
 
-Navigation and DLQ UI smoke tests also require `SBE_CONNECTION_STRING` or `SBE_RUNTIME_CONNECTION_STRING`, plus `SBE_ADMIN_CONNECTION_STRING`.
+The broker-backed UI smoke tests (`DailyAudit` and the end-to-end cases) also require `SBE_CONNECTION_STRING` or `SBE_RUNTIME_CONNECTION_STRING`, plus `SBE_ADMIN_CONNECTION_STRING`.
 
 Azure RBAC proof tests are a separate, opt-in E2E layer. They require Azure CLI to be installed and signed in, plus pre-provisioned inputs; they do not create/update/delete resources or settle/delete messages:
 
@@ -86,7 +86,7 @@ Packaging proof:
 
 ## Visual baselines
 
-Render tests compare each captured screen state, pixel for pixel, with a PNG in `ServiceBusEmulatorExplorer.App.Tests/VisualBaselines/` (DEC-049). A refactor must leave every baseline unchanged. After an approved visual change, rerun the affected render tests with `SBE_UPDATE_VISUAL_BASELINES=true` and commit the updated PNGs with the change. A mismatch writes `<name>.actual.png` and `<name>.diff.png` (changed pixels in magenta) to `artifacts/visual-baselines/`. `environment.json` records the Windows version, culture and font hashes the baselines were rendered with; the failure message says whether the current environment differs. Use `BaselineClock` for timestamps and generated replay IDs in captured states, and give each captured state its own name. Message Workbench screens are not baselined until approved (DEC-048).
+Render tests compare each captured screen state, pixel for pixel, with a PNG in `ServiceBusEmulatorExplorer.App.Tests/VisualBaselines/` (DEC-049). A refactor must leave every baseline unchanged. After an approved visual change, rerun the affected render tests with `SBE_UPDATE_VISUAL_BASELINES=true` and commit the updated PNGs with the change. A mismatch writes `<name>.actual.png` and `<name>.diff.png` (changed pixels in magenta) to `artifacts/visual-baselines/`. All App tests run under the en-US culture (`TestCulture`), so dates and numbers render the same on every machine. `environment.json` records the Windows version, culture and font hashes the baselines were rendered with; the failure message says whether the current environment differs. Use `BaselineClock` for timestamps and generated replay IDs in captured states, and give each captured state its own name. Message Workbench screens are not baselined until approved (DEC-048).
 
 ## Behaviour contracts
 
@@ -114,7 +114,7 @@ With `SBE_RUN_UI_TESTS=true` and the same broker environment, the current invest
 .\scripts\Invoke-UiSmoke.ps1 -NoBuild -Filter "FullyQualifiedName~InvestigationReadOnlyEndToEndTests" -TimeoutSeconds 180
 ```
 
-This creates unique queue/topic fixtures and an isolated protected profile, verifies 25/50/52-row paging, DLQ inspection, related-message search across two subscriptions, Clear and normal shutdown, then compares complete broker peek observations before and after. The generated entities and profile are cleaned up. The older navigation/administration/mutation cases in `MainWindowSmokeTests` still target the previous shell and need migration; this focused pass does not establish a full-suite pass.
+This creates unique queue/topic fixtures and an isolated protected profile, verifies 25/50/52-row paging, DLQ inspection, related-message search across two subscriptions, Clear and normal shutdown, then compares complete broker peek observations before and after. The generated entities and profile are cleaned up.
 
 The remaining investigation E2E filters use the same runner and isolated profiles:
 

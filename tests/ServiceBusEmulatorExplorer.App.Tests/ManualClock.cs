@@ -14,49 +14,63 @@ internal sealed class ManualClock : TimeProvider
     /// <summary>How many timers have been started; a restarted countdown shows up as a new one.</summary>
     public int StartedTimers { get { lock (gate) return timers.Count; } }
 
-    /// <summary>The interval of the running timer, or null when nothing is scheduled.</summary>
-    public TimeSpan? ScheduledInterval => Running()?.Period;
+    /// <summary>The countdown of the armed timer, or null when nothing is waiting to fire.</summary>
+    public TimeSpan? ScheduledInterval => Running()?.Due;
 
     public override DateTimeOffset GetUtcNow() => BaselineClock.Instance.GetUtcNow();
 
     public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
     {
-        var timer = new ManualTimer(callback, state, period);
+        var timer = new ManualTimer(callback, state, dueTime, period);
         lock (gate) timers.Add(timer);
         return timer;
     }
 
-    /// <summary>Fires the running timer once, as if its interval had elapsed.</summary>
-    public void Fire() => (Running() ?? throw new InvalidOperationException("No timer is scheduled.")).Fire();
+    /// <summary>Fires the armed timer once, as if its countdown had elapsed.</summary>
+    public void Fire() => (Running() ?? throw new InvalidOperationException("No timer is armed.")).Fire();
 
     private ManualTimer? Running()
     {
-        lock (gate) return timers.SingleOrDefault(timer => !timer.IsDisposed);
+        lock (gate) return timers.SingleOrDefault(timer => timer.Due is not null);
     }
 
-    private sealed class ManualTimer(TimerCallback callback, object? state, TimeSpan period) : ITimer
+    private sealed class ManualTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) : ITimer
     {
-        private int disposed;
-        public TimeSpan Period { get; private set; } = period;
-        public bool IsDisposed => Volatile.Read(ref disposed) == 1;
+        private readonly object gate = new();
+        private TimeSpan? due = Armed(dueTime);
+        private TimeSpan period = period;
+        private bool disposed;
+
+        /// <summary>The countdown until the next firing, or null when disposed or waiting to be re-armed.</summary>
+        public TimeSpan? Due { get { lock (gate) return disposed ? null : due; } }
 
         public void Fire()
         {
-            if (!IsDisposed) callback(state);
+            lock (gate) due = Armed(period);
+            callback(state);
         }
 
         public bool Change(TimeSpan dueTime, TimeSpan period)
         {
-            Period = period;
-            return !IsDisposed;
+            lock (gate)
+            {
+                due = Armed(dueTime);
+                this.period = period;
+                return !disposed;
+            }
         }
 
-        public void Dispose() => Interlocked.Exchange(ref disposed, 1);
+        public void Dispose()
+        {
+            lock (gate) disposed = true;
+        }
 
         public ValueTask DisposeAsync()
         {
             Dispose();
             return ValueTask.CompletedTask;
         }
+
+        private static TimeSpan? Armed(TimeSpan time) => time == Timeout.InfiniteTimeSpan ? null : time;
     }
 }

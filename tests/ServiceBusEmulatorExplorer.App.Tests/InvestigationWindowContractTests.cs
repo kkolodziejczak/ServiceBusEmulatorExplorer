@@ -58,7 +58,7 @@ public sealed class InvestigationWindowContractTests
     {
         var messages = new HeldMessages { Page = [CreateMessage("orders-1", "correlation-1", "{\"order\":1}")] };
         var (workspace, window) = Open(messages);
-        string? previousClipboard = Clipboard.ContainsText() ? Clipboard.GetText() : null;
+        using var clipboard = TestClipboard.Preserve();
         try
         {
             Connect(workspace);
@@ -79,11 +79,7 @@ public sealed class InvestigationWindowContractTests
             CopyAndExpect(() => AutomationPress.Press(copy), workspace.Inspector.PropertiesText);
             CopyAndExpect(() => AutomationPress.Press((Button)window.FindName("CopyCorrelationButton")!), "correlation-1");
         }
-        finally
-        {
-            if (previousClipboard is null) Clipboard.Clear(); else Clipboard.SetText(previousClipboard);
-            Close(workspace, window);
-        }
+        finally { Close(workspace, window); }
     });
 
     [Fact]
@@ -104,7 +100,7 @@ public sealed class InvestigationWindowContractTests
             AutomationPress.Press((Button)window.FindName("CopyButton")!);
             WaitUntil(() => workspace.Activity.Any(entry => entry.Message == "Clipboard could not be accessed. Try Copy again."));
 
-            Assert.True(workspace.Activity.Last().Warning);
+            Assert.True(workspace.Activity.Single(entry => entry.Message == "Clipboard could not be accessed. Try Copy again.").Warning);
             Assert.True(window.IsVisible);
             Assert.NotNull(workspace.Inspector.Current);
         }
@@ -117,26 +113,39 @@ public sealed class InvestigationWindowContractTests
     {
         var messages = new HeldMessages();
         Exception? unhandled = null;
-        Dispatcher.CurrentDispatcher.UnhandledException += (_, args) => { unhandled = args.Exception; args.Handled = true; };
+        DispatcherUnhandledExceptionEventHandler record = (_, args) => { unhandled = args.Exception; args.Handled = true; };
+        Dispatcher.CurrentDispatcher.UnhandledException += record;
         var (workspace, window) = Open(messages);
-        Connect(workspace);
-        EntityNode queue = workspace.Browse.AllEntities().Single(node => node.Kind == nameof(EntityKind.Queue));
+        try
+        {
+            Connect(workspace);
+            EntityNode queue = workspace.Browse.AllEntities().Single(node => node.Kind == nameof(EntityKind.Queue));
 
-        messages.HoldNext = true;
-        _ = workspace.Browse.SelectAsync(queue, deadLetter: false);
-        WaitUntil(() => messages.Held is not null);
-        window.Close();
-        WaitUntil(() => !window.IsVisible);
-        int callsAtClose = messages.Calls;
+            messages.HoldNext = true;
+            Task select = workspace.Browse.SelectAsync(queue, deadLetter: false);
+            WaitUntil(() => messages.Held is not null);
+            window.Close();
+            WaitUntil(() => !window.IsVisible);
+            int callsAtClose = messages.Calls;
 
-        messages.Held!.SetResult([CreateMessage("late-result")]);
-        PumpFor(TimeSpan.FromMilliseconds(500));
+            messages.Held!.SetResult([CreateMessage("late-result")]);
+            WaitUntil(() => select.IsCompleted);
+            PumpFor(TimeSpan.FromMilliseconds(200));
 
-        Assert.Null(unhandled);
-        Assert.False(window.IsVisible);
-        Assert.False(workspace.IsConnected);
-        Assert.DoesNotContain(workspace.Browse.Messages, row => row.Delivery.Message.MessageId == "late-result");
-        Assert.Equal(callsAtClose, messages.Calls);
+            Assert.True(select.IsCompletedSuccessfully || select.IsCanceled
+                || select.Exception?.GetBaseException() is OperationCanceledException,
+                $"The late selection ended with {select.Exception?.GetBaseException()}");
+            Assert.Null(unhandled);
+            Assert.False(window.IsVisible);
+            Assert.False(workspace.IsConnected);
+            Assert.DoesNotContain(workspace.Browse.Messages, row => row.Delivery.Message.MessageId == "late-result");
+            Assert.Equal(callsAtClose, messages.Calls);
+        }
+        finally
+        {
+            Dispatcher.CurrentDispatcher.UnhandledException -= record;
+            Close(workspace, window);
+        }
     });
 
     private static (InvestigationWorkspace Workspace, InvestigationWindow Window) Open(HeldMessages messages,
@@ -180,9 +189,9 @@ public sealed class InvestigationWindowContractTests
     private static void CopyAndExpect(Action copy, string expected)
     {
         Assert.False(string.IsNullOrEmpty(expected));
-        Clipboard.SetText("sentinel");
+        TestClipboard.WriteSentinel();
         copy();
-        WaitUntil(() => Clipboard.GetText() == expected);
+        WaitUntil(() => TestClipboard.TryReadText() == expected);
     }
 
     private static ExplorerMessage CreateMessage(string id, string? correlationId = null, string body = "{}") =>

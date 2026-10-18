@@ -32,6 +32,9 @@ public sealed class InvestigationAutoRefreshTests
             // This is the public Browse operation performed by the workspace's Watch discovery callback.
             fixture.Workspace.Browse.ApplySnapshot(Browser.Snapshot());
             Pump();
+            Assert.Equal(TimeSpan.FromSeconds(30), fixture.Clock.ScheduledInterval);
+            Assert.False(fixture.Workspace.Browse.IsBusy);
+            Assert.False(fixture.Workspace.Search.IsActive);
         }
 
         Assert.Equal(startedTimers, fixture.Clock.StartedTimers);

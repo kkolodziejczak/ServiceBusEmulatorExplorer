@@ -68,6 +68,9 @@ internal static class WpfScreenshot
 
         int width = (int)Math.Ceiling(content.ActualWidth);
         int height = (int)Math.Ceiling(content.ActualHeight);
+        if (width < 1 || height < 1)
+            throw new InvalidOperationException($"The rendered app surface has unstable dimensions: {width}x{height}.");
+
         var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
         var captureVisual = new DrawingVisual();
         Vector contentOffset = VisualTreeHelper.GetOffset(content);

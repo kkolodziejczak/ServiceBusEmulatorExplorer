@@ -91,7 +91,7 @@ public sealed class SettingsPersistenceContractTests
     {
         var persistence = new ScriptedPersistence();
         var window = Open(persistence);
-        string? previousClipboard = Clipboard.ContainsText() ? Clipboard.GetText() : null;
+        using var clipboard = TestClipboard.Preserve();
         try
         {
             Find<TabControl>(window, "SettingsTabs").SelectedItem = Find<TabItem>(window, "ConnectionsTab");
@@ -99,17 +99,13 @@ public sealed class SettingsPersistenceContractTests
             Button copy = Find<Button>(window, buttonName);
             WaitUntil(() => copy.IsEnabled);
 
+            TestClipboard.WriteSentinel();
             AutomationPress.Press(copy);
             WaitUntil(() => Find<TextBlock>(window, "ProfileStatus").Text == message);
-
-            Assert.Equal(expected, Clipboard.GetText());
+            WaitUntil(() => TestClipboard.TryReadText() == expected);
             Assert.Empty(persistence.Saved);
         }
-        finally
-        {
-            if (previousClipboard is null) Clipboard.Clear(); else Clipboard.SetText(previousClipboard);
-            Close(window, persistence);
-        }
+        finally { Close(window, persistence); }
     });
 
     [Fact]
