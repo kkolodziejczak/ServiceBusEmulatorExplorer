@@ -17,10 +17,8 @@ public sealed record ProfileAccent(string Name, string ColorHex);
 public partial class SettingsWindow : Window
 {
     private readonly SettingsPersistence _persistence;
-    private readonly bool _trayAvailable;
     private readonly Action<string> _copyText;
     private bool _ready;
-    private bool _generalSavePending;
     private EditableProfile? _selectedEditor;
 
     public SettingsWindow(WorkspacePreferences preferences, Func<WorkspacePreferences, Task> saveAsync, bool trayAvailable = true,
@@ -30,29 +28,19 @@ public partial class SettingsWindow : Window
         ArgumentNullException.ThrowIfNull(saveAsync);
 
         _persistence = new SettingsPersistence(preferences, saveAsync);
-        _trayAvailable = trayAvailable;
+        General = new GeneralPreferencesViewModel(_persistence, trayAvailable);
         _copyText = copyText ?? Clipboard.SetText;
         InitializeComponent();
-        CloseToTrayToggle.IsEnabled = trayAvailable;
-        if (!trayAvailable) CloseToTrayDescription.Text = "System tray is unavailable in this session.";
 
         var activeProfile = preferences.Profiles.FirstOrDefault(profile => profile.Id == preferences.SelectedProfileId);
         ProfileTheme.Apply(this, activeProfile?.ColorHex ?? "#0069FA");
 
-        PageSizeChoices = [25, 50, 100, 200];
-        SearchTimeBudgetChoices = [10, 30, 60, 120];
-        SearchDeliveryBudgetChoices = [1000, 10000, 50000, 100000];
         AuthenticationModes = ["Connection string", "Azure CLI"];
         ColorPicker.ItemsSource = new ProfileAccent[]
         {
             new("Blue", "#0069FA"), new("Purple", "#7540BF"), new("Teal", "#007F80"),
             new("Orange", "#B85B00"), new("Red", "#C83B3B")
         };
-        DataContext = this;
-
-        CloseToTrayToggle.IsChecked = preferences.CloseToTray;
-        NotificationsToggle.IsChecked = preferences.NotificationsEnabled;
-        AutoConnectToggle.IsChecked = preferences.AutoConnectOnSwitch;
         DateFormatSelector.ItemsSource = Enum.GetValues<DateDisplayFormat>().Select(format => new DateFormatChoice(format,
             (format switch
             {
@@ -62,12 +50,8 @@ public partial class SettingsWindow : Window
                 DateDisplayFormat.MonthFirst => "MM/dd/yyyy",
                 _ => "dd MMM yyyy"
             }) + " - " + DateDisplay.Date(new DateTime(2026, 10, 4), format))).ToArray();
-        DateFormatSelector.SelectedValue = preferences.DateFormat;
-        QueuePageSizeSelector.SelectedItem = NormalizePageSize(preferences.QueuePageSize);
-        TopicPageSizeSelector.SelectedItem = NormalizePageSize(preferences.TopicPageSize);
-        SubscriptionPageSizeSelector.SelectedItem = NormalizePageSize(preferences.SubscriptionPageSize);
-        SearchTimeBudgetSelector.SelectedItem = NormalizeSearchTimeBudget(preferences.SearchTimeBudgetSeconds);
-        SearchDeliveryBudgetSelector.SelectedItem = NormalizeSearchDeliveryBudget(preferences.SearchDeliveryBudget);
+        // Bind only once the code-built choices are in place, so each selection finds its item.
+        DataContext = this;
 
         Profiles = new ObservableCollection<EditableProfile>(preferences.Profiles.Select(EditableProfile.From));
         ProfilesList.ItemsSource = Profiles;
@@ -84,62 +68,11 @@ public partial class SettingsWindow : Window
 
     public WorkspacePreferences CurrentPreferences => _persistence.Saved;
 
-    public IReadOnlyList<int> PageSizeChoices { get; }
-
-    public IReadOnlyList<int> SearchTimeBudgetChoices { get; }
-
-    public IReadOnlyList<int> SearchDeliveryBudgetChoices { get; }
+    public GeneralPreferencesViewModel General { get; }
 
     public IReadOnlyList<string> AuthenticationModes { get; }
 
     public ObservableCollection<EditableProfile> Profiles { get; }
-
-    private async void CloseToTray_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_ready) await SaveGeneralAsync(current => current with { CloseToTray = CloseToTrayToggle.IsChecked == true });
-    }
-
-    private async void Notifications_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_ready) await SaveGeneralAsync(current => current with { NotificationsEnabled = NotificationsToggle.IsChecked == true });
-    }
-
-    private async void AutoConnect_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_ready) await SaveGeneralAsync(current => current with { AutoConnectOnSwitch = AutoConnectToggle.IsChecked == true });
-    }
-
-    private async void DateFormat_Changed(object sender, SelectionChangedEventArgs e)
-    {
-        if (_ready && DateFormatSelector.SelectedValue is DateDisplayFormat format)
-            await SaveGeneralAsync(current => current with { DateFormat = format });
-    }
-
-    private async void PageSize_Changed(object sender, SelectionChangedEventArgs e)
-    {
-        if (!_ready || sender is not ComboBox selector || selector.SelectedItem is not int size) return;
-        int currentSize = selector == QueuePageSizeSelector ? CurrentPreferences.QueuePageSize
-            : selector == TopicPageSizeSelector ? CurrentPreferences.TopicPageSize : CurrentPreferences.SubscriptionPageSize;
-        if (size == currentSize) return;
-
-        await SaveGeneralAsync(current => selector == QueuePageSizeSelector
-            ? current with { QueuePageSize = size }
-            : selector == TopicPageSizeSelector
-                ? current with { TopicPageSize = size }
-                : current with { SubscriptionPageSize = size });
-    }
-
-    private async void SearchBudget_Changed(object sender, SelectionChangedEventArgs e)
-    {
-        if (!_ready || sender is not ComboBox selector || selector.SelectedItem is not int value) return;
-        int currentValue = selector == SearchTimeBudgetSelector ? CurrentPreferences.SearchTimeBudgetSeconds
-            : CurrentPreferences.SearchDeliveryBudget;
-        if (value == currentValue) return;
-
-        await SaveGeneralAsync(current => selector == SearchTimeBudgetSelector
-            ? current with { SearchTimeBudgetSeconds = value }
-            : current with { SearchDeliveryBudget = value });
-    }
 
     private void AddConnection_Click(object sender, RoutedEventArgs e)
     {
@@ -319,29 +252,6 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private async Task SaveGeneralAsync(Func<WorkspacePreferences, WorkspacePreferences> update)
-    {
-        if (_generalSavePending) return;
-        _generalSavePending = true;
-        SetGeneralControlsEnabled(false);
-        GeneralStatus.Text = "Saving…";
-        try
-        {
-            await _persistence.SaveAsync(update);
-            GeneralStatus.Text = "General preferences saved.";
-        }
-        catch (Exception exception)
-        {
-            ApplyGeneralPreferences(CurrentPreferences);
-            GeneralStatus.Text = $"Could not save preferences: {exception.Message}";
-        }
-        finally
-        {
-            _generalSavePending = false;
-            SetGeneralControlsEnabled(true);
-        }
-    }
-
     private void SetProfileEditorEnabled(bool enabled)
     {
         ProfilesList.IsEnabled = enabled;
@@ -359,40 +269,8 @@ public partial class SettingsWindow : Window
         if (!_persistence.IsSaving) return;
 
         e.Cancel = true;
-        GeneralStatus.Text = "Saving preferences. Wait for the save to finish before closing.";
+        General.ShowCloseBlocked();
     }
-
-    private void SetGeneralControlsEnabled(bool enabled)
-    {
-        CloseToTrayToggle.IsEnabled = enabled && _trayAvailable;
-        NotificationsToggle.IsEnabled = enabled;
-        AutoConnectToggle.IsEnabled = enabled;
-        DateFormatSelector.IsEnabled = enabled;
-        QueuePageSizeSelector.IsEnabled = enabled;
-        TopicPageSizeSelector.IsEnabled = enabled;
-        SubscriptionPageSizeSelector.IsEnabled = enabled;
-        SearchTimeBudgetSelector.IsEnabled = enabled;
-        SearchDeliveryBudgetSelector.IsEnabled = enabled;
-    }
-
-    private void ApplyGeneralPreferences(WorkspacePreferences preferences)
-    {
-        CloseToTrayToggle.IsChecked = preferences.CloseToTray;
-        NotificationsToggle.IsChecked = preferences.NotificationsEnabled;
-        AutoConnectToggle.IsChecked = preferences.AutoConnectOnSwitch;
-        DateFormatSelector.SelectedValue = preferences.DateFormat;
-        QueuePageSizeSelector.SelectedItem = NormalizePageSize(preferences.QueuePageSize);
-        TopicPageSizeSelector.SelectedItem = NormalizePageSize(preferences.TopicPageSize);
-        SubscriptionPageSizeSelector.SelectedItem = NormalizePageSize(preferences.SubscriptionPageSize);
-        SearchTimeBudgetSelector.SelectedItem = NormalizeSearchTimeBudget(preferences.SearchTimeBudgetSeconds);
-        SearchDeliveryBudgetSelector.SelectedItem = NormalizeSearchDeliveryBudget(preferences.SearchDeliveryBudget);
-    }
-
-    private static int NormalizePageSize(int value) => value is 25 or 50 or 100 or 200 ? value : 50;
-
-    private static int NormalizeSearchTimeBudget(int value) => value is 10 or 30 or 60 or 120 ? value : 30;
-
-    private static int NormalizeSearchDeliveryBudget(int value) => value is 1000 or 10000 or 50000 or 100000 ? value : 10000;
 
     private void Done_Click(object sender, RoutedEventArgs e) => Close();
 
