@@ -87,15 +87,17 @@ public sealed class ReplayReviewViewModelTests
         Assert.Empty(results);
     }
 
-    [Fact]
-    public void An_id_longer_than_128_characters_blocks_confirming()
+    [Theory]
+    [InlineData(128, null)]
+    [InlineData(129, "Use a message ID of at most 128 characters.")]
+    public void An_id_may_have_at_most_128_characters(int length, string? problem)
     {
         var review = new ReplayReviewViewModel("Local", [Prepared(1)]);
 
-        review.Rows[0].MessageId = new string('x', 129);
+        review.Rows[0].MessageId = new string('x', length);
 
-        Assert.Equal("Use a message ID of at most 128 characters.", review.Rows[0].Problem);
-        Assert.False(review.ConfirmCommand.CanExecute(null));
+        Assert.Equal(problem, review.Rows[0].Problem);
+        Assert.Equal(problem is null, review.ConfirmCommand.CanExecute(null));
     }
 
     [Fact]
