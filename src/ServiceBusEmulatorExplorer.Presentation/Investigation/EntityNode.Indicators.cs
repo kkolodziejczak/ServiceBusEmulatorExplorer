@@ -1,4 +1,4 @@
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 public sealed partial class EntityNode
 {
@@ -13,7 +13,7 @@ public sealed partial class EntityNode
     public string RefreshIndicator => refreshIndicator;
     public string RefreshDetail => refreshDetail;
 
-    internal void SetIndicators(bool active, bool deadLetter, bool connected, string refresh, string detail)
+    public void SetIndicators(bool active, bool deadLetter, bool connected, string refresh, string detail)
     {
         bool connectionChanged = watchConnected != connected;
         watchConnected = connected;

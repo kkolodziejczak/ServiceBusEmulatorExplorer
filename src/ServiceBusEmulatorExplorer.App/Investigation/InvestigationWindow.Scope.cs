@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 

@@ -18,6 +18,7 @@ using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using ServiceBusEmulatorExplorer.ReadmeScreenshot;
 using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
+using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 

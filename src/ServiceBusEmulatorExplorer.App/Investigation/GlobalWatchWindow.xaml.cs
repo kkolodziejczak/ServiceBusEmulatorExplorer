@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Automation;
 using System.Windows.Media;
 using ServiceBusEmulatorExplorer.Core.Investigation;
+using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 

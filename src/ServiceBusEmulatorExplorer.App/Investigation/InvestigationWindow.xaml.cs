@@ -9,6 +9,7 @@ using ServiceBusEmulatorExplorer.App.Investigation.Resources;
 using ServiceBusEmulatorExplorer.App.Investigation.Settings;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Presentation;
+using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
