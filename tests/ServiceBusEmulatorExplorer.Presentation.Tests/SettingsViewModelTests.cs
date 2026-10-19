@@ -71,10 +71,164 @@ public sealed class SettingsViewModelTests
         Assert.False(settings.Connections.SaveProfileCommand.CanExecute(null));
     }
 
+    [Fact]
+    public void Closing_without_unsaved_profile_edits_asks_nothing()
+    {
+        var settings = Started();
+        settings.ConfirmUnsavedChanges = _ => throw new InvalidOperationException("Nothing should be asked.");
+
+        Assert.True(settings.CanClose());
+    }
+
+    [Theory]
+    [InlineData(UnsavedChangesChoice.Cancel, false)]
+    [InlineData(UnsavedChangesChoice.Discard, true)]
+    public void Closing_with_unsaved_profile_edits_asks_first(UnsavedChangesChoice choice, bool closes)
+    {
+        var settings = Started();
+        var asked = new List<string>();
+        settings.ConfirmUnsavedChanges = question => { asked.Add(question); return choice; };
+        settings.Connections.ProfileName = "Payments";
+
+        Assert.Equal(closes, settings.CanClose());
+        Assert.Equal(["You have unsaved changes to Payments. What do you want to do?"], asked);
+    }
+
+    [Fact]
+    public async Task Choosing_Save_keeps_the_window_open_until_every_edit_is_saved_then_closes_it()
+    {
+        var held = new TaskCompletionSource();
+        var settings = Started(_ => held.Task);
+        settings.ConfirmUnsavedChanges = _ => UnsavedChangesChoice.Save;
+        int closeRequests = 0;
+        settings.CloseRequested += () => closeRequests++;
+        settings.Connections.WarningMessage = "Production";
+
+        Assert.False(settings.CanClose());
+        Assert.Equal(0, closeRequests);
+
+        held.SetResult();
+        await Task.Yield();
+        Assert.Equal(1, closeRequests);
+        Assert.Equal("Production", settings.SavedPreferences.Profiles[0].WarningMessage);
+        Assert.True(settings.CanClose());
+    }
+
+    [Fact]
+    public async Task Choosing_Save_closes_only_after_a_General_change_queued_behind_it_is_saved()
+    {
+        var held = new Queue<TaskCompletionSource>();
+        var settings = Started(_ => { var save = new TaskCompletionSource(); held.Enqueue(save); return save.Task; });
+        settings.ConfirmUnsavedChanges = _ => UnsavedChangesChoice.Save;
+        int closeRequests = 0;
+        settings.CloseRequested += () => closeRequests++;
+        settings.Connections.WarningMessage = "Production";
+
+        Assert.False(settings.CanClose());
+        settings.General.QueuePageSize = 200;
+        held.Dequeue().SetResult();
+        await WaitUntil(() => held.Count == 1);
+        Assert.Equal(0, closeRequests);
+
+        held.Dequeue().SetResult();
+        await WaitUntil(() => closeRequests == 1);
+        Assert.True(settings.CanClose());
+    }
+
+    [Fact]
+    public async Task Choosing_Save_stays_open_when_a_General_change_queued_behind_it_fails()
+    {
+        var held = new Queue<TaskCompletionSource>();
+        var settings = Started(_ => { var save = new TaskCompletionSource(); held.Enqueue(save); return save.Task; });
+        settings.ConfirmUnsavedChanges = _ => UnsavedChangesChoice.Save;
+        int closeRequests = 0;
+        settings.CloseRequested += () => closeRequests++;
+        settings.Connections.WarningMessage = "Production";
+
+        Assert.False(settings.CanClose());
+        settings.General.QueuePageSize = 200;
+        held.Dequeue().SetResult();
+        await WaitUntil(() => held.Count == 1);
+        held.Dequeue().SetException(new InvalidOperationException("disk full"));
+        await WaitUntil(() => settings.DoneCommand.CanExecute(null));
+        // The close decision runs just after saving ends; give it time to (wrongly) happen.
+        await Task.Delay(100);
+
+        Assert.Equal(0, closeRequests);
+        Assert.Equal(25, settings.SavedPreferences.QueuePageSize);
+        Assert.False(settings.Connections.HasUnsavedChanges);
+    }
+
+    [Fact]
+    public async Task Choosing_Save_keeps_the_window_open_when_the_write_fails()
+    {
+        var settings = Started(_ => Task.FromException(new InvalidOperationException("disk full")));
+        settings.ConfirmUnsavedChanges = _ => UnsavedChangesChoice.Save;
+        int closeRequests = 0;
+        settings.CloseRequested += () => closeRequests++;
+        settings.Connections.WarningMessage = "Production";
+
+        Assert.False(settings.CanClose());
+        await Task.Yield();
+
+        Assert.Equal(0, closeRequests);
+        Assert.Equal("Could not save profiles: disk full", settings.Connections.Status);
+        Assert.True(settings.Connections.HasUnsavedChanges);
+    }
+
+    [Fact]
+    public async Task Choosing_Save_with_an_invalid_profile_keeps_the_window_open()
+    {
+        var settings = Started();
+        settings.ConfirmUnsavedChanges = _ => UnsavedChangesChoice.Save;
+        int closeRequests = 0;
+        settings.CloseRequested += () => closeRequests++;
+        settings.Connections.ProfileName = string.Empty;
+
+        Assert.False(settings.CanClose());
+        await Task.Yield();
+
+        Assert.Equal(0, closeRequests);
+        Assert.Equal("Profile name is required.", settings.Connections.Status);
+    }
+
+    private static async Task WaitUntil(Func<bool> condition)
+    {
+        DateTime deadline = DateTime.UtcNow.AddSeconds(5);
+        while (!condition())
+        {
+            if (DateTime.UtcNow >= deadline) throw new TimeoutException("Settings did not reach the expected state.");
+            await Task.Delay(10);
+        }
+    }
+
+    private static SettingsViewModel Started(Func<WorkspacePreferences, Task>? saveAsync = null)
+    {
+        var secrets = new ShownSecrets();
+        var settings = new SettingsViewModel(Start, saveAsync ?? (_ => Task.CompletedTask), true, secrets, _ => { }, []);
+        settings.Connections.ProfileLoaded += secrets.Show;
+        settings.Connections.Start();
+        return settings;
+    }
+
     private sealed class NoSecrets : IConnectionSecrets
     {
         public string Runtime => string.Empty;
 
         public string Administration => string.Empty;
+    }
+
+    /// <summary>Stands in for the window's password fields, which show each loaded profile's connection strings.</summary>
+    private sealed class ShownSecrets : IConnectionSecrets
+    {
+        public string Runtime { get; private set; } = string.Empty;
+
+        public string Administration { get; private set; } = string.Empty;
+
+        public void Show(ProfileDraft draft)
+        {
+            Runtime = draft.RuntimeConnectionString;
+            Administration = draft.AdministrationConnectionString;
+        }
     }
 }

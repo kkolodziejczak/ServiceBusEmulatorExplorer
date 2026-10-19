@@ -68,6 +68,11 @@ public sealed class MainWindowSmokeTests
             Assert.Null(settings.FindFirstDescendant(cf => cf.ByAutomationId("RuntimeConnection")));
             Assert.Null(settings.FindFirstDescendant(cf => cf.ByAutomationId("AdministrationConnection")));
             InvokeButton(settings, "DoneButton", TimeSpan.FromSeconds(5));
+            // The authentication change is an unsaved profile edit, so Done asks first (Settings 70); discard it.
+            Window question = WaitForWindowWithAutomationId(application, automation, "SaveChangesDiscardButton", TimeSpan.FromSeconds(10));
+            Assert.Contains("unsaved changes to", WaitForAutomationId(question, "SaveChangesQuestion", TimeSpan.FromSeconds(5)).Name,
+                StringComparison.Ordinal);
+            InvokeButton(question, "SaveChangesDiscardButton", TimeSpan.FromSeconds(5));
             Assert.DoesNotContain(
                 application.GetAllTopLevelWindows(automation),
                 topLevelWindow => topLevelWindow.Title.Contains("Exception", StringComparison.OrdinalIgnoreCase));

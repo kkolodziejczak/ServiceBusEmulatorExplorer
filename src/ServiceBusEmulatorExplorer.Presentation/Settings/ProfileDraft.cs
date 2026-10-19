@@ -6,7 +6,8 @@ namespace ServiceBusEmulatorExplorer.Presentation.Settings;
 
 /// <summary>
 /// One connection profile as edited in Settings. It changes only when the editor leaves it or saves it, so its row in
-/// the list keeps the last captured name and colour while the user types.
+/// the list keeps the last captured name and colour while the user types. <see cref="IsModified"/> says whether it
+/// differs from what is saved (Settings 70).
 /// </summary>
 public sealed class ProfileDraft : ObservableObject
 {
@@ -19,6 +20,7 @@ public sealed class ProfileDraft : ObservableObject
     private string fullyQualifiedNamespace;
     private string colorHex = DefaultColorHex;
     private string warningMessage = string.Empty;
+    private bool isModified;
 
     public ProfileDraft(string id, string name, ConnectionProfile connection)
     {
@@ -46,6 +48,13 @@ public sealed class ProfileDraft : ObservableObject
 
     public string WarningMessage => warningMessage;
 
+    /// <summary>Whether this profile has edits that are not saved, including a new profile never saved.</summary>
+    public bool IsModified
+    {
+        get => isModified;
+        internal set => SetProperty(ref isModified, value);
+    }
+
     public static ProfileDraft From(InvestigationProfile profile) =>
         new(profile.Id, profile.Connection.Name, profile.Connection)
         {
@@ -53,16 +62,18 @@ public sealed class ProfileDraft : ObservableObject
             warningMessage = profile.WarningMessage
         };
 
-    public void Apply(InvestigationProfile profile) => ApplyDraft(profile.Connection, profile.ColorHex, profile.WarningMessage);
+    public InvestigationProfile ToProfile() =>
+        new(Id, new ConnectionProfile(Name, RuntimeConnectionString, AdministrationConnectionString, AuthenticationMode,
+            FullyQualifiedNamespace), ColorHex, WarningMessage);
 
-    public void ApplyDraft(ConnectionProfile connection, string colorHex, string warningMessage)
+    public void Apply(InvestigationProfile profile)
     {
-        SetProperty(ref name, connection.Name, nameof(Name));
-        SetProperty(ref runtimeConnectionString, connection.RuntimeConnectionString, nameof(RuntimeConnectionString));
-        SetProperty(ref administrationConnectionString, connection.AdministrationConnectionString, nameof(AdministrationConnectionString));
-        SetProperty(ref authenticationMode, connection.AuthenticationMode, nameof(AuthenticationMode));
-        SetProperty(ref fullyQualifiedNamespace, connection.FullyQualifiedNamespace, nameof(FullyQualifiedNamespace));
-        SetProperty(ref this.colorHex, colorHex, nameof(ColorHex));
-        SetProperty(ref this.warningMessage, warningMessage, nameof(WarningMessage));
+        SetProperty(ref name, profile.Connection.Name, nameof(Name));
+        SetProperty(ref runtimeConnectionString, profile.Connection.RuntimeConnectionString, nameof(RuntimeConnectionString));
+        SetProperty(ref administrationConnectionString, profile.Connection.AdministrationConnectionString, nameof(AdministrationConnectionString));
+        SetProperty(ref authenticationMode, profile.Connection.AuthenticationMode, nameof(AuthenticationMode));
+        SetProperty(ref fullyQualifiedNamespace, profile.Connection.FullyQualifiedNamespace, nameof(FullyQualifiedNamespace));
+        SetProperty(ref colorHex, profile.ColorHex, nameof(ColorHex));
+        SetProperty(ref warningMessage, profile.WarningMessage, nameof(WarningMessage));
     }
 }

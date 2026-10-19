@@ -118,7 +118,7 @@ never picks a size, it picks a style.
 
 | Token | Resource key | Size / weight | Use |
 | --- | --- | --- | --- |
-| `{typography.body}` | implicit `Button`, `TabToggle`, default `TextBlock` | 14 / 400 | Controls, body text, table values, JSON |
+| `{typography.body}` | implicit `Button`, `TabToggle`, default `TextBlock`; `DialogWindow` sets it for a dialog window | 14 / 400 | Controls, body text, table values, JSON |
 | `{typography.meta}` | `DialogCaption`, console text | 12 / 400, secondary colour | Metadata, timestamps, captions, console |
 | `{typography.badge}` | (no style yet) | 11 / 400 | Badges and timestamps inside rows only |
 | `{typography.section-title}` | `SectionTitle` | 16 / 600 | Section titles inside a pane, notification summary |
@@ -191,6 +191,8 @@ result.
 | Message location hierarchy | `MessageLocationTemplate`, `MessageLocationIcon`, `MessageLocationText` | topic/subscription, queue, independently trimmed lines with full tooltip; state remains visible | Investigation browse/search | Approved Location 37 A, DEC-033 |
 | Message inspector | `InvestigationWindow.xaml` right pane; `JsonSyntaxColorizer` | read-only, edited, invalid JSON, search match | Investigation | Approved |
 | Inspector modified tab | `InspectorModifiedBadge`, `InspectorModifiedText` inside `TabToggle` | clean hidden; edited badge inside shared selected background and underline | Investigation | Approved Inspect 33 |
+| Settings Modified pill | `ModifiedBadge` template in `SettingsWindow.xaml` from `InspectorModifiedBadge` and `InspectorModifiedText`, with a -3 vertical margin so it never changes a row's or tab's height | clean hidden; inside the Connections tab header, so the selected background and underline span label and pill; at the end of each edited profile row; UI Automation item status Modified | Settings | Approved Settings 70 v4, DEC-055 |
+| Save changes question | `SaveChangesWindow` with `DialogWindow`, `DialogHeading`, `PrimaryButton` | Save (default, Enter), Discard, Cancel (Esc or closing) | Settings close with unsaved profile edits | Approved Settings 70 v4, DEC-055 |
 | Inspector discard link | `InspectorDiscardLink` based on `IconButton` | hover, keyboard focus, disabled; restores local body draft | Investigation | Approved Inspect 33 |
 | Inspector editability status | `InspectorEditabilityStatus`, `InspectorStatusText`, pencil/lock geometry | Editable for DLQ Body, Read-only for Active/Properties or pending replay; no message hidden | Dark document viewport bottom-right overlay | Approved Inspect 40 |
 | Message column selector | `ColumnsPopup`, shared buttons, checkbox, caption, search and scrollbar styles; `ColumnsGeometry` | search, checked, last column disabled, no results, reset, dismiss and return focus | Single queue/subscription Active and DLQ; global saved selection | Approved Columns 38/41 |

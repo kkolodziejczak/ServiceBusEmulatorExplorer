@@ -4,9 +4,17 @@ using ServiceBusEmulatorExplorer.Core.Investigation;
 
 namespace ServiceBusEmulatorExplorer.Presentation.Settings;
 
+/// <summary>The answer to the Save changes? question asked when closing Settings with unsaved profile edits.</summary>
+public enum UnsavedChangesChoice
+{
+    Save,
+    Discard,
+    Cancel
+}
+
 /// <summary>
 /// The Settings window: its three tabs share one <see cref="SettingsPersistence"/>, and the window may close only once
-/// nothing is saving (DEC-053).
+/// nothing is saving and unsaved profile edits are saved or discarded (DEC-053, Settings 70).
 /// </summary>
 public sealed class SettingsViewModel : ObservableObject
 {
@@ -39,11 +47,39 @@ public sealed class SettingsViewModel : ObservableObject
 
     public RelayCommand DoneCommand { get; }
 
-    /// <summary>Whether the window may close now; while something is saving it may not, and the General tab says why.</summary>
+    /// <summary>Asks what to do with unsaved profile edits; the view shows the question. Until set, nothing closes.</summary>
+    public Func<string, UnsavedChangesChoice> ConfirmUnsavedChanges { get; set; } = _ => UnsavedChangesChoice.Cancel;
+
+    /// <summary>
+    /// Whether the window may close now. While something is saving it may not, and the General tab says why. With
+    /// unsaved profile edits it asks first; choosing Save keeps it open and asks to close once every edit is saved.
+    /// </summary>
     public bool CanClose()
     {
-        if (!persistence.IsSaving) return true;
-        General.ShowCloseBlocked();
-        return false;
+        if (persistence.IsSaving)
+        {
+            General.ShowCloseBlocked();
+            return false;
+        }
+
+        if (!Connections.HasUnsavedChanges) return true;
+        switch (ConfirmUnsavedChanges(Connections.UnsavedChangesQuestion()))
+        {
+            case UnsavedChangesChoice.Discard:
+                return true;
+            case UnsavedChangesChoice.Save:
+                _ = SaveAndCloseAsync();
+                return false;
+            default:
+                return false;
+        }
+    }
+
+    private async Task SaveAndCloseAsync()
+    {
+        if (!await Connections.SaveAllAsync()) return;
+        // A General change made while the profiles saved is queued behind them: close once it is saved too, and stay
+        // open when it fails, so its message and the unsaved choice stay visible.
+        if (await persistence.WhenIdleAsync()) CloseRequested?.Invoke();
     }
 }

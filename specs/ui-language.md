@@ -36,6 +36,7 @@ the existing pale-orange/dark-orange DLQ palette.
 | Namespace tree counts | [Counts 68 v4](message-library/design/proposed/counts-68-v4-namespace-totals.png), DEC-048; supersedes v1–v3 (kept under ignored `artifacts/counts-68`) |
 | Typography | [Fonts 68 v1](message-library/design/proposed/fonts-68-v1-bundled-fonts.png), option A, DEC-051; the board redraws its screenshots, so judge glyphs from the [real option A render](message-library/design/proposed/fonts-68-v1-real-A-selawik-cascadia.png) |
 | Third-party licences | [Licences 69 v1](message-library/design/proposed/licences-69-v1-third-party.png), option with fonts and MIT libraries, DEC-052; one row per licence holder (nine rows) in a compact row height so the licence text stays visible, and the copy status sits beside the button |
+| Unsaved profile edits in Settings | [Settings 70 v4](message-library/design/proposed/settings-70-v4-modified-inside-tab.png), DEC-055; supersedes v1–v3, kept beside it in the same folder. v2 put the Modified pill beside the tab, against Inspect 33. The question's Save button takes the profile accent like every primary button |
 
 ## Proposals under consideration
 

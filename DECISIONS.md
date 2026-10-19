@@ -71,6 +71,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-052 | accepted | Settings | Third-party licences shown in Settings and kept complete by a test |
 | DEC-053 | accepted | Architecture | View models live in a WPF-free Presentation project, extracted one component at a time |
 | DEC-054 | accepted | Settings | Settings runs on view models; Save profile waits until no save is pending |
+| DEC-055 | accepted | Settings | Profiles save explicitly; unsaved edits are marked and asked about on close |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -450,3 +451,10 @@ DLQ palette clarification: the user explicitly disallowed changing DLQ tag color
 - Decision: `SettingsViewModel` composes one `SettingsPersistence` (one save at a time, each applied to the latest saved preferences, committed only on success) with the General, Connections and Licences tab view models. Connection strings stay in the window's password boxes; view models read them through `IConnectionSecrets` only when they capture, save or copy a profile. Save profile, like Done, is available again only when no save of any kind is pending.
 - Because: the user wants Settings reusable by a later cross-platform UI (DEC-053), and before the fix Save profile came back while a queued general save still ran.
 - Consequences: the extraction kept every existing test and the five Settings baselines unchanged; `SettingsBehaviourContractTests` pins the previously untested behaviour, with the one assertion the fix changed.
+
+## DEC-055 - Profiles save explicitly; unsaved edits are marked and asked about on close
+
+- Status: accepted, 2026-10-19; the user noticed General saves on every change but profiles only on Save profile, chose to keep explicit saving made visible and safe, and approved Settings 70 v4 after correcting v2's pill placement to follow Inspect 33.
+- Decision: General preferences keep saving on every change. A connection profile stays a draft until Save profile, which now shows only on the Connections tab. A profile whose fields differ from what is saved, or that was never saved, shows the Modified pill on its row, and the Connections tab shows it inside the tab while any profile does. Done, the close button or Esc with unsaved profile edits asks Save changes?: Save writes every valid edited profile in one save and closes, but stays open on the first invalid profile with its errors. Discard closes without saving. Cancel returns to editing. A save that finds a profile invalid focuses the first invalid field (DEC-013).
+- Because: a half-typed connection string is invalid, and saving changed credentials for the connected profile disconnects the workspace and may first ask to discard message drafts, so saving a profile must stay a deliberate action. Before this change, closing dropped profile edits without a word.
+- Consequences: the Modified pill and the question reuse approved components (Inspect 33, the Message Library draft guard). Tests that close Settings with edits answer the question through the `confirmUnsavedChanges` parameter of `SettingsWindow`.
