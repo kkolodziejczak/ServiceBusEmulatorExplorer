@@ -1,10 +1,9 @@
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
-using ServiceBusEmulatorExplorer.Presentation;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
-internal sealed record ObservedDeliveryCount(
+public sealed record ObservedDeliveryCount(
     IReadOnlySet<DeliveryIdentity> Deliveries,
     DateTimeOffset CheckedAtUtc)
 {
@@ -29,7 +28,7 @@ internal sealed record ObservedDeliveryCount(
 }
 
 /// <summary>Observations are kept on session-owned tree nodes, never persisted or inferred from broker zeroes.</summary>
-internal static class ObservedDeliveryCounts
+public static class ObservedDeliveryCounts
 {
     /// <summary>
     /// A topic shows a new total only once every subscription has one. Until then it keeps its last
