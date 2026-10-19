@@ -94,6 +94,14 @@
 
             <BooleanToVisibilityConverter x:Key="VisibleWhenTrue" />
 
+            <!-- Settings 70: the Inspect 33 Modified pill, for profile rows and inside the Connections tab. Its users give it
+                 a -3 vertical margin: the pill is about 2 DIP taller than a text line and must not move the layout when it appears. -->
+            <ControlTemplate x:Key="ModifiedBadge" TargetType="ContentControl">
+                <Border Style="{StaticResource InspectorModifiedBadge}" IsHitTestVisible="False">
+                    <StackPanel Orientation="Horizontal"><Ellipse Width="8" Height="8" Fill="{DynamicResource WarningHealthBrush}" VerticalAlignment="Center" Margin="0,0,4,0" /><TextBlock Text="Modified" Style="{StaticResource InspectorModifiedText}" /></StackPanel>
+                </Border>
+            </ControlTemplate>
+
             <Style x:Key="ProfileItem" TargetType="ListBoxItem">
                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                 <Setter Property="Foreground" Value="{DynamicResource ActionTextBrush}" />
@@ -107,12 +115,14 @@
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <Grid Width="18" Height="18" Margin="0,0,10,0">
                                         <Ellipse x:Name="Ring" Stroke="{Binding ColorHex}" StrokeThickness="1.5" />
                                         <Ellipse x:Name="SelectedDot" Width="8" Height="8" Fill="{Binding ColorHex}" Visibility="Collapsed" />
                                     </Grid>
                                     <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" VerticalAlignment="Center" />
+                                    <ContentControl Grid.Column="2" Template="{StaticResource ModifiedBadge}" Focusable="False" IsTabStop="False" Margin="8,-3,0,-3" Visibility="{Binding IsModified, Converter={StaticResource VisibleWhenTrue}}" />
                                 </Grid>
                             </Border>
                             <ControlTemplate.Triggers>
@@ -135,6 +145,9 @@
                         </ControlTemplate>
                     </Setter.Value>
                 </Setter>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsModified}" Value="True"><Setter Property="AutomationProperties.ItemStatus" Value="Modified" /></DataTrigger>
+                </Style.Triggers>
             </Style>
 
             <!-- Licences 69: a compact profile-style row with the component and its licence name. -->
@@ -287,7 +300,20 @@
                 </ScrollViewer>
             </TabItem>
 
-            <TabItem x:Name="ConnectionsTab" Header="Connections" AutomationProperties.AutomationId="ConnectionsTab">
+            <TabItem x:Name="ConnectionsTab" AutomationProperties.AutomationId="ConnectionsTab" AutomationProperties.Name="Connections">
+                <TabItem.Style>
+                    <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Connections.HasUnsavedChanges}" Value="True"><Setter Property="AutomationProperties.ItemStatus" Value="Modified" /></DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TabItem.Style>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Connections" VerticalAlignment="Center" />
+                        <ContentControl x:Name="ConnectionsModifiedBadge" Template="{StaticResource ModifiedBadge}" Focusable="False" IsTabStop="False" Margin="8,-3,0,-3" Visibility="{Binding Connections.HasUnsavedChanges, Converter={StaticResource VisibleWhenTrue}}" />
+                    </StackPanel>
+                </TabItem.Header>
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Foreground="{DynamicResource InkBrush}" FontWeight="Normal">
                     <StackPanel Margin="4,20,4,12">
                         <TextBlock Text="Connection profiles" FontSize="16" FontWeight="SemiBold" />
@@ -350,7 +376,7 @@
 
         <Border Grid.Row="1" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="0,1,0,0" Padding="24,14" Background="{DynamicResource ChromeBrush}">
             <Grid>
-                <Button x:Name="SaveProfileButton" Content="Save profile" HorizontalAlignment="Left" Margin="0" Command="{Binding Connections.SaveProfileCommand}" AutomationProperties.AutomationId="SaveProfileButton" />
+                <Button x:Name="SaveProfileButton" Content="Save profile" HorizontalAlignment="Left" Margin="0" Command="{Binding Connections.SaveProfileCommand}" Visibility="{Binding IsSelected, ElementName=ConnectionsTab, Converter={StaticResource VisibleWhenTrue}}" AutomationProperties.AutomationId="SaveProfileButton" />
                 <Button x:Name="DoneButton" Content="Done" Style="{StaticResource PrimaryButton}" MinWidth="84" HorizontalAlignment="Right" Command="{Binding DoneCommand}" AutomationProperties.AutomationId="DoneButton" IsCancel="True" />
             </Grid>
         </Border>

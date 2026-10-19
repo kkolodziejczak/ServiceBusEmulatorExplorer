@@ -6,6 +6,7 @@ using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation.Settings;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
+using ServiceBusEmulatorExplorer.Presentation.Settings;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -177,7 +178,7 @@ public sealed class SettingsBehaviourContractTests
             TopicPageSize = 50,
             SubscriptionPageSize = 100
         };
-        var window = new SettingsWindow(preferences, persistence.SaveAsync);
+        var window = new SettingsWindow(preferences, persistence.SaveAsync, confirmUnsavedChanges: _ => UnsavedChangesChoice.Discard);
         window.Show();
         WaitUntil(() => window.IsVisible && window.ActualWidth > 0);
         return window;

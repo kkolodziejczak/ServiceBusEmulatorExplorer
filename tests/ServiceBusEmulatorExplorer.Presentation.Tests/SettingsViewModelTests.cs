@@ -71,10 +71,92 @@ public sealed class SettingsViewModelTests
         Assert.False(settings.Connections.SaveProfileCommand.CanExecute(null));
     }
 
+    [Fact]
+    public void Closing_without_unsaved_profile_edits_asks_nothing()
+    {
+        var settings = Started();
+        settings.ConfirmUnsavedChanges = _ => throw new InvalidOperationException("Nothing should be asked.");
+
+        Assert.True(settings.CanClose());
+    }
+
+    [Theory]
+    [InlineData(UnsavedChangesChoice.Cancel, false)]
+    [InlineData(UnsavedChangesChoice.Discard, true)]
+    public void Closing_with_unsaved_profile_edits_asks_first(UnsavedChangesChoice choice, bool closes)
+    {
+        var settings = Started();
+        var asked = new List<string>();
+        settings.ConfirmUnsavedChanges = question => { asked.Add(question); return choice; };
+        settings.Connections.ProfileName = "Payments";
+
+        Assert.Equal(closes, settings.CanClose());
+        Assert.Equal(["You have unsaved changes to Payments. What do you want to do?"], asked);
+    }
+
+    [Fact]
+    public async Task Choosing_Save_keeps_the_window_open_until_every_edit_is_saved_then_closes_it()
+    {
+        var held = new TaskCompletionSource();
+        var settings = Started(_ => held.Task);
+        settings.ConfirmUnsavedChanges = _ => UnsavedChangesChoice.Save;
+        int closeRequests = 0;
+        settings.CloseRequested += () => closeRequests++;
+        settings.Connections.WarningMessage = "Production";
+
+        Assert.False(settings.CanClose());
+        Assert.Equal(0, closeRequests);
+
+        held.SetResult();
+        await Task.Yield();
+        Assert.Equal(1, closeRequests);
+        Assert.Equal("Production", settings.SavedPreferences.Profiles[0].WarningMessage);
+        Assert.True(settings.CanClose());
+    }
+
+    [Fact]
+    public async Task Choosing_Save_with_an_invalid_profile_keeps_the_window_open()
+    {
+        var settings = Started();
+        settings.ConfirmUnsavedChanges = _ => UnsavedChangesChoice.Save;
+        int closeRequests = 0;
+        settings.CloseRequested += () => closeRequests++;
+        settings.Connections.ProfileName = string.Empty;
+
+        Assert.False(settings.CanClose());
+        await Task.Yield();
+
+        Assert.Equal(0, closeRequests);
+        Assert.NotEqual(string.Empty, settings.Connections.Status);
+    }
+
+    private static SettingsViewModel Started(Func<WorkspacePreferences, Task>? saveAsync = null)
+    {
+        var secrets = new ShownSecrets();
+        var settings = new SettingsViewModel(Start, saveAsync ?? (_ => Task.CompletedTask), true, secrets, _ => { }, []);
+        settings.Connections.ProfileLoaded += secrets.Show;
+        settings.Connections.Start();
+        return settings;
+    }
+
     private sealed class NoSecrets : IConnectionSecrets
     {
         public string Runtime => string.Empty;
 
         public string Administration => string.Empty;
+    }
+
+    /// <summary>Stands in for the window's password fields, which show each loaded profile's connection strings.</summary>
+    private sealed class ShownSecrets : IConnectionSecrets
+    {
+        public string Runtime { get; private set; } = string.Empty;
+
+        public string Administration { get; private set; } = string.Empty;
+
+        public void Show(ProfileDraft draft)
+        {
+            Runtime = draft.RuntimeConnectionString;
+            Administration = draft.AdministrationConnectionString;
+        }
     }
 }

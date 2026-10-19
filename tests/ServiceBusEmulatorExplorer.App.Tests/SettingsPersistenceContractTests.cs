@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation.Settings;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
+using ServiceBusEmulatorExplorer.Presentation.Settings;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
@@ -132,7 +133,8 @@ public sealed class SettingsPersistenceContractTests
 
     private static SettingsWindow Open(ScriptedPersistence persistence, Action<string>? copyText = null)
     {
-        var window = new SettingsWindow(CreatePreferences(), persistence.SaveAsync, copyText: copyText);
+        var window = new SettingsWindow(CreatePreferences(), persistence.SaveAsync, copyText: copyText,
+            confirmUnsavedChanges: _ => UnsavedChangesChoice.Discard);
         window.Show();
         WaitUntil(() => window.IsVisible && window.ActualWidth > 0);
         return window;

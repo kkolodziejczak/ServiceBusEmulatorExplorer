@@ -9,6 +9,7 @@ using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation.Settings;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
+using ServiceBusEmulatorExplorer.Presentation.Settings;
 using ServiceBusEmulatorExplorer.App.Tests.VisualBaselines;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
@@ -74,7 +75,7 @@ public sealed class InvestigationSettingsRenderTests
             saved.Add(preferences);
         }
 
-        var window = new SettingsWindow(initial, SaveAsync);
+        var window = new SettingsWindow(initial, SaveAsync, confirmUnsavedChanges: _ => UnsavedChangesChoice.Discard);
         try
         {
             window.Show();

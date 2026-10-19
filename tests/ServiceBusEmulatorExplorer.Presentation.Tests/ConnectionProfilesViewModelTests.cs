@@ -5,7 +5,7 @@ using ServiceBusEmulatorExplorer.Presentation.Settings;
 
 namespace ServiceBusEmulatorExplorer.Presentation.Tests;
 
-public sealed class ConnectionProfilesViewModelTests
+public sealed partial class ConnectionProfilesViewModelTests
 {
     private const string PrimaryRuntime = "Endpoint=sb://primary-runtime.example/;SharedAccessKeyName=Root;SharedAccessKey=secret";
     private const string PrimaryAdmin = "Endpoint=sb://primary-admin.example/;SharedAccessKeyName=Root;SharedAccessKey=secret";
