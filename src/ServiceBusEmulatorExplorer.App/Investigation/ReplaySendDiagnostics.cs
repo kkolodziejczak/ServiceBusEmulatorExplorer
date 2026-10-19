@@ -24,17 +24,4 @@ internal static class ReplaySendDiagnostics
         },
         _ => ReplaySendFailure.Unknown
     };
-
-    public static string Describe(ReplaySendFailure failure) => failure switch
-    {
-        ReplaySendFailure.Cancelled => "Send cancelled or connection changed. Check status before retrying.",
-        ReplaySendFailure.Timeout => "Send timed out. Check status before retrying.",
-        ReplaySendFailure.Authorization => "Authorization failed. Check the connection credentials and permissions.",
-        ReplaySendFailure.EntityUnavailable => "Destination unavailable. Check the destination entity.",
-        ReplaySendFailure.ServiceBusy => "Service busy. Check status before retrying.",
-        ReplaySendFailure.QuotaExceeded => "Broker quota exceeded. Check destination capacity.",
-        ReplaySendFailure.Transport => "Transport error. Check the connection and status before retrying.",
-        ReplaySendFailure.Unknown => "Send failed. Check the connection and status before retrying.",
-        _ => ""
-    };
 }

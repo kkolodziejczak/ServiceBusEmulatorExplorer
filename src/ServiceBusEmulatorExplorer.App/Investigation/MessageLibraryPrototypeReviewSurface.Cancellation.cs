@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using ServiceBusEmulatorExplorer.App.Investigation.Resources;
+using ServiceBusEmulatorExplorer.Presentation;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 

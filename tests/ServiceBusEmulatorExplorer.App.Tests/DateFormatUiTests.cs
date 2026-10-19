@@ -15,6 +15,7 @@ using ServiceBusEmulatorExplorer.App.Investigation;
 using ServiceBusEmulatorExplorer.App.Investigation.Settings;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.ReadmeScreenshot;
+using ServiceBusEmulatorExplorer.Presentation;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 

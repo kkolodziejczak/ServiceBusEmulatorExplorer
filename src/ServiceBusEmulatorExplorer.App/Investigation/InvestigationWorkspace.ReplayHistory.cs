@@ -1,9 +1,12 @@
 using ServiceBusEmulatorExplorer.Core.Investigation;
+using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
-public sealed partial class InvestigationWorkspace
+public sealed partial class InvestigationWorkspace : IReplayHistorySource
 {
+    void IReplayHistorySource.LogWarning(string message) => Log(message, true);
+
     public IReadOnlyList<ReplayAttempt> CurrentReplayAttempts
     {
         get

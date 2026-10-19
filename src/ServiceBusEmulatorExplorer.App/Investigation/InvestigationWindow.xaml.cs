@@ -8,6 +8,7 @@ using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.App.Investigation.Resources;
 using ServiceBusEmulatorExplorer.App.Investigation.Settings;
 using ServiceBusEmulatorExplorer.Core.Investigation;
+using ServiceBusEmulatorExplorer.Presentation;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
