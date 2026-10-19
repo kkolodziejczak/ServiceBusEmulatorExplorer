@@ -77,6 +77,9 @@ public sealed class SettingsViewModel : ObservableObject
 
     private async Task SaveAndCloseAsync()
     {
-        if (await Connections.SaveAllAsync()) CloseRequested?.Invoke();
+        if (!await Connections.SaveAllAsync()) return;
+        // A General change made while the profiles saved is queued behind them; close once it is saved too.
+        await persistence.WhenIdleAsync();
+        CloseRequested?.Invoke();
     }
 }

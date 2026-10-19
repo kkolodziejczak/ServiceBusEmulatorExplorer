@@ -72,6 +72,10 @@ public sealed class SettingsUnsavedEditsTests
             Find<PasswordBox>(window, "RuntimeConnection").Password = "Endpoint=sb://secondary-runtime.example/;SharedAccessKeyName=Root;SharedAccessKey=secret";
             Settle();
             Assert.Equal(Visibility.Collapsed, tabBadge.Visibility);
+
+            Find<PasswordBox>(window, "AdministrationConnection").Password = Administration;
+            Settle();
+            Assert.Equal("Modified", AutomationProperties.GetItemStatus(row));
         }
         finally { Dismiss(window); }
     });
@@ -134,6 +138,7 @@ public sealed class SettingsUnsavedEditsTests
             AutomationPress.Press(Find<Button>(window, "DoneButton"));
             WaitUntil(() => Find<TextBlock>(window, "ProfileStatus").Text.Length > 0);
 
+            Assert.Equal("Profile name is required.", Find<TextBlock>(window, "ProfileStatus").Text);
             Assert.True(window.IsVisible);
             Assert.Same(Find<TabItem>(window, "ConnectionsTab"), Find<TabControl>(window, "SettingsTabs").SelectedItem);
         }

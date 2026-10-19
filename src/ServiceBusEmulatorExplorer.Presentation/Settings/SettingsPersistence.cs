@@ -12,6 +12,7 @@ public sealed class SettingsPersistence : ObservableObject
     private readonly Func<WorkspacePreferences, Task> saveAsync;
     private readonly SemaphoreSlim gate = new(1, 1);
     private int pending;
+    private TaskCompletionSource? idle;
 
     public SettingsPersistence(WorkspacePreferences saved, Func<WorkspacePreferences, Task> saveAsync)
     {
@@ -26,6 +27,14 @@ public sealed class SettingsPersistence : ObservableObject
 
     /// <summary>True from the moment a save is requested until it, and every save queued behind it, has finished.</summary>
     public bool IsSaving => pending > 0;
+
+    /// <summary>Completes once nothing is saving, including saves queued after this call.</summary>
+    public Task WhenIdleAsync()
+    {
+        if (!IsSaving) return Task.CompletedTask;
+        idle ??= new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        return idle.Task;
+    }
 
     /// <summary>
     /// Waits for earlier saves, applies <paramref name="update"/> to the preferences they left, and keeps the result only
@@ -59,6 +68,11 @@ public sealed class SettingsPersistence : ObservableObject
     {
         bool wasSaving = IsSaving;
         pending += change;
-        if (wasSaving != IsSaving) OnPropertyChanged(nameof(IsSaving));
+        if (wasSaving == IsSaving) return;
+        OnPropertyChanged(nameof(IsSaving));
+        if (IsSaving || idle is null) return;
+        TaskCompletionSource drained = idle;
+        idle = null;
+        drained.SetResult();
     }
 }

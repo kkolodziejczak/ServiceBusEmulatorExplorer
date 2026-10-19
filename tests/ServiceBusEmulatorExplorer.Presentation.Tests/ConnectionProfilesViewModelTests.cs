@@ -110,14 +110,14 @@ public sealed partial class ConnectionProfilesViewModelTests
         connections.ProfileLoaded += secrets.Show;
         connections.Start();
         var added = new List<string>();
-        var focus = new List<bool>();
+        var focus = new List<ProfileField>();
         connections.ProfileAdded += draft => added.Add(draft.Name);
-        connections.NameFocusRequested += focus.Add;
+        connections.FieldFocusRequested += focus.Add;
 
         connections.AddConnectionCommand.Execute(null);
 
         Assert.Equal(["Connection 2"], added);
-        Assert.Equal([true], focus);
+        Assert.Equal([ProfileField.Name], focus);
         Assert.Equal(4, connections.Profiles.Count);
         Assert.Same(connections.Profiles[3], connections.SelectedProfile);
         Assert.Equal("Connection 2", connections.ProfileName);
@@ -173,19 +173,19 @@ public sealed partial class ConnectionProfilesViewModelTests
     }
 
     [Fact]
-    public void An_invalid_profile_is_not_saved_and_asks_for_the_name()
+    public void An_invalid_profile_is_not_saved_and_focuses_the_invalid_field()
     {
         var (connections, secrets, saves, _) = Create(Start with { SelectedProfileId = "primary" });
         connections.ProfileLoaded += secrets.Show;
         connections.Start();
-        var focus = new List<bool>();
-        connections.NameFocusRequested += focus.Add;
+        var focus = new List<ProfileField>();
+        connections.FieldFocusRequested += focus.Add;
         secrets.Runtime = "not a connection string";
 
         connections.SaveProfileCommand.Execute(null);
 
         Assert.Empty(saves.Requested);
-        Assert.Equal([false], focus);
+        Assert.Equal([ProfileField.RuntimeConnection], focus);
         Assert.Equal(string.Join(" ", ConnectionProfileValidator.Validate(new ConnectionProfile("Primary", "not a connection string", PrimaryAdmin)).Errors),
             connections.Status);
         Assert.True(connections.IsEditable);

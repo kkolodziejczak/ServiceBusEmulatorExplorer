@@ -55,7 +55,7 @@ public partial class SettingsWindow : Window, IConnectionSecrets
         viewModel.Licences.NoticeShown += () => LicenceText.ScrollToHome();
         viewModel.Connections.ProfileLoaded += ShowSecrets;
         viewModel.Connections.ProfileAdded += draft => ProfilesList.ScrollIntoView(draft);
-        viewModel.Connections.NameFocusRequested += FocusProfileName;
+        viewModel.Connections.FieldFocusRequested += FocusField;
         viewModel.Connections.AttentionRequested += ShowConnections;
         viewModel.Connections.Start();
     }
@@ -85,10 +85,19 @@ public partial class SettingsWindow : Window, IConnectionSecrets
         UpdateLayout();
     }
 
-    private void FocusProfileName(bool selectAll)
+    private void FocusField(ProfileField field)
     {
-        ProfileName.Focus();
-        if (selectAll) ProfileName.SelectAll();
+        Control target = field switch
+        {
+            ProfileField.RuntimeConnection => RuntimeConnection,
+            ProfileField.AdministrationConnection => AdministrationConnection,
+            ProfileField.FullyQualifiedNamespace => FullyQualifiedNamespace,
+            _ => ProfileName
+        };
+        target.BringIntoView();
+        target.Focus();
+        if (target is TextBox text) text.SelectAll();
+        else if (target is PasswordBox password) password.SelectAll();
     }
 
     private void ConnectionString_Changed(object sender, RoutedEventArgs e)

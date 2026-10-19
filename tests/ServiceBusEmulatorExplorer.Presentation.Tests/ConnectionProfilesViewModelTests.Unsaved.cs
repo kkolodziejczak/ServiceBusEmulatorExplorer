@@ -190,7 +190,7 @@ public sealed partial class ConnectionProfilesViewModelTests
         connections.WarningMessage = "Production";
         var raised = new List<string>();
         connections.AttentionRequested += () => raised.Add("attention");
-        connections.NameFocusRequested += _ => raised.Add("name");
+        connections.FieldFocusRequested += field => raised.Add(field.ToString());
 
         Task<bool> saving = connections.SaveAllAsync();
         await saves.CompleteNext();
@@ -203,7 +203,32 @@ public sealed partial class ConnectionProfilesViewModelTests
         string errors = string.Join(" ", ConnectionProfileValidator.Validate(new ConnectionProfile("Secondary", SecondaryRuntime,
             SecondaryRuntime, ConnectionAuthenticationMode.AzureCli)).Errors);
         Assert.Equal(errors, connections.Status);
-        Assert.Equal(["attention", "name"], raised);
+        Assert.Equal(["attention", nameof(ProfileField.FullyQualifiedNamespace)], raised);
+    }
+
+    [Theory]
+    [InlineData("name", ProfileField.Name)]
+    [InlineData("runtime", ProfileField.RuntimeConnection)]
+    [InlineData("administration", ProfileField.AdministrationConnection)]
+    [InlineData("namespace", ProfileField.FullyQualifiedNamespace)]
+    public void Saving_focuses_the_first_invalid_field(string broken, ProfileField expected)
+    {
+        var (connections, secrets, _, _) = Create(Start with { SelectedProfileId = broken == "namespace" ? "secondary" : "primary" });
+        connections.ProfileLoaded += secrets.Show;
+        connections.Start();
+        var focus = new List<ProfileField>();
+        connections.FieldFocusRequested += focus.Add;
+
+        switch (broken)
+        {
+            case "name": connections.ProfileName = " "; break;
+            case "runtime": secrets.Runtime = string.Empty; break;
+            case "administration": secrets.Administration = "not a connection string"; break;
+            default: connections.FullyQualifiedNamespace = "https://orders"; break;
+        }
+        connections.SaveProfileCommand.Execute(null);
+
+        Assert.Equal([expected], focus);
     }
 
     [Fact]

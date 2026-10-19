@@ -114,6 +114,28 @@ public sealed class SettingsPersistenceTests
         Assert.False(persistence.IsSaving);
     }
 
+    [Fact]
+    public async Task Waiting_for_idle_includes_saves_queued_while_waiting()
+    {
+        var first = new TaskCompletionSource();
+        var second = new TaskCompletionSource();
+        var saves = new Queue<Task>([first.Task, second.Task]);
+        var persistence = new SettingsPersistence(new WorkspacePreferences(), _ => saves.Dequeue());
+        Assert.True(persistence.WhenIdleAsync().IsCompleted);
+
+        Task saving = persistence.SaveAsync(current => current with { QueuePageSize = 100 });
+        Task idle = persistence.WhenIdleAsync();
+        Task queued = persistence.SaveAsync(current => current with { TopicPageSize = 100 });
+        first.SetResult();
+        await saving;
+        Assert.False(idle.IsCompleted);
+
+        second.SetResult();
+        await queued;
+        await idle;
+        Assert.False(persistence.IsSaving);
+    }
+
     private static async Task WaitUntil(Func<bool> condition)
     {
         DateTime deadline = DateTime.UtcNow.AddSeconds(5);

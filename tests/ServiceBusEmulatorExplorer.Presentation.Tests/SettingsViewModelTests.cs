@@ -115,6 +115,46 @@ public sealed class SettingsViewModelTests
     }
 
     [Fact]
+    public async Task Choosing_Save_closes_only_after_a_General_change_queued_behind_it_is_saved()
+    {
+        var held = new Queue<TaskCompletionSource>();
+        var settings = Started(_ => { var save = new TaskCompletionSource(); held.Enqueue(save); return save.Task; });
+        settings.ConfirmUnsavedChanges = _ => UnsavedChangesChoice.Save;
+        int closeRequests = 0;
+        settings.CloseRequested += () => closeRequests++;
+        settings.Connections.WarningMessage = "Production";
+
+        Assert.False(settings.CanClose());
+        settings.General.QueuePageSize = 200;
+        held.Dequeue().SetResult();
+        await Task.Yield();
+        Assert.Equal(0, closeRequests);
+
+        held.Dequeue().SetResult();
+        await Task.Yield();
+        await Task.Yield();
+        Assert.Equal(1, closeRequests);
+        Assert.True(settings.CanClose());
+    }
+
+    [Fact]
+    public async Task Choosing_Save_keeps_the_window_open_when_the_write_fails()
+    {
+        var settings = Started(_ => Task.FromException(new InvalidOperationException("disk full")));
+        settings.ConfirmUnsavedChanges = _ => UnsavedChangesChoice.Save;
+        int closeRequests = 0;
+        settings.CloseRequested += () => closeRequests++;
+        settings.Connections.WarningMessage = "Production";
+
+        Assert.False(settings.CanClose());
+        await Task.Yield();
+
+        Assert.Equal(0, closeRequests);
+        Assert.Equal("Could not save profiles: disk full", settings.Connections.Status);
+        Assert.True(settings.Connections.HasUnsavedChanges);
+    }
+
+    [Fact]
     public async Task Choosing_Save_with_an_invalid_profile_keeps_the_window_open()
     {
         var settings = Started();
@@ -127,7 +167,7 @@ public sealed class SettingsViewModelTests
         await Task.Yield();
 
         Assert.Equal(0, closeRequests);
-        Assert.NotEqual(string.Empty, settings.Connections.Status);
+        Assert.Equal("Profile name is required.", settings.Connections.Status);
     }
 
     private static SettingsViewModel Started(Func<WorkspacePreferences, Task>? saveAsync = null)

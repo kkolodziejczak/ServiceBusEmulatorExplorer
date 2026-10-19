@@ -7,6 +7,15 @@ using ServiceBusEmulatorExplorer.Core.Investigation;
 
 namespace ServiceBusEmulatorExplorer.Presentation.Settings;
 
+/// <summary>An editor field of the Connections tab that the view can focus.</summary>
+public enum ProfileField
+{
+    Name,
+    RuntimeConnection,
+    AdministrationConnection,
+    FullyQualifiedNamespace
+}
+
 /// <summary>
 /// The Connections tab of Settings: one editor for the selected profile, a draft kept per profile while switching,
 /// a Modified mark on each profile with unsaved edits, validation before saving, and exact copies of the typed
@@ -60,8 +69,8 @@ public sealed class ConnectionProfilesViewModel : ObservableObject
     /// <summary>Raised when a new connection is added and selected, so the view can scroll it into view.</summary>
     public event Action<ProfileDraft>? ProfileAdded;
 
-    /// <summary>Raised when the profile name needs attention; <c>true</c> also selects its text.</summary>
-    public event Action<bool>? NameFocusRequested;
+    /// <summary>Raised when a field needs attention: a new connection's name, or the first field a save found invalid.</summary>
+    public event Action<ProfileField>? FieldFocusRequested;
 
     /// <summary>Raised when saving every profile at once left one unsaved, so the view can show this tab.</summary>
     public event Action? AttentionRequested;
@@ -240,8 +249,7 @@ public sealed class ConnectionProfilesViewModel : ObservableObject
         if (invalid is null) return true;
         AttentionRequested?.Invoke();
         SelectedProfile = invalid;
-        Status = string.Join(" ", validation.Errors);
-        NameFocusRequested?.Invoke(false);
+        ShowInvalid(validation);
         return false;
     }
 
@@ -302,7 +310,7 @@ public sealed class ConnectionProfilesViewModel : ObservableObject
         Profiles.Add(draft);
         SelectedProfile = draft;
         ProfileAdded?.Invoke(draft);
-        NameFocusRequested?.Invoke(true);
+        FieldFocusRequested?.Invoke(ProfileField.Name);
     }
 
     private void Copy(string secret, string label)
@@ -328,8 +336,7 @@ public sealed class ConnectionProfilesViewModel : ObservableObject
         var validation = ConnectionProfileValidator.Validate(profile.Connection);
         if (!validation.IsValid)
         {
-            Status = string.Join(" ", validation.Errors);
-            NameFocusRequested?.Invoke(false);
+            ShowInvalid(validation);
             return;
         }
 
@@ -343,6 +350,20 @@ public sealed class ConnectionProfilesViewModel : ObservableObject
             if (ReferenceEquals(editing, editor)) Status = $"Could not save profile: {exception.Message}";
         }
     }
+
+    /// <summary>Shows every error and focuses the field of the first, as actionable validation asks (DEC-013).</summary>
+    private void ShowInvalid(ValidationResult validation)
+    {
+        Status = string.Join(" ", validation.Errors);
+        FieldFocusRequested?.Invoke(FirstInvalidField(validation.Errors[0]));
+    }
+
+    /// <summary>The field an error is about; <see cref="ConnectionProfileValidator"/> starts each error with its field's label.</summary>
+    private static ProfileField FirstInvalidField(string error) =>
+        error.StartsWith("Runtime connection string", StringComparison.Ordinal) ? ProfileField.RuntimeConnection
+        : error.StartsWith("Administration connection string", StringComparison.Ordinal) ? ProfileField.AdministrationConnection
+        : error.StartsWith("Fully qualified namespace", StringComparison.Ordinal) ? ProfileField.FullyQualifiedNamespace
+        : ProfileField.Name;
 
     /// <summary>Writes the given profiles in one save, replacing saved ones by ID and appending new ones, then clears their marks.</summary>
     private async Task SaveAsync(IReadOnlyList<(ProfileDraft Draft, InvestigationProfile Profile)> changes)
