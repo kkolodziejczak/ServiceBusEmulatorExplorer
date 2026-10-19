@@ -1,11 +1,12 @@
-using ServiceBusEmulatorExplorer.Core.Investigation;
+namespace ServiceBusEmulatorExplorer.Core.Investigation;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
-
-/// <summary>A side-effect-free review candidate. Only the workspace can prepare one.</summary>
+/// <summary>
+/// A side-effect-free review candidate: the delivery, its payload and the reserved replay ID, frozen when the
+/// workspace prepared it. Reviewing it sends nothing; only the workspace sends it.
+/// </summary>
 public sealed class PreparedReplay
 {
-    internal PreparedReplay(string profileId, string namespaceFingerprint, MessageDelivery delivery,
+    public PreparedReplay(string profileId, string namespaceFingerprint, MessageDelivery delivery,
         ReplayReservation reservation, string? editedBody)
     {
         ProfileId = profileId;
