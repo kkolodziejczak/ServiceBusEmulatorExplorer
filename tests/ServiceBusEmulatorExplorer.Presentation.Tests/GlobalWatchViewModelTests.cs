@@ -36,6 +36,7 @@ public sealed class GlobalWatchViewModelTests
         Assert.True(topic.IsEmphasized);
         Assert.True(watch.Items[0].IsEmphasized);
         Assert.False(watch.Items[0].Children[0].IsEmphasized);
+        Assert.All(topic.Children, subscription => Assert.False(subscription.IsEmphasized));
     }
 
     [Fact]
@@ -147,10 +148,13 @@ public sealed class GlobalWatchViewModelTests
         WatchEntityItem matchedGroup = Assert.Single(watch.Items);
         Assert.Equal(["billing", "audit"], matchedGroup.Children.Single().Children.Select(item => item.Node.Name));
 
+        var announced = new List<string?>();
+        watch.PropertyChanged += (_, e) => announced.Add(e.PropertyName);
         watch.SearchText = "not-an-entity";
 
         Assert.Empty(watch.Items);
         Assert.True(watch.HasNoMatches);
+        Assert.Contains(nameof(GlobalWatchViewModel.HasNoMatches), announced);
     }
 
     [Fact]
