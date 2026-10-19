@@ -127,13 +127,11 @@ public sealed class SettingsViewModelTests
         Assert.False(settings.CanClose());
         settings.General.QueuePageSize = 200;
         held.Dequeue().SetResult();
-        await Task.Yield();
+        await WaitUntil(() => held.Count == 1);
         Assert.Equal(0, closeRequests);
 
         held.Dequeue().SetResult();
-        await Task.Yield();
-        await Task.Yield();
-        Assert.Equal(1, closeRequests);
+        await WaitUntil(() => closeRequests == 1);
         Assert.True(settings.CanClose());
     }
 
@@ -150,10 +148,11 @@ public sealed class SettingsViewModelTests
         Assert.False(settings.CanClose());
         settings.General.QueuePageSize = 200;
         held.Dequeue().SetResult();
-        await Task.Yield();
+        await WaitUntil(() => held.Count == 1);
         held.Dequeue().SetException(new InvalidOperationException("disk full"));
-        await Task.Yield();
-        await Task.Yield();
+        await WaitUntil(() => settings.DoneCommand.CanExecute(null));
+        // The close decision runs just after saving ends; give it time to (wrongly) happen.
+        await Task.Delay(100);
 
         Assert.Equal(0, closeRequests);
         Assert.Equal(25, settings.SavedPreferences.QueuePageSize);
@@ -191,6 +190,16 @@ public sealed class SettingsViewModelTests
 
         Assert.Equal(0, closeRequests);
         Assert.Equal("Profile name is required.", settings.Connections.Status);
+    }
+
+    private static async Task WaitUntil(Func<bool> condition)
+    {
+        DateTime deadline = DateTime.UtcNow.AddSeconds(5);
+        while (!condition())
+        {
+            if (DateTime.UtcNow >= deadline) throw new TimeoutException("Settings did not reach the expected state.");
+            await Task.Delay(10);
+        }
     }
 
     private static SettingsViewModel Started(Func<WorkspacePreferences, Task>? saveAsync = null)
