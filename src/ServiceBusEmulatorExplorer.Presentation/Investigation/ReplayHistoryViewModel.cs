@@ -52,14 +52,16 @@ public sealed class ReplayHistoryViewModel : ObservableObject, IDisposable
         this.checkStatus = checkStatus;
         this.copyText = copyText;
         this.onUiThread = onUiThread;
-        FindAllCommand = new RelayCommand(() => _ = RunAsync(FindAllAsync), CanUseBroker);
-        CheckStatusCommand = new RelayCommand(() => _ = RunAsync(this.checkStatus), CanUseBroker);
-        FindReplayCommand = new RelayCommand<ReplayHistoryRow>(row => _ = FindReplayAsync(row));
-        FindOriginalCommand = new RelayCommand<ReplayHistoryRow>(row => _ = FindOriginalAsync(row));
+        // Async lambdas, like the event handlers they replace: an unexpected failure outside RunAsync's own handling
+        // surfaces on the UI thread instead of disappearing with a discarded task.
+        FindAllCommand = new RelayCommand(async () => await RunAsync(FindAllAsync), CanUseBroker);
+        CheckStatusCommand = new RelayCommand(async () => await RunAsync(this.checkStatus), CanUseBroker);
+        FindReplayCommand = new RelayCommand<ReplayHistoryRow>(async row => await FindReplayAsync(row));
+        FindOriginalCommand = new RelayCommand<ReplayHistoryRow>(async row => await FindOriginalAsync(row));
         CopyOriginalIdCommand = new RelayCommand<ReplayHistoryRow>(row => CopyId(row?.OriginalMessageId));
         CopyReplayIdCommand = new RelayCommand<ReplayHistoryRow>(row => CopyId(row?.MessageId));
-        RemoveCommand = new RelayCommand<ReplayHistoryRow>(row => _ = RemoveAsync(row));
-        DeleteOriginalCommand = new RelayCommand<ReplayHistoryRow>(row => _ = DeleteOriginalAsync(row));
+        RemoveCommand = new RelayCommand<ReplayHistoryRow>(async row => await RemoveAsync(row));
+        DeleteOriginalCommand = new RelayCommand<ReplayHistoryRow>(async row => await DeleteOriginalAsync(row));
         source.PropertyChanged += SourceChanged;
         Refresh();
     }

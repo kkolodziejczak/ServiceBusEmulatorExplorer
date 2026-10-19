@@ -97,6 +97,21 @@ public sealed class ReplayHistoryViewModelTests
     }
 
     [Fact]
+    public void Switching_profile_follows_its_name_colour_and_history()
+    {
+        var history = new FakeHistory(Attempt(1));
+        var viewModel = Open(history);
+
+        history.Select(new InvestigationProfile("payments", ConnectionProfileDefaults.LocalEmulator with { Name = "Payments" }, "#C2185B"));
+        history.Attempts.Clear();
+        history.Announce(nameof(IReplayHistorySource.SelectedProfile));
+
+        Assert.Equal("#C2185B", viewModel.ProfileColorHex);
+        Assert.Equal("Payments · 0 attempts", viewModel.Summary);
+        Assert.Empty(viewModel.Rows);
+    }
+
+    [Fact]
     public void Other_workspace_changes_are_ignored()
     {
         var history = new FakeHistory(Attempt(1));
@@ -260,12 +275,15 @@ public sealed class ReplayHistoryViewModelTests
         history.Removable.Add(attempt.AttemptId);
         var questions = new List<string>();
         var viewModel = Open(history);
-        viewModel.ConfirmRemove = question => { questions.Add(question); return confirmed; };
+        bool idleWhileAsking = true;
+        viewModel.ConfirmRemove = question => { questions.Add(question); idleWhileAsking = viewModel.IsIdle; return confirmed; };
 
         viewModel.RemoveCommand.Execute(viewModel.Rows[0]);
 
         Assert.Equal(["Remove this replay from local history?\n\norder-1-replay-1\n\nNo Service Bus messages will be deleted. Internal replay safety records remain."], questions);
+        Assert.False(idleWhileAsking);
         Assert.Equal(removed ? [attempt] : [], history.Removed);
+        Assert.Equal(removed ? 0 : 1, viewModel.Rows.Count);
         Assert.True(viewModel.IsIdle);
     }
 
@@ -343,7 +361,7 @@ public sealed class ReplayHistoryViewModelTests
     /// <summary>Stands in for the investigation workspace and records the history changes asked of it.</summary>
     private sealed class FakeHistory(params ReplayAttempt[] attempts) : ObservableObject, IReplayHistorySource
     {
-        private static readonly InvestigationProfile Profile = new("local", ConnectionProfileDefaults.LocalEmulator with { Name = "Local" }, "#0069FA");
+        private InvestigationProfile profile = new("local", ConnectionProfileDefaults.LocalEmulator with { Name = "Local" }, "#0069FA");
 
         public List<ReplayAttempt> Attempts { get; } = [.. attempts];
 
@@ -357,9 +375,9 @@ public sealed class ReplayHistoryViewModelTests
 
         public bool RemoveResult { get; init; } = true;
 
-        public WorkspacePreferences Preferences { get; } = new() { Profiles = [Profile], SelectedProfileId = Profile.Id };
+        public WorkspacePreferences Preferences => new() { Profiles = [profile], SelectedProfileId = profile.Id };
 
-        public InvestigationProfile SelectedProfile => Profile;
+        public InvestigationProfile SelectedProfile => profile;
 
         public bool IsConnected { get; set; } = true;
 
@@ -371,11 +389,17 @@ public sealed class ReplayHistoryViewModelTests
 
         public Task<bool> RemoveReplayHistoryAsync(ReplayAttempt requested, CancellationToken cancellationToken = default)
         {
-            if (RemoveResult) Removed.Add(requested);
+            if (RemoveResult)
+            {
+                Removed.Add(requested);
+                Attempts.RemoveAll(attempt => attempt.AttemptId == requested.AttemptId);
+            }
             return Task.FromResult(RemoveResult);
         }
 
         public void LogWarning(string message) => Warnings.Add(message);
+
+        public void Select(InvestigationProfile selected) => profile = selected;
 
         public void Announce(string propertyName) => OnPropertyChanged(propertyName);
     }
