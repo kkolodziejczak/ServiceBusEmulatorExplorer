@@ -12,7 +12,8 @@ public sealed class SettingsPersistence : ObservableObject
     private readonly Func<WorkspacePreferences, Task> saveAsync;
     private readonly SemaphoreSlim gate = new(1, 1);
     private int pending;
-    private TaskCompletionSource? idle;
+    private TaskCompletionSource<bool>? idle;
+    private bool failedWhileWaiting;
 
     public SettingsPersistence(WorkspacePreferences saved, Func<WorkspacePreferences, Task> saveAsync)
     {
@@ -28,11 +29,19 @@ public sealed class SettingsPersistence : ObservableObject
     /// <summary>True from the moment a save is requested until it, and every save queued behind it, has finished.</summary>
     public bool IsSaving => pending > 0;
 
-    /// <summary>Completes once nothing is saving, including saves queued after this call.</summary>
-    public Task WhenIdleAsync()
+    /// <summary>
+    /// Completes once nothing is saving, including saves queued after this call: true when every save that finished
+    /// meanwhile succeeded.
+    /// </summary>
+    public Task<bool> WhenIdleAsync()
     {
-        if (!IsSaving) return Task.CompletedTask;
-        idle ??= new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!IsSaving) return Task.FromResult(true);
+        if (idle is null)
+        {
+            idle = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            failedWhileWaiting = false;
+        }
+
         return idle.Task;
     }
 
@@ -53,6 +62,11 @@ public sealed class SettingsPersistence : ObservableObject
                 await saveAsync(next);
                 Saved = next;
             }
+            catch
+            {
+                failedWhileWaiting = true;
+                throw;
+            }
             finally
             {
                 gate.Release();
@@ -71,8 +85,8 @@ public sealed class SettingsPersistence : ObservableObject
         if (wasSaving == IsSaving) return;
         OnPropertyChanged(nameof(IsSaving));
         if (IsSaving || idle is null) return;
-        TaskCompletionSource drained = idle;
+        TaskCompletionSource<bool> drained = idle;
         idle = null;
-        drained.SetResult();
+        drained.SetResult(!failedWhileWaiting);
     }
 }

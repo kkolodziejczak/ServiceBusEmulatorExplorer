@@ -138,6 +138,29 @@ public sealed class SettingsViewModelTests
     }
 
     [Fact]
+    public async Task Choosing_Save_stays_open_when_a_General_change_queued_behind_it_fails()
+    {
+        var held = new Queue<TaskCompletionSource>();
+        var settings = Started(_ => { var save = new TaskCompletionSource(); held.Enqueue(save); return save.Task; });
+        settings.ConfirmUnsavedChanges = _ => UnsavedChangesChoice.Save;
+        int closeRequests = 0;
+        settings.CloseRequested += () => closeRequests++;
+        settings.Connections.WarningMessage = "Production";
+
+        Assert.False(settings.CanClose());
+        settings.General.QueuePageSize = 200;
+        held.Dequeue().SetResult();
+        await Task.Yield();
+        held.Dequeue().SetException(new InvalidOperationException("disk full"));
+        await Task.Yield();
+        await Task.Yield();
+
+        Assert.Equal(0, closeRequests);
+        Assert.Equal(25, settings.SavedPreferences.QueuePageSize);
+        Assert.False(settings.Connections.HasUnsavedChanges);
+    }
+
+    [Fact]
     public async Task Choosing_Save_keeps_the_window_open_when_the_write_fails()
     {
         var settings = Started(_ => Task.FromException(new InvalidOperationException("disk full")));

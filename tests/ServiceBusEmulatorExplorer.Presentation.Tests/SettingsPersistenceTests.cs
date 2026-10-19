@@ -121,10 +121,10 @@ public sealed class SettingsPersistenceTests
         var second = new TaskCompletionSource();
         var saves = new Queue<Task>([first.Task, second.Task]);
         var persistence = new SettingsPersistence(new WorkspacePreferences(), _ => saves.Dequeue());
-        Assert.True(persistence.WhenIdleAsync().IsCompleted);
+        Assert.True(await persistence.WhenIdleAsync());
 
         Task saving = persistence.SaveAsync(current => current with { QueuePageSize = 100 });
-        Task idle = persistence.WhenIdleAsync();
+        Task<bool> idle = persistence.WhenIdleAsync();
         Task queued = persistence.SaveAsync(current => current with { TopicPageSize = 100 });
         first.SetResult();
         await saving;
@@ -132,8 +132,28 @@ public sealed class SettingsPersistenceTests
 
         second.SetResult();
         await queued;
-        await idle;
+        Assert.True(await idle);
         Assert.False(persistence.IsSaving);
+    }
+
+    [Fact]
+    public async Task Waiting_for_idle_reports_a_save_that_failed_meanwhile()
+    {
+        var first = new TaskCompletionSource();
+        var second = new TaskCompletionSource();
+        var saves = new Queue<Task>([first.Task, second.Task]);
+        var persistence = new SettingsPersistence(new WorkspacePreferences(), _ => saves.Dequeue());
+
+        Task saving = persistence.SaveAsync(current => current with { QueuePageSize = 100 });
+        Task<bool> idle = persistence.WhenIdleAsync();
+        Task failing = persistence.SaveAsync(current => current with { TopicPageSize = 100 });
+        first.SetResult();
+        second.SetException(new InvalidOperationException("disk full"));
+        await saving;
+        await Assert.ThrowsAsync<InvalidOperationException>(() => failing);
+
+        Assert.False(await idle);
+        Assert.True(await persistence.WhenIdleAsync());
     }
 
     private static async Task WaitUntil(Func<bool> condition)
