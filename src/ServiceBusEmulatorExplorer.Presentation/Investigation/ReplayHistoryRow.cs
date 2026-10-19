@@ -1,7 +1,7 @@
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 public sealed record ReplayHistoryRow(ReplayAttempt Attempt, WorkspacePreferences Preferences, bool CanRemove = false,
     bool BrokerAvailable = true, bool CanDeleteOriginal = false)
@@ -56,7 +56,7 @@ public sealed record ReplayHistoryRow(ReplayAttempt Attempt, WorkspacePreference
     {
         get
         {
-            string diagnostic = ReplaySendDiagnostics.Describe(Attempt.SendFailure);
+            string diagnostic = Describe(Attempt.SendFailure);
             if (diagnostic.Length > 0) return diagnostic;
             if (Attempt.Observation is not { } observation) return "";
             return !observation.IsComplete ? "Scan incomplete. " + (observation.Limitation ?? "Absence has not been established.")
@@ -75,7 +75,7 @@ public sealed record ReplayHistoryRow(ReplayAttempt Attempt, WorkspacePreference
     {
         get
         {
-            string diagnostic = ReplaySendDiagnostics.Describe(Attempt.SendFailure);
+            string diagnostic = Describe(Attempt.SendFailure);
             string send = SendSummary + ". " + (diagnostic.Length == 0 ? "" : diagnostic + "\n");
             if (Attempt.Observation is not { } observation) return send + "Active/DLQ status has not been checked. Check before manually retrying.";
             string result = observation.IsAbsent ? "Not found in active messages or DLQ during the last complete scan. API processing is not verified."
@@ -89,6 +89,20 @@ public sealed record ReplayHistoryRow(ReplayAttempt Attempt, WorkspacePreference
                 + "\nLast observation only; pending topic schedules and forwarding outside this namespace are not covered.";
         }
     }
+    /// <summary>User-facing text for the allowlisted failure category saved with an attempt; never exception text.</summary>
+    private static string Describe(ReplaySendFailure failure) => failure switch
+    {
+        ReplaySendFailure.Cancelled => "Send cancelled or connection changed. Check status before retrying.",
+        ReplaySendFailure.Timeout => "Send timed out. Check status before retrying.",
+        ReplaySendFailure.Authorization => "Authorization failed. Check the connection credentials and permissions.",
+        ReplaySendFailure.EntityUnavailable => "Destination unavailable. Check the destination entity.",
+        ReplaySendFailure.ServiceBusy => "Service busy. Check status before retrying.",
+        ReplaySendFailure.QuotaExceeded => "Broker quota exceeded. Check destination capacity.",
+        ReplaySendFailure.Transport => "Transport error. Check the connection and status before retrying.",
+        ReplaySendFailure.Unknown => "Send failed. Check the connection and status before retrying.",
+        _ => ""
+    };
+
     private string Format(DateTimeOffset instant, bool multiline = false)
     {
         var value = Preferences.TimestampDisplay == TimestampDisplay.Utc ? instant.ToUniversalTime() : instant.ToLocalTime();

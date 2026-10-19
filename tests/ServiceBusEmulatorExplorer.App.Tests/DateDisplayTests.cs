@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using ServiceBusEmulatorExplorer.App.Investigation;
 using ServiceBusEmulatorExplorer.App.Investigation.Settings;
 using ServiceBusEmulatorExplorer.Core.Investigation;
+using ServiceBusEmulatorExplorer.Presentation;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
