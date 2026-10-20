@@ -17,14 +17,14 @@ public partial class MessageLibraryPrototypeView
     {
         if (tag is null) return;
         string sourceFolder = tag.StartsWith("folder:", StringComparison.Ordinal) ? LibraryFolders.Parent(tag[7..])
-            : templates.FirstOrDefault(template => "template:" + template.Name == tag)?.Folder ?? "";
-        var dialog = new TemplateLocationDialog("Move to", tag, folders, sourceFolder,
+            : library.Templates.FirstOrDefault(template => "template:" + template.Name == tag)?.Folder ?? "";
+        var dialog = new TemplateLocationDialog("Move to", tag, library.Folders, sourceFolder,
             (_, destination) => ValidateLibraryMove(tag, destination), moving: true) { Owner = Window.GetWindow(this) };
         if (dialog.ShowDialog() == true) MoveLibraryItem(tag, dialog.FolderPath);
     }
 
     private string? ValidateLibraryMove(string tag, string destination) =>
-        LibraryFolders.MoveProblem(tag, destination, folders, templates.Select(template => template.Name));
+        LibraryFolders.MoveProblem(tag, destination, library.Folders, library.TemplateNames);
 
     private void MoveLibraryItem(string tag, string destination)
     {
@@ -32,8 +32,7 @@ public partial class MessageLibraryPrototypeView
         CancelRename();
         if (tag.StartsWith("template:", StringComparison.Ordinal))
         {
-            int index = templates.FindIndex(template => template.Name == tag[9..]);
-            templates[index] = templates[index] with { Folder = destination };
+            library.MoveTemplate(tag[9..], destination);
             if (selectedTemplateName == tag[9..]) editorFolder = destination;
             revealedTemplateName = tag[9..];
             selectedLibraryTag = tag;
@@ -42,7 +41,7 @@ public partial class MessageLibraryPrototypeView
         {
             string replacement = LibraryFolders.Join(destination, LibraryFolders.Name(tag[7..]));
             RelocateFolder(tag[7..], replacement);
-            createdFolders.Add(replacement);
+            library.MarkCreated(replacement);
             selectedLibraryTag = "folder:" + replacement;
         }
         selectedFolder = destination.Length == 0 ? null : destination;
@@ -98,7 +97,7 @@ public partial class MessageLibraryPrototypeView
         string? targetTag = target?.Tag as string;
         destination = targetTag?.StartsWith("folder:", StringComparison.Ordinal) == true ? targetTag[7..]
             : targetTag?.StartsWith("template:", StringComparison.Ordinal) == true
-                ? templates.FirstOrDefault(template => template.Name == targetTag[9..])?.Folder ?? "" : "";
+                ? library.Find(targetTag[9..])?.Folder ?? "" : "";
         return drag?.Owner == this && ValidateLibraryMove(drag.Tag, destination) is null;
     }
 
