@@ -13,9 +13,10 @@ using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
-public partial class InvestigationWindow : Window
+public partial class InvestigationWindow : Window, IMessageActionsHost
 {
     private readonly InvestigationWorkspace workspace;
+    private readonly MessageActionsViewModel actions;
     private readonly AutoRefreshTimer refreshTimer;
     private readonly Action<string> copyText;
     private bool ready;
@@ -39,6 +40,8 @@ public partial class InvestigationWindow : Window
         this.workspace = workspace;
         this.createTray = createTray ?? ((open, exit) => new InvestigationTray(open, exit));
         this.copyText = copyText ?? Clipboard.SetText;
+        actions = new MessageActionsViewModel(workspace, this);
+        actions.PropertyChanged += ActionsChanged;
         refreshTimer = new(workspace.Clock, tick => Dispatcher.BeginInvoke(DispatcherPriority.Background, tick));
         InitializeComponent();
         MessageLibraryPrototype.ConnectionRepairRequested += () => ConnectionButton.Focus();
