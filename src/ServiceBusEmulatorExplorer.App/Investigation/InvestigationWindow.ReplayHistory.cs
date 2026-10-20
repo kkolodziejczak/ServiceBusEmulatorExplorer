@@ -6,7 +6,6 @@ namespace ServiceBusEmulatorExplorer.App.Investigation;
 public partial class InvestigationWindow
 {
     private ReplayHistoryWindow? replayHistoryWindow;
-    private string? replaySearchQuery;
 
     private void ReplayHistory_Click(object sender, RoutedEventArgs e) => ShowReplayHistory();
     private void ShowReplayHistory()
@@ -22,8 +21,7 @@ public partial class InvestigationWindow
     {
         if (ids.Count == 0 || !workspace.IsConnected) return;
         SelectWorkspaceTab(false);
-        replaySearchQuery = string.Join(" OR ", ids.Distinct(StringComparer.Ordinal).Select(id => "message:" + MessageSearchQuery.QuoteLiteral(id)));
-        SearchBox.Text = replaySearchQuery;
+        SearchBox.Text = searchSurface.QueryForReplays(ids);
         await BeginGlobalSearchAsync(true);
     }
 
@@ -31,8 +29,7 @@ public partial class InvestigationWindow
     {
         if (!workspace.IsConnected || !workspace.CurrentReplayHistory.Any(item => item.AttemptId == attempt.AttemptId)) return;
         SelectWorkspaceTab(false);
-        replaySearchQuery = null;
-        SearchBox.Text = "message:" + MessageSearchQuery.QuoteLiteral(attempt.OriginalMessageId);
+        SearchBox.Text = searchSurface.QueryForOriginal(attempt.OriginalMessageId);
         await BeginGlobalSearchAsync(true);
     }
 
