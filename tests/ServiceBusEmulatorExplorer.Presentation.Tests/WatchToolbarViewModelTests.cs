@@ -135,15 +135,19 @@ public sealed class WatchToolbarViewModelTests
     {
         await using var fixture = await WorkspaceFixture.OpenAsync();
         var watch = new WatchToolbarViewModel(fixture.Workspace);
+        await watch.SetScopeAsync(fixture.Queue, deadLetter: true, enabled: true);
         fixture.Store.BeforeSave = () => throw new IOException("disk full");
         var rules = watch.CreateRules();
+        rules.SetScope(fixture.Queue, deadLetter: true, enabled: false);
         rules.SetScope(fixture.Queue, deadLetter: false, enabled: true);
 
         Assert.False(await watch.SaveAsync("profile", rules));
 
         Assert.Contains(SaveFailure, fixture.Log);
         Assert.False(watch.IsSaving);
-        Assert.Equal(0, watch.StateFor(watch.CreateRules()).WatchedCount);
+        var kept = watch.CreateRules();
+        Assert.True(kept.IsWatched(fixture.Queue, deadLetter: true));
+        Assert.False(kept.IsWatched(fixture.Queue, deadLetter: false));
     }
 
     [Fact]
