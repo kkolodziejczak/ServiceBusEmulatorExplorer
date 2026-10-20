@@ -14,7 +14,7 @@ using ServiceBusEmulatorExplorer.Presentation.Investigation.Inspection;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
-public partial class InvestigationWindow : Window, IMessageActionsHost
+public partial class InvestigationWindow : Window, IMessageActionsHost, IWatchNotificationHost
 {
     private readonly InvestigationWorkspace workspace;
     private readonly MessageActionsViewModel actions;
@@ -23,6 +23,7 @@ public partial class InvestigationWindow : Window, IMessageActionsHost
     private readonly NamespaceScopeViewModel namespaceScope;
     private readonly MessageColumnsViewModel columns;
     private readonly InspectorPanelViewModel inspectorPanel;
+    private readonly WatchNotificationsViewModel watchNotifications;
     private readonly AutoRefreshTimer refreshTimer;
     private readonly Action<string> copyText;
     private bool ready;
@@ -55,6 +56,8 @@ public partial class InvestigationWindow : Window, IMessageActionsHost
         columns = new MessageColumnsViewModel(workspace);
         columns.PropertyChanged += ColumnsChanged;
         inspectorPanel = new InspectorPanelViewModel(workspace, this.copyText);
+        watchNotifications = new WatchNotificationsViewModel(workspace, this);
+        watchNotifications.PropertyChanged += WatchNotificationsChanged;
         refreshTimer = new(workspace.Clock, tick => Dispatcher.BeginInvoke(DispatcherPriority.Background, tick));
         InitializeComponent();
         MessageLibraryPrototype.ConnectionRepairRequested += () => ConnectionButton.Focus();
