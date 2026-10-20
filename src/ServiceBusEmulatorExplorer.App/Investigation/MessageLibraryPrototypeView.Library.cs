@@ -17,11 +17,6 @@ public partial class MessageLibraryPrototypeView
     private string? revealedTemplateName;
     private TextBox? activeRenameInput;
 
-    private bool IsFolderVisible(string path, IReadOnlyList<PrototypeTemplate> visible) =>
-        (namespaceQuery.Length == 0 && TemplateSearch.Text.Trim().Length == 0) ||
-        visible.Any(template => LibraryFolders.IsInside(template.Folder, path)) ||
-        library.CreatedFolders.Any(created => LibraryFolders.IsInside(created, path));
-
     private void UpdateTreeHeaderWidths()
     {
         if (LibraryTree.ActualWidth <= 0) return;
@@ -52,21 +47,12 @@ public partial class MessageLibraryPrototypeView
         refreshingTemplates = true;
         try
         {
-            string search = TemplateSearch.Text.Trim();
-            var matchingFolders = search.Length == 0 ? [] : library.Folders.Where(path =>
-                path.Split('/').Any(segment => segment.Contains(search, StringComparison.OrdinalIgnoreCase))).ToArray();
-            var visible = library.Templates.Where(template =>
-                (namespaceQuery.Length == 0 || TemplateAssociations(template).Any(path => path.Contains(namespaceQuery, StringComparison.OrdinalIgnoreCase))) &&
-                (search.Length == 0 || template.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                 template.Description.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                 matchingFolders.Any(path => LibraryFolders.IsInside(template.Folder, path))) ||
-                ((draftIsNew && template.Name == selectedTemplateName) || template.Name == revealedTemplateName)).ToList();
+            var nodes = WorkbenchLibraryTree.Build(library, TemplateSearch.Text.Trim(), namespaceQuery,
+                template => (draftIsNew && template.Name == selectedTemplateName) || template.Name == revealedTemplateName);
             LibraryTree.Items.Clear();
             treeRenameControls.Clear();
-            foreach (var folder in library.Folders.Where(path => !HasParentFolder(path) && IsFolderVisible(path, visible)).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
-                LibraryTree.Items.Add(CreateFolderTreeItem(folder, visible));
-            foreach (var template in visible.Where(item => string.IsNullOrEmpty(item.Folder)))
-                LibraryTree.Items.Add(CreateTemplateTreeItem(template));
+            foreach (var node in nodes)
+                LibraryTree.Items.Add(CreateTreeItem(node));
             if (selectedLibraryTag is not null && FindTreeItem(selectedLibraryTag) is { } selected)
                 selected.IsSelected = true;
             else if (selectedLibraryTag is not null)
@@ -80,25 +66,25 @@ public partial class MessageLibraryPrototypeView
         finally { refreshingTemplates = false; UpdateTreeHeaderWidths(); }
     }
 
-    private bool HasParentFolder(string path) => path.Contains('/', StringComparison.Ordinal);
-
-    private TreeViewItem CreateFolderTreeItem(string path, IReadOnlyList<PrototypeTemplate> visible)
+    private TreeViewItem CreateTreeItem(LibraryTreeNode node) => node switch
     {
-        string name = path.Split('/')[^1];
+        LibraryFolderNode folder => CreateFolderTreeItem(folder),
+        LibraryTemplateNode template => CreateTemplateTreeItem(template.Template),
+        _ => throw new ArgumentOutOfRangeException(nameof(node))
+    };
+
+    private TreeViewItem CreateFolderTreeItem(LibraryFolderNode folder)
+    {
+        string path = folder.Path;
+        string name = folder.Name;
         var item = new TreeViewItem { Tag = $"folder:{path}", IsExpanded = !collapsedFolders.Contains(path), HorizontalContentAlignment = HorizontalAlignment.Stretch };
         item.Style = (Style)FindResource("WorkbenchTreeItem");
         SetTreeItemName(item, name);
         item.Header = CreateTreeHeader(item.Tag.ToString()!, name, true);
         item.ToolTip = path;
         AddRenameMenu(item);
-        foreach (string childFolder in library.Folders.Where(candidate =>
-                     candidate.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase) &&
-                     candidate.Count(ch => ch == '/') == path.Count(ch => ch == '/') + 1 && IsFolderVisible(candidate, visible))
-                 .OrderBy(candidate => candidate, StringComparer.OrdinalIgnoreCase))
-            item.Items.Add(CreateFolderTreeItem(childFolder, visible));
-        foreach (var template in visible.Where(template => string.Equals(template.Folder, path, StringComparison.OrdinalIgnoreCase))
-                     .OrderBy(template => template.Name, StringComparer.OrdinalIgnoreCase))
-            item.Items.Add(CreateTemplateTreeItem(template));
+        foreach (var child in folder.Children)
+            item.Items.Add(CreateTreeItem(child));
         item.Expanded += (_, _) => collapsedFolders.Remove(path);
         item.Collapsed += (_, _) => collapsedFolders.Add(path);
         item.PreviewMouseRightButtonDown += (_, _) => item.IsSelected = true;
