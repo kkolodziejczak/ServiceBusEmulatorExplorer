@@ -3,38 +3,26 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.Presentation.Workbench;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
 public partial class MessageLibraryPrototypeView
 {
-    private static readonly WorkbenchDestination[] SampleDestinations =
-        [new("order-events", EntityKind.Topic), new("inventory-events", EntityKind.Topic), new("order-replies", EntityKind.Queue)];
+    private readonly WorkbenchDestinationsViewModel destinations = new();
     public event Action? ConnectionRepairRequested;
-    private bool syntheticDestinations = true;
-    private string? destinationProfileId;
-    private long destinationGeneration = -1;
-    private EntityDiscoverySnapshot? destinationSnapshot;
     private EntityKind currentDestinationKind = EntityKind.Topic;
-    private string destinationEndpoint = "localhost";
+
+    private WorkbenchDestination CurrentDestination => new(currentAssociation, currentDestinationKind);
 
     public void SetDestinationDiscovery(string profileId, long generation, EntityDiscoverySnapshot? snapshot, string endpoint = "")
     {
-        if (generation < destinationGeneration) return;
-        if (!syntheticDestinations && destinationProfileId == profileId && generation == destinationGeneration &&
-            ReferenceEquals(destinationSnapshot, snapshot) && destinationEndpoint == endpoint) return;
-        var previousStatus = DestinationStatus(currentAssociation, currentDestinationKind);
-        bool profileChanged = destinationProfileId != profileId || destinationGeneration != generation;
-        syntheticDestinations = false;
-        destinationProfileId = profileId;
-        destinationGeneration = generation;
-        destinationSnapshot = snapshot;
-        destinationEndpoint = endpoint;
+        if (destinations.ShowDiscovery(profileId, generation, snapshot, endpoint, CurrentDestination) is not { } change) return;
         UpdateDestinationControls();
         RefreshLibraryTree();
-        if (profileChanged || previousStatus != DestinationStatus(currentAssociation, currentDestinationKind))
+        if (change.ProfileChanged || change.CurrentStatusChanged)
         {
-            if (profileChanged) { lastRun = null; ViewRunResultsButton.Visibility = Visibility.Collapsed; }
+            if (change.ProfileChanged) { lastRun = null; ViewRunResultsButton.Visibility = Visibility.Collapsed; }
             InvalidatePreview();
         }
     }
@@ -43,44 +31,20 @@ public partial class MessageLibraryPrototypeView
     // discovery, so it must restore the sample destinations rather than rely on startup order.
     public void UseSampleDestinations()
     {
-        if (syntheticDestinations) return;
-        var previousStatus = DestinationStatus(currentAssociation, currentDestinationKind);
-        syntheticDestinations = true;
-        destinationProfileId = null;
-        destinationGeneration = -1;
-        destinationSnapshot = null;
-        destinationEndpoint = "localhost";
+        if (destinations.UseSamples(CurrentDestination) is not { } change) return;
         UpdateDestinationControls();
         RefreshLibraryTree();
-        if (previousStatus != DestinationStatus(currentAssociation, currentDestinationKind)) InvalidatePreview();
+        if (change.CurrentStatusChanged) InvalidatePreview();
     }
 
-    private WorkbenchDestinationStatus DestinationStatus(string name, EntityKind kind)
-    {
-        if (name.Length == 0) return WorkbenchDestinationStatus.Unset;
-        if (syntheticDestinations) return SampleDestinations.Any(item => item.Kind == kind && item.Name == name)
-            ? WorkbenchDestinationStatus.Available : WorkbenchDestinationStatus.Unverified;
-        return WorkbenchDestinationAvailability.Evaluate(new(name, kind), destinationSnapshot);
-    }
-
-    private static string DestinationWarningText(string name, WorkbenchDestinationStatus status) => status switch
-    {
-        WorkbenchDestinationStatus.Missing => $"Destination unavailable: {name}. Select an available queue or topic.",
-        WorkbenchDestinationStatus.Unverified => $"Destination not verified: {name}. Connect and refresh discovery before sending.",
-        _ => ""
-    };
+    private WorkbenchDestinationStatus DestinationStatus(string name, EntityKind kind) => destinations.StatusOf(new(name, kind));
 
     private void UpdateDestinationControls()
     {
         if (TemplateDestination is null) return;
         WorkbenchDestinationStatus status = DestinationStatus(currentAssociation, currentDestinationKind);
         selectedDestination = status == WorkbenchDestinationStatus.Available ? currentAssociation : null;
-        IEnumerable<WorkbenchDestination> discovered = syntheticDestinations ? SampleDestinations
-            : destinationSnapshot?.Entities.Where(item => item.Entity.Kind is EntityKind.Topic or EntityKind.Queue)
-                .Select(item => new WorkbenchDestination(item.Entity.Name, item.Entity.Kind)) ?? [];
-        var choices = discovered.Distinct().OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase).ToList();
-        if (currentAssociation.Length > 0 && !choices.Any(item => item.Name.Equals(currentAssociation, StringComparison.OrdinalIgnoreCase) && item.Kind == currentDestinationKind))
-            choices.Insert(0, new(currentAssociation, currentDestinationKind));
+        var choices = destinations.ChoicesFor(CurrentDestination);
         loadingDestinationSelection = true;
         try
         {
@@ -97,13 +61,7 @@ public partial class MessageLibraryPrototypeView
                 ?? TemplateDestination.Items[0];
         }
         finally { loadingDestinationSelection = false; }
-        string warning = status switch
-        {
-            WorkbenchDestinationStatus.Missing => $"{currentDestinationKind} \"{currentAssociation}\" is unavailable.\nChoose an available destination to continue.",
-            WorkbenchDestinationStatus.Unverified => $"{currentDestinationKind} \"{currentAssociation}\" is not verified.\nCheck the connection and reconnect to refresh entity discovery.",
-            WorkbenchDestinationStatus.Unset => "No destination selected.\nChoose a queue or topic to continue.",
-            _ => ""
-        };
+        string warning = WorkbenchDestinationsViewModel.NoticeFor(CurrentDestination, status);
         var visibility = status == WorkbenchDestinationStatus.Available ? Visibility.Collapsed : Visibility.Visible;
         DestinationWarning.Text = PrepareDestinationWarningText.Text = warning;
         DestinationWarning.Visibility = visibility;
@@ -112,7 +70,7 @@ public partial class MessageLibraryPrototypeView
         foreach (var action in new[] { ComposeDestinationAction, PrepareDestinationAction })
         {
             bool needsConnection = status == WorkbenchDestinationStatus.Unverified;
-            action.Content = needsConnection ? "Check connection" : "Choose destination";
+            action.Content = WorkbenchDestinationsViewModel.ActionFor(status);
             System.Windows.Automation.AutomationProperties.SetName(action, (string)action.Content);
             action.Visibility = needsConnection && ConnectionRepairRequested is null ? Visibility.Collapsed : Visibility.Visible;
         }
@@ -150,7 +108,7 @@ public partial class MessageLibraryPrototypeView
     }
     private void AddDestinationWarning(TreeViewItem item, PrototypeTemplate template)
     {
-        string warning = DestinationWarningText(template.Topic, DestinationStatus(template.Topic, template.DestinationKind));
+        string warning = WorkbenchDestinationsViewModel.LibraryWarningFor(template.Topic, DestinationStatus(template.Topic, template.DestinationKind));
         if (warning.Length == 0 || item.Header is not Grid header) return;
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var icon = new TextBlock { Text = "\u26A0", FontSize = 18, Margin = new Thickness(6, 0, 0, 0),
