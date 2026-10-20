@@ -109,6 +109,7 @@ public sealed class WorkbenchDialogRulesTests
     [InlineData("CustomerId", "Amount", false)]
     [InlineData(" ", "Amount", true)]
     [InlineData("CustomerId", "", true)]
+    [InlineData("CustomerId", "  ", true)]
     public void A_mapping_needs_both_values(string customer, string amount, bool problem) =>
         Assert.Equal(problem ? "CustomerId and Amount are required. Map a CSV column, enter a constant, or declare a default in Variables." : null,
             WorkbenchSampleData.MappingProblem(customer, amount));
