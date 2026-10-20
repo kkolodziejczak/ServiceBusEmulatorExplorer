@@ -59,9 +59,9 @@ public sealed class WorkbenchLibraryTreeTests
 
     private static WorkbenchLibrary Library() => new(
     [
-        new("order updated", "order-events", "", "{}", "Orders"),
-        new("Refund", "order-events", "", "{}", "orders/returns"),
         new("Order zeta", "order-events", "", "{}", "ORDERS"),
+        new("Refund", "order-events", "", "{}", "orders/returns"),
+        new("order updated", "order-events", "", "{}", "Orders"),
         new("Root b", "", "", "{}", ""),
         new("Root a", "inventory-events", "The first root template.", "{}", "")
     ], ["Orders", "Orders/Returns", "Orders/Returns/Late", "Orders/archive", "archive"]);
