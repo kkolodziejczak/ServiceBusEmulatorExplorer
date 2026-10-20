@@ -62,6 +62,15 @@ public static class WorkbenchSampleData
         return invalid == 0 ? $"{rows.Count} of {rows.Count} rows valid" : $"{invalid} invalid row{(invalid == 1 ? "" : "s")} · Nothing can be sent";
     }
 
+    /// <summary>The value a mapping source starts with: 0 the column of the same name, 1 a sample constant, 2 the declared default.</summary>
+    public static string MappingStartValue(int source, string column, string constant, string? declaredDefault) =>
+        source == 0 ? column : source == 1 ? constant : declaredDefault ?? "";
+
+    /// <summary>Why a mapping cannot be applied: CustomerId and Amount both need a value.</summary>
+    public static string? MappingProblem(string customerValue, string amountValue) =>
+        string.IsNullOrWhiteSpace(customerValue) || string.IsNullOrWhiteSpace(amountValue)
+            ? "CustomerId and Amount are required. Map a CSV column, enter a constant, or declare a default in Variables." : null;
+
     /// <summary>
     /// What stops a preview: a time to live that is not a positive whole number, a custom message ID that is empty or
     /// used with CSV data, or, for a single message, no CustomerId or an Amount that is not a number.
