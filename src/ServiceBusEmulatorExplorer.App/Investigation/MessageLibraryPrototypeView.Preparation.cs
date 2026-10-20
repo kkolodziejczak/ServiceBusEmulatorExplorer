@@ -24,7 +24,7 @@ public partial class MessageLibraryPrototypeView
         if (SingleOccurredAt is not null) SingleOccurredAt.Text = "Waiting for valid inputs";
     }
 
-    private bool PrepareMessages(IEnumerable<CsvPreviewRow> rows)
+    private bool PrepareMessages(IEnumerable<SampleRow> rows)
     {
         var template = new PreparationTemplate(currentBody,
             variables.Select(variable => new TemplateVariable(variable.Name, variable.Type, variable.Source, variable.HasDefault,
