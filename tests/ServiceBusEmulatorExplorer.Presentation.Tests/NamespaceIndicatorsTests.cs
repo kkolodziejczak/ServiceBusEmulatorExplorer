@@ -72,13 +72,18 @@ public sealed class NamespaceIndicatorsTests
     {
         var tree = new Tree();
         WatchTarget[] watched = [new(QueueAddress, MessageBucket.Active)];
+        Apply(tree, watched, Refresh(current: QueueAddress));
+        Assert.Equal("Running", tree.Queue.RefreshIndicator);
+        Assert.NotEqual("", tree.Queue.RefreshDetail);
 
         Apply(tree, watched, Refresh(seconds: 0, current: QueueAddress));
         Assert.Equal("None", tree.Queue.RefreshIndicator);
         Assert.Equal("", tree.Queue.RefreshDetail);
         Assert.True(tree.Queue.IsActiveWatched);
 
+        Apply(tree, watched, Refresh(current: QueueAddress));
         Apply(tree, watched, Refresh(connected: false, current: QueueAddress));
+        Assert.Equal("", tree.Queue.RefreshDetail);
         Assert.Equal("None", tree.Queue.RefreshIndicator);
         Assert.True(tree.Queue.IsActiveWatched);
         Assert.Contains("Disconnected; Watch resumes after reconnecting.", tree.Queue.ActiveCountDetail, StringComparison.Ordinal);
