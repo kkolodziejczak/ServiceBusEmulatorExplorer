@@ -16,7 +16,6 @@ public partial class InvestigationWindow
 
     private void UpdateSearchSurface()
     {
-        var search = workspace.Search;
         if (!workspace.IsConnected)
         {
             suggestions.Clear();
@@ -33,49 +32,40 @@ public partial class InvestigationWindow
             MessageLibraryPrototype.CloseLibrarySearchSuggestions();
         }
         suggestions.Track(workspace.Surface.Messages);
-        SearchStatusPanel.Visibility = search.IsActive ? Visibility.Visible : Visibility.Collapsed;
-        SearchStatusText.Text = search.Status;
-        bool complete = search.IsComplete;
+        var state = searchSurface.StateFor(ActualWidth >= 1200, SearchBox.Text,
+            MessageLibraryPrototype.Visibility == Visibility.Visible);
+        SearchStatusPanel.Visibility = state.IsSearching ? Visibility.Visible : Visibility.Collapsed;
+        SearchStatusText.Text = state.Status;
+        bool complete = state.IsComplete;
         SearchStatusPanel.Background = complete ? Brushes.Transparent : (Brush)FindResource("NeutralHoverBrush");
         SearchStatusPanel.BorderThickness = new Thickness(complete ? 0 : 1);
         SearchStatusPanel.Padding = complete ? new Thickness(0, 3, 0, 8) : new Thickness(10, 8, 10, 8);
-        StopSearchButton.IsEnabled = search.IsBusy;
-        StopSearchButton.Visibility = search.IsBusy ? Visibility.Visible : Visibility.Collapsed;
-        BrowseTabs.Visibility = search.IsActive ? Visibility.Collapsed : Visibility.Visible;
-        bool replaySearch = replaySearchQuery is not null && search.QueryText == replaySearchQuery;
-        SearchSummary.Visibility = search.IsActive && (replaySearch || ActualWidth >= 1200) ? Visibility.Visible : Visibility.Collapsed;
-        SearchSummary.Text = replaySearch ? ReplayDeliverySummary.Format(search.Messages, complete)
-            : $"{search.QueryText} · {search.Messages.Count:N0} matches{(complete ? "" : " so far")}";
-        SearchSummary.TextWrapping = replaySearch ? TextWrapping.Wrap : TextWrapping.NoWrap;
-        SearchSummary.ToolTip = search.QueryText;
-        if (replaySearch && ListHeading.Visibility != Visibility.Visible)
-            SearchStatusText.Text = $"{SearchSummary.Text}\n{search.Status}";
-        ListToolbar.Visibility = search.IsActive ? Visibility.Collapsed : Visibility.Visible;
-        NamespaceTree.ToolTip = search.IsActive && MessageLibraryPrototype.Visibility != Visibility.Visible
-            ? "Counts show matching messages found so far. Clear search to restore entity totals."
-            : null;
+        StopSearchButton.IsEnabled = state.CanStop;
+        StopSearchButton.Visibility = state.CanStop ? Visibility.Visible : Visibility.Collapsed;
+        BrowseTabs.Visibility = state.IsSearching ? Visibility.Collapsed : Visibility.Visible;
+        SearchSummary.Visibility = state.ShowsSummary ? Visibility.Visible : Visibility.Collapsed;
+        SearchSummary.Text = state.Summary;
+        SearchSummary.TextWrapping = state.IsReplaySearch ? TextWrapping.Wrap : TextWrapping.NoWrap;
+        SearchSummary.ToolTip = state.QueryText;
+        if (state.IsReplaySearch && ListHeading.Visibility != Visibility.Visible)
+            SearchStatusText.Text = state.StatusWithSummary;
+        ListToolbar.Visibility = state.IsSearching ? Visibility.Collapsed : Visibility.Visible;
+        NamespaceTree.ToolTip = state.NamespaceToolTip;
         UpdateNamespaceEmptyState();
-        LoadMoreButton.Content = search.IsActive ? "Continue" : "Load more";
-        FindRelatedButton.IsEnabled = workspace.Surface.FocusedMessage is { CorrelationId.Length: > 0 };
-        if (search.IsActive)
+        LoadMoreButton.Content = state.LoadMoreLabel;
+        FindRelatedButton.IsEnabled = state.CanFindRelated;
+        if (state.EmptyList is { } empty)
         {
-            EmptyMessage.Text = search.QueryError.Length > 0 ? "Invalid search" : search.IsBusy ? "Searching messages…"
-                : complete ? "No matching messages" : "No matches in the scanned deliveries";
-            EmptyDescription.Text = search.QueryError.Length > 0 ? search.QueryError + "\nUse OR between IDs and * to match any characters." : search.Status;
-            EmptyClearButton.Visibility = Visibility.Visible;
+            if (empty.ReplacesList)
+            {
+                EmptyResults.Visibility = Visibility.Visible;
+                MessageGrid.Visibility = Visibility.Collapsed;
+            }
+            EmptyMessage.Text = empty.Message;
+            EmptyDescription.Text = empty.Description;
+            EmptyClearButton.Visibility = empty.ShowsClear ? Visibility.Visible : Visibility.Collapsed;
         }
-        else if (workspace.Surface.Messages.Count == 0)
-        {
-            EmptyResults.Visibility = Visibility.Visible;
-            MessageGrid.Visibility = Visibility.Collapsed;
-            EmptyMessage.Text = workspace.Surface.IsBusy ? "Loading messages…"
-                : workspace.IsConnecting ? "Connecting to Service Bus…"
-                : workspace.IsConnected ? "No messages in this view" : "Connect to browse messages";
-            EmptyDescription.Text = workspace.Surface.IsBusy ? "Reading without consuming messages."
-                : workspace.IsConnecting ? "Discovering available entities." : "";
-            EmptyClearButton.Visibility = Visibility.Collapsed;
-        }
-        ClearSearchButton.Visibility = search.IsActive || SearchBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        ClearSearchButton.Visibility = state.CanClear ? Visibility.Visible : Visibility.Collapsed;
         UpdateNamespaceFilterIndicator();
         ConfigureRefresh();
     }
@@ -98,24 +88,15 @@ public partial class InvestigationWindow
             workspace.Browse.FilterEntities(SearchBox.Text);
             UpdateNamespaceEmptyState();
         }
-        ClearSearchButton.Visibility = workspace.Search.IsActive || SearchBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        ClearSearchButton.Visibility = searchSurface.CanClear(SearchBox.Text) ? Visibility.Visible : Visibility.Collapsed;
         UpdateSuggestions();
     }
 
     private void UpdateNamespaceEmptyState()
     {
-        var search = workspace.Search;
-        bool hasVisibleNamespace = workspace.Surface.Roots.Any(node => node.IsVisible);
-        bool showNamespaceEmpty = MessageLibraryPrototype.Visibility != Visibility.Visible && !hasVisibleNamespace
-            && (search.IsActive || workspace.IsConnecting
-                || workspace.IsConnected && workspace.Browse.DiscoverySnapshot is not null
-                || !string.IsNullOrWhiteSpace(SearchBox.Text));
-        NamespaceEmpty.Visibility = showNamespaceEmpty ? Visibility.Visible : Visibility.Collapsed;
-        NamespaceEmpty.Text = search.IsActive ? search.IsBusy ? "Searching for matching entities…"
-            : "No matching entities found in the scanned deliveries. Clear the search to show all entities."
-            : workspace.IsConnecting ? "Discovering entities…"
-            : !string.IsNullOrWhiteSpace(SearchBox.Text) ? "No matching entities. Clear the search to show all entities."
-            : "No entities found on this connection.";
+        var empty = searchSurface.NamespaceEmptyFor(SearchBox.Text, MessageLibraryPrototype.Visibility == Visibility.Visible);
+        NamespaceEmpty.Visibility = empty.IsShown ? Visibility.Visible : Visibility.Collapsed;
+        NamespaceEmpty.Text = empty.Text;
     }
 
     private void UpdateNamespaceFilterIndicator()

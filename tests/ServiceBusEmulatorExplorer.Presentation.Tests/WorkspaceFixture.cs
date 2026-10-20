@@ -7,12 +7,13 @@ using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 namespace ServiceBusEmulatorExplorer.Presentation.Tests;
 
-/// <summary>A connected investigation workspace browsing the dead-letter queue of one queue with three messages.</summary>
+/// <summary>A connected investigation workspace browsing one queue whose three messages are all dead-lettered.</summary>
 internal sealed class WorkspaceFixture : IAsyncDisposable
 {
     public static readonly ServiceBusReceivedMessage[] BrokerMessages = Enumerable.Range(1, 3).Select(sequence =>
         ServiceBusModelFactory.ServiceBusReceivedMessage(body: BinaryData.FromString("{\"order\":80341}"),
             messageId: "checkout-original-message-" + sequence, sequenceNumber: sequence,
+            correlationId: sequence == 1 ? "order-80341" : null,
             enqueuedTime: new DateTimeOffset(2026, 9, 12, 12, 0, 0, TimeSpan.Zero), contentType: "application/json")).ToArray();
 
     private readonly List<TaskCompletionSource> gates = [];
@@ -20,7 +21,7 @@ internal sealed class WorkspaceFixture : IAsyncDisposable
     private WorkspaceFixture()
     {
         Workspace = new InvestigationWorkspace(Store,
-            new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(), _ => new Messages()),
+            new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(), _ => Peeks),
             _ => CreateSender(), (_, _) => Receiver);
         CreateSender = () => Sender;
     }
@@ -32,6 +33,7 @@ internal sealed class WorkspaceFixture : IAsyncDisposable
     /// <summary>Creates the replay sender for each send; <see cref="Sender"/> by default.</summary>
     public Func<IReplayCopySender> CreateSender { get; set; }
     public FakeReceiver Receiver { get; } = new();
+    public FakeMessages Peeks { get; } = new();
 
     public IReadOnlyList<MessageRow> Rows => Workspace.Browse.Messages;
 
@@ -157,12 +159,19 @@ internal sealed class WorkspaceFixture : IAsyncDisposable
                 DateTimeOffset.UtcNow, true, []));
     }
 
-    private sealed class Messages : IServiceBusMessageService
+    public sealed class FakeMessages : IServiceBusMessageService
     {
-        public Task<IReadOnlyList<ExplorerMessage>> PeekMessagesAsync(EntityAddress address, MessageBucket bucket, int take,
-            long? fromSequenceNumber, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ExplorerMessage>>(
-            BrokerMessages.Where(message => fromSequenceNumber is null || message.SequenceNumber >= fromSequenceNumber)
-                .Take(take).Select(MessageProjection.Create).ToArray());
+        /// <summary>Runs before each peek; a peek waits for it.</summary>
+        public Func<Task> BeforePeek { get; set; } = () => Task.CompletedTask;
+
+        public async Task<IReadOnlyList<ExplorerMessage>> PeekMessagesAsync(EntityAddress address, MessageBucket bucket, int take,
+            long? fromSequenceNumber, CancellationToken cancellationToken)
+        {
+            await BeforePeek().WaitAsync(cancellationToken);
+            return BrokerMessages.Where(message => bucket == MessageBucket.DeadLetter)
+                .Where(message => fromSequenceNumber is null || message.SequenceNumber >= fromSequenceNumber)
+                .Take(take).Select(MessageProjection.Create).ToArray();
+        }
 
         public Task SendMessageAsync(SendMessageCommand command, CancellationToken cancellationToken) =>
             throw new InvalidOperationException();

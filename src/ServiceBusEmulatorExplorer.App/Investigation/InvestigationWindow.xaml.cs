@@ -18,6 +18,7 @@ public partial class InvestigationWindow : Window, IMessageActionsHost
     private readonly InvestigationWorkspace workspace;
     private readonly MessageActionsViewModel actions;
     private readonly WatchToolbarViewModel watch;
+    private readonly SearchSurfaceViewModel searchSurface;
     private readonly AutoRefreshTimer refreshTimer;
     private readonly Action<string> copyText;
     private bool ready;
@@ -45,6 +46,7 @@ public partial class InvestigationWindow : Window, IMessageActionsHost
         actions.PropertyChanged += ActionsChanged;
         watch = new WatchToolbarViewModel(workspace);
         watch.PropertyChanged += WatchChanged;
+        searchSurface = new SearchSurfaceViewModel(workspace);
         refreshTimer = new(workspace.Clock, tick => Dispatcher.BeginInvoke(DispatcherPriority.Background, tick));
         InitializeComponent();
         MessageLibraryPrototype.ConnectionRepairRequested += () => ConnectionButton.Focus();
