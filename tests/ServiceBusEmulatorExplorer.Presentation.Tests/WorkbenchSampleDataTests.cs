@@ -25,6 +25,11 @@ public sealed class WorkbenchSampleDataTests
         Assert.Equal(new SampleRow(2, "C1002", null, "Expected number, got abc"), rows[1]);
         Assert.Equal(["Ready", "Ready"], new[] { rows[0].Status, rows[2].Status });
         Assert.Equal("1 invalid row · Nothing can be sent", WorkbenchSampleData.Summary(rows));
+        Assert.Equal("2 invalid rows · Nothing can be sent", WorkbenchSampleData.Summary([rows[0], rows[1], rows[1]]));
+
+        var blankCustomer = WorkbenchSampleData.Rows(WorkbenchSampleData.InvalidSampleFile, new("Constant", " ", "CSV column", "Amount"), true, Unexpected);
+        Assert.Equal(["CustomerId required", "Expected number, got abc", "CustomerId required"], blankCustomer.Select(row => row.Status));
+        Assert.Equal("Invalid delimiter", WorkbenchSampleData.Rows(WorkbenchSampleData.InvalidSampleFile, Columns, false, Unexpected)[1].Status);
     }
 
     [Fact]
