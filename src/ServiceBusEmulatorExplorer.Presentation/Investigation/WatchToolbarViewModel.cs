@@ -78,7 +78,10 @@ public sealed class WatchToolbarViewModel : ObservableObject
         await SaveAsync(workspace.SelectedProfile.Id, rules);
     }
 
-    /// <summary>Stops watching the popup entity; returns <c>false</c> when nothing was changed.</summary>
+    /// <summary>
+    /// Stops watching the popup entity. Returns <c>true</c> when the change was attempted, also when its save failed,
+    /// and <c>false</c> when there is no popup entity or a save is still running.
+    /// </summary>
     public async Task<bool> StopWatchingAsync()
     {
         if (IsSaving || popupEntity is null) return false;
