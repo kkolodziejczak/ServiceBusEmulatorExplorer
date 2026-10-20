@@ -16,12 +16,11 @@ public partial class MessageLibraryPrototypeView
     private bool libraryInitialized;
     private string? revealedTemplateName;
     private TextBox? activeRenameInput;
-    private readonly HashSet<string> createdFolders = new(StringComparer.OrdinalIgnoreCase);
 
     private bool IsFolderVisible(string path, IReadOnlyList<PrototypeTemplate> visible) =>
         (namespaceQuery.Length == 0 && TemplateSearch.Text.Trim().Length == 0) ||
         visible.Any(template => LibraryFolders.IsInside(template.Folder, path)) ||
-        createdFolders.Any(created => LibraryFolders.IsInside(created, path));
+        library.CreatedFolders.Any(created => LibraryFolders.IsInside(created, path));
 
     private void UpdateTreeHeaderWidths()
     {
@@ -54,9 +53,9 @@ public partial class MessageLibraryPrototypeView
         try
         {
             string search = TemplateSearch.Text.Trim();
-            var matchingFolders = search.Length == 0 ? [] : folders.Where(path =>
+            var matchingFolders = search.Length == 0 ? [] : library.Folders.Where(path =>
                 path.Split('/').Any(segment => segment.Contains(search, StringComparison.OrdinalIgnoreCase))).ToArray();
-            var visible = templates.Where(template =>
+            var visible = library.Templates.Where(template =>
                 (namespaceQuery.Length == 0 || TemplateAssociations(template).Any(path => path.Contains(namespaceQuery, StringComparison.OrdinalIgnoreCase))) &&
                 (search.Length == 0 || template.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                  template.Description.Contains(search, StringComparison.OrdinalIgnoreCase) ||
@@ -64,7 +63,7 @@ public partial class MessageLibraryPrototypeView
                 ((draftIsNew && template.Name == selectedTemplateName) || template.Name == revealedTemplateName)).ToList();
             LibraryTree.Items.Clear();
             treeRenameControls.Clear();
-            foreach (var folder in folders.Where(path => !HasParentFolder(path) && IsFolderVisible(path, visible)).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+            foreach (var folder in library.Folders.Where(path => !HasParentFolder(path) && IsFolderVisible(path, visible)).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
                 LibraryTree.Items.Add(CreateFolderTreeItem(folder, visible));
             foreach (var template in visible.Where(item => string.IsNullOrEmpty(item.Folder)))
                 LibraryTree.Items.Add(CreateTemplateTreeItem(template));
@@ -92,7 +91,7 @@ public partial class MessageLibraryPrototypeView
         item.Header = CreateTreeHeader(item.Tag.ToString()!, name, true);
         item.ToolTip = path;
         AddRenameMenu(item);
-        foreach (string childFolder in folders.Where(candidate =>
+        foreach (string childFolder in library.Folders.Where(candidate =>
                      candidate.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase) &&
                      candidate.Count(ch => ch == '/') == path.Count(ch => ch == '/') + 1 && IsFolderVisible(candidate, visible))
                  .OrderBy(candidate => candidate, StringComparer.OrdinalIgnoreCase))
@@ -231,19 +230,19 @@ public partial class MessageLibraryPrototypeView
     {
         if (selectedLibraryTag is null) return "";
         if (selectedLibraryTag.StartsWith("folder:", StringComparison.Ordinal)) return selectedLibraryTag[7..];
-        return templates.FirstOrDefault(template => template.Name == selectedLibraryTag[9..])?.Folder ?? "";
+        return library.Find(selectedLibraryTag[9..])?.Folder ?? "";
     }
 
     private void AddFolder_Click(object sender, RoutedEventArgs e)
     {
         string parent = GetCreationFolder();
         string? name = PromptForName("Add folder", "Folder name", "New folder",
-            value => LibraryFolders.IsNewFolderName(parent, value, folders),
+            value => LibraryFolders.IsNewFolderName(parent, value, library.Folders),
             "Use a unique folder name without path separators.");
         if (name is null) return;
         string path = string.IsNullOrEmpty(parent) ? name : $"{parent}/{name}";
-        AddFolderAndParents(path);
-        createdFolders.Add(path);
+        library.AddFolderAndParents(path);
+        library.MarkCreated(path);
         ExpandFolderPath(path);
         selectedFolder = path;
         selectedLibraryTag = $"folder:{path}";
@@ -253,13 +252,6 @@ public partial class MessageLibraryPrototypeView
 
     private void RevealLibraryItem(string tag) =>
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => FindTreeItem(tag)?.BringIntoView()));
-
-    private void AddFolderAndParents(string path)
-    {
-        int separator = path.LastIndexOf('/');
-        if (separator > 0) AddFolderAndParents(path[..separator]);
-        if (!folders.Contains(path, StringComparer.OrdinalIgnoreCase)) folders.Add(path);
-    }
 
     private void CollapseAllFolders_Click(object sender, RoutedEventArgs e)
     {
@@ -308,7 +300,7 @@ public partial class MessageLibraryPrototypeView
 
     private void OpenTemplateFromTree(string name)
     {
-        var template = templates.FirstOrDefault(value => value.Name == name);
+        var template = library.Find(name);
         if (template is null || name == selectedTemplateName) return;
         if (!TryLeaveCurrentDraft())
         {
@@ -329,7 +321,7 @@ public partial class MessageLibraryPrototypeView
         currentDestinationKind = template.DestinationKind;
         draftIsNew = false;
         previewReady = false;
-        RestoreSettings(savedSettings[name]);
+        RestoreSettings(library.SettingsOf(name));
         AuthorTitle.Text = name;
         AuthorTitle.ToolTip = name;
         FilterWarning.Visibility = Visibility.Collapsed;
@@ -357,15 +349,14 @@ public partial class MessageLibraryPrototypeView
         }
         if (draftIsNew)
         {
-            templates.RemoveAll(template => template.Name == selectedTemplateName);
-            savedSettings.Remove(selectedTemplateName);
+            library.Remove(selectedTemplateName);
         }
-        else if (templates.FirstOrDefault(template => template.Name == selectedTemplateName) is { } saved)
+        else if (library.Find(selectedTemplateName) is { } saved)
         {
             currentBody = saved.Body;
             currentAssociation = saved.Topic;
             currentDestinationKind = saved.DestinationKind;
-            RestoreSettings(savedSettings[selectedTemplateName]);
+            RestoreSettings(library.SettingsOf(selectedTemplateName));
             UpdateDestinationControls();
         }
         draftIsNew = false;
@@ -451,7 +442,7 @@ public partial class MessageLibraryPrototypeView
         string oldName = renamingTag.StartsWith("folder:", StringComparison.Ordinal)
             ? renamingTag[7..].Split('/')[^1] : renamingTag[9..];
         bool folder = renamingTag.StartsWith("folder:", StringComparison.Ordinal);
-        if (LibraryFolders.RenameProblem(renamingTag, value, folders, templates.Select(template => template.Name)) is { } problem)
+        if (LibraryFolders.RenameProblem(renamingTag, value, library.Folders, library.TemplateNames) is { } problem)
         {
             error.Text = problem;
             error.Visibility = Visibility.Visible;
@@ -494,11 +485,7 @@ public partial class MessageLibraryPrototypeView
 
     private void RenameTemplate(string oldName, string newName)
     {
-        int index = templates.FindIndex(template => template.Name == oldName);
-        if (index < 0) return;
-        var template = templates[index] with { Name = newName };
-        templates[index] = template;
-        if (savedSettings.Remove(oldName, out var settings)) savedSettings[newName] = settings;
+        if (!library.RenameTemplate(oldName, newName)) return;
         if (revealedTemplateName == oldName) revealedTemplateName = newName;
         if (selectedTemplateName == oldName)
         {
@@ -512,17 +499,12 @@ public partial class MessageLibraryPrototypeView
 
     private void RelocateFolder(string path, string replacement)
     {
-        foreach (var set in new[] { collapsedFolders, createdFolders })
-            foreach (string entry in set.Where(entry => LibraryFolders.IsInside(entry, path)).ToArray())
-            {
-                set.Remove(entry);
-                set.Add(LibraryFolders.Relocated(entry, path, replacement));
-            }
-        for (int index = 0; index < folders.Count; index++)
-            folders[index] = LibraryFolders.Relocated(folders[index], path, replacement);
-        for (int index = 0; index < templates.Count; index++)
-            if (LibraryFolders.IsInside(templates[index].Folder, path))
-                templates[index] = templates[index] with { Folder = LibraryFolders.Relocated(templates[index].Folder, path, replacement) };
+        foreach (string entry in collapsedFolders.Where(entry => LibraryFolders.IsInside(entry, path)).ToArray())
+        {
+            collapsedFolders.Remove(entry);
+            collapsedFolders.Add(LibraryFolders.Relocated(entry, path, replacement));
+        }
+        library.RelocateFolder(path, replacement);
         if (editorFolder is not null) editorFolder = LibraryFolders.Relocated(editorFolder, path, replacement);
         if (selectedFolder is not null) selectedFolder = LibraryFolders.Relocated(selectedFolder, path, replacement);
     }

@@ -30,8 +30,8 @@ public partial class MessageLibraryPrototypeView
         }
 
         var items = WorkbenchLibrarySearch.Suggest(query, namespaceQuery,
-            templates.Select(template => new LibraryEntry(template.Name, template.Description, template.Folder, template.Topic)),
-            folders, createdFolders);
+            library.Templates.Select(template => new LibraryEntry(template.Name, template.Description, template.Folder, template.Topic)),
+            library.Folders, library.CreatedFolders);
 
         var view = new ListCollectionView(items.ToList());
         view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(LibrarySuggestion.Group)));
