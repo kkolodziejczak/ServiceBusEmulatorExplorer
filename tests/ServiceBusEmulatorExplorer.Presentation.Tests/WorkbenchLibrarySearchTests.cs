@@ -52,6 +52,11 @@ public sealed class WorkbenchLibrarySearchTests
         string[] folders = ["Orders", "Orders/Returns", "OrdersArchive", "Returns/Empty", "Orders/Old"];
         var created = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "orders/old", "Returns/New" };
 
+        Assert.Equal([
+                new LibrarySuggestion("TEMPLATES", "Refund", "Orders/Returns", "Refund", false),
+                new LibrarySuggestion("FOLDERS", "Returns", "Orders/Returns", "Orders/Returns", true),
+                new LibrarySuggestion("FOLDERS", "New", "Returns/New", "Returns/New", true)],
+            WorkbenchLibrarySearch.Suggest("ret", "order", templates, folders, created));
         var suggestions = WorkbenchLibrarySearch.Suggest("ret", "order", templates, folders, created)
             .Where(item => item.IsFolder).ToArray();
 

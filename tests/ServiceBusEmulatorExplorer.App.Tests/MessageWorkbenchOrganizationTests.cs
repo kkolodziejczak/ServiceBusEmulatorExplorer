@@ -151,6 +151,39 @@ public sealed class MessageWorkbenchOrganizationTests
         if (dialogFailure is not null) ExceptionDispatchInfo.Capture(dialogFailure).Throw();
     }
 
+    [Fact]
+    public void Moving_a_folder_carries_its_created_subfolders_collapse_state_and_the_editor_folder()
+        => Run((window, view) =>
+        {
+            GetTreeItem(view, "folder:Orders").IsSelected = true;
+            AddFolder(window, view, "Empty");
+            GetTreeItem(view, "folder:Orders").IsExpanded = false;
+            Drain(window);
+
+            CompleteMoveDialog(window, view, "folder:Orders", "Inventory");
+
+            Assert.False(GetTreeItem(view, "folder:Inventory/Orders").IsExpanded);
+            Assert.True(GetTreeItem(view, "folder:Inventory").IsExpanded);
+            Get<TextBox>(view, "TemplateSearch").Text = "Empty";
+            Drain(window);
+            Assert.True(HasTreeItem(view, "folder:Inventory/Orders/Empty"));
+            Assert.False(HasTreeItem(view, "template:Stock reserved"));
+            Get<TextBox>(view, "TemplateSearch").Text = "";
+            Drain(window);
+
+            string? saveAsFolder = null;
+            window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
+            {
+                Window dialog = window.OwnedWindows.OfType<Window>().Single(child => child.Title == "Save as");
+                saveAsFolder = Get<ComboBox>(dialog, "FolderInput").SelectedItem?.GetType().GetProperty("Path")?
+                    .GetValue(Get<ComboBox>(dialog, "FolderInput").SelectedItem) as string;
+                Invoke(FindAutomationId<Button>(dialog, "LibraryNameCancel"));
+            }));
+            FindAutomationId<Button>(view, "LibrarySaveAs").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Drain(window);
+            Assert.Equal("Inventory/Orders", saveAsFolder);
+        });
+
     private static void CompleteMoveDialog(Window owner, MessageLibraryPrototypeView view,
         string sourceTag, string destination, string? expectedError = null)
     {
