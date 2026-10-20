@@ -93,7 +93,7 @@ public sealed class InvestigationDeletedDeliveryStateTests
         inspector.Select(deleted);
         inspector.Document.Text = "{\"deletedDraft\":true}";
         inspector.Select(retained);
-        inspector.Document.Replace(0, inspector.Document.TextLength, "{\"retainedDraft\":true}");
+        EditorDocuments.For(inspector.Document).Text = "{\"retainedDraft\":true}";
         var document = inspector.Document;
 
         inspector.ForgetDeleted(new HashSet<DeliveryIdentity> { deleted.Identity });
@@ -102,7 +102,7 @@ public sealed class InvestigationDeletedDeliveryStateTests
         Assert.True(inspector.HasDraft(retained.Identity));
         Assert.Same(document, inspector.Document);
         Assert.Equal(retained, inspector.Current);
-        Assert.True(document.UndoStack.CanUndo);
+        Assert.True(EditorDocuments.For(document).UndoStack.CanUndo);
         inspector.ForgetDeleted(new HashSet<DeliveryIdentity> { retained.Identity });
         Assert.Null(inspector.Current);
         Assert.False(inspector.HasDrafts);

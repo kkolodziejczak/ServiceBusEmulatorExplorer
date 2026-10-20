@@ -26,7 +26,7 @@ public sealed class InvestigationSurfaceTests
         browseRow.IsSelected = true;
         workspace.Browse.FocusedMessage = browseRow;
         workspace.Inspector.Select(browseRow.Delivery);
-        workspace.Inspector.Document.Insert(0, " ");
+        workspace.Inspector.Document.Text = " " + workspace.Inspector.Document.Text;
         string draft = workspace.Inspector.Document.Text;
 
         await workspace.Search.StartAsync("*", defaultMessageId: true);

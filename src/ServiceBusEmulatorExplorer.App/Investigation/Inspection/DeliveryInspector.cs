@@ -1,8 +1,8 @@
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
-using ICSharpCode.AvalonEdit.Document;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation.Inspection;
 
@@ -14,10 +14,10 @@ public sealed class DeliveryInspector : ObservableObject
     private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
     private readonly Dictionary<DeliveryIdentity, CachedDocument> _documents = [];
-    private readonly TextDocument _emptyDocument = new();
+    private readonly InspectionDocument _emptyDocument = new(string.Empty);
     private MessageDelivery? _current;
     private CachedDocument? _currentDocument;
-    private TextDocument _document;
+    private InspectionDocument _document;
 
     public DeliveryInspector()
     {
@@ -26,8 +26,8 @@ public sealed class DeliveryInspector : ObservableObject
 
     public MessageDelivery? Current => _current;
 
-    /// <summary>The AvalonEdit document for the selected delivery.</summary>
-    public TextDocument Document => _document;
+    /// <summary>The editable text of the selected delivery.</summary>
+    public InspectionDocument Document => _document;
 
     public bool IsDirty => _currentDocument is not null
         && !string.Equals(Document.Text, _currentDocument.OriginalDocumentText, StringComparison.Ordinal);
@@ -89,8 +89,7 @@ public sealed class DeliveryInspector : ObservableObject
         cached.IsApplyingChange = true;
         try
         {
-            cached.Document.Replace(0, cached.Document.TextLength, cached.OriginalDocumentText);
-            cached.Document.UndoStack.ClearAll();
+            cached.Document.Reset(cached.OriginalDocumentText);
         }
         finally
         {
@@ -125,7 +124,7 @@ public sealed class DeliveryInspector : ObservableObject
         (string rawText, string rawDescription) = DecodeBody(delivery.Message);
         InspectionText presentation = MessageInspectionPresenter.Present(rawText);
         var cached = new CachedDocument(
-            new TextDocument(presentation.DisplayText),
+            new InspectionDocument(presentation.DisplayText),
             presentation.DisplayText,
             rawText,
             rawDescription,
@@ -161,7 +160,7 @@ public sealed class DeliveryInspector : ObservableObject
     {
         bool documentChanged = !ReferenceEquals(_currentDocument?.Document, cached?.Document);
         bool currentChanged = !EqualityComparer<MessageDelivery?>.Default.Equals(Current, delivery);
-        TextDocument nextDocument = cached?.Document ?? _emptyDocument;
+        InspectionDocument nextDocument = cached?.Document ?? _emptyDocument;
 
         if (currentChanged)
         {
@@ -197,7 +196,7 @@ public sealed class DeliveryInspector : ObservableObject
 
     private void Document_TextChanged(object? sender, EventArgs e)
     {
-        if (sender is not TextDocument document)
+        if (sender is not InspectionDocument document)
         {
             return;
         }
@@ -226,13 +225,13 @@ public sealed class DeliveryInspector : ObservableObject
     }
 
     private sealed class CachedDocument(
-        TextDocument document,
+        InspectionDocument document,
         string originalDocumentText,
         string rawText,
         string rawDescription,
         string propertiesText)
     {
-        public TextDocument Document { get; } = document;
+        public InspectionDocument Document { get; } = document;
         public string OriginalDocumentText { get; } = originalDocumentText;
         public string RawText { get; } = rawText;
         public string BodyDescription { get; } = rawDescription;

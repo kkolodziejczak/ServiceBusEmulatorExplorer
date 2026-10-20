@@ -187,7 +187,7 @@ public sealed class DailySearchLifecycleAuditTests
         await fixture.MoveFirstToDeadLetterAsync();
         await fixture.SelectPrimaryAsync(deadLetter: true);
         fixture.Workspace.Inspector.Select(fixture.Workspace.Browse.Messages.Single().Delivery);
-        fixture.Workspace.Inspector.Document.Replace(0, fixture.Workspace.Inspector.Document.TextLength, "edited");
+        fixture.Workspace.Inspector.Document.Text = "edited";
         Assert.True(fixture.Workspace.Inspector.HasDrafts);
 
         fixture.Workspace.ConfirmDiscard = () => Task.FromResult(false);

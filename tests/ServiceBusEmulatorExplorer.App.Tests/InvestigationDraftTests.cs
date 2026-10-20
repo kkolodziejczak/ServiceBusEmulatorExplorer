@@ -1,5 +1,5 @@
 using System.Text;
-using ICSharpCode.AvalonEdit.Document;
+using ServiceBusEmulatorExplorer.Presentation.Investigation;
 using ServiceBusEmulatorExplorer.App.Investigation.Inspection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
@@ -16,8 +16,8 @@ public sealed class InvestigationDraftTests
         var inspector = new DeliveryInspector();
 
         inspector.Select(first);
-        inspector.Document.Insert(inspector.Document.TextLength, " ");
-        TextDocument firstDocument = inspector.Document;
+        inspector.Document.Text += " ";
+        InspectionDocument firstDocument = inspector.Document;
 
         inspector.Select(second);
         Assert.NotSame(firstDocument, inspector.Document);
@@ -37,16 +37,16 @@ public sealed class InvestigationDraftTests
 
         inspector.Select(first);
         string original = inspector.Document.Text;
-        inspector.Document.Insert(0, " ");
+        EditorDocuments.For(inspector.Document).Insert(0, " ");
         Assert.True(inspector.IsDirty);
-        Assert.True(inspector.Document.UndoStack.CanUndo);
+        Assert.True(EditorDocuments.For(inspector.Document).UndoStack.CanUndo);
 
         inspector.Select(second);
         inspector.Select(first);
 
         Assert.Equal(" " + original, inspector.Document.Text);
-        Assert.True(inspector.Document.UndoStack.CanUndo);
-        inspector.Document.UndoStack.Undo();
+        Assert.True(EditorDocuments.For(inspector.Document).UndoStack.CanUndo);
+        EditorDocuments.For(inspector.Document).UndoStack.Undo();
         Assert.Equal(original, inspector.Document.Text);
         Assert.False(inspector.IsDirty);
     }
@@ -59,13 +59,13 @@ public sealed class InvestigationDraftTests
         inspector.Select(delivery);
         string original = inspector.Document.Text;
 
-        inspector.Document.Insert(0, " ");
+        EditorDocuments.For(inspector.Document).Insert(0, " ");
         inspector.DiscardCurrent();
 
         Assert.Equal(original, inspector.Document.Text);
         Assert.False(inspector.IsDirty);
         Assert.False(inspector.HasDrafts);
-        Assert.False(inspector.Document.UndoStack.CanUndo);
+        Assert.False(EditorDocuments.For(inspector.Document).UndoStack.CanUndo);
     }
 
     [Fact]
@@ -75,8 +75,8 @@ public sealed class InvestigationDraftTests
         var inspector = new DeliveryInspector();
         inspector.Select(delivery);
         string original = inspector.Document.Text;
-        inspector.Document.Insert(0, " ");
-        TextDocument releasedDocument = inspector.Document;
+        inspector.Document.Text = " " + original;
+        InspectionDocument releasedDocument = inspector.Document;
 
         inspector.Clear();
 
@@ -87,7 +87,7 @@ public sealed class InvestigationDraftTests
         Assert.Empty(inspector.RawText);
         Assert.Empty(inspector.PropertiesText);
 
-        releasedDocument.Insert(0, "changed after clear");
+        releasedDocument.Text = "changed after clear" + releasedDocument.Text;
         Assert.False(inspector.HasDrafts);
 
         inspector.Select(delivery);
@@ -143,7 +143,7 @@ public sealed class InvestigationDraftTests
         MessageDelivery delivery = CreateDelivery("billing", MessageBucket.DeadLetter);
         var firstInspector = new DeliveryInspector();
         firstInspector.Select(delivery);
-        firstInspector.Document.Insert(0, " ");
+        firstInspector.Document.Text = " " + firstInspector.Document.Text;
 
         var newInspector = new DeliveryInspector();
         newInspector.Select(delivery);
