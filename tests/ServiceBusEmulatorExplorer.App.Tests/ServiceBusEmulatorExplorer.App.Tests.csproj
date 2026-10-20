@@ -22,6 +22,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ServiceBusEmulatorExplorer.App\ServiceBusEmulatorExplorer.App.csproj" />
     <ProjectReference Include="..\..\src\ServiceBusEmulatorExplorer.Core\ServiceBusEmulatorExplorer.Core.csproj" />
+    <!-- Build order only: MessageWorkbenchVisualBaselineTests runs the built screenshot harness (DEC-057). -->
+    <ProjectReference Include="..\..\tools\ServiceBusEmulatorExplorer.ReadmeScreenshot\ServiceBusEmulatorExplorer.ReadmeScreenshot.csproj"
+                      ReferenceOutputAssembly="false" Private="false" />
   </ItemGroup>
 
   <ItemGroup>
