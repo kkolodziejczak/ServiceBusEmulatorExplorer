@@ -16,7 +16,11 @@ public partial class InvestigationWindow
         if (!watchNotifications.IsAcknowledging) ShowWatchNotification();
     }
 
-    private void WatchNotificationsChanged(object? sender, PropertyChangedEventArgs e) => ShowWatchNotification();
+    private void WatchNotificationsChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(WatchNotificationsViewModel.Current) or nameof(WatchNotificationsViewModel.IsInvestigating))
+            ShowWatchNotification();
+    }
 
     private void ShowWatchNotification()
     {

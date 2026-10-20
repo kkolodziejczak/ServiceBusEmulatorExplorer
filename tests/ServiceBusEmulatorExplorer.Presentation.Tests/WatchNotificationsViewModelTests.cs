@@ -126,6 +126,31 @@ public sealed class WatchNotificationsViewModelTests
     }
 
     [Fact]
+    public async Task A_connection_changed_while_investigating_acknowledges_nothing()
+    {
+        await using var fixture = await WorkspaceFixture.OpenAsync();
+        var workspace = fixture.Workspace;
+        var host = new Host(fixture)
+        {
+            Search = async (query, defaultMessageId) =>
+            {
+                await Task.Yield();
+                await workspace.Search.StartAsync(query, defaultMessageId);
+                await workspace.DisconnectAsync();
+                await workspace.ConnectAsync();
+            }
+        };
+        var notifications = new WatchNotificationsViewModel(workspace, host);
+        Arrive(fixture, fixture.Rows[0].Delivery);
+        var pending = workspace.Watch.PendingArrivals[0];
+
+        await notifications.InvestigateAsync();
+
+        Assert.Contains(pending, workspace.Watch.PendingArrivals);
+        Assert.Empty(host.Revealed);
+    }
+
+    [Fact]
     public async Task A_failed_investigation_keeps_the_notification_and_a_second_one_waits_for_the_first()
     {
         await using var fixture = await WorkspaceFixture.OpenAsync();
