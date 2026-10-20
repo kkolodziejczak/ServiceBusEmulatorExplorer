@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Input;
+using ServiceBusEmulatorExplorer.Presentation.Investigation.Inspection;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
@@ -12,7 +13,7 @@ public partial class InvestigationWindow
     private void UpdateInspectorCopy()
     {
         if (CopyButton is null || InspectorDocumentSurface is null) return;
-        double top = inspectorMode == "Body" ? BodyEditor.Padding.Top : BodyViewer.Padding.Top;
+        double top = inspectorPanel.Mode == InspectorMode.Body ? BodyEditor.Padding.Top : BodyViewer.Padding.Top;
         double lineHeight = BodyEditor.TextArea.TextView.DefaultLineHeight;
         double buttonHeight = CopyButton.ActualHeight > 0 ? CopyButton.ActualHeight : 32;
         CopyButton.Margin = new Thickness(0, Math.Max(0, top + (lineHeight - buttonHeight) / 2), 24, 0);

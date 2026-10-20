@@ -4,6 +4,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using ICSharpCode.AvalonEdit.Editing;
+using ServiceBusEmulatorExplorer.Presentation.Investigation.Inspection;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
@@ -22,7 +23,7 @@ public partial class InvestigationWindow
 
     private void InspectorFind_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        string selected = inspectorMode == "Body" ? BodyEditor.SelectedText : BodyViewer.Selection.Text;
+        string selected = inspectorPanel.Mode == InspectorMode.Body ? BodyEditor.SelectedText : BodyViewer.Selection.Text;
         FindPanel.Visibility = Visibility.Visible;
         BodyEditor.TextArea.SelectionBrush = new SolidColorBrush(Color.FromRgb(113, 80, 0));
         BodyEditor.TextArea.SelectionForeground = (Brush)FindResource("ModifiedTextBrush");
@@ -55,7 +56,7 @@ public partial class InvestigationWindow
         ClearInspectorMatchSelection();
         inspectorSearchText = null;
         if (!restoreFocus) return;
-        if (inspectorMode == "Body") BodyEditor.Focus();
+        if (inspectorPanel.Mode == InspectorMode.Body) BodyEditor.Focus();
         else BodyViewer.Focus();
     }
 
@@ -73,7 +74,7 @@ public partial class InvestigationWindow
     private void RefreshInspectorFind(bool force = false)
     {
         if (FindPanel?.Visibility != Visibility.Visible || FindBox is null || FindMatchCount is null) return;
-        string text = inspectorMode == "Body" ? BodyEditor.Text
+        string text = inspectorPanel.Mode == InspectorMode.Body ? BodyEditor.Text
             : new TextRange(BodyViewer.Document.ContentStart, BodyViewer.Document.ContentEnd).Text;
         string query = FindBox.Text;
         if (!force && text == inspectorSearchText && query == inspectorSearchQuery) return;
@@ -91,7 +92,7 @@ public partial class InvestigationWindow
                 offset = match + query.Length;
             }
         }
-        bool preserveEditingSelection = !force && BodyEditor.IsKeyboardFocusWithin && inspectorMode == "Body";
+        bool preserveEditingSelection = !force && BodyEditor.IsKeyboardFocusWithin && inspectorPanel.Mode == InspectorMode.Body;
         inspectorMatchIndex = inspectorMatches.Count == 0 ? -1 : 0;
         FindPrevious.IsEnabled = FindNext.IsEnabled = inspectorMatches.Count > 0;
         if (inspectorMatchIndex < 0)
@@ -127,7 +128,7 @@ public partial class InvestigationWindow
         int index = inspectorMatches[inspectorMatchIndex];
         int length = FindBox.Text.Length;
         FindMatchCount.Text = $"{inspectorMatchIndex + 1} of {inspectorMatches.Count}";
-        if (inspectorMode == "Body")
+        if (inspectorPanel.Mode == InspectorMode.Body)
         {
             BodyEditor.RevealRange(index, length);
             BodyEditor.Select(index, length);
