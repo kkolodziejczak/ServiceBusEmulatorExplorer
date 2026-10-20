@@ -15,16 +15,22 @@ internal sealed class WorkspaceFixture : IAsyncDisposable
             messageId: "checkout-original-message-" + sequence, sequenceNumber: sequence,
             enqueuedTime: new DateTimeOffset(2026, 9, 12, 12, 0, 0, TimeSpan.Zero), contentType: "application/json")).ToArray();
 
+    private readonly List<TaskCompletionSource> gates = [];
+
     private WorkspaceFixture()
     {
         Workspace = new InvestigationWorkspace(Store,
             new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(), _ => new Messages()),
-            _ => Sender, (_, _) => Receiver);
+            _ => CreateSender(), (_, _) => Receiver);
+        CreateSender = () => Sender;
     }
 
     public InvestigationWorkspace Workspace { get; }
     public FakeStore Store { get; } = new();
     public FakeSender Sender { get; } = new();
+
+    /// <summary>Creates the replay sender for each send; <see cref="Sender"/> by default.</summary>
+    public Func<IReplayCopySender> CreateSender { get; set; }
     public FakeReceiver Receiver { get; } = new();
 
     public IReadOnlyList<MessageRow> Rows => Workspace.Browse.Messages;
@@ -54,7 +60,22 @@ internal sealed class WorkspaceFixture : IAsyncDisposable
 
     public IReadOnlyList<string> Log => Workspace.Activity.Select(entry => entry.Message).ToArray();
 
-    public ValueTask DisposeAsync() => Workspace.DisposeAsync();
+    /// <summary>
+    /// A gate a fake broker or store call can wait on. Disposing the fixture opens every gate, so a test that fails
+    /// before opening its gate cannot hang while the workspace waits for the held operation.
+    /// </summary>
+    public TaskCompletionSource Gate()
+    {
+        var gate = new TaskCompletionSource();
+        gates.Add(gate);
+        return gate;
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        foreach (var gate in gates) gate.TrySetResult();
+        return Workspace.DisposeAsync();
+    }
 
     public sealed class FakeStore : IWorkspacePreferencesStore
     {
@@ -67,10 +88,13 @@ internal sealed class WorkspaceFixture : IAsyncDisposable
         public Task<PreferencesLoadResult> LoadAsync(CancellationToken cancellationToken) =>
             Task.FromResult(new PreferencesLoadResult(Saved));
 
-        public Task SaveAsync(WorkspacePreferences preferences, CancellationToken cancellationToken)
+        /// <summary>Runs before each save; a save waits for it and fails when it throws.</summary>
+        public Func<Task> BeforeSave { get; set; } = () => Task.CompletedTask;
+
+        public async Task SaveAsync(WorkspacePreferences preferences, CancellationToken cancellationToken)
         {
+            await BeforeSave();
             Saved = preferences;
-            return Task.CompletedTask;
         }
     }
 
@@ -108,7 +132,9 @@ internal sealed class WorkspaceFixture : IAsyncDisposable
             Completed.Add(message.SequenceNumber);
         }
 
-        public Task AbandonAsync(ServiceBusReceivedMessage message, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Func<ServiceBusReceivedMessage, Task> Abandon { get; set; } = _ => Task.CompletedTask;
+
+        public Task AbandonAsync(ServiceBusReceivedMessage message, CancellationToken cancellationToken) => Abandon(message);
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 

@@ -101,8 +101,12 @@ public sealed class MessageActionsViewModelTests
     {
         await using var fixture = await WorkspaceFixture.OpenAsync();
         var actions = new MessageActionsViewModel(fixture.Workspace, new Host());
-        var release = new TaskCompletionSource();
-        fixture.Receiver.Complete = (_, token) => release.Task.WaitAsync(token);
+        var hold = fixture.Gate();
+        fixture.Receiver.Complete = async (_, token) =>
+        {
+            try { await Task.Delay(Timeout.Infinite, token); }
+            finally { await hold.Task; }
+        };
         fixture.Check(0, 1);
 
         Task deleting = actions.DeleteAsync();
@@ -118,8 +122,11 @@ public sealed class MessageActionsViewModelTests
 
         Assert.Equal([nameof(actions.Delete)], announced);
         Assert.False(actions.Delete.IsEnabled);
-        await deleting;
+        Assert.True(actions.IsDeletePending);
+        hold.SetResult();
+        await deleting.WaitAsync(TimeSpan.FromSeconds(10));
         Assert.False(actions.IsDeletePending);
+        Assert.Empty(fixture.Receiver.Completed);
         Assert.DoesNotContain(fixture.Log, message => message.StartsWith("Delete could not complete", StringComparison.Ordinal));
     }
 
@@ -127,15 +134,16 @@ public sealed class MessageActionsViewModelTests
     public async Task A_delete_cancelled_while_it_waits_for_another_operation_logs_nothing()
     {
         await using var fixture = await WorkspaceFixture.OpenAsync();
-        var release = new TaskCompletionSource();
+        var release = fixture.Gate();
         fixture.Sender.OnSend = _ => release.Task;
         Task replaying = fixture.Workspace.ReplayAsync(fixture.Rows[2].Delivery);
+        await WaitUntil(() => fixture.Sender.Sends.Count == 1);
         var actions = new MessageActionsViewModel(fixture.Workspace, new Host());
         fixture.Check(0);
 
         Task deleting = actions.DeleteAsync();
         await actions.DeleteAsync();
-        await deleting;
+        await deleting.WaitAsync(TimeSpan.FromSeconds(10));
         release.SetResult();
         await replaying;
 
@@ -278,6 +286,157 @@ public sealed class MessageActionsViewModelTests
 
         Assert.Contains("Replay review could not be prepared. Refresh and select current DLQ messages.", fixture.Log);
         Assert.False(actions.IsReplayPending);
+    }
+
+    [Fact]
+    public async Task Nothing_starts_without_a_usable_selection_or_while_the_other_action_runs()
+    {
+        await using var fixture = await WorkspaceFixture.OpenAsync();
+        var host = new Host();
+        var actions = new MessageActionsViewModel(fixture.Workspace, host);
+        fixture.Workspace.Browse.FocusedMessage = null;
+
+        await actions.DeleteAsync();
+        await actions.ReplayAsync();
+
+        var hold = fixture.Gate();
+        fixture.Receiver.Complete = (_, _) => hold.Task;
+        fixture.Check(0);
+        Task deleting = actions.DeleteAsync();
+        Assert.True(actions.ReplayAsync().IsCompletedSuccessfully);
+        hold.SetResult();
+        await deleting.WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.Single(host.DeleteRequests);
+        Assert.Empty(host.ReviewRequests);
+    }
+
+    [Fact]
+    public async Task Delete_logs_uncertain_outcomes_and_locks_it_could_not_release_as_warnings()
+    {
+        await using var fixture = await WorkspaceFixture.OpenAsync();
+        var actions = new MessageActionsViewModel(fixture.Workspace, new Host());
+        fixture.Receiver.Complete = (_, _) => throw new TimeoutException();
+        fixture.Receiver.Abandon = _ => throw new TimeoutException();
+        fixture.Check(0);
+
+        await actions.DeleteAsync();
+
+        AssertWarning(fixture, "DLQ orders / sequence 1: outcome uncertain; retained in view until verified.");
+        AssertWarning(fixture, "Delete: 0 confirmed, 1 not confirmed.");
+        AssertWarning(fixture, "Some DLQ locks could not be released; they may remain held until their broker lock expires.");
+    }
+
+    [Fact]
+    public async Task Delete_of_a_replayed_original_warns_when_its_cleanup_cannot_be_saved()
+    {
+        await using var fixture = await WorkspaceFixture.OpenAsync();
+        var actions = new MessageActionsViewModel(fixture.Workspace, new Host());
+        await fixture.Workspace.ReplayAsync(fixture.Rows[0].Delivery);
+        fixture.Store.BeforeSave = () => throw new IOException("disk full");
+        fixture.Check(0);
+
+        await actions.DeleteAsync();
+
+        Assert.Contains("Delete: 1 confirmed, 0 not confirmed.", fixture.Log);
+        AssertWarning(fixture, "Deletion is confirmed, but replay-counter cleanup could not be saved. It remains pending in this session.");
+    }
+
+    [Fact]
+    public async Task Delete_results_are_not_logged_when_the_connection_changed_while_deleting()
+    {
+        await using var fixture = await WorkspaceFixture.OpenAsync();
+        var actions = new MessageActionsViewModel(fixture.Workspace, new Host());
+        Task? disconnecting = null;
+        fixture.Receiver.Complete = (_, _) => { disconnecting ??= fixture.Workspace.DisconnectAsync(); return Task.CompletedTask; };
+        fixture.Check(0);
+
+        await actions.DeleteAsync();
+        await disconnecting!;
+
+        Assert.DoesNotContain(fixture.Log, message => message.StartsWith("Delete", StringComparison.Ordinal)
+            || message.StartsWith("DLQ ", StringComparison.Ordinal));
+        Assert.False(actions.IsDeletePending);
+    }
+
+    [Fact]
+    public async Task A_replay_that_was_not_sent_continues_with_the_next_and_counts_every_result()
+    {
+        await using var fixture = await WorkspaceFixture.OpenAsync();
+        var host = new Host { Review = candidates => ["", candidates[1].Reservation.MessageId] };
+        fixture.Sender.OnSend = _ => throw new TimeoutException();
+        var actions = new MessageActionsViewModel(fixture.Workspace, host);
+        fixture.Check(0, 1);
+
+        await actions.ReplayAsync();
+
+        AssertWarning(fixture, "Replay of checkout-original-message-1 was not sent: its reservation could not be saved or the delivery is no longer current.");
+        Assert.Contains(fixture.Workspace.Activity, entry => entry.Warning
+            && entry.Message.EndsWith(": send outcome uncertain; inspect before manually retrying.", StringComparison.Ordinal));
+        AssertWarning(fixture, "Replay batch: 0 sent, 1 uncertain, 1 not sent, 0 canceled.");
+        Assert.Equal(1, host.HistoryShown);
+    }
+
+    [Fact]
+    public async Task A_replay_whose_sender_cannot_start_is_logged_as_not_sent()
+    {
+        await using var fixture = await WorkspaceFixture.OpenAsync();
+        fixture.CreateSender = () => throw new InvalidOperationException("no client");
+        var actions = new MessageActionsViewModel(fixture.Workspace, new Host());
+        fixture.Focus(0);
+
+        await actions.ReplayAsync();
+
+        Assert.Contains(fixture.Workspace.Activity, entry => entry.Warning
+            && entry.Message.EndsWith(": not sent; reserved attempt retained.", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_batch_stops_without_a_summary_or_history_when_the_window_closes()
+    {
+        await using var fixture = await WorkspaceFixture.OpenAsync();
+        var host = new Host();
+        fixture.Sender.OnSend = _ => { host.IsClosing = true; return Task.CompletedTask; };
+        var actions = new MessageActionsViewModel(fixture.Workspace, host);
+        fixture.Check(0, 1);
+
+        await actions.ReplayAsync();
+
+        Assert.Single(fixture.Sender.Sends);
+        Assert.DoesNotContain(fixture.Log, message => message.StartsWith("Replay batch", StringComparison.Ordinal));
+        Assert.Equal(0, host.HistoryShown);
+    }
+
+    [Fact]
+    public async Task A_batch_stops_without_a_summary_or_history_when_the_connection_changes()
+    {
+        await using var fixture = await WorkspaceFixture.OpenAsync();
+        var host = new Host();
+        Task? disconnecting = null;
+        fixture.Sender.OnSend = _ => { disconnecting ??= fixture.Workspace.DisconnectAsync(); return Task.CompletedTask; };
+        var actions = new MessageActionsViewModel(fixture.Workspace, host);
+        fixture.Check(0, 1);
+
+        await actions.ReplayAsync();
+        await disconnecting!;
+
+        Assert.Single(fixture.Sender.Sends);
+        Assert.DoesNotContain(fixture.Log, message => message.StartsWith("Replay ", StringComparison.Ordinal));
+        Assert.Equal(0, host.HistoryShown);
+        Assert.False(actions.IsReplayPending);
+    }
+
+    private static void AssertWarning(WorkspaceFixture fixture, string message) =>
+        Assert.Contains(fixture.Workspace.Activity, entry => entry.Message == message && entry.Warning);
+
+    private static async Task WaitUntil(Func<bool> condition)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (!condition())
+        {
+            Assert.True(DateTime.UtcNow < deadline, "The expected state was not reached.");
+            await Task.Delay(10);
+        }
     }
 
     private sealed class Host : IMessageActionsHost
