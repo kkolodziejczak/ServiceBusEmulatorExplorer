@@ -167,9 +167,10 @@ public partial class InvestigationWindow
         inspectorRendering = true;
         try
         {
-            if (!ReferenceEquals(BodyEditor.Document, inspector.Document))
+            var editorDocument = EditorDocuments.For(inspector.Document);
+            if (!ReferenceEquals(BodyEditor.Document, editorDocument))
             {
-                BodyEditor.SetInspectionDocument(inspector.Document);
+                BodyEditor.SetInspectionDocument(editorDocument);
             }
 
             BodyEditor.IsReadOnly = inspector.IsReadOnly || replayPending;

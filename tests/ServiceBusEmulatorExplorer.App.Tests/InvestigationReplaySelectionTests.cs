@@ -200,7 +200,7 @@ public sealed class InvestigationReplaySelectionTests
         var inspector = new DeliveryInspector();
         inspector.Select(sent.Delivery);
         string original = inspector.Document.Text;
-        inspector.Document.Text = "{\"sent\":true}";
+        EditorDocuments.For(inspector.Document).Text = "{\"sent\":true}";
         string sentText = inspector.Document.Text;
         var sentDocument = inspector.Document;
         inspector.Select(focused.Delivery);
@@ -212,7 +212,7 @@ public sealed class InvestigationReplaySelectionTests
         Assert.Same(focusedDocument, inspector.Document);
         Assert.False(inspector.HasDraft(sent.Key));
         Assert.Equal(original, sentDocument.Text);
-        Assert.False(sentDocument.UndoStack.CanUndo);
+        Assert.False(EditorDocuments.For(sentDocument).UndoStack.CanUndo);
     }
 
     [Fact]

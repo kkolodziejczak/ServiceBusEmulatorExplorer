@@ -348,7 +348,7 @@ public sealed class InvestigationSearchRenderTests
             select.GetAwaiter().GetResult();
             MessageRow browseFocus = workspace.Browse.Messages[0];
             workspace.Browse.FocusedMessage = browseFocus;
-            workspace.Inspector.Document.Replace(0, workspace.Inspector.Document.TextLength, "{\"draft\":true}");
+            workspace.Inspector.Document.Text = "{\"draft\":true}";
             Assert.True(workspace.Inspector.HasDrafts, "The browse fixture must contain a draft before search starts.");
 
             TextBox searchBox = (TextBox)window.FindName("SearchBox")!;

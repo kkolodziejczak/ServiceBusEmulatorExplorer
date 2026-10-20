@@ -72,6 +72,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-053 | accepted | Architecture | View models live in a WPF-free Presentation project, extracted one component at a time |
 | DEC-054 | accepted | Settings | Settings runs on view models; Save profile waits until no save is pending |
 | DEC-055 | accepted | Settings | Profiles save explicitly; unsaved edits are marked and asked about on close |
+| DEC-056 | accepted | Architecture | The inspector's text is editor-neutral; tests reach AvalonEdit through the bridge |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -458,3 +459,10 @@ DLQ palette clarification: the user explicitly disallowed changing DLQ tag color
 - Decision: General preferences keep saving on every change. A connection profile stays a draft until Save profile, which now shows only on the Connections tab. A profile whose fields differ from what is saved, or that was never saved, shows the Modified pill on its row, and the Connections tab shows it inside the tab while any profile does. Done, the close button or Esc with unsaved profile edits asks Save changes?: Save writes every valid edited profile in one save and closes, but stays open on the first invalid profile with its errors. Discard closes without saving. Cancel returns to editing. A save that finds a profile invalid focuses the first invalid field (DEC-013).
 - Because: a half-typed connection string is invalid, and saving changed credentials for the connected profile disconnects the workspace and may first ask to discard message drafts, so saving a profile must stay a deliberate action. Before this change, closing dropped profile edits without a word.
 - Consequences: the Modified pill and the question reuse approved components (Inspect 33, the Message Library draft guard). Tests that close Settings with edits answer the question through the `confirmUnsavedChanges` parameter of `SettingsWindow`.
+
+## DEC-056 - The inspector's text is editor-neutral; tests reach AvalonEdit through the bridge
+
+- Status: accepted, 2026-10-20; the user approved the main-window plan, whose first step makes the message inspector portable, and allowed small edits to the existing test lines that edited the inspector's AvalonEdit document directly, with their assertions unchanged.
+- Decision: `DeliveryInspector` keeps each delivery's text in a WPF-free `InspectionDocument`. `EditorDocuments.For` gives each one an AvalonEdit document that passes edits both ways and keeps the undo history; `InspectionDocument.Reset` tells it to forget that history. Test lines that inserted text or read the undo stack through `Inspector.Document` now set `Text` or go through `EditorDocuments.For`. This is the one exception to DEC-053's rule that extractions leave existing tests unchanged apart from import lines.
+- Because: the inspector held AvalonEdit's WPF `TextDocument`, which kept it and the whole investigation workspace out of the Presentation project (DEC-053). A neutral document lets both move without changing every place that constructs an inspector or a workspace.
+- Consequences: a later Avalonia editor needs only its own bridge like `EditorDocuments`. `JsonEditor` still takes an AvalonEdit document, so its folding tests are unchanged.
