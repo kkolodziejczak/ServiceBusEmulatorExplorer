@@ -48,8 +48,12 @@ public sealed class WindowCloseViewModelTests
     {
         await using var fixture = await WorkspaceFixture.OpenAsync();
         var close = new WindowCloseViewModel(fixture.Workspace);
+        bool connectedWhileSaving = false;
+        fixture.Store.BeforeSave = () => { connectedWhileSaving = fixture.Workspace.IsConnected; return Task.CompletedTask; };
 
         await close.ShutDownAsync(1234, 777);
+
+        Assert.True(connectedWhileSaving);
 
         Assert.Equal(1234, fixture.Store.Saved.WindowWidth);
         Assert.Equal(777, fixture.Store.Saved.WindowHeight);
