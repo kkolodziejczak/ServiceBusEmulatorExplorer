@@ -10,6 +10,7 @@ using ServiceBusEmulatorExplorer.App.Investigation.Settings;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Presentation;
 using ServiceBusEmulatorExplorer.Presentation.Investigation;
+using ServiceBusEmulatorExplorer.Presentation.Investigation.Inspection;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
@@ -21,6 +22,7 @@ public partial class InvestigationWindow : Window, IMessageActionsHost
     private readonly SearchSurfaceViewModel searchSurface;
     private readonly NamespaceScopeViewModel namespaceScope;
     private readonly MessageColumnsViewModel columns;
+    private readonly InspectorPanelViewModel inspectorPanel;
     private readonly AutoRefreshTimer refreshTimer;
     private readonly Action<string> copyText;
     private bool ready;
@@ -52,6 +54,7 @@ public partial class InvestigationWindow : Window, IMessageActionsHost
         namespaceScope = new NamespaceScopeViewModel(workspace);
         columns = new MessageColumnsViewModel(workspace);
         columns.PropertyChanged += ColumnsChanged;
+        inspectorPanel = new InspectorPanelViewModel(workspace, this.copyText);
         refreshTimer = new(workspace.Clock, tick => Dispatcher.BeginInvoke(DispatcherPriority.Background, tick));
         InitializeComponent();
         MessageLibraryPrototype.ConnectionRepairRequested += () => ConnectionButton.Focus();

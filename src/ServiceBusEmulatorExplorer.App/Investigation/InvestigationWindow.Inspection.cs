@@ -14,11 +14,10 @@ namespace ServiceBusEmulatorExplorer.App.Investigation;
 
 public partial class InvestigationWindow
 {
-    private string inspectorMode = "Body";
     private bool inspectorSynchronizingSelection;
     private bool inspectorRendering;
     private string? inspectorRenderedText;
-    private string? inspectorRenderedMode;
+    private InspectorMode? inspectorRenderedMode;
     private DeliveryIdentity? inspectorRenderedIdentity;
 
     private void Messages_Selected(object sender, SelectionChangedEventArgs e)
@@ -75,28 +74,22 @@ public partial class InvestigationWindow
         }
     }
 
-    private void CopyCorrelation_Click(object sender, RoutedEventArgs e)
-    {
-        if (workspace.Surface.FocusedMessage is { CorrelationId.Length: > 0 } row)
-        {
-            CopyToClipboard(row.CorrelationId);
-        }
-    }
+    private void CopyCorrelation_Click(object sender, RoutedEventArgs e) =>
+        inspectorPanel.CopyCorrelation(workspace.Surface.FocusedMessage);
 
     private void CopyRowCorrelation_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button { DataContext: MessageRow row } && !string.IsNullOrEmpty(row.CorrelationId))
-            CopyToClipboard(row.CorrelationId);
+        if (sender is Button { DataContext: MessageRow row }) inspectorPanel.CopyCorrelation(row);
     }
 
     private void Json_Checked(object sender, RoutedEventArgs e)
     {
-        if (ready && !inspectorRendering) SetInspectorMode("Body");
+        if (ready && !inspectorRendering) SetInspectorMode(InspectorMode.Body);
     }
 
     private void Properties_Checked(object sender, RoutedEventArgs e)
     {
-        if (ready && !inspectorRendering) SetInspectorMode("Properties");
+        if (ready && !inspectorRendering) SetInspectorMode(InspectorMode.Properties);
     }
 
     private void InspectorTab_Unchecked(object sender, RoutedEventArgs e)
@@ -112,20 +105,7 @@ public partial class InvestigationWindow
         }
     }
 
-    private void Copy_Click(object sender, RoutedEventArgs e)
-    {
-        if (workspace.Inspector.Current is null)
-        {
-            return;
-        }
-
-        string text = inspectorMode switch
-        {
-            "Properties" => workspace.Inspector.PropertiesText,
-            _ => workspace.Inspector.Document.Text
-        };
-        CopyToClipboard(text);
-    }
+    private void Copy_Click(object sender, RoutedEventArgs e) => inspectorPanel.CopyShown();
 
     private void Discard_Click(object sender, RoutedEventArgs e)
     {
@@ -141,26 +121,26 @@ public partial class InvestigationWindow
         }
 
         DeliveryInspector inspector = workspace.Inspector;
-        MessageRow? focused = workspace.Surface.FocusedMessage;
-        bool hasMessage = focused is not null && inspector.Current is not null;
+        var state = inspectorPanel.StateFor(actions.IsReplayPending);
+        bool hasMessage = state.HasMessage;
         DeliveryIdentity? identity = inspector.Current?.Identity;
 
         bool inspectorContentChanged = !EqualityComparer<DeliveryIdentity?>.Default.Equals(inspectorRenderedIdentity, identity)
-            || !string.Equals(inspectorRenderedMode, inspectorMode, StringComparison.Ordinal);
+            || inspectorRenderedMode != inspectorPanel.Mode;
         if (inspectorContentChanged)
         {
             inspectorRenderedText = null;
         }
 
         inspectorRenderedIdentity = identity;
-        inspectorRenderedMode = inspectorMode;
+        inspectorRenderedMode = inspectorPanel.Mode;
         InspectorHeading.Visibility = hasMessage ? Visibility.Visible : Visibility.Collapsed;
         InspectorTabs.Visibility = hasMessage ? Visibility.Visible : Visibility.Collapsed;
         EmptyInspector.Visibility = hasMessage ? Visibility.Collapsed : Visibility.Visible;
         CopyButton.Visibility = hasMessage ? Visibility.Visible : Visibility.Collapsed;
-        DlqReason.Visibility = focused?.IsDeadLetter == true ? Visibility.Visible : Visibility.Collapsed;
-        ReplayActions.Visibility = hasMessage && focused?.IsDeadLetter == true ? Visibility.Visible : Visibility.Collapsed;
-        ApplyInspectorStateBadge(focused);
+        DlqReason.Visibility = state.IsDeadLetter ? Visibility.Visible : Visibility.Collapsed;
+        ReplayActions.Visibility = hasMessage && state.IsDeadLetter ? Visibility.Visible : Visibility.Collapsed;
+        ApplyInspectorStateBadge(state.IsDeadLetter);
         if (!hasMessage)
         {
             CloseInspectorFind(restoreFocus: false);
@@ -175,40 +155,22 @@ public partial class InvestigationWindow
                 BodyEditor.SetInspectionDocument(editorDocument);
             }
 
-            BodyEditor.IsReadOnly = inspector.IsReadOnly || actions.IsReplayPending;
-            bool editable = inspectorMode == "Body" && !BodyEditor.IsReadOnly;
-            string editability = editable ? "Editable" : "Read-only";
-            string editabilityHelp = editable
-                ? "Edit this body, then replay a new copy. Original stays unchanged."
-                : actions.IsReplayPending ? "Read-only while replay is in progress."
-                : inspectorMode != "Body" ? "Message properties are read-only. You can select and copy them."
-                : "This message body is read-only. You can select, find, fold and copy its content.";
+            BodyEditor.IsReadOnly = state.IsReadOnly;
             InspectorEditabilityStatus.Visibility = hasMessage ? Visibility.Visible : Visibility.Collapsed;
-            InspectorEditabilityText.Text = editability;
+            InspectorEditabilityText.Text = state.Editability;
             InspectorEditabilityIcon.SetResourceReference(System.Windows.Shapes.Path.DataProperty,
-                editable ? "PencilGeometry" : "LockGeometry");
-            InspectorEditabilityStatus.ToolTip = editabilityHelp;
-            System.Windows.Automation.AutomationProperties.SetName(InspectorEditabilityStatus, editability);
-            System.Windows.Automation.AutomationProperties.SetHelpText(InspectorEditabilityStatus, editabilityHelp);
-            System.Windows.Automation.AutomationProperties.SetHelpText(BodyEditor, editabilityHelp);
-            BodyEditor.Visibility = hasMessage && inspectorMode == "Body"
-                ? Visibility.Visible
-                : Visibility.Collapsed;
-            BodyViewer.Visibility = hasMessage && inspectorMode != "Body"
-                ? Visibility.Visible
-                : Visibility.Collapsed;
-            JsonTab.ToolTip = inspector.IsValidJson
-                ? "Formatted JSON"
-                : inspector.BodyDescription.Contains("Base64", StringComparison.Ordinal) ? inspector.BodyDescription
-                : "Plain text or invalid JSON cannot be formatted; the body is shown as received.";
-            JsonTab.IsChecked = inspectorMode == "Body";
-            PropertiesTab.IsChecked = inspectorMode == "Properties";
-            ModifiedBadge.Visibility = hasMessage && inspector.IsDirty
-                ? Visibility.Visible
-                : Visibility.Collapsed;
-            DiscardButton.Visibility = hasMessage && inspector.IsDirty
-                ? Visibility.Visible
-                : Visibility.Collapsed;
+                state.IsEditable ? "PencilGeometry" : "LockGeometry");
+            InspectorEditabilityStatus.ToolTip = state.EditabilityHelp;
+            System.Windows.Automation.AutomationProperties.SetName(InspectorEditabilityStatus, state.Editability);
+            System.Windows.Automation.AutomationProperties.SetHelpText(InspectorEditabilityStatus, state.EditabilityHelp);
+            System.Windows.Automation.AutomationProperties.SetHelpText(BodyEditor, state.EditabilityHelp);
+            BodyEditor.Visibility = state.ShowsBody ? Visibility.Visible : Visibility.Collapsed;
+            BodyViewer.Visibility = state.ShowsProperties ? Visibility.Visible : Visibility.Collapsed;
+            JsonTab.ToolTip = state.JsonTabToolTip;
+            JsonTab.IsChecked = inspectorPanel.Mode == InspectorMode.Body;
+            PropertiesTab.IsChecked = inspectorPanel.Mode == InspectorMode.Properties;
+            ModifiedBadge.Visibility = state.IsModified ? Visibility.Visible : Visibility.Collapsed;
+            DiscardButton.Visibility = state.IsModified ? Visibility.Visible : Visibility.Collapsed;
 
             RenderViewer(inspector, hasMessage);
         }
@@ -240,9 +202,8 @@ public partial class InvestigationWindow
         SelectWorkspaceTab(true);
     }
 
-    private void ApplyInspectorStateBadge(MessageRow? focused)
+    private void ApplyInspectorStateBadge(bool deadLetter)
     {
-        bool deadLetter = focused?.IsDeadLetter == true;
         InspectorState.Background = deadLetter
             ? new SolidColorBrush(Color.FromRgb(255, 230, 200))
             : new SolidColorBrush(Color.FromRgb(239, 246, 255));
@@ -258,20 +219,14 @@ public partial class InvestigationWindow
         }
     }
 
-    private void SetInspectorMode(string mode)
+    private void SetInspectorMode(InspectorMode mode)
     {
-        if (inspectorMode == mode)
-        {
-            return;
-        }
-
-        inspectorMode = mode;
-        UpdateInspector();
+        if (inspectorPanel.SetMode(mode)) UpdateInspector();
     }
 
     private void RenderViewer(DeliveryInspector inspector, bool hasMessage)
     {
-        if (!hasMessage || inspectorMode == "Body")
+        if (!hasMessage || inspectorPanel.Mode == InspectorMode.Body)
         {
             return;
         }
@@ -335,19 +290,6 @@ public partial class InvestigationWindow
         }
 
         UpdateInspector();
-    }
-
-    private void CopyToClipboard(string text)
-    {
-        try
-        {
-            copyText(text);
-            workspace.Log("Copied displayed text to clipboard.");
-        }
-        catch (Exception)
-        {
-            workspace.Log("Clipboard could not be accessed. Try Copy again.", true);
-        }
     }
 
     private static bool IsInsideCheckBox(DependencyObject? source)
