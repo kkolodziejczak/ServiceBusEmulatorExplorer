@@ -1,10 +1,11 @@
 using System.Windows;
+using ServiceBusEmulatorExplorer.Presentation.Workbench;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
 public partial class TemplateLocationDialog : Window
 {
-    private readonly Func<string, string, string?> validate;
+    private readonly TemplateLocationViewModel location;
     public string TemplateName => NameInput.Text.Trim();
     public string FolderPath => (FolderInput.SelectedItem as FolderChoice)?.Path ?? "";
 
@@ -12,15 +13,11 @@ public partial class TemplateLocationDialog : Window
         Func<string, string, string?> validate, bool moving = false)
     {
         InitializeComponent();
-        this.validate = validate;
+        location = new TemplateLocationViewModel(folders, selectedFolder, validate);
         Title = Heading.Text = title;
         NameInput.Text = name;
-        var choices = new[] { new FolderChoice("", "Root") }.Concat(folders
-            .Where(path => path.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-            .Select(path => new FolderChoice(path, path.Replace("/", " / ")))).ToArray();
-        FolderInput.ItemsSource = choices;
-        FolderInput.SelectedItem = choices.FirstOrDefault(choice => choice.Path.Equals(selectedFolder, StringComparison.OrdinalIgnoreCase)) ?? choices[0];
+        FolderInput.ItemsSource = location.Choices;
+        FolderInput.SelectedItem = location.InitialChoice;
         if (moving)
         {
             NameRow.Visibility = Visibility.Collapsed;
@@ -35,8 +32,7 @@ public partial class TemplateLocationDialog : Window
 
     private void Confirm_Click(object sender, RoutedEventArgs e)
     {
-        string? error = TemplateName.Length == 0 ? "Enter a name." : validate(TemplateName, FolderPath);
-        if (error is not null)
+        if (location.Problem(NameInput.Text, FolderInput.SelectedItem as FolderChoice) is { } error)
         {
             ErrorText.Text = error;
             ErrorText.Visibility = Visibility.Visible;
@@ -44,6 +40,4 @@ public partial class TemplateLocationDialog : Window
         }
         DialogResult = true;
     }
-
-    private sealed record FolderChoice(string Path, string Label);
 }

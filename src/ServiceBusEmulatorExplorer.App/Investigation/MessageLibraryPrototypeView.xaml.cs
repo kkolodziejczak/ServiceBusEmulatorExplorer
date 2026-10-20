@@ -308,11 +308,8 @@ public partial class MessageLibraryPrototypeView : UserControl
             else InheritTtl.IsChecked = true;
             applicationProperties.Clear();
             foreach (var property in properties.ApplicationProperties)
-                applicationProperties.Add(new PrototypeProperty(property.Key, property.Value switch
-                {
-                    bool => "boolean", int => "int", long => "long", decimal => "decimal",
-                    double => "double", Guid => "guid", DateTime or DateTimeOffset => "dateTimeUtc", _ => "string"
-                }, property.Value?.ToString() ?? ""));
+                applicationProperties.Add(new PrototypeProperty(property.Key, WorkbenchCapture.PropertyType(property.Value),
+                    property.Value?.ToString() ?? ""));
         }
         UpdateDestinationControls();
         ShowEditorBody();
@@ -824,7 +821,7 @@ public partial class MessageLibraryPrototypeView : UserControl
     private void AddVariable_Click(object sender, RoutedEventArgs e)
     {
         string? name = PromptForName("Add variable", "Variable name", "NewVariable",
-            value => System.Text.RegularExpressions.Regex.IsMatch(value, "^[A-Za-z_][A-Za-z0-9_]*$"),
+            PrototypeVariable.IsValidName,
             "Use letters, digits or underscores; start with a letter or underscore.");
         if (name is null) return;
         if (variables.Any(value => value.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
@@ -839,22 +836,4 @@ public partial class MessageLibraryPrototypeView : UserControl
 
     private static IReadOnlyList<string> TemplateAssociations(PrototypeTemplate template) =>
         template.Topic.Length == 0 ? [] : [template.Topic];
-
-    private sealed class PrototypeProperty(string name, string type, string value)
-    {
-        public PrototypeProperty() : this("", "string", "") { }
-        public bool IsEmpty => string.IsNullOrWhiteSpace(Name) && string.IsNullOrWhiteSpace(Value) && Type == "string";
-        public string Name { get; set; } = name;
-        public string Type { get; set; } = type;
-        public string Value { get; set; } = value;
-    }
-    private sealed class PrototypeVariable(string name, string type, string source, string defaultValue)
-    {
-        public string Name { get; set; } = name;
-        public string Type { get; set; } = type;
-        public string Source { get; set; } = source;
-        public bool HasDefault { get; set; }
-        public string DefaultValue { get; set; } = "";
-        public string Default => Source == "Input" ? (HasDefault ? DefaultValue : "none (required)") : defaultValue;
-    }
 }

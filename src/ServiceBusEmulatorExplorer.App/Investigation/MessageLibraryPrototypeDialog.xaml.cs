@@ -128,8 +128,7 @@ public partial class MessageLibraryPrototypeDialog : Window
         ?? ((ComboBoxItem)CaptureCollection.SelectedItem).Content.ToString()!.Split('/').Last();
     public PrototypeCaptureProperties? CaptureProperties => capturedMessage is { } message
         ? new PrototypeCaptureProperties(message.Subject, message.ContentType, message.CorrelationId,
-            message.SessionId, CaptureCopyTtl.IsChecked == true && message.ExpiresAt is { } expiry &&
-            message.EnqueuedTime is { } enqueued ? (int)Math.Ceiling((expiry - enqueued).TotalMinutes) : null,
+            message.SessionId, WorkbenchCapture.TtlMinutes(CaptureCopyTtl.IsChecked == true, message.ExpiresAt, message.EnqueuedTime),
             message.ApplicationProperties)
         : null;
 
@@ -166,11 +165,10 @@ public partial class MessageLibraryPrototypeDialog : Window
     public void SetValidationRows(IEnumerable<(int Row, string CustomerId, string Status)> rows)
     {
         var sampleRows = rows.ToArray();
-        int invalid = sampleRows.Count(value => value.Status != "Ready");
+        int invalid = sampleRows.Count(value => value.Status != SampleRow.Ready);
         ValidationGrid.ItemsSource = sampleRows.Select(value => new ValidationRow(value.Row, value.CustomerId, value.Status)).ToArray();
         ValidationHeading.Text = invalid == 0 ? "Validation results" : "Validation errors";
-        ValidationBannerText.Text = invalid == 0 ? $"{sampleRows.Length} of {sampleRows.Length} rows valid" :
-            $"{invalid} invalid row{(invalid == 1 ? "" : "s")} · Nothing can be sent";
+        ValidationBannerText.Text = WorkbenchSampleData.Summary(sampleRows.Select(value => new SampleRow(value.Row, value.CustomerId, null, value.Status)).ToArray());
         ValidationBanner.Background = (System.Windows.Media.Brush)FindResource(invalid == 0 ? "NeutralHoverBrush" : "DestructiveHoverBrush");
         ValidationBanner.BorderBrush = (System.Windows.Media.Brush)FindResource(invalid == 0 ? "ControlBorderBrush" : "DestructiveBrush");
     }
@@ -260,7 +258,7 @@ public partial class MessageLibraryPrototypeDialog : Window
     {
         var picker = new MessageLibraryPrototypeDialog(PrototypeDialogMode.SampleCsv, ReviewSurfaceControl.Profile,
             ReviewSurfaceControl.Target, 3) { Owner = this };
-        picker.SampleCsvPicker.SelectedIndex = SampleFile == "orders-invalid.csv" ? 1 : 0;
+        picker.SampleCsvPicker.SelectedIndex = SampleFile == WorkbenchSampleData.InvalidSampleFile ? 1 : 0;
         if (picker.ShowDialog() != true) return;
         SampleFile = picker.SelectedSampleCsv;
         MappingFile.Text = SampleFile;
@@ -271,23 +269,21 @@ public partial class MessageLibraryPrototypeDialog : Window
         if (CustomerSource is null || AmountSource is null || CustomerValue is null || AmountValue is null) return;
         if (sender == CustomerSource)
         {
-            CustomerValue.Text = CustomerSource.SelectedIndex == 0 ? "CustomerId" : CustomerSource.SelectedIndex == 1 ? "C1001" : CustomerDeclaredDefault ?? "";
+            CustomerValue.Text = WorkbenchSampleData.MappingStartValue(CustomerSource.SelectedIndex, "CustomerId", "C1001", CustomerDeclaredDefault);
             CustomerValue.IsEnabled = CustomerSource.SelectedIndex != 2;
         }
         if (sender == AmountSource)
         {
-            AmountValue.Text = AmountSource.SelectedIndex == 0 ? "Amount" : AmountSource.SelectedIndex == 1 ? "149.90" : AmountDeclaredDefault ?? "";
+            AmountValue.Text = WorkbenchSampleData.MappingStartValue(AmountSource.SelectedIndex, "Amount", "149.90", AmountDeclaredDefault);
             AmountValue.IsEnabled = AmountSource.SelectedIndex != 2;
         }
     }
 
     private void ApplyMapping_Click(object sender, RoutedEventArgs e)
     {
-        bool missingCustomer = string.IsNullOrWhiteSpace(CustomerValue.Text);
-        bool missingAmount = string.IsNullOrWhiteSpace(AmountValue.Text);
-        if (missingCustomer || missingAmount)
+        if (WorkbenchSampleData.MappingProblem(CustomerValue.Text, AmountValue.Text) is { } problem)
         {
-            MappingError.Text = "CustomerId and Amount are required. Map a CSV column, enter a constant, or declare a default in Variables.";
+            MappingError.Text = problem;
             MappingError.Visibility = Visibility.Visible;
             return;
         }
