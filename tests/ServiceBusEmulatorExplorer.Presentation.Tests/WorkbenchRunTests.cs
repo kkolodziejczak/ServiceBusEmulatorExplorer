@@ -154,6 +154,7 @@ public sealed class WorkbenchRunTests
     {
         var run = Restored(Receipt(1, "701"), Receipt(3, "703", dueTime: "2026-10-18T09:45:00Z"));
         var selected = run.CancellableSelection();
+        Assert.Equal([1, 3], selected.Select(row => row.Row));
 
         now = now.AddMinutes(20);
         run.Cancel(selected);
