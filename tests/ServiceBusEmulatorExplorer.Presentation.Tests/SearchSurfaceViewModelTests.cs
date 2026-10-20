@@ -123,9 +123,14 @@ public sealed class SearchSurfaceViewModelTests
         Assert.Equal("Searching messages…", state.EmptyList!.Message);
         Assert.Equal(new NamespaceEmptyState(true, "Searching for matching entities…"), surface.NamespaceEmptyFor("", false));
         fixture.Workspace.Search.Stop();
-        peek.SetResult();
         await searching.WaitAsync(TimeSpan.FromSeconds(10));
-        Assert.False(surface.StateFor(true, "", false).CanStop);
+        var stopped = surface.StateFor(true, "", false);
+
+        Assert.False(stopped.CanStop);
+        Assert.False(stopped.IsComplete);
+        Assert.Equal("checkout* · 0 matches so far", stopped.Summary);
+        Assert.Equal("No matches in the scanned deliveries", stopped.EmptyList!.Message);
+        Assert.False(peek.Task.IsCompleted);
     }
 
     [Fact]
