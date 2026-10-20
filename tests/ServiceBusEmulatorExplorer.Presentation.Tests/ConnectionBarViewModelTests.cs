@@ -1,3 +1,5 @@
+using ServiceBusEmulatorExplorer.Core.Connection;
+using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 namespace ServiceBusEmulatorExplorer.Presentation.Tests;
@@ -64,7 +66,14 @@ public sealed class ConnectionBarViewModelTests
         await using var fixture = await WorkspaceFixture.OpenAsync();
         var bar = new ConnectionBarViewModel(fixture.Workspace);
 
-        Assert.True(await bar.SwitchProfileAsync(fixture.Workspace.SelectedProfile));
+        var preferences = fixture.Workspace.Preferences;
+        var second = new InvestigationProfile("second", ConnectionProfileDefaults.LocalEmulator with { Name = "Second emulator" });
+        await fixture.Workspace.ApplyPreferencesAsync(preferences with { Profiles = [.. preferences.Profiles, second] });
+
+        Assert.True(await bar.SwitchProfileAsync(second));
+
+        Assert.Equal("second", fixture.Workspace.SelectedProfile.Id);
+        Assert.Equal("second", fixture.Store.Saved.SelectedProfileId);
         await Assert.ThrowsAsync<ArgumentNullException>(() => bar.SwitchProfileAsync(null!));
     }
 }

@@ -1,3 +1,4 @@
+using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 namespace ServiceBusEmulatorExplorer.Presentation.Tests;
@@ -13,6 +14,7 @@ public sealed class ActivityLogViewModelTests
     {
         await using var fixture = await WorkspaceFixture.OpenAsync();
         var log = new ActivityLogViewModel(fixture.Workspace);
+        await fixture.Workspace.ApplyPreferencesAsync(fixture.Workspace.Preferences with { DateFormat = DateDisplayFormat.Iso });
         log.Clear();
         fixture.Workspace.Log("info line");
         fixture.Workspace.Log("watch line", watch: true);
@@ -25,7 +27,7 @@ public sealed class ActivityLogViewModelTests
         Assert.Equal(["info line", "watch line", "warning line"], lines.Select(line => line.Message));
         var last = fixture.Workspace.Activity[^1].TimestampUtc;
         Assert.Equal(last.ToString("HH:mm:ss") + " UTC", lines[^1].Time);
-        Assert.EndsWith(" UTC", lines[^1].Date, StringComparison.Ordinal);
+        Assert.Equal(DateDisplay.Timestamp(last.ToUniversalTime(), DateDisplayFormat.Iso) + " UTC", lines[^1].Date);
         Assert.Equal(lines[^1].Time, log.LastTime);
         Assert.Equal(lines[^1].Date, log.LastDate);
         Assert.Equal("Enqueued (UTC)", log.EnqueuedHeader);
@@ -34,7 +36,7 @@ public sealed class ActivityLogViewModelTests
 
         Assert.False(log.UsesUtc);
         Assert.Equal(last.ToLocalTime().ToString("HH:mm:ss") + " Local", log.Lines[^1].Time);
-        Assert.EndsWith(" Local", log.LastDate, StringComparison.Ordinal);
+        Assert.Equal(DateDisplay.Timestamp(last.ToLocalTime(), DateDisplayFormat.Iso) + " Local", log.LastDate);
         Assert.Equal("Enqueued (Local)", log.EnqueuedHeader);
     }
 
