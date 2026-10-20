@@ -10,30 +10,6 @@ public partial class InvestigationWindow
 {
     private bool applyingColumnOrder;
 
-    private void UpdateColumnChoiceOrder(IReadOnlyList<string> order, IReadOnlyList<string> selected)
-    {
-        var visible = order.Where(selected.Contains).ToArray();
-        var choices = visible.Concat(columnOptions.Where(option => !option.IsSelected)
-            .OrderBy(option => option.Section == "Default columns" ? 0 : option.Section == "System properties" ? 1 : 2)
-            .ThenBy(option => option.Label, StringComparer.Ordinal)
-            .Select(option => option.Id)).ToArray();
-        var arranged = choices.Select(id => columnOptions.Single(item => item.Id == id)).ToArray();
-        // Reset the grouped view after membership changes; incremental Move notifications can
-        // otherwise target the old group after a checkbox changes Visible columns membership.
-        if (!columnOptions.SequenceEqual(arranged))
-        {
-            columnOptions.Clear();
-            foreach (var option in arranged) columnOptions.Add(option);
-        }
-        foreach (var option in arranged)
-        {
-            int position = Array.IndexOf(visible, option.Id);
-            option.CanMoveUp = position > 0;
-            option.CanMoveDown = position >= 0 && position < visible.Length - 1;
-        }
-        columnChoicesView?.Refresh();
-    }
-
     private void ApplyColumnOrder(IReadOnlyList<string> order, bool fixedLayout)
     {
         applyingColumnOrder = true;
@@ -59,24 +35,13 @@ public partial class InvestigationWindow
     private async void MessageColumns_Reordered(object sender, DataGridColumnEventArgs e)
     {
         if (applyingColumnOrder || workspace.Surface.ShowsSource) return;
-        var selected = pendingColumns ?? MessageColumnCatalog.Normalize(workspace.Preferences.MessageColumns);
-        var order = pendingColumnOrder ?? MessageColumnCatalog.NormalizeOrder(workspace.Preferences.MessageColumnOrder, selected);
-        var visible = MessageGrid.Columns.Where(column => selected.Contains(column.SortMemberPath))
-            .OrderBy(column => column.DisplayIndex).Select(column => column.SortMemberPath).ToArray();
-        await SaveMessageColumnsAsync(selected, MessageColumnCatalog.ReorderVisible(order, visible));
+        await columns.ReorderAsync(MessageGrid.Columns.OrderBy(column => column.DisplayIndex).Select(column => column.SortMemberPath));
     }
 
     private async void ColumnMove_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { DataContext: MessageColumnOption option } button) return;
-        var selected = pendingColumns ?? MessageColumnCatalog.Normalize(workspace.Preferences.MessageColumns);
-        var order = pendingColumnOrder ?? MessageColumnCatalog.NormalizeOrder(workspace.Preferences.MessageColumnOrder, selected);
-        var visible = order.Where(selected.Contains).ToArray();
-        int index = Array.IndexOf(visible, option.Id);
-        int next = index + (button.Tag as string == "Up" ? -1 : 1);
-        if (index < 0 || next < 0 || next >= visible.Length) return;
-        (visible[index], visible[next]) = (visible[next], visible[index]);
-        await SaveMessageColumnsAsync(selected, MessageColumnCatalog.ReorderVisible(order, visible));
+        if (!await columns.MoveAsync(option.Id, up: button.Tag as string == "Up")) return;
         // Group refresh rebuilds containers; keep keyboard navigation on the moved choice.
         _ = Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
         {
