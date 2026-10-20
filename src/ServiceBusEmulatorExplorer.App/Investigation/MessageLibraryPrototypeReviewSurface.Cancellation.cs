@@ -33,7 +33,7 @@ public partial class MessageLibraryPrototypeReviewSurface
         row.CancellationStatus != "Cancellation acknowledged" &&
         AttemptCount(row) < MaximumCancellationAttempts &&
         long.TryParse(row.Receipt, NumberStyles.None, CultureInfo.InvariantCulture, out _) &&
-        TryGetDueUtc(row, out DateTime dueUtc) && dueUtc > DateTime.UtcNow;
+        TryGetDueUtc(row, out DateTime dueUtc) && dueUtc > clock.GetUtcNow().UtcDateTime;
 
     private int AttemptCount(PrototypeScheduledResult row) =>
         cancellationAttempts.Count(attempt => attempt.Row == row.Row && attempt.Receipt == row.Receipt);
@@ -76,7 +76,7 @@ public partial class MessageLibraryPrototypeReviewSurface
             if (!CanCancel(row)) continue;
             row.CancellationStatus = stopped ? "Not attempted" :
                 row.Row % 2 == 0 ? "Outcome unknown" : "Cancellation acknowledged";
-            DateTimeOffset requestedAt = DateTimeOffset.UtcNow;
+            DateTimeOffset requestedAt = clock.GetUtcNow();
             row.AttemptTime = requestedAt.ToString("HH:mm 'UTC'", CultureInfo.InvariantCulture);
             cancellationAttempts.Add(new PrototypeCancellationAttempt(row.Row, row.Receipt, row.Payload,
                 row.CancellationStatus, requestedAt));

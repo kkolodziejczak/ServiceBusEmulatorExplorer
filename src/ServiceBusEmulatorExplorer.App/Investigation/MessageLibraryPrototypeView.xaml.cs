@@ -724,6 +724,7 @@ public partial class MessageLibraryPrototypeView : UserControl
         if (!previewReady || selectedDestination is null) return;
         var review = new MessageLibraryPrototypeReviewSurface(currentProfileName,
             selectedDestination, CsvMode.IsChecked == true ? 3 : 1);
+        review.UseClock(Clock);
         review.SetReviewProperties(
             SpecifyTtl.IsChecked == true ? $"Time to live: {TtlMinutes.Text} minutes" : "Time to live: inherit entity default",
             BuildPropertyDetails(CustomerInput.Text, preparedMessages[0]));
@@ -781,6 +782,7 @@ public partial class MessageLibraryPrototypeView : UserControl
     {
         if (lastRun is not { } run) return;
         var review = new MessageLibraryPrototypeReviewSurface(run.Profile, run.Target, run.Results.Count);
+        review.UseClock(Clock);
         review.ShowPriorResults(run);
         PresentReview(review);
     }

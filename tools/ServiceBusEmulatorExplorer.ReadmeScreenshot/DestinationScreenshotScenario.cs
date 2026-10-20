@@ -56,6 +56,7 @@ internal static class DestinationScreenshotScenario
                     Require(((FrameworkElement)window.Content).ActualWidth == width && ((FrameworkElement)window.Content).ActualHeight == height, "Requested viewport dimensions must match the rendered surface.");
                     ((ToggleButton)window.FindName("MessageLibraryTab")!).IsChecked = true;
                     var view = (MessageLibraryPrototypeView)window.FindName("MessageLibraryPrototype")!;
+                    WorkbenchDeterminism.Apply(view);
                     var libraryTree = Get<TreeView>(view, "LibraryTree");
                     var ordersFolder = libraryTree.Items.OfType<TreeViewItem>().Single(item => Equals(item.Tag, "folder:Orders"));
                     ordersFolder.Items.OfType<TreeViewItem>().Single(item => Equals(item.Tag, "template:Order created")).IsSelected = true;

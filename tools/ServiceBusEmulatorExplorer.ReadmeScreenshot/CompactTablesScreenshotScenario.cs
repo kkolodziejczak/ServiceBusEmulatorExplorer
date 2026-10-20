@@ -74,6 +74,7 @@ internal static class CompactTablesScreenshotScenario
 
             ((ToggleButton)window.FindName("MessageLibraryTab")!).IsChecked = true;
             var view = (MessageLibraryPrototypeView)window.FindName("MessageLibraryPrototype")!;
+            WorkbenchDeterminism.Apply(view);
             Idle(window);
 
             RenameStates(window, view, directory, width, height);

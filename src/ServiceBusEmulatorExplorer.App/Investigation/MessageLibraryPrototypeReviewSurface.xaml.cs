@@ -31,7 +31,19 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     private DateTimeOffset? dispatchDueUtc;
     private readonly DispatcherTimer scheduleClock = new() { Interval = TimeSpan.FromSeconds(15) };
     private ScheduleProblem? scheduleProblem;
-    private Func<DateTime> utcNow = () => DateTime.UtcNow;
+    private TimeProvider clock = TimeProvider.System;
+    private Func<DateTime> utcNow;
+
+    /// <summary>
+    /// Times scheduling and cancellation by <paramref name="time"/> instead of the system clock, and picks the default
+    /// schedule date (tomorrow) from it. Call it right after creating the review, before the user changes the schedule.
+    /// </summary>
+    public void UseClock(TimeProvider time)
+    {
+        ArgumentNullException.ThrowIfNull(time);
+        clock = time;
+        ScheduleDateInput.SelectedDate = clock.GetLocalNow().Date.AddDays(1);
+    }
 
     private enum ScheduleField { Date, Time }
     private sealed record ScheduleProblem(string Message, ScheduleField Field);
@@ -42,6 +54,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
 
     public MessageLibraryPrototypeReviewSurface(string profile, string target, int count)
     {
+        utcNow = () => clock.GetUtcNow().UtcDateTime;
         InitializeComponent();
         InitializeScheduleInputs();
         RefreshDatePresentation();
@@ -96,7 +109,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         ReviewMessageCount.Text = $"{count} valid message{(count == 1 ? "" : "s")}";
         ReviewHeading.Text = $"Review {count} message{(count == 1 ? "" : "s")}";
         SetPreparedMessages(CreateSamplePreparedMessages(count));
-        ScheduleDateInput.SelectedDate = DateTime.Today.AddDays(1);
+        ScheduleDateInput.SelectedDate = clock.GetLocalNow().Date.AddDays(1);
         ScheduleHourInput.SelectedIndex = 14;
         ScheduleMinuteInput.SelectedIndex = 30;
         ReviewSurface.Visibility = Visibility.Visible;
@@ -294,7 +307,8 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     private void BlockPastCalendarDays(DateTime nowUtc)
     {
         // A UTC schedule may still be today in UTC after the local date has moved on, and vice versa.
-        DateTime earliest = DateTime.Today < nowUtc.Date ? DateTime.Today : nowUtc.Date;
+        DateTime today = clock.GetLocalNow().Date;
+        DateTime earliest = today < nowUtc.Date ? today : nowUtc.Date;
         // Keep an already selected past day inside the range so it stays shown next to the notice that explains it.
         if (ScheduleDateInput.SelectedDate is DateTime selected && selected.Date < earliest) earliest = selected.Date;
         ScheduleDateInput.DisplayDateStart = earliest;

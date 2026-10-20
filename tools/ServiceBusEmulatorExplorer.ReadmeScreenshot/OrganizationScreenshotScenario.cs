@@ -74,6 +74,7 @@ internal static class OrganizationScreenshotScenario
             await IdleAsync(window);
             ((ToggleButton)window.FindName("MessageLibraryTab")!).IsChecked = true;
             var view = (MessageLibraryPrototypeView)window.FindName("MessageLibraryPrototype")!;
+            WorkbenchDeterminism.Apply(view);
             Idle(window);
 
             CreateLongFolder(window, view, LongFolder);

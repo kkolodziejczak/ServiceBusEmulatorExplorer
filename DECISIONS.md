@@ -65,7 +65,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-046 | accepted | Workbench scheduling | Schedule problems use the amber validation notice with a remedy |
 | DEC-047 | accepted | Workbench CSV | Delimiter shown as a key-cap character before its name |
 | DEC-048 | accepted | Namespace tree | Emulator counts are full peek totals with 1k+/10k+/100k+ brackets |
-| DEC-049 | accepted | Architecture | Cross-platform migration waits for a safety net and an approved Workbench |
+| DEC-049 | accepted; Workbench clause superseded by DEC-057 | Architecture | Cross-platform migration waits for a safety net and an approved Workbench |
 | DEC-050 | accepted | Testing | Visual baselines must match exactly |
 | DEC-051 | accepted | Typography | Bundled Selawik and Cascadia Mono replace system fonts |
 | DEC-052 | accepted | Settings | Third-party licences shown in Settings and kept complete by a test |
@@ -73,6 +73,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-054 | accepted | Settings | Settings runs on view models; Save profile waits until no save is pending |
 | DEC-055 | accepted | Settings | Profiles save explicitly; unsaved edits are marked and asked about on close |
 | DEC-056 | accepted | Architecture | The inspector's text is editor-neutral; tests reach AvalonEdit through the bridge |
+| DEC-057 | accepted | Architecture | The Message Workbench migrates to view models now, behind new pixel baselines |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -413,7 +414,7 @@ DLQ palette clarification: the user explicitly disallowed changing DLQ tag color
 
 ## DEC-049 - Cross-platform migration waits for a safety net
 
-- Status: accepted, 2026-10-18; user chose MVVM-first and approved safety-net phase A after a cross-platform analysis that recommended Avalonia.
+- Status: accepted, 2026-10-18; user chose MVVM-first and approved safety-net phase A after a cross-platform analysis that recommended Avalonia. The Workbench clause is superseded by DEC-057 (2026-10-20).
 - Decision: the app moves to reusable MVVM components, then to a cross-platform UI for Linux and macOS (Avalonia recommended, not yet chosen), component by component, and must look identical on every operating system. No migration starts until the phase A safety net exists. The Message Workbench migrates only after it is implemented and approved.
 - Because: "the whole premise was that we should have reusable components and they should look exactly like everywhere", and for the Workbench, "I'm worried that before I am done it will change and migrating the code base will be a nightmare".
 - Consequences: icons stay vector geometry (DEC-015), not an icon font. Workbench screens stay out of pixel baselines and new characterization contracts until approved.
@@ -466,3 +467,10 @@ DLQ palette clarification: the user explicitly disallowed changing DLQ tag color
 - Decision: `DeliveryInspector` keeps each delivery's text in a WPF-free `InspectionDocument`. `EditorDocuments.For` gives each one an AvalonEdit document that passes edits both ways and keeps the undo history; `InspectionDocument.Reset` tells it to forget that history. Test lines that inserted text or read the undo stack through `Inspector.Document` now set `Text` or go through `EditorDocuments.For`. This is the one exception to DEC-053's rule that extractions leave existing tests unchanged apart from import lines.
 - Because: the inspector held AvalonEdit's WPF `TextDocument`, which kept it and the whole investigation workspace out of the Presentation project (DEC-053). A neutral document lets both move without changing every place that constructs an inspector or a workspace.
 - Consequences: a later Avalonia editor needs only its own bridge like `EditorDocuments`. `JsonEditor` still takes an AvalonEdit document, so its folding tests are unchanged.
+
+## DEC-057 - The Message Workbench migrates to view models now, behind new pixel baselines
+
+- Status: accepted, 2026-10-20; after the main window moved onto view models, the user chose to migrate the Message Workbench (the Message Library prototype) too, overriding DEC-049's clause that it waits until implemented and approved.
+- Decision: the Workbench moves onto WPF-free view models in Presentation like the rest of the app (DEC-053). Before its code changes, its screens get exact-pixel baselines (DEC-050) so each extraction step proves it looks the same.
+- Because: the user considers the Workbench mature enough after the time spent making it as good as possible, its components are separate from the investigation's, and the user will go through the whole application after the migration anyway.
+- Consequences: Workbench screens join the pixel baselines and characterization tests. A later Workbench design change goes through a mockup approval and updates its baselines explicitly, like every other screen.
