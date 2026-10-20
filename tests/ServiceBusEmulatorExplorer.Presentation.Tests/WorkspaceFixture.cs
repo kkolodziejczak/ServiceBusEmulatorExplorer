@@ -17,6 +17,7 @@ internal sealed class WorkspaceFixture : IAsyncDisposable
         ServiceBusModelFactory.ServiceBusReceivedMessage(body: BinaryData.FromString("{\"order\":80341}"),
             messageId: "checkout-original-message-" + sequence, sequenceNumber: sequence,
             correlationId: sequence == 1 ? "order-80341" : null,
+            properties: sequence == 1 ? new Dictionary<string, object> { ["tenant"] = "contoso", ["Attempt"] = 2 } : null,
             enqueuedTime: new DateTimeOffset(2026, 9, 12, 12, 0, 0, TimeSpan.Zero), contentType: "application/json")).ToArray();
 
     private readonly List<TaskCompletionSource> gates = [];

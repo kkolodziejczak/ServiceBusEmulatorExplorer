@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
 using System.Windows;
@@ -14,39 +13,27 @@ namespace ServiceBusEmulatorExplorer.App.Investigation;
 
 public partial class InvestigationWindow
 {
-    private readonly ObservableCollection<MessageColumnOption> columnOptions = [];
     private readonly Dictionary<string, DataGridTextColumn> propertyColumns = new(StringComparer.Ordinal);
-    private IReadOnlyList<string>? pendingColumns;
-    private IReadOnlyList<string>? pendingColumnOrder;
-    private int columnSaveRevision;
     private ICollectionView? columnChoicesView;
 
     private void UpdateMessageColumns()
     {
         if (ColumnsButton is null) return;
-        var selected = pendingColumns ?? MessageColumnCatalog.Normalize(workspace.Preferences.MessageColumns);
-        bool fixedLayout = workspace.Surface.ShowsSource;
+        bool fixedLayout = columns.IsFixedLayout;
         MessageGrid.CanUserReorderColumns = !fixedLayout;
         ColumnsButton.Visibility = fixedLayout ? Visibility.Collapsed : Visibility.Visible;
         if (fixedLayout) ColumnsPopup.IsOpen = false;
         EventColumn.SortMemberPath = MessageColumnCatalog.Event;
         CorrelationColumn.SortMemberPath = MessageColumnCatalog.Correlation;
         EnqueuedColumn.SortMemberPath = MessageColumnCatalog.Enqueued;
-        SourceColumn.Visibility = fixedLayout ? Visibility.Visible : Visibility.Collapsed;
-        EventColumn.Visibility = fixedLayout || selected.Contains(MessageColumnCatalog.Event) ? Visibility.Visible : Visibility.Collapsed;
-        CorrelationColumn.Visibility = !fixedLayout && selected.Contains(MessageColumnCatalog.Correlation) ? Visibility.Visible : Visibility.Collapsed;
-        EnqueuedColumn.Visibility = (fixedLayout || workspace.Preferences.MessageColumns is null && pendingColumns is null)
-            ? (ActualWidth < 1200 ? Visibility.Collapsed : Visibility.Visible)
-            : selected.Contains(MessageColumnCatalog.Enqueued) ? Visibility.Visible : Visibility.Collapsed;
-        var order = pendingColumnOrder ?? MessageColumnCatalog.NormalizeOrder(workspace.Preferences.MessageColumnOrder, selected);
-        var available = MessageColumnCatalog.Discover(workspace.Surface.Messages, order);
-        if (!ColumnsPopup.IsOpen)
-            foreach (var stale in columnOptions.Where(option => !available.Any(item => item.Id == option.Id)).ToArray())
-                columnOptions.Remove(stale);
-        foreach (var definition in available)
+        var layout = columns.Refresh(ColumnsPopup.IsOpen, narrow: ActualWidth < 1200);
+        SourceColumn.Visibility = layout.IsFixed ? Visibility.Visible : Visibility.Collapsed;
+        EventColumn.Visibility = layout.ShowsEvent ? Visibility.Visible : Visibility.Collapsed;
+        CorrelationColumn.Visibility = layout.ShowsCorrelation ? Visibility.Visible : Visibility.Collapsed;
+        EnqueuedColumn.Visibility = layout.ShowsEnqueued ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var definition in layout.PropertyColumns)
         {
-            if (!columnOptions.Any(option => option.Id == definition.Id)) columnOptions.Add(new(definition));
-            if (definition.Section == "Default columns" || propertyColumns.ContainsKey(definition.Id)) continue;
+            if (propertyColumns.ContainsKey(definition.Id)) continue;
             var textStyle = new Style(typeof(TextBlock), (Style)FindResource("CompactDataGridText"));
             textStyle.Setters.Add(new Setter(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis));
             textStyle.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, new Binding("Text") { RelativeSource = RelativeSource.Self }));
@@ -62,16 +49,16 @@ public partial class InvestigationWindow
             propertyColumns.Add(definition.Id, column);
             MessageGrid.Columns.Add(column);
         }
-        foreach (var option in columnOptions)
-        {
-            option.IsSelected = selected.Contains(option.Id);
-            option.CanToggle = !option.IsSelected || selected.Count > 1;
-        }
-        UpdateColumnChoiceOrder(order, selected);
+        columnChoicesView?.Refresh();
         foreach (var (id, column) in propertyColumns)
-            column.Visibility = !fixedLayout && selected.Contains(id) ? Visibility.Visible : Visibility.Collapsed;
-        ApplyColumnOrder(order, fixedLayout);
+            column.Visibility = layout.Shown.Contains(id) ? Visibility.Visible : Visibility.Collapsed;
+        ApplyColumnOrder(layout.Order, layout.IsFixed);
         FitMessageIdentityColumns();
+    }
+
+    private void ColumnsChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MessageColumnsViewModel.Selected)) UpdateMessageColumns();
     }
 
     private void Columns_Click(object sender, RoutedEventArgs e)
@@ -79,7 +66,7 @@ public partial class InvestigationWindow
         UpdateMessageColumns();
         if (columnChoicesView is null)
         {
-            columnChoicesView = new ListCollectionView(columnOptions);
+            columnChoicesView = new ListCollectionView(columns.Options);
             columnChoicesView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(MessageColumnOption.Section)));
             columnChoicesView.Filter = item => item is MessageColumnOption option &&
                 (string.IsNullOrWhiteSpace(ColumnsSearchBox.Text) || option.Label.Contains(ColumnsSearchBox.Text.Trim(), StringComparison.CurrentCultureIgnoreCase));
@@ -99,35 +86,10 @@ public partial class InvestigationWindow
     private async void ColumnChoice_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not CheckBox { DataContext: MessageColumnOption option } checkBox) return;
-        option.IsSelected = checkBox.IsChecked == true;
-        var selected = columnOptions.Where(choice => choice.IsSelected).Select(choice => choice.Id).ToArray();
-        if (selected.Length == 0) { UpdateMessageColumns(); return; }
-        await SaveMessageColumnsAsync(selected, MessageColumnCatalog.NormalizeOrder(pendingColumnOrder ?? workspace.Preferences.MessageColumnOrder, selected));
+        await columns.ToggleAsync(option, checkBox.IsChecked == true);
     }
 
-    private async Task SaveMessageColumnsAsync(IReadOnlyList<string> selected, IReadOnlyList<string> order)
-    {
-        int revision = ++columnSaveRevision;
-        pendingColumns = selected;
-        pendingColumnOrder = order;
-        UpdateMessageColumns();
-        try { await workspace.UpdateMessageColumnsAsync(selected, order); }
-        catch (Exception)
-        {
-            workspace.Log("Column choices could not be saved. Restored the last saved selection and order; try again.", true);
-        }
-        finally
-        {
-            if (revision == columnSaveRevision)
-            {
-                pendingColumns = null;
-                pendingColumnOrder = null;
-                UpdateMessageColumns();
-            }
-        }
-    }
-
-    private async void ColumnsReset_Click(object sender, RoutedEventArgs e) => await SaveMessageColumnsAsync(MessageColumnCatalog.Defaults, MessageColumnCatalog.Defaults);
+    private async void ColumnsReset_Click(object sender, RoutedEventArgs e) => await columns.ResetAsync();
     private void ColumnsDone_Click(object sender, RoutedEventArgs e) => ColumnsPopup.IsOpen = false;
     private void Columns_Closed(object? sender, EventArgs e) { if (ColumnsButton.IsVisible) ColumnsButton.Focus(); }
     private void Columns_KeyDown(object sender, KeyEventArgs e)
