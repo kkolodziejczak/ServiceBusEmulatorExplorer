@@ -1,7 +1,7 @@
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Workbench;
 
 public sealed record WorkbenchDestination(string Name, EntityKind Kind);
 public enum WorkbenchDestinationStatus { Unset, Available, Missing, Unverified }

@@ -1,5 +1,6 @@
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using ServiceBusEmulatorExplorer.App.Investigation.Resources;
+using ServiceBusEmulatorExplorer.Presentation.Workbench;
 using System.Globalization;
 using System.Text.Json;
 using System.Windows;
@@ -728,10 +729,10 @@ public partial class MessageLibraryPrototypeView : UserControl
         review.SetReviewProperties(
             SpecifyTtl.IsChecked == true ? $"Time to live: {TtlMinutes.Text} minutes" : "Time to live: inherit entity default",
             BuildPropertyDetails(CustomerInput.Text, preparedMessages[0]));
-        string? reviewedProfile = destinationProfileId;
+        string? reviewedProfile = destinations.ProfileId;
         string reviewedTarget = currentAssociation;
         EntityKind reviewedKind = currentDestinationKind;
-        review.SetTargetDetails(reviewedKind, destinationEndpoint, () => reviewedProfile == destinationProfileId &&
+        review.SetTargetDetails(reviewedKind, destinations.Endpoint, () => reviewedProfile == destinations.ProfileId &&
             DestinationStatus(reviewedTarget, reviewedKind) == WorkbenchDestinationStatus.Available);
         review.SetPreparedMessages(preparedMessages);
         PresentReview(review);
