@@ -13,6 +13,15 @@ public partial class MessageLibraryPrototypeView
     private IReadOnlyList<PrototypePreparedMessage> preparedMessages = [];
     private string? preparationError;
 
+    /// <summary>
+    /// The Workbench's clock: when prepared messages occur, and the scheduling time of the reviews it opens. The system
+    /// clock unless a screenshot or test fixes it.
+    /// </summary>
+    public TimeProvider Clock { get; set; } = TimeProvider.System;
+
+    /// <summary>Creates each prepared message's event ID; new GUIDs unless a screenshot or test fixes them.</summary>
+    public Func<Guid> NewEventId { get; set; } = Guid.NewGuid;
+
     private void ClearPreparedMessages()
     {
         preparedMessages = [];
@@ -23,13 +32,13 @@ public partial class MessageLibraryPrototypeView
 
     private bool PrepareMessages(IEnumerable<CsvPreviewRow> rows)
     {
-        string occurredAt = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+        string occurredAt = Clock.GetUtcNow().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
         var prepared = new List<PrototypePreparedMessage>();
         try
         {
             foreach (var row in rows)
             {
-                string eventId = Guid.NewGuid().ToString("D");
+                string eventId = NewEventId().ToString("D");
                 string messageId = CustomMessageId.IsChecked == true ? CustomMessageIdInput.Text : eventId;
                 string amount = row.Amount!.Value.ToString(CultureInfo.InvariantCulture);
                 var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)

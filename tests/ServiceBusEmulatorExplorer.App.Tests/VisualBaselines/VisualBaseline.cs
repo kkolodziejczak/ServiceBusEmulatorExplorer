@@ -27,7 +27,33 @@ internal static class VisualBaseline
         lock (CheckedNames)
             Assert.True(CheckedNames.Add(name), $"Visual baseline '{name}' was checked twice in one run; give each captured state its own name.");
         BundledFontCheck.AssertBundledOnly(element, popup, name);
-        byte[] actualPng = EncodePng(Render(element, popup));
+        CompareWithBaseline(name, EncodePng(Render(element, popup)));
+    }
+
+    /// <summary>
+    /// Compares an image rendered outside the test process, such as a screenshot harness scenario, with its baseline.
+    /// </summary>
+    public static void AssertPngMatches(string name, byte[] actualPng)
+    {
+        lock (CheckedNames)
+            Assert.True(CheckedNames.Add(name), $"Visual baseline '{name}' was checked twice in one run; give each captured state its own name.");
+        CompareWithBaseline(name, actualPng);
+    }
+
+    /// <summary>
+    /// Checks that a run produced exactly the committed baselines that start with <paramref name="prefix"/>, so a
+    /// scenario that silently stops capturing a state fails instead of leaving that baseline unchecked.
+    /// </summary>
+    public static void AssertProducesAll(string prefix, IReadOnlyCollection<string> producedNames)
+    {
+        if (UpdateRequested()) return;
+        string[] committed = Directory.GetFiles(BaselineDirectory(), prefix + "*.png")
+            .Select(Path.GetFileNameWithoutExtension).OfType<string>().Order(StringComparer.Ordinal).ToArray();
+        Assert.Equal(committed, producedNames.Order(StringComparer.Ordinal).ToArray());
+    }
+
+    private static void CompareWithBaseline(string name, byte[] actualPng)
+    {
         string baselinePath = Path.Combine(BaselineDirectory(), name + ".png");
         if (UpdateRequested())
         {

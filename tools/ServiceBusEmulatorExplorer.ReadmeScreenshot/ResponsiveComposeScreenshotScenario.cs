@@ -58,6 +58,7 @@ internal static class ResponsiveComposeScreenshotScenario
 
                 ((ToggleButton)window.FindName("MessageLibraryTab")!).IsChecked = true;
                 var view = (MessageLibraryPrototypeView)window.FindName("MessageLibraryPrototype")!;
+                WorkbenchDeterminism.Apply(view);
                 Idle(window);
                 SetSize(window, Viewports[0]);
                 var namespaceSearch = (TextBox)window.FindName("SearchBox")!;

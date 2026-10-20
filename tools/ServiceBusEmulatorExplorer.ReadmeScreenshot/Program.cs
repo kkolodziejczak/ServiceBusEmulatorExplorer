@@ -14,6 +14,7 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        WorkbenchDeterminism.UseFixedCulture();
         if (args.Length == 2 && args[1] == "--organization")
             return OrganizationScreenshotScenario.Run(args[0]);
         if (args.Length == 2 && args[1] == "--destinations")
@@ -80,6 +81,7 @@ internal static class Program
                         ResizeMode = ResizeMode.NoResize, Width = captureWidth, Height = captureHeight,
                         WindowStartupLocation = WindowStartupLocation.Manual, Left = 0, Top = 0
                     };
+                    WorkbenchDeterminism.Apply(dialog);
                     if (mode == PrototypeDialogMode.Capture)
                         dialog.SetCaptureSource("order-events / billing · Active",
                             "{\n  \"customerId\": \"C1001\",\n  \"amount\": 149.90\n}",
@@ -88,10 +90,10 @@ internal static class Program
                         ((RadioButton)dialog.FindName("ReviewSchedule")!).IsChecked = true;
                     // Schedule 66 problem states: a day before today, and an earlier time today (UTC).
                     if (args[1] == "--message-library-schedule-past-date")
-                        ((DatePicker)dialog.FindName("ScheduleDateInput")!).SelectedDate = DateTime.Today.AddDays(-1);
+                        ((DatePicker)dialog.FindName("ScheduleDateInput")!).SelectedDate = WorkbenchDeterminism.Today.AddDays(-1);
                     if (args[1] == "--message-library-schedule-past-time")
                     {
-                        ((DatePicker)dialog.FindName("ScheduleDateInput")!).SelectedDate = DateTime.UtcNow.Date;
+                        ((DatePicker)dialog.FindName("ScheduleDateInput")!).SelectedDate = WorkbenchDeterminism.Today;
                         ((ComboBox)dialog.FindName("ScheduleHourInput")!).SelectedItem = "00";
                         ((ComboBox)dialog.FindName("ScheduleMinuteInput")!).SelectedItem = "00";
                     }
@@ -148,6 +150,7 @@ internal static class Program
                     Top = 0
                 };
 
+                WorkbenchDeterminism.Apply((MessageLibraryPrototypeView)window.FindName("MessageLibraryPrototype")!);
                 var contentRendered = new TaskCompletionSource<bool>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
                 window.SourceInitialized += (_, _) =>

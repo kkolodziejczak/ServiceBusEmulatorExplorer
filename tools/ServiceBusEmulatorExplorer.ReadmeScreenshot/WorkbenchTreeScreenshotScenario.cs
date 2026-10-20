@@ -53,6 +53,7 @@ internal static class WorkbenchTreeScreenshotScenario
                 await window.Dispatcher.InvokeAsync(() => window.UpdateLayout(), DispatcherPriority.ApplicationIdle);
                 ((ToggleButton)window.FindName("MessageLibraryTab")!).IsChecked = true;
                 var view = (MessageLibraryPrototypeView)window.FindName("MessageLibraryPrototype")!;
+                WorkbenchDeterminism.Apply(view);
                 Select(view, "Orders");
                 CompleteNamePrompt(window, view, "LibraryAddFolder", "Returns");
                 Require(Item(view, "Returns").Parent is TreeViewItem parent && Name(parent) == "Orders", "New folder must be nested under Orders.");
