@@ -7,7 +7,10 @@ using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 namespace ServiceBusEmulatorExplorer.Presentation.Tests;
 
-/// <summary>A connected investigation workspace browsing one queue whose three messages are all dead-lettered.</summary>
+/// <summary>
+/// A connected investigation workspace browsing the queue "orders", whose three messages are all dead-lettered. The
+/// namespace also has the empty topic "order-events" with the subscription "billing".
+/// </summary>
 internal sealed class WorkspaceFixture : IAsyncDisposable
 {
     public static readonly ServiceBusReceivedMessage[] BrokerMessages = Enumerable.Range(1, 3).Select(sequence =>
@@ -20,10 +23,10 @@ internal sealed class WorkspaceFixture : IAsyncDisposable
 
     private WorkspaceFixture()
     {
+        CreateSender = () => Sender;
         Workspace = new InvestigationWorkspace(Store,
             new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(), _ => Peeks),
             _ => CreateSender(), (_, _) => Receiver);
-        CreateSender = () => Sender;
     }
 
     public InvestigationWorkspace Workspace { get; }
@@ -47,7 +50,11 @@ internal sealed class WorkspaceFixture : IAsyncDisposable
         return fixture;
     }
 
-    public EntityNode Queue => Workspace.Browse.AllEntities().Single();
+    public EntityNode Queue => Entity(EntityKind.Queue);
+    public EntityNode Topic => Entity(EntityKind.Topic);
+    public EntityNode Subscription => Entity(EntityKind.Subscription);
+
+    private EntityNode Entity(EntityKind kind) => Workspace.Browse.AllEntities().Single(node => node.Kind == kind.ToString());
 
     /// <summary>Checks the given rows and focuses and inspects the first of them.</summary>
     public void Check(params int[] indexes)
@@ -153,10 +160,17 @@ internal sealed class WorkspaceFixture : IAsyncDisposable
     private sealed class Browser : IInvestigationEntityBrowser
     {
         public Task<EntityDiscoverySnapshot> DiscoverAsync(CancellationToken cancellationToken) => Task.FromResult(
-            new EntityDiscoverySnapshot([new(new ServiceBusEntityNode(EntityKind.Queue, "orders", null, new(0, 3, 0, 3),
-                new("orders", "Active", null, null, null, null, null, null, null)),
-                new(new(0, CountAvailability.Known), new(3, CountAvailability.Known), new(0, CountAvailability.Known)))],
+            new EntityDiscoverySnapshot([
+                Observe(new ServiceBusEntityNode(EntityKind.Queue, "orders", null, new(0, 3, 0, 3),
+                    new("orders", "Active", null, null, null, null, null, null, null)), deadLetter: 3),
+                Observe(new ServiceBusEntityNode(EntityKind.Topic, "order-events", null, new(0, 0, 0, 0),
+                    new("order-events", "Active", null, null, null, null, null, null, null)), deadLetter: 0),
+                Observe(new ServiceBusEntityNode(EntityKind.Subscription, "billing", "order-events", new(0, 0, 0, 0),
+                    new("order-events/subscriptions/billing", "Active", null, null, null, null, null, null, null)), deadLetter: 0)],
                 DateTimeOffset.UtcNow, true, []));
+
+        private static EntityObservation Observe(ServiceBusEntityNode node, long deadLetter) => new(node,
+            new(new(0, CountAvailability.Known), new(deadLetter, CountAvailability.Known), new(0, CountAvailability.Known)));
     }
 
     public sealed class FakeMessages : IServiceBusMessageService
@@ -168,7 +182,7 @@ internal sealed class WorkspaceFixture : IAsyncDisposable
             long? fromSequenceNumber, CancellationToken cancellationToken)
         {
             await BeforePeek().WaitAsync(cancellationToken);
-            return BrokerMessages.Where(message => bucket == MessageBucket.DeadLetter)
+            return BrokerMessages.Where(message => address.Kind == EntityKind.Queue && bucket == MessageBucket.DeadLetter)
                 .Where(message => fromSequenceNumber is null || message.SequenceNumber >= fromSequenceNumber)
                 .Take(take).Select(MessageProjection.Create).ToArray();
         }
