@@ -39,8 +39,9 @@ public sealed class WorkbenchScheduleTests
             "Resolved time: 2026-10-19 14:30 UTC · one time for all messages"), timing);
         Assert.Equal("1 sample message will be scheduled for the same instant.",
             WorkbenchSchedule.Schedule(1, Utc(new(2026, 10, 19), "14", "30"), Now, Zone, DateDisplayFormat.Iso).Notice);
-        Assert.Equal(new ScheduleResolution(new DateTime(2026, 10, 18, 9, 31, 0, DateTimeKind.Utc), null),
-            WorkbenchSchedule.Resolve(Utc(new(2026, 10, 18), "09", "31"), Now, Zone, DateDisplayFormat.Iso));
+        var resolution = WorkbenchSchedule.Resolve(Utc(new(2026, 10, 18), "09", "31"), Now, Zone, DateDisplayFormat.Iso);
+        Assert.Equal(new ScheduleResolution(new DateTime(2026, 10, 18, 9, 31, 0, DateTimeKind.Utc), null), resolution);
+        Assert.Equal(DateTimeKind.Utc, resolution.Utc.Kind);
     }
 
     [Fact]
@@ -73,8 +74,9 @@ public sealed class WorkbenchScheduleTests
     public void A_local_schedule_is_read_in_the_given_zone()
     {
         using var culture = new InvariantCulture();
-        Assert.Equal(new ScheduleResolution(new DateTime(2026, 10, 19, 10, 30, 0, DateTimeKind.Utc), null),
-            WorkbenchSchedule.Resolve(Local(new(2026, 10, 19), "14", "30"), Now, Zone, DateDisplayFormat.Iso));
+        var summer = WorkbenchSchedule.Resolve(Local(new(2026, 10, 19), "14", "30"), Now, Zone, DateDisplayFormat.Iso);
+        Assert.Equal(new ScheduleResolution(new DateTime(2026, 10, 19, 10, 30, 0, DateTimeKind.Utc), null), summer);
+        Assert.Equal(DateTimeKind.Utc, summer.Utc.Kind);
         Assert.Equal(new ScheduleResolution(new DateTime(2026, 11, 2, 11, 30, 0, DateTimeKind.Utc), null),
             WorkbenchSchedule.Resolve(Local(new(2026, 11, 2), "14", "30"), Now, Zone, DateDisplayFormat.Iso));
 
@@ -84,6 +86,10 @@ public sealed class WorkbenchScheduleTests
             ScheduleField.Time, Local(new(2026, 10, 25), "04", "30"));
         AssertProblem("2026-10-18 13:00 local time has already passed. It is now 2026-10-18 13:30 local time; choose a later time.",
             ScheduleField.Time, Local(new(2026, 10, 18), "13", "00"));
+        var west = TimeZoneInfo.CreateCustomTimeZone("Workbench west", TimeSpan.FromHours(-5), "Workbench west", "Workbench west");
+        Assert.Equal(new ScheduleProblem(
+                "2026-10-18 04:00 local time has already passed. It is now 2026-10-18 04:30 local time; choose a later time.", ScheduleField.Time),
+            WorkbenchSchedule.Resolve(Local(new(2026, 10, 18), "04", "00"), Now, west, DateDisplayFormat.Iso).Problem);
 
         var lateEvening = new DateTime(2026, 10, 18, 21, 30, 0, DateTimeKind.Utc);
         Assert.Equal(new ScheduleProblem(
