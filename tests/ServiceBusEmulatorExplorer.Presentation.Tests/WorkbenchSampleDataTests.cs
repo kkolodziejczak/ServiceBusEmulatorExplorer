@@ -72,6 +72,10 @@ public sealed class WorkbenchSampleDataTests
         {
             Assert.Equal(149.90m, WorkbenchSampleData.Rows("orders.csv", Columns, true, Unexpected)[0].Amount);
             Assert.Null(WorkbenchSampleData.InputProblem(false, "", false, "", false, "C1001", "149.90"));
+            Assert.Equal("Enter a CustomerId and a numeric Amount to preview.",
+                WorkbenchSampleData.InputProblem(false, "", false, "", false, "C1001", "1.234,56")?.Hint);
+            Assert.Equal("Expected number, got 1.234,56",
+                WorkbenchSampleData.Rows("orders.csv", new("CSV column", "CustomerId", "Constant", "1.234,56"), true, Unexpected)[0].Status);
         }
         finally { CultureInfo.CurrentCulture = previous; }
     }
@@ -89,6 +93,7 @@ public sealed class WorkbenchSampleDataTests
     [InlineData(false, "", false, "", false, "C1001", "abc", "inputs")]
     [InlineData(false, "", false, "", false, "C1001", "1,000.50", null)]
     [InlineData(false, "", false, "", true, "", "abc", null)]
+    [InlineData(true, "0", false, "", false, " ", "abc", "ttl")]
     public void Prepare_inputs_need_a_positive_ttl_a_single_message_custom_id_and_valid_single_values(bool ttl, string ttlMinutes,
         bool customId, string customIdValue, bool csv, string customer, string amount, string? expected)
     {
