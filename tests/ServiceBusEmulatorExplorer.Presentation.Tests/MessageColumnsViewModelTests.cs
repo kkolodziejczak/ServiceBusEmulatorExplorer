@@ -143,6 +143,8 @@ public sealed class MessageColumnsViewModelTests
         columns.Refresh(false, false);
         var first = fixture.Gate();
         fixture.Store.BeforeSave = () => first.Task;
+        int announced = 0;
+        columns.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(columns.Selected)) announced++; };
 
         Task hiding = columns.ToggleAsync(columns.Options.Single(option => option.Id == Enqueued), false);
         Assert.Equal([Event, Correlation], columns.Selected);
@@ -154,8 +156,10 @@ public sealed class MessageColumnsViewModelTests
         await hiding.WaitAsync(TimeSpan.FromSeconds(10));
 
         Assert.Equal([Event, Correlation, Tenant], columns.Selected);
+        Assert.Equal(2, announced);
         second.SetResult();
         await showing.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal(3, announced);
         Assert.Equal([Event, Correlation, Tenant], fixture.Store.Saved.MessageColumns);
     }
 
