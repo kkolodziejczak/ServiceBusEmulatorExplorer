@@ -27,6 +27,7 @@ public partial class InvestigationWindow : Window, IMessageActionsHost, IWatchNo
     private readonly ConnectionBarViewModel connectionBar;
     private readonly ActivityLogViewModel activityLog;
     private readonly MessageListToolbarViewModel listToolbar;
+    private readonly WindowCloseViewModel windowClose;
     private readonly AutoRefreshTimer refreshTimer;
     private readonly Action<string> copyText;
     private bool ready;
@@ -63,6 +64,7 @@ public partial class InvestigationWindow : Window, IMessageActionsHost, IWatchNo
         connectionBar = new ConnectionBarViewModel(workspace);
         activityLog = new ActivityLogViewModel(workspace);
         listToolbar = new MessageListToolbarViewModel(workspace);
+        windowClose = new WindowCloseViewModel(workspace);
         refreshTimer = new(workspace.Clock, tick => Dispatcher.BeginInvoke(DispatcherPriority.Background, tick));
         InitializeComponent();
         MessageLibraryPrototype.ConnectionRepairRequested += () => ConnectionButton.Focus();

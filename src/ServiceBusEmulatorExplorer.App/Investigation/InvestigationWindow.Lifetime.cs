@@ -45,7 +45,7 @@ public partial class InvestigationWindow
         if (closing) return;
         e.Cancel = true;
         if (closePending) return;
-        if (!exitRequested && tray is not null && workspace.Preferences.CloseToTray)
+        if (windowClose.HidesToTray(exitRequested, tray is not null))
         {
             Hide();
             return;
@@ -54,11 +54,10 @@ public partial class InvestigationWindow
         closePending = true;
         try
         {
-            if (workspace.Inspector.HasDrafts && !await workspace.ConfirmDiscard()) return;
+            if (!await windowClose.ConfirmCloseAsync()) return;
             refreshTimer.Stop();
             var bounds = WindowState == WindowState.Normal ? new Rect(0, 0, ActualWidth, ActualHeight) : RestoreBounds;
-            await workspace.UpdateWindowBoundsAsync(bounds.Width, bounds.Height);
-            await workspace.DisposeAsync();
+            await windowClose.ShutDownAsync(bounds.Width, bounds.Height);
             workspace.PropertyChanged -= WorkspaceChanged;
             workspace.Surface.PropertyChanged -= SurfaceChanged;
             workspace.Browse.PropertyChanged -= WorkbenchDiscoveryChanged;
