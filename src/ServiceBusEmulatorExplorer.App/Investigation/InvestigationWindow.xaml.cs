@@ -17,6 +17,7 @@ public partial class InvestigationWindow : Window, IMessageActionsHost
 {
     private readonly InvestigationWorkspace workspace;
     private readonly MessageActionsViewModel actions;
+    private readonly WatchToolbarViewModel watch;
     private readonly AutoRefreshTimer refreshTimer;
     private readonly Action<string> copyText;
     private bool ready;
@@ -42,6 +43,8 @@ public partial class InvestigationWindow : Window, IMessageActionsHost
         this.copyText = copyText ?? Clipboard.SetText;
         actions = new MessageActionsViewModel(workspace, this);
         actions.PropertyChanged += ActionsChanged;
+        watch = new WatchToolbarViewModel(workspace);
+        watch.PropertyChanged += WatchChanged;
         refreshTimer = new(workspace.Clock, tick => Dispatcher.BeginInvoke(DispatcherPriority.Background, tick));
         InitializeComponent();
         MessageLibraryPrototype.ConnectionRepairRequested += () => ConnectionButton.Focus();
