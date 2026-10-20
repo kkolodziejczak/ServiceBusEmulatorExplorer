@@ -41,14 +41,12 @@ public sealed class MessageWorkbenchVisualBaselineTests
             string name = "workbench-" + screen.TrimStart('-');
             if (Directory.Exists(target))
             {
-                string[] images = Directory.GetFiles(target, "*.png", SearchOption.AllDirectories).Order(StringComparer.Ordinal).ToArray();
+                var images = Directory.GetFiles(target, "*.png", SearchOption.AllDirectories).ToDictionary(image =>
+                    name + "-" + Path.ChangeExtension(Path.GetRelativePath(target, image), null).Replace(Path.DirectorySeparatorChar, '-'));
                 Assert.NotEmpty(images);
-                foreach (string image in images)
-                {
-                    string relative = Path.ChangeExtension(Path.GetRelativePath(target, image), null)
-                        .Replace(Path.DirectorySeparatorChar, '-');
-                    VisualBaseline.AssertPngMatches(name + "-" + relative, File.ReadAllBytes(image));
-                }
+                VisualBaseline.AssertProducesAll(name + "-", images.Keys);
+                foreach (var (baseline, image) in images.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+                    VisualBaseline.AssertPngMatches(baseline, File.ReadAllBytes(image));
             }
             else
             {

@@ -26,7 +26,7 @@ internal static class WpfScreenshot
     private static void SaveWindowContent(Window window, string outputPath, int expectedWidth, int expectedHeight,
         int minimumBytes, Popup? popup)
     {
-        BitmapSource bitmap = RenderWindowContent(window, popup);
+        BitmapSource bitmap = RenderWithoutHover(window, popup);
         int width = bitmap.PixelWidth;
         int height = bitmap.PixelHeight;
         if (width != expectedWidth || height != expectedHeight)
@@ -54,6 +54,23 @@ internal static class WpfScreenshot
             throw new InvalidOperationException($"The rendered README screenshot is unexpectedly small: {fileSize} bytes.");
 
         Console.WriteLine($"Captured {width}x{height} README screenshot ({fileSize} bytes) at {outputPath}");
+    }
+
+    /// <summary>
+    /// Renders without hover styling: the window sits on the real desktop, so wherever the pointer happens to rest
+    /// would otherwise change the pixels of a saved screenshot or baseline.
+    /// </summary>
+    private static BitmapSource RenderWithoutHover(Window window, Popup? popup)
+    {
+        UIElement[] surfaces = new UIElement?[] { window.Content as UIElement, popup?.Child }.OfType<UIElement>().ToArray();
+        bool[] hitTestVisible = surfaces.Select(surface => surface.IsHitTestVisible).ToArray();
+        foreach (UIElement surface in surfaces) surface.IsHitTestVisible = false;
+        System.Windows.Input.Mouse.Synchronize();
+        try { return RenderWindowContent(window, popup); }
+        finally
+        {
+            for (int index = 0; index < surfaces.Length; index++) surfaces[index].IsHitTestVisible = hitTestVisible[index];
+        }
     }
 
     /// <summary>Renders the window content, plus an open popup, at 96 DPI without touching the desktop.</summary>

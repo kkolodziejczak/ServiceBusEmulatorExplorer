@@ -40,6 +40,18 @@ internal static class VisualBaseline
         CompareWithBaseline(name, actualPng);
     }
 
+    /// <summary>
+    /// Checks that a run produced exactly the committed baselines that start with <paramref name="prefix"/>, so a
+    /// scenario that silently stops capturing a state fails instead of leaving that baseline unchecked.
+    /// </summary>
+    public static void AssertProducesAll(string prefix, IReadOnlyCollection<string> producedNames)
+    {
+        if (UpdateRequested()) return;
+        string[] committed = Directory.GetFiles(BaselineDirectory(), prefix + "*.png")
+            .Select(Path.GetFileNameWithoutExtension).OfType<string>().Order(StringComparer.Ordinal).ToArray();
+        Assert.Equal(committed, producedNames.Order(StringComparer.Ordinal).ToArray());
+    }
+
     private static void CompareWithBaseline(string name, byte[] actualPng)
     {
         string baselinePath = Path.Combine(BaselineDirectory(), name + ".png");

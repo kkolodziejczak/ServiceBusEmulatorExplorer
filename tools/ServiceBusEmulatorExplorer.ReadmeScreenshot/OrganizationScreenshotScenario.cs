@@ -425,6 +425,10 @@ internal static class OrganizationScreenshotScenario
 
     private static void CaptureDialog(Window dialog, string path)
     {
+        // Focus visuals depend on whether the dialog's window is active, which other windows on the desktop can change,
+        // so the capture is taken without keyboard focus to render the same pixels on every run (DEC-057).
+        System.Windows.Input.Keyboard.ClearFocus();
+        Idle(dialog);
         var content = (FrameworkElement)dialog.Content;
         Require(content.ActualWidth > 0 && content.ActualHeight > 0, "A location dialog must be arranged before screenshot capture.");
         WpfScreenshot.SaveWindowContent(dialog, path,
