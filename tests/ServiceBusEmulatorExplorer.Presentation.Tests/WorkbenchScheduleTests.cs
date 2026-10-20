@@ -1,3 +1,4 @@
+using System.Globalization;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Presentation.Workbench;
 
@@ -31,6 +32,7 @@ public sealed class WorkbenchScheduleTests
     [Fact]
     public void A_future_utc_schedule_resolves_to_one_instant_for_every_message()
     {
+        using var culture = new InvariantCulture();
         var timing = WorkbenchSchedule.Schedule(3, Utc(new(2026, 10, 19), "14", "30"), Now, Zone, DateDisplayFormat.Iso);
 
         Assert.Equal(new ReviewTiming("Schedule 3 messages", "3 sample messages will be scheduled for the same instant.", true, null,
@@ -44,6 +46,7 @@ public sealed class WorkbenchScheduleTests
     [Fact]
     public void A_schedule_without_a_day_or_a_valid_time_names_the_field_to_change()
     {
+        using var culture = new InvariantCulture();
         AssertProblem("Choose a date for the scheduled send.", ScheduleField.Date, new(null, "14", "30", false));
         foreach (var (hour, minute) in new[] { ((string?)null, (string?)"30"), ("14", null), ("ab", "30"), ("+1", "30"), ("24", "00"), ("14", "60") })
             AssertProblem("Choose an hour and a minute for the scheduled send.", ScheduleField.Time, new(new(2026, 10, 19), hour, minute, false));
@@ -57,6 +60,7 @@ public sealed class WorkbenchScheduleTests
     [Fact]
     public void A_past_utc_schedule_says_whether_the_day_or_the_time_has_passed()
     {
+        using var culture = new InvariantCulture();
         AssertProblem("2026-10-17 14:30 UTC is in the past. It is now 2026-10-18 09:30 UTC; choose today or a later date.",
             ScheduleField.Date, Utc(new(2026, 10, 17), "14", "30"));
         AssertProblem("2026-10-18 09:30 UTC has already passed. It is now 2026-10-18 09:30 UTC; choose a later time.",
@@ -68,6 +72,7 @@ public sealed class WorkbenchScheduleTests
     [Fact]
     public void A_local_schedule_is_read_in_the_given_zone()
     {
+        using var culture = new InvariantCulture();
         Assert.Equal(new ScheduleResolution(new DateTime(2026, 10, 19, 10, 30, 0, DateTimeKind.Utc), null),
             WorkbenchSchedule.Resolve(Local(new(2026, 10, 19), "14", "30"), Now, Zone, DateDisplayFormat.Iso));
         Assert.Equal(new ScheduleResolution(new DateTime(2026, 11, 2, 11, 30, 0, DateTimeKind.Utc), null),
@@ -101,6 +106,16 @@ public sealed class WorkbenchScheduleTests
         Assert.Equal(new DateTime(2026, 10, 18), WorkbenchSchedule.EarliestDay(new(2026, 10, 19), Now, null));
         Assert.Equal(new DateTime(2026, 10, 17), WorkbenchSchedule.EarliestDay(new(2026, 10, 17), Now, new DateTime(2026, 10, 20)));
         Assert.Equal(new DateTime(2026, 10, 12), WorkbenchSchedule.EarliestDay(new(2026, 10, 18), Now, new DateTime(2026, 10, 12, 15, 0, 0)));
+    }
+
+    /// <summary>Formats dates in the invariant culture while a test runs, so the expected texts hold on any machine.</summary>
+    private sealed class InvariantCulture : IDisposable
+    {
+        private readonly CultureInfo previous = CultureInfo.CurrentCulture;
+
+        public InvariantCulture() => CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+
+        public void Dispose() => CultureInfo.CurrentCulture = previous;
     }
 
     private static ScheduleChoice Utc(DateTime date, string hour, string minute) => new(date, hour, minute, Local: false);
