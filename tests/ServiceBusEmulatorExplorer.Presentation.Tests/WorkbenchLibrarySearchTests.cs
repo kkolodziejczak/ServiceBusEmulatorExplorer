@@ -81,7 +81,7 @@ public sealed class WorkbenchLibrarySearchTests
         var suggestions = WorkbenchLibrarySearch.Suggest("o", "", templates, folders, NoneCreated);
 
         Assert.Equal(["Order 1", "Order 2", "Order 3", "Order 4", "Order 5"], suggestions.Where(item => !item.IsFolder).Select(item => item.Title));
-        Assert.Empty(suggestions.Where(item => item.IsFolder));
+        Assert.DoesNotContain(suggestions, item => item.IsFolder);
         Assert.Equal(["a", "B", "c", "D", "e"], WorkbenchLibrarySearch.Suggest("x", "",
             [new("Box", "", "", "")], ["x/e", "x/D", "x/c", "X/B", "x/a", "x/f", "x/a"],
             new HashSet<string>(["x/e", "x/D", "x/c", "X/B", "x/a", "x/f"], StringComparer.OrdinalIgnoreCase))
