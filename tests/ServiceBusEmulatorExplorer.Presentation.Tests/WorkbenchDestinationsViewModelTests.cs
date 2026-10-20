@@ -74,6 +74,8 @@ public sealed class WorkbenchDestinationsViewModelTests
         Assert.Equal("localhost", destinations.Endpoint);
         Assert.Equal(WorkbenchDestinationStatus.Available, destinations.StatusOf(OrderEvents));
         Assert.Equal(new DestinationsChange(true, true), destinations.ShowDiscovery("profile", 0, Snapshot(true, Orders), "sb.local", OrderEvents));
+        destinations.ShowDiscovery("profile", 1, Snapshot(true, OrderEvents), "sb.local", OrderEvents);
+        Assert.Equal(new DestinationsChange(false, false), destinations.UseSamples(OrderEvents));
     }
 
     [Fact]
@@ -81,12 +83,14 @@ public sealed class WorkbenchDestinationsViewModelTests
     {
         var destinations = new WorkbenchDestinationsViewModel();
         var subscription = new WorkbenchDestination("billing", EntityKind.Subscription);
-        destinations.ShowDiscovery("profile", 1, Snapshot(true, new("zeta", EntityKind.Topic), Orders, subscription, Orders), "", Orders);
+        var zeta = new WorkbenchDestination("Zeta", EntityKind.Topic);
+        destinations.ShowDiscovery("profile", 1, Snapshot(true, zeta, Orders, subscription, Orders), "", Orders);
 
-        Assert.Equal([Orders, new("zeta", EntityKind.Topic)], destinations.ChoicesFor(Orders));
-        Assert.Equal([Orders, new("zeta", EntityKind.Topic)], destinations.ChoicesFor(new("ORDERS", EntityKind.Queue)));
-        Assert.Equal([OrderEvents, Orders, new("zeta", EntityKind.Topic)], destinations.ChoicesFor(OrderEvents));
-        Assert.Equal([Orders, new("zeta", EntityKind.Topic)], destinations.ChoicesFor(new("", EntityKind.Topic)));
+        Assert.Equal([Orders, zeta], destinations.ChoicesFor(Orders));
+        Assert.Equal([Orders, zeta], destinations.ChoicesFor(new("ORDERS", EntityKind.Queue)));
+        Assert.Equal([new("orders", EntityKind.Topic), Orders, zeta], destinations.ChoicesFor(new("orders", EntityKind.Topic)));
+        Assert.Equal([OrderEvents, Orders, zeta], destinations.ChoicesFor(OrderEvents));
+        Assert.Equal([Orders, zeta], destinations.ChoicesFor(new("", EntityKind.Topic)));
     }
 
     [Fact]
