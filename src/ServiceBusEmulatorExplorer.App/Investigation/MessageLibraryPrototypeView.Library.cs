@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using ServiceBusEmulatorExplorer.Presentation.Workbench;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
@@ -19,10 +20,8 @@ public partial class MessageLibraryPrototypeView
 
     private bool IsFolderVisible(string path, IReadOnlyList<PrototypeTemplate> visible) =>
         (namespaceQuery.Length == 0 && TemplateSearch.Text.Trim().Length == 0) ||
-        visible.Any(template => template.Folder.Equals(path, StringComparison.OrdinalIgnoreCase) ||
-            template.Folder.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase)) ||
-        createdFolders.Any(created => created.Equals(path, StringComparison.OrdinalIgnoreCase) ||
-            created.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase));
+        visible.Any(template => LibraryFolders.IsInside(template.Folder, path)) ||
+        createdFolders.Any(created => LibraryFolders.IsInside(created, path));
 
     private void UpdateTreeHeaderWidths()
     {
@@ -43,7 +42,7 @@ public partial class MessageLibraryPrototypeView
         while (!string.IsNullOrEmpty(path))
         {
             collapsedFolders.Remove(path);
-            path = ParentFolder(path);
+            path = LibraryFolders.Parent(path);
         }
     }
 
@@ -61,7 +60,7 @@ public partial class MessageLibraryPrototypeView
                 (namespaceQuery.Length == 0 || TemplateAssociations(template).Any(path => path.Contains(namespaceQuery, StringComparison.OrdinalIgnoreCase))) &&
                 (search.Length == 0 || template.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                  template.Description.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                 matchingFolders.Any(path => template.Folder.Equals(path, StringComparison.OrdinalIgnoreCase) || template.Folder.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase))) ||
+                 matchingFolders.Any(path => LibraryFolders.IsInside(template.Folder, path))) ||
                 ((draftIsNew && template.Name == selectedTemplateName) || template.Name == revealedTemplateName)).ToList();
             LibraryTree.Items.Clear();
             treeRenameControls.Clear();
@@ -239,9 +238,7 @@ public partial class MessageLibraryPrototypeView
     {
         string parent = GetCreationFolder();
         string? name = PromptForName("Add folder", "Folder name", "New folder",
-            value => !value.Contains('/') && !value.Contains('\\') && !folders.Any(folder =>
-                ParentFolder(folder).Equals(parent, StringComparison.OrdinalIgnoreCase) &&
-                FolderName(folder).Equals(value, StringComparison.OrdinalIgnoreCase)),
+            value => LibraryFolders.IsNewFolderName(parent, value, folders),
             "Use a unique folder name without path separators.");
         if (name is null) return;
         string path = string.IsNullOrEmpty(parent) ? name : $"{parent}/{name}";
@@ -454,20 +451,16 @@ public partial class MessageLibraryPrototypeView
         string oldName = renamingTag.StartsWith("folder:", StringComparison.Ordinal)
             ? renamingTag[7..].Split('/')[^1] : renamingTag[9..];
         bool folder = renamingTag.StartsWith("folder:", StringComparison.Ordinal);
-        string? duplicate = folder
-            ? (folders.Any(path => !path.Equals(renamingTag[7..], StringComparison.OrdinalIgnoreCase) && ParentFolder(path).Equals(ParentFolder(renamingTag[7..]), StringComparison.OrdinalIgnoreCase) && FolderName(path).Equals(value, StringComparison.OrdinalIgnoreCase)) ? "A folder with that name already exists here." : null)
-            : (templates.Any(template => !template.Name.Equals(oldName, StringComparison.OrdinalIgnoreCase) && template.Name.Equals(value, StringComparison.OrdinalIgnoreCase)) ? "A template with that name already exists here." : null);
-        if (folder && (value.Contains('/') || value.Contains('\\'))) duplicate = "Use a folder name without path separators.";
-        if (value.Length == 0 || duplicate is not null)
+        if (LibraryFolders.RenameProblem(renamingTag, value, folders, templates.Select(template => template.Name)) is { } problem)
         {
-            error.Text = duplicate ?? "Enter a name.";
+            error.Text = problem;
             error.Visibility = Visibility.Visible;
             input.Focus();
             return;
         }
         if (folder) RenameFolder(renamingTag[7..], value);
         else RenameTemplate(oldName, value);
-        string newTag = folder ? $"folder:{ReplaceFolderSegment(renamingTag[7..], value)}" : $"template:{value}";
+        string newTag = folder ? $"folder:{LibraryFolders.Renamed(renamingTag[7..], value)}" : $"template:{value}";
         renamingTag = null;
         activeRenameInput = null;
         close();
@@ -515,31 +508,22 @@ public partial class MessageLibraryPrototypeView
         }
     }
 
-    private void RenameFolder(string path, string newName) => RelocateFolder(path, ReplaceFolderSegment(path, newName));
+    private void RenameFolder(string path, string newName) => RelocateFolder(path, LibraryFolders.Renamed(path, newName));
 
     private void RelocateFolder(string path, string replacement)
     {
         foreach (var set in new[] { collapsedFolders, createdFolders })
-            foreach (string entry in set.Where(entry => entry.Equals(path, StringComparison.OrdinalIgnoreCase) ||
-                         entry.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase)).ToArray())
+            foreach (string entry in set.Where(entry => LibraryFolders.IsInside(entry, path)).ToArray())
             {
                 set.Remove(entry);
-                set.Add(replacement + entry[path.Length..]);
+                set.Add(LibraryFolders.Relocated(entry, path, replacement));
             }
         for (int index = 0; index < folders.Count; index++)
-            if (folders[index].Equals(path, StringComparison.OrdinalIgnoreCase) || folders[index].StartsWith(path + "/", StringComparison.OrdinalIgnoreCase))
-                folders[index] = replacement + folders[index][path.Length..];
+            folders[index] = LibraryFolders.Relocated(folders[index], path, replacement);
         for (int index = 0; index < templates.Count; index++)
-            if (templates[index].Folder.Equals(path, StringComparison.OrdinalIgnoreCase) || templates[index].Folder.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase))
-                templates[index] = templates[index] with { Folder = replacement + templates[index].Folder[path.Length..] };
-        if (editorFolder?.Equals(path, StringComparison.OrdinalIgnoreCase) == true || editorFolder?.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase) == true)
-            editorFolder = replacement + editorFolder[path.Length..];
-        if (selectedFolder?.Equals(path, StringComparison.OrdinalIgnoreCase) == true || selectedFolder?.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase) == true)
-            selectedFolder = replacement + selectedFolder[path.Length..];
+            if (LibraryFolders.IsInside(templates[index].Folder, path))
+                templates[index] = templates[index] with { Folder = LibraryFolders.Relocated(templates[index].Folder, path, replacement) };
+        if (editorFolder is not null) editorFolder = LibraryFolders.Relocated(editorFolder, path, replacement);
+        if (selectedFolder is not null) selectedFolder = LibraryFolders.Relocated(selectedFolder, path, replacement);
     }
-
-    private static string ParentFolder(string path) => path.Contains('/') ? path[..path.LastIndexOf('/')] : "";
-    private static string FolderName(string path) => path.Split('/')[^1];
-    private static string ReplaceFolderSegment(string path, string name) =>
-        ParentFolder(path) is { Length: > 0 } parent ? $"{parent}/{name}" : name;
 }

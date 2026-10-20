@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using ServiceBusEmulatorExplorer.Presentation.Workbench;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
@@ -15,28 +16,15 @@ public partial class MessageLibraryPrototypeView
     private void MoveLibraryItem_Click(string? tag)
     {
         if (tag is null) return;
-        string sourceFolder = tag.StartsWith("folder:", StringComparison.Ordinal) ? ParentFolder(tag[7..])
+        string sourceFolder = tag.StartsWith("folder:", StringComparison.Ordinal) ? LibraryFolders.Parent(tag[7..])
             : templates.FirstOrDefault(template => "template:" + template.Name == tag)?.Folder ?? "";
         var dialog = new TemplateLocationDialog("Move to", tag, folders, sourceFolder,
             (_, destination) => ValidateLibraryMove(tag, destination), moving: true) { Owner = Window.GetWindow(this) };
         if (dialog.ShowDialog() == true) MoveLibraryItem(tag, dialog.FolderPath);
     }
 
-    private string? ValidateLibraryMove(string tag, string destination)
-    {
-        if (destination.Length > 0 && !folders.Contains(destination, StringComparer.OrdinalIgnoreCase)) return "Choose an existing folder.";
-        if (tag.StartsWith("template:", StringComparison.Ordinal))
-            return templates.Any(template => template.Name == tag[9..]) ? null : "The template is no longer available.";
-        if (!tag.StartsWith("folder:", StringComparison.Ordinal) || !folders.Contains(tag[7..], StringComparer.OrdinalIgnoreCase))
-            return "The folder is no longer available.";
-        string source = tag[7..];
-        if (destination.Equals(source, StringComparison.OrdinalIgnoreCase) || destination.StartsWith(source + "/", StringComparison.OrdinalIgnoreCase))
-            return "A folder cannot be moved inside itself or its descendants.";
-        string replacement = JoinFolder(destination, FolderName(source));
-        if (!replacement.Equals(source, StringComparison.OrdinalIgnoreCase) && folders.Contains(replacement, StringComparer.OrdinalIgnoreCase))
-            return "A folder with that name already exists here.";
-        return null;
-    }
+    private string? ValidateLibraryMove(string tag, string destination) =>
+        LibraryFolders.MoveProblem(tag, destination, folders, templates.Select(template => template.Name));
 
     private void MoveLibraryItem(string tag, string destination)
     {
@@ -52,7 +40,7 @@ public partial class MessageLibraryPrototypeView
         }
         else
         {
-            string replacement = JoinFolder(destination, FolderName(tag[7..]));
+            string replacement = LibraryFolders.Join(destination, LibraryFolders.Name(tag[7..]));
             RelocateFolder(tag[7..], replacement);
             createdFolders.Add(replacement);
             selectedLibraryTag = "folder:" + replacement;
@@ -62,8 +50,6 @@ public partial class MessageLibraryPrototypeView
         RefreshLibraryTree();
         RevealLibraryItem(selectedLibraryTag!);
     }
-
-    private static string JoinFolder(string parent, string child) => parent.Length == 0 ? child : parent + "/" + child;
 
     private void LibraryTree_DragStart(object sender, MouseButtonEventArgs e)
     {
