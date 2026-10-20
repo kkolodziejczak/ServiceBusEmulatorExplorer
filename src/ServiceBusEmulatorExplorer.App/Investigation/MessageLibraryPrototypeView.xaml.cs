@@ -79,13 +79,13 @@ public partial class MessageLibraryPrototypeView : UserControl
         currentBody = templates[0].Body;
         CsvRowsGrid.ItemsSource = new[]
         {
-            new CsvPreviewRow(1, "C1001", 149.90m, "Ready"),
-            new CsvPreviewRow(2, "C1002", 224.00m, "Ready"),
-            new CsvPreviewRow(3, "C1003", 79.50m, "Ready")
+            new SampleRow(1, "C1001", 149.90m, "Ready"),
+            new SampleRow(2, "C1002", 224.00m, "Ready"),
+            new SampleRow(3, "C1003", 79.50m, "Ready")
         };
-        ((DataGridTextColumn)CsvRowsGrid.Columns[0]).Binding = new Binding(nameof(CsvPreviewRow.Row));
-        ((DataGridTextColumn)CsvRowsGrid.Columns[1]).Binding = new Binding(nameof(CsvPreviewRow.CustomerId));
-        ((DataGridTextColumn)CsvRowsGrid.Columns[2]).Binding = new Binding(nameof(CsvPreviewRow.Status));
+        ((DataGridTextColumn)CsvRowsGrid.Columns[0]).Binding = new Binding(nameof(SampleRow.Row));
+        ((DataGridTextColumn)CsvRowsGrid.Columns[1]).Binding = new Binding(nameof(SampleRow.CustomerId));
+        ((DataGridTextColumn)CsvRowsGrid.Columns[2]).Binding = new Binding(nameof(SampleRow.Status));
         ApplicationPropertiesGrid.ItemsSource = applicationProperties;
         ((DataGridComboBoxColumn)ApplicationPropertiesGrid.Columns[1]).ItemsSource =
             new[] { "string", "boolean", "int", "long", "decimal", "double", "guid", "dateTimeUtc" };
@@ -543,7 +543,7 @@ public partial class MessageLibraryPrototypeView : UserControl
     {
         var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.SampleCsv, currentProfileName,
             selectedDestination ?? "", 3) { Owner = Window.GetWindow(this) };
-        dialog.SampleCsvPicker.SelectedIndex = sampleCsvFile == "orders-invalid.csv" ? 1 : 0;
+        dialog.SampleCsvPicker.SelectedIndex = sampleCsvFile == WorkbenchSampleData.InvalidSampleFile ? 1 : 0;
         if (dialog.ShowDialog() != true) return;
         sampleCsvFile = dialog.SelectedSampleCsv;
         CsvFile.Text = sampleCsvFile;
@@ -584,7 +584,7 @@ public partial class MessageLibraryPrototypeView : UserControl
 
     private void ViewValidationResults_Click(object sender, RoutedEventArgs e)
     {
-        if (CsvRowsGrid.ItemsSource is not IEnumerable<CsvPreviewRow> rows || rows.All(row => row.Status == "Ready")) return;
+        if (CsvRowsGrid.ItemsSource is not IEnumerable<SampleRow> rows || rows.All(row => row.Status == SampleRow.Ready)) return;
         var dialog = new MessageLibraryPrototypeDialog(PrototypeDialogMode.Validation, currentProfileName,
             selectedDestination ?? "order-events", 3) { Owner = Window.GetWindow(this) };
         dialog.SetValidationRows(rows.Select(row => (row.Row, row.CustomerId, row.Status)));
@@ -601,22 +601,12 @@ public partial class MessageLibraryPrototypeView : UserControl
     {
         ClearPreparedMessages();
         previewReady = false;
-        if (SpecifyTtl.IsChecked == true && (!int.TryParse(TtlMinutes.Text, out int ttl) || ttl <= 0) ||
-            CustomMessageId.IsChecked == true && (string.IsNullOrWhiteSpace(CustomMessageIdInput.Text) || CsvMode.IsChecked == true))
+        if (WorkbenchSampleData.InputProblem(SpecifyTtl.IsChecked == true, TtlMinutes.Text, CustomMessageId.IsChecked == true,
+                CustomMessageIdInput.Text, CsvMode.IsChecked == true, CustomerInput.Text, AmountInput.Text) is { } problem)
         {
-            PreviewHint.Text = "Enter a positive TTL; custom message IDs require a nonempty value and single-message mode.";
+            PreviewHint.Text = problem.Hint;
             PreviewHint.Visibility = Visibility.Visible;
-            previewReady = false;
-            ReviewButton.IsEnabled = false;
-            ReviewStepButton.IsEnabled = lastRun is not null;
-            return;
-        }
-        if (CsvMode.IsChecked != true && (string.IsNullOrWhiteSpace(CustomerInput.Text)
-            || !decimal.TryParse(AmountInput.Text, NumberStyles.Number, CultureInfo.InvariantCulture, out _)))
-        {
-            PreviewHint.Text = "Enter a CustomerId and a numeric Amount to preview.";
-            PreviewHint.Visibility = Visibility.Visible;
-            PreviewText.Text = "No preview generated.";
+            if (problem.ClearsPreview) PreviewText.Text = "No preview generated.";
             previewReady = false;
             ReviewButton.IsEnabled = false;
             ReviewStepButton.IsEnabled = lastRun is not null;
@@ -625,29 +615,12 @@ public partial class MessageLibraryPrototypeView : UserControl
 
         if (CsvMode.IsChecked == true)
         {
-            var sample = new[]
-            {
-                (Row: 1, Customer: "C1001", Amount: "149.90"),
-                (Row: 2, Customer: "C1002", Amount: sampleCsvFile == "orders-invalid.csv" ? "abc" : "224.00"),
-                (Row: 3, Customer: "C1003", Amount: "79.50")
-            };
-            var rows = sample.Select(value =>
-            {
-                string customer = customerSource == "Declared default"
-                    ? variables.First(variable => variable.Name == "CustomerId").DefaultValue
-                    : customerSource == "Constant" ? customerValue : customerValue == "Amount" ? value.Amount : value.Customer;
-                string amountText = amountSource == "Declared default"
-                    ? variables.First(variable => variable.Name == "Amount").DefaultValue
-                    : amountSource == "Constant" ? amountValue : amountValue == "CustomerId" ? value.Customer : value.Amount;
-                bool numeric = decimal.TryParse(amountText, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal amount);
-                string status = numeric && !string.IsNullOrWhiteSpace(customer) && CsvDelimiter.SelectedIndex == 0
-                    ? "Ready" : CsvDelimiter.SelectedIndex != 0 ? "Invalid delimiter" : !numeric ? $"Expected number, got {amountText}" : "CustomerId required";
-                return new CsvPreviewRow(value.Row, customer, numeric ? amount : null, status);
-            }).ToArray();
+            var rows = WorkbenchSampleData.Rows(sampleCsvFile, new SampleMapping(customerSource, customerValue, amountSource, amountValue),
+                CsvDelimiter.SelectedIndex == 0, name => variables.First(variable => variable.Name == name).DefaultValue);
             CsvRowsGrid.ItemsSource = rows;
             CsvRowsGrid.SelectedIndex = 0;
-            int valid = rows.Count(value => value.Status == "Ready");
-            ValidationStatusText.Text = valid == 3 ? "3 of 3 rows valid" : $"{3 - valid} invalid row{(valid == 2 ? "" : "s")} · Nothing can be sent";
+            int valid = rows.Count(value => value.Status == SampleRow.Ready);
+            ValidationStatusText.Text = WorkbenchSampleData.Summary(rows);
             CsvValidationSummary.Background = new System.Windows.Media.SolidColorBrush(
                 (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(valid == 3 ? "#E8F7EF" : "#FCEBEC")!);
             CsvValidationSummary.BorderBrush = new System.Windows.Media.SolidColorBrush(
@@ -667,7 +640,7 @@ public partial class MessageLibraryPrototypeView : UserControl
             if (previewReady) UpdatePreview();
             return;
         }
-        previewReady = PrepareMessages([new CsvPreviewRow(1, CustomerInput.Text,
+        previewReady = PrepareMessages([new SampleRow(1, CustomerInput.Text,
             decimal.Parse(AmountInput.Text, CultureInfo.InvariantCulture), "Ready")]);
         if (!previewReady)
         {
@@ -706,7 +679,7 @@ public partial class MessageLibraryPrototypeView : UserControl
     private void UpdatePreview()
     {
         if (!previewReady) return;
-        var row = CsvMode.IsChecked == true ? CsvRowsGrid.SelectedItem as CsvPreviewRow : null;
+        var row = CsvMode.IsChecked == true ? CsvRowsGrid.SelectedItem as SampleRow : null;
         int rowNumber = row?.Row ?? 1;
         PreviewHeading.Text = $"Row {rowNumber} preview";
         var prepared = preparedMessages.Single(message => message.Row == rowNumber);
@@ -841,38 +814,11 @@ public partial class MessageLibraryPrototypeView : UserControl
                 ["EventId"] = prepared?.EventId ?? "$(EventId)",
                 ["OccurredAt"] = prepared?.OccurredAt ?? "$(OccurredAt)"
             };
-        string Resolve(string value) => ExpandTextForPreview(value, values);
-        var lines = new List<string>
-        {
-            $"Subject: {Resolve(PropertySubject.Text)}",
-            $"Content type: {((ComboBoxItem)PropertyContentType.SelectedItem).Content}",
-            $"Correlation ID: {Resolve(PropertyCorrelationId.Text)}",
-            $"Session ID: {Resolve(PropertySessionId.Text)}",
-            $"Reply to: {Resolve(PropertyReplyTo.Text)}",
-            $"Reply session ID: {Resolve(PropertyReplySessionId.Text)}",
-            $"Partition key: {(string.IsNullOrWhiteSpace(PropertyPartitionKey.Text) ? "none" : "unsupported by emulator")}",
-            "Application properties: " + string.Join(", ", applicationProperties.Where(property => !property.IsEmpty).Select(property =>
-                $"{property.Name} ({property.Type}) = {Resolve(property.Value)}"))
-        };
-        return string.Join("\n", lines);
-    }
-
-    private static string ExpandTextForPreview(string value, IReadOnlyDictionary<string, string> values)
-    {
-        int cursor = 0;
-        var result = new System.Text.StringBuilder(value.Length);
-        while (cursor < value.Length)
-        {
-            int start = value.IndexOf("$(", cursor, StringComparison.Ordinal);
-            if (start < 0) { result.Append(value, cursor, value.Length - cursor); break; }
-            result.Append(value, cursor, start - cursor);
-            int end = value.IndexOf(')', start + 2);
-            if (end < 0) { result.Append(value, start, value.Length - start); break; }
-            string name = value[(start + 2)..end];
-            result.Append(values.TryGetValue(name, out string? resolved) ? resolved : value[start..(end + 1)]);
-            cursor = end + 1;
-        }
-        return result.ToString();
+        return MessagePropertyDetails.Describe(new MessagePropertyTexts(PropertySubject.Text,
+            $"{((ComboBoxItem)PropertyContentType.SelectedItem).Content}", PropertyCorrelationId.Text, PropertySessionId.Text,
+            PropertyReplyTo.Text, PropertyReplySessionId.Text, PropertyPartitionKey.Text,
+            applicationProperties.Where(property => !property.IsEmpty).Select(property => (property.Name, property.Type, property.Value)).ToArray()),
+            values);
     }
 
     private void VariableSelection_Changed(object sender, SelectionChangedEventArgs e)
@@ -929,7 +875,6 @@ public partial class MessageLibraryPrototypeView : UserControl
     private static IReadOnlyList<string> TemplateAssociations(PrototypeTemplate template) =>
         template.Topic.Length == 0 ? [] : [template.Topic];
 
-    private sealed record CsvPreviewRow(int Row, string CustomerId, decimal? Amount, string Status);
     private sealed record PrototypeAuthorSettings(string Subject, int ContentType, string CorrelationId,
         string SessionId, bool CustomMessageId, string CustomMessageIdValue, bool SpecifyTtl,
         string TtlMinutes, string ReplyTo, string ReplySessionId, string PartitionKey,
