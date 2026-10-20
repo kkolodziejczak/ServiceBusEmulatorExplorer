@@ -40,10 +40,12 @@ internal sealed class WorkspaceFixture : IAsyncDisposable
         var fixture = new WorkspaceFixture();
         await fixture.Workspace.InitializeAsync();
         if (!fixture.Workspace.IsConnected) await fixture.Workspace.ConnectAsync();
-        await fixture.Workspace.Browse.SelectAsync(fixture.Workspace.Browse.AllEntities().Single(), deadLetter: true);
+        await fixture.Workspace.Browse.SelectAsync(fixture.Queue, deadLetter: true);
         Assert.Equal(3, fixture.Rows.Count);
         return fixture;
     }
+
+    public EntityNode Queue => Workspace.Browse.AllEntities().Single();
 
     /// <summary>Checks the given rows and focuses and inspects the first of them.</summary>
     public void Check(params int[] indexes)

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -14,12 +15,9 @@ public partial class InvestigationWindow
 {
     private GlobalWatchWindow? globalWatchWindow;
     private string? watchProfile;
-    private EntityNode? watchPopupEntity;
     private bool updatingWatchChoices;
-    private bool savingWatch;
 
-    private WatchRuleEditor CreateWatchEditor() => new(workspace.Browse.Roots,
-        workspace.Preferences.Watches.TryGetValue(workspace.SelectedProfile.Id, out var rules) ? rules : []);
+    private WatchRuleEditor CreateWatchEditor() => watch.CreateRules();
 
     private void GlobalWatch_Click(object sender, RoutedEventArgs e)
     {
@@ -27,28 +25,15 @@ public partial class InvestigationWindow
         if (globalWatchWindow is not null) { globalWatchWindow.Activate(); return; }
         string profile = workspace.SelectedProfile.Id;
         watchProfile = profile;
-        globalWatchWindow = new(workspace.Browse.Roots, CreateWatchEditor(), editor => SaveWatchAsync(profile, editor)) { Owner = this };
+        globalWatchWindow = new(workspace.Browse.Roots, CreateWatchEditor(), editor => watch.SaveAsync(profile, editor)) { Owner = this };
         ProfileTheme.Apply(globalWatchWindow, workspace.SelectedProfile.ColorHex);
         globalWatchWindow.Closed += (_, _) => globalWatchWindow = null;
         globalWatchWindow.Show();
     }
 
-    private async Task<bool> SaveWatchAsync(string profile, WatchRuleEditor editor)
+    private void WatchChanged(object? sender, PropertyChangedEventArgs e)
     {
-        savingWatch = true;
-        UpdateWatchSurface();
-        try
-        {
-            await workspace.UpdateWatchRulesAsync(profile, editor.Rules);
-            return true;
-        }
-        catch (OperationCanceledException) { return false; }
-        catch (Exception)
-        {
-            workspace.Log("Watch preferences could not be saved. Previous rules remain active.", true);
-            return false;
-        }
-        finally { savingWatch = false; UpdateWatchSurface(); }
+        if (e.PropertyName == nameof(WatchToolbarViewModel.IsSaving)) UpdateWatchSurface();
     }
 
     private void UpdateWatchSurface()
@@ -58,62 +43,52 @@ public partial class InvestigationWindow
         {
             globalWatchWindow?.Close();
             WatchPopup.IsOpen = false;
-            watchPopupEntity = null;
+            watch.ClosePopup();
         }
         var editor = CreateWatchEditor();
+        var state = watch.StateFor(editor);
         UpdateNamespaceIndicators(editor);
-        if (globalWatchWindow is not null) globalWatchWindow.IsEnabled = !savingWatch;
+        if (globalWatchWindow is not null) globalWatchWindow.IsEnabled = !watch.IsSaving;
         globalWatchWindow?.RefreshRules(workspace.Browse.Roots, editor);
-        bool watching = !workspace.Search.IsActive && workspace.Browse.SelectedEntity is { } selected
-            && (editor.IsWatched(selected, false) || editor.IsWatched(selected, true));
-        WatchButtonLabel.Text = watching ? "Watching" : "Watch";
-        WatchBell.Fill = watching ? Brushes.White : Brushes.Transparent;
-        WatchOffSlash.Visibility = watching ? Visibility.Collapsed : Visibility.Visible;
-        WatchButton.IsEnabled = workspace.IsConnected && !savingWatch;
-        GlobalWatchButton.IsEnabled = !savingWatch;
-        int count = editor.Targets.Select(target => target.Address).Distinct().Count();
-        WatchSummaryButton.Visibility = count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        WatchSummaryButton.IsEnabled = workspace.IsConnected && !savingWatch;
-        WatchCount.Text = count.ToString();
-        WatchSummaryButton.ToolTip = $"Overview of {count} watched entities and pending notifications";
+        WatchButtonLabel.Text = state.IsWatching ? "Watching" : "Watch";
+        WatchBell.Fill = state.IsWatching ? Brushes.White : Brushes.Transparent;
+        WatchOffSlash.Visibility = state.IsWatching ? Visibility.Collapsed : Visibility.Visible;
+        WatchButton.IsEnabled = state.CanWatch;
+        GlobalWatchButton.IsEnabled = state.CanOpenGlobalWatch;
+        WatchSummaryButton.Visibility = state.WatchedCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+        WatchSummaryButton.IsEnabled = state.CanOpenOverview;
+        WatchCount.Text = state.WatchedCount.ToString();
+        WatchSummaryButton.ToolTip = $"Overview of {state.WatchedCount} watched entities and pending notifications";
         ShowWatchNotification();
-        AutomationProperties.SetName(WatchSummaryButton, $"Overview of {count} watched entities");
+        AutomationProperties.SetName(WatchSummaryButton, $"Overview of {state.WatchedCount} watched entities");
         if (!workspace.IsConnected) WatchPopup.IsOpen = false;
         if (!WatchPopup.IsOpen) return;
         updatingWatchChoices = true;
-        WatchActiveChoice.IsChecked = watchPopupEntity is not null && editor.IsWatched(watchPopupEntity, false);
-        WatchDlqChoice.IsChecked = watchPopupEntity is not null && editor.IsWatched(watchPopupEntity, true);
-        WatchActiveChoice.IsEnabled = WatchDlqChoice.IsEnabled = watchPopupEntity is not null && !savingWatch;
-        StopWatchingButton.IsEnabled = !savingWatch && (WatchActiveChoice.IsChecked == true || WatchDlqChoice.IsChecked == true);
+        WatchActiveChoice.IsChecked = state.PopupWatchesActive;
+        WatchDlqChoice.IsChecked = state.PopupWatchesDeadLetter;
+        WatchActiveChoice.IsEnabled = WatchDlqChoice.IsEnabled = state.CanChoose;
+        StopWatchingButton.IsEnabled = state.CanStopWatching;
         updatingWatchChoices = false;
     }
 
     private void Watch_Click(object sender, RoutedEventArgs e)
     {
         watchProfile = workspace.SelectedProfile.Id;
-        watchPopupEntity = workspace.Search.IsActive || workspace.Browse.SelectedEntity?.IsGroup != false
-            ? null : workspace.Browse.SelectedEntity;
-        WatchPopupTitle.Text = watchPopupEntity is null ? "Select a queue, topic or subscription to watch" : $"Watch {watchPopupEntity.Name}";
+        watch.OpenPopup();
+        WatchPopupTitle.Text = watch.PopupTitle;
         WatchPopup.IsOpen = true;
         UpdateWatchSurface();
     }
 
     private async void WatchChoice_Click(object sender, RoutedEventArgs e)
     {
-        if (updatingWatchChoices || savingWatch || watchPopupEntity is null || !workspace.IsConnected) return;
-        var editor = CreateWatchEditor();
-        editor.SetScope(watchPopupEntity, ReferenceEquals(sender, WatchDlqChoice), ((CheckBox)sender).IsChecked == true);
-        await SaveWatchAsync(workspace.SelectedProfile.Id, editor);
+        if (updatingWatchChoices) return;
+        await watch.SetPopupScopeAsync(ReferenceEquals(sender, WatchDlqChoice), ((CheckBox)sender).IsChecked == true);
     }
 
     private async void StopWatching_Click(object sender, RoutedEventArgs e)
     {
-        if (savingWatch || watchPopupEntity is null) return;
-        var editor = CreateWatchEditor();
-        editor.SetScope(watchPopupEntity, false, false);
-        editor.SetScope(watchPopupEntity, true, false);
-        await SaveWatchAsync(workspace.SelectedProfile.Id, editor);
-        WatchPopup.IsOpen = false;
+        if (await watch.StopWatchingAsync()) WatchPopup.IsOpen = false;
     }
 
     private void WatchSummary_Click(object sender, RoutedEventArgs e)
@@ -127,12 +102,7 @@ public partial class InvestigationWindow
         {
             var node = workspace.Browse.AllEntities().First(entity => entity.Address == target.Address);
             var item = new MenuItem { Header = $"{node.Path} · {(target.Bucket == MessageBucket.DeadLetter ? "DLQ" : "Active")}", IsCheckable = true, IsChecked = true };
-            item.Click += async (_, _) =>
-            {
-                var editor = CreateWatchEditor();
-                editor.SetScope(node, target.Bucket == MessageBucket.DeadLetter, item.IsChecked);
-                await SaveWatchAsync(workspace.SelectedProfile.Id, editor);
-            };
+            item.Click += async (_, _) => await watch.SetScopeAsync(node, target.Bucket == MessageBucket.DeadLetter, item.IsChecked);
             menu.Items.Add(item);
         }
         menu.Items.Add(new Separator { Margin = new Thickness(10, 5, 10, 5), Background = new SolidColorBrush(Color.FromRgb(213, 223, 234)), Height = 1 });
