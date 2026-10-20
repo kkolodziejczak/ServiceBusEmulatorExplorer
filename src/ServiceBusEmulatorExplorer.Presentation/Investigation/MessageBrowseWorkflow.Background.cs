@@ -1,7 +1,7 @@
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 public sealed partial class MessageBrowseWorkflow
 {
@@ -61,7 +61,7 @@ public sealed partial class MessageBrowseWorkflow
         return backgroundRefresh;
     }
 
-    internal void RestoreWatchedMessages()
+    public void RestoreWatchedMessages()
     {
         if (busy || selectedEntity?.Address is not { } address
             || !backgroundPages.TryGetValue(new(address, bucket), out var cached)) return;

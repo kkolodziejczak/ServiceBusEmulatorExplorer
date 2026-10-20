@@ -1,7 +1,7 @@
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 public sealed record ReplayCopyOutcome(ReplayReservation Reservation, ReplaySendStatus Status, bool HistoryPersistenceFailed = false);
 

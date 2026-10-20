@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 /// <summary>Session-owned Watch polling. Call from the workspace's synchronization context.</summary>
 public sealed class MessageWatchWorkflow(TimeProvider? timeProvider = null)

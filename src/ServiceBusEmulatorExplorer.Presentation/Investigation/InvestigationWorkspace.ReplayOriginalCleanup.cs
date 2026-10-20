@@ -1,6 +1,6 @@
 using ServiceBusEmulatorExplorer.Core.Investigation;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 public sealed partial class InvestigationWorkspace
 {

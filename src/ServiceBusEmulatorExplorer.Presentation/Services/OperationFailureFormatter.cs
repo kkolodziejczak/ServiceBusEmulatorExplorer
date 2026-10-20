@@ -7,7 +7,7 @@ using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using ServiceBusEmulatorExplorer.Core.Connection;
 
-namespace ServiceBusEmulatorExplorer.App.Services;
+namespace ServiceBusEmulatorExplorer.Presentation.Services;
 
 public sealed record OperationFailure(string UserMessage, string Detail);
 

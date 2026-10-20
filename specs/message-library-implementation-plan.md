@@ -30,7 +30,7 @@ The engineering defaults below make these choices implementable. They are specif
 
 | Evidence | Implication for this feature |
 |---|---|
-| [Production startup](../src/ServiceBusEmulatorExplorer.App/App.xaml.cs), [workspace](../src/ServiceBusEmulatorExplorer.App/Investigation/InvestigationWorkspace.cs) | Integrate with the current window and connection generation; do not implement a feature only reachable in the legacy shell. |
+| [Production startup](../src/ServiceBusEmulatorExplorer.App/App.xaml.cs), [workspace](../src/ServiceBusEmulatorExplorer.Presentation/Investigation/InvestigationWorkspace.cs) | Integrate with the current window and connection generation; do not implement a feature only reachable in the legacy shell. |
 | [Existing send contracts](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/ServiceBusContracts.cs), [mapper](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/SendMessageRequestMapper.cs) | Reuse `EntityAddress` and SDK conventions. Existing send has no explicit MessageId and trims some values; it cannot silently become the exact-preview transport. |
 | [Replay sender](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/ReplayCopySender.cs) | A dedicated client with zero automatic retries is an established local pattern. Preserve acknowledged sends when disposal fails. |
 | [Delivery identity](../src/ServiceBusEmulatorExplorer.Core/Investigation/MessageDelivery.cs) | Source identity includes connection generation, source, bucket and sequence. Saving a snapshot is different from sending to its source. |

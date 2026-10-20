@@ -4,9 +4,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using ServiceBusEmulatorExplorer.Presentation;
-using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 public sealed partial class MessageBrowseWorkflow : ObservableObject
 {

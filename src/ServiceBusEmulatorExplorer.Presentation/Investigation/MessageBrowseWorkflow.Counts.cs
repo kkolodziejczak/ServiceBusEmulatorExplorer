@@ -1,8 +1,7 @@
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
-using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 // Emulator counts: an entity is counted in full when first opened, then recounted on every refresh.
 public sealed partial class MessageBrowseWorkflow

@@ -2,6 +2,8 @@ using ServiceBusEmulatorExplorer.App.Investigation;
 using ServiceBusEmulatorExplorer.App.Investigation.Inspection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.Presentation.Investigation;
+using ServiceBusEmulatorExplorer.Presentation.Investigation.Inspection;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 

@@ -1,4 +1,4 @@
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 /// <summary>
 /// Raises the automatic refresh through the workspace clock, delivering each tick through <paramref name="deliver"/>
@@ -6,7 +6,7 @@ namespace ServiceBusEmulatorExplorer.App.Investigation;
 /// handled, so a busy UI thread gets one late refresh rather than a queue of them. Starting again with the same
 /// interval keeps the running countdown, so frequent reconfiguration never postpones a refresh.
 /// </summary>
-internal sealed class AutoRefreshTimer(TimeProvider clock, Action<Action> deliver) : IDisposable
+public sealed class AutoRefreshTimer(TimeProvider clock, Action<Action> deliver) : IDisposable
 {
     private ITimer? timer;
 

@@ -1,7 +1,7 @@
-using ServiceBusEmulatorExplorer.App.Investigation.Inspection;
+using ServiceBusEmulatorExplorer.Presentation.Investigation.Inspection;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 public sealed record ReplaySelectionState(IReadOnlyList<MessageDelivery> Targets, string? EditedBody, string? Problem)
 {

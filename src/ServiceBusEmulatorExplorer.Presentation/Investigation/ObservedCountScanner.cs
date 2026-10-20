@@ -1,8 +1,7 @@
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
-using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 /// <summary>
 /// Counts every delivery of an entity bucket by peeking to its end, so the tree shows totals

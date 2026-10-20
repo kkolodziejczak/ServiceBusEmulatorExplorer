@@ -1,9 +1,8 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 /// <summary>The visible investigation list; browsing remains intact while a search is displayed.</summary>
 public sealed class InvestigationSurface : ObservableObject, IDisposable

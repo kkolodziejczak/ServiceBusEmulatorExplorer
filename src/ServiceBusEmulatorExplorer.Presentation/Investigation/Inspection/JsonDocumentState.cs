@@ -1,4 +1,4 @@
-namespace ServiceBusEmulatorExplorer.App.Investigation.Inspection;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation.Inspection;
 
 /// <summary>Describes how an inspection document was interpreted.</summary>
 public enum JsonDocumentState

@@ -1,13 +1,13 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using ServiceBusEmulatorExplorer.App.Investigation.Inspection;
-using ServiceBusEmulatorExplorer.App.Services;
+using ServiceBusEmulatorExplorer.Presentation.Investigation.Inspection;
+using ServiceBusEmulatorExplorer.Presentation.Services;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.Connection;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 public sealed partial class InvestigationWorkspace : ObservableObject, IAsyncDisposable
 {
