@@ -114,11 +114,17 @@ public sealed class WatchNotificationsViewModelTests
     public async Task A_search_replaced_while_investigating_acknowledges_nothing()
     {
         await using var fixture = await WorkspaceFixture.OpenAsync();
-        var host = new Host(fixture) { Replace = true };
+        var host = new Host(fixture);
         var notifications = new WatchNotificationsViewModel(fixture.Workspace, host);
         Arrive(fixture, fixture.Rows[0].Delivery);
+        var held = fixture.Gate();
+        fixture.Peeks.BeforePeek = () => held.Task;
 
-        await notifications.InvestigateAsync();
+        Task investigating = notifications.InvestigateAsync();
+        Task replacing = fixture.Workspace.Search.StartAsync("checkout*", defaultMessageId: true);
+        fixture.Peeks.BeforePeek = () => Task.CompletedTask;
+        held.SetResult();
+        await Task.WhenAll(investigating, replacing).WaitAsync(TimeSpan.FromSeconds(10));
 
         Assert.Single(fixture.Workspace.Watch.PendingArrivals);
         Assert.Empty(host.Revealed);
@@ -219,7 +225,6 @@ public sealed class WatchNotificationsViewModelTests
         public int Restored { get; private set; }
         public List<WatchSearchRequest> Searches { get; } = [];
         public List<MessageRow> Revealed { get; } = [];
-        public bool Replace { get; init; }
         public Func<string, bool, Task>? Search { get; init; }
 
         public void Restore() => Restored++;
@@ -229,9 +234,6 @@ public sealed class WatchNotificationsViewModelTests
             Searches.Add(new(query, defaultMessageId));
             if (Search is not null) { await Search(query, defaultMessageId); return; }
             await fixture.Workspace.Search.StartAsync(query, defaultMessageId);
-            if (!Replace) return;
-            await Task.Yield();
-            await fixture.Workspace.Search.StartAsync("checkout*", defaultMessageId: true);
         }
 
         public void Reveal(MessageRow row) => Revealed.Add(row);
