@@ -120,7 +120,7 @@ public sealed class WatchToolbarViewModelTests
         Task choosing = watch.SetPopupScopeAsync(deadLetter: false, enabled: false);
         Assert.True(stopping.IsCompletedSuccessfully);
         Assert.True(choosing.IsCompletedSuccessfully);
-        bool stopped = stopping.Result;
+        bool stopped = await stopping;
         release.SetResult();
         await Task.WhenAll(first, second);
 
