@@ -26,7 +26,7 @@ internal sealed class WorkspaceFixture : IAsyncDisposable
     {
         CreateSender = () => Sender;
         Workspace = new InvestigationWorkspace(Store,
-            new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(), _ => Peeks),
+            new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(this), _ => Peeks),
             _ => CreateSender(), (_, _) => Receiver);
     }
 
@@ -38,6 +38,9 @@ internal sealed class WorkspaceFixture : IAsyncDisposable
     public Func<IReplayCopySender> CreateSender { get; set; }
     public FakeReceiver Receiver { get; } = new();
     public FakeMessages Peeks { get; } = new();
+
+    /// <summary>Whether namespace discovery reaches every source; an incomplete one connects with a warning.</summary>
+    public bool DiscoveryComplete { get; set; } = true;
 
     public IReadOnlyList<MessageRow> Rows => Workspace.Browse.Messages;
 
@@ -158,7 +161,7 @@ internal sealed class WorkspaceFixture : IAsyncDisposable
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
-    private sealed class Browser : IInvestigationEntityBrowser
+    private sealed class Browser(WorkspaceFixture fixture) : IInvestigationEntityBrowser
     {
         public Task<EntityDiscoverySnapshot> DiscoverAsync(CancellationToken cancellationToken) => Task.FromResult(
             new EntityDiscoverySnapshot([
@@ -168,7 +171,7 @@ internal sealed class WorkspaceFixture : IAsyncDisposable
                     new("order-events", "Active", null, null, null, null, null, null, null)), deadLetter: 0),
                 Observe(new ServiceBusEntityNode(EntityKind.Subscription, "billing", "order-events", new(0, 0, 0, 0),
                     new("order-events/subscriptions/billing", "Active", null, null, null, null, null, null, null)), deadLetter: 0)],
-                DateTimeOffset.UtcNow, true, []));
+                DateTimeOffset.UtcNow, fixture.DiscoveryComplete, []));
 
         private static EntityObservation Observe(ServiceBusEntityNode node, long deadLetter) => new(node,
             new(new(0, CountAvailability.Known), new(deadLetter, CountAvailability.Known), new(0, CountAvailability.Known)));

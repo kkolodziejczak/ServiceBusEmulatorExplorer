@@ -24,6 +24,8 @@ public partial class InvestigationWindow : Window, IMessageActionsHost, IWatchNo
     private readonly MessageColumnsViewModel columns;
     private readonly InspectorPanelViewModel inspectorPanel;
     private readonly WatchNotificationsViewModel watchNotifications;
+    private readonly ConnectionBarViewModel connectionBar;
+    private readonly ActivityLogViewModel activityLog;
     private readonly AutoRefreshTimer refreshTimer;
     private readonly Action<string> copyText;
     private bool ready;
@@ -58,6 +60,8 @@ public partial class InvestigationWindow : Window, IMessageActionsHost, IWatchNo
         inspectorPanel = new InspectorPanelViewModel(workspace, this.copyText);
         watchNotifications = new WatchNotificationsViewModel(workspace, this);
         watchNotifications.PropertyChanged += WatchNotificationsChanged;
+        connectionBar = new ConnectionBarViewModel(workspace);
+        activityLog = new ActivityLogViewModel(workspace);
         refreshTimer = new(workspace.Clock, tick => Dispatcher.BeginInvoke(DispatcherPriority.Background, tick));
         InitializeComponent();
         MessageLibraryPrototype.ConnectionRepairRequested += () => ConnectionButton.Focus();
@@ -108,7 +112,7 @@ public partial class InvestigationWindow : Window, IMessageActionsHost, IWatchNo
     {
         if (e.PropertyName == nameof(InvestigationWorkspace.Status))
         {
-            LastOperation.Text = workspace.IsConnecting ? "Connecting to Service Bus…" : workspace.Status;
+            LastOperation.Text = connectionBar.LastOperation;
             return;
         }
         UpdateWorkspace();
@@ -126,20 +130,23 @@ public partial class InvestigationWindow : Window, IMessageActionsHost, IWatchNo
             UpdateWorkbenchDiscovery();
             ConnectionHealthText.Text = workspace.HealthText;
             ConnectionButton.ToolTip = workspace.HealthDetail;
-            ConnectionHealthDot.SetResourceReference(System.Windows.Shapes.Shape.FillProperty,
-                workspace.IsConnecting || workspace.HealthText == "Warning" ? "WarningHealthBrush" :
-                workspace.IsConnected ? "ConnectedHealthBrush" : "DisconnectedHealthBrush");
+            ConnectionHealthDot.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, connectionBar.Health switch
+            {
+                ConnectionHealth.Warning => "WarningHealthBrush",
+                ConnectionHealth.Connected => "ConnectedHealthBrush",
+                _ => "DisconnectedHealthBrush"
+            });
             ProfileTheme.Apply(this, workspace.SelectedProfile.ColorHex);
-            LastOperation.Text = workspace.IsConnecting ? "Connecting to Service Bus…" : workspace.Status;
+            LastOperation.Text = connectionBar.LastOperation;
             DatePresentation.SetFormat(this, workspace.Preferences.DateFormat);
-            TimeDisplaySelector.SelectedIndex = workspace.Preferences.TimestampDisplay == TimestampDisplay.Utc ? 0 : 1;
+            TimeDisplaySelector.SelectedIndex = activityLog.UsesUtc ? 0 : 1;
             AutoInterval.SelectedIndex = Array.IndexOf(new[] { 0, 5, 10, 30 }, workspace.Preferences.AutoRefreshSeconds);
-            LogPanel.Visibility = workspace.Preferences.LogExpanded ? Visibility.Visible : Visibility.Collapsed;
-            LogToggle.ToolTip = workspace.Preferences.LogExpanded ? "Collapse activity log" : "Expand activity log";
-            System.Windows.Automation.AutomationProperties.SetName(LogToggle, (string)LogToggle.ToolTip);
-            LogHeading.Text = workspace.Preferences.LogExpanded ? "Activity log · Expanded" : "Activity log · Collapsed";
-            LogChevron.Data = Geometry.Parse(workspace.Preferences.LogExpanded ? "M1,8 L7,2 L13,8" : "M1,2 L7,8 L13,2");
-            EnqueuedColumn.Header = workspace.Preferences.TimestampDisplay == TimestampDisplay.Utc ? "Enqueued (UTC)" : "Enqueued (Local)";
+            LogPanel.Visibility = activityLog.IsExpanded ? Visibility.Visible : Visibility.Collapsed;
+            LogToggle.ToolTip = activityLog.ToggleLabel;
+            System.Windows.Automation.AutomationProperties.SetName(LogToggle, activityLog.ToggleLabel);
+            LogHeading.Text = activityLog.Heading;
+            LogChevron.Data = Geometry.Parse(activityLog.IsExpanded ? "M1,8 L7,2 L13,8" : "M1,2 L7,8 L13,2");
+            EnqueuedColumn.Header = activityLog.EnqueuedHeader;
             UpdateMessageColumns();
             ConfigureRefresh();
             RenderActivity();
@@ -188,15 +195,11 @@ public partial class InvestigationWindow : Window, IMessageActionsHost, IWatchNo
     private async void ConnectionSelector_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (!ready || updating || ConnectionSelector.SelectedItem is not InvestigationProfile profile) return;
-        await workspace.SwitchProfileAsync(profile);
+        await connectionBar.SwitchProfileAsync(profile);
         UpdateWorkspace();
     }
 
-    private async void Connection_Click(object sender, RoutedEventArgs e)
-    {
-        if (workspace.IsConnected || workspace.IsConnecting) await workspace.DisconnectAsync();
-        else await workspace.ConnectAsync();
-    }
+    private async void Connection_Click(object sender, RoutedEventArgs e) => await connectionBar.ToggleAsync();
 
     private void Settings_Click(object sender, RoutedEventArgs e) =>
         new SettingsWindow(workspace.Preferences, workspace.ApplyPreferencesAsync, tray is not null, copyText) { Owner = this }.ShowDialog();
@@ -489,51 +492,43 @@ public partial class InvestigationWindow : Window, IMessageActionsHost, IWatchNo
 
 
 
-    private async void ToggleLog_Click(object sender, RoutedEventArgs e) =>
-        await workspace.UpdateDisplayPreferencesAsync(logExpanded: !workspace.Preferences.LogExpanded);
-    private void ClearLog_Click(object sender, RoutedEventArgs e) => workspace.Activity.Clear();
+    private async void ToggleLog_Click(object sender, RoutedEventArgs e) => await activityLog.ToggleAsync();
+    private void ClearLog_Click(object sender, RoutedEventArgs e) => activityLog.Clear();
     private async void TimeDisplay_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (!ready || updating) return;
-        await workspace.UpdateDisplayPreferencesAsync(timestampDisplay: TimeDisplaySelector.SelectedIndex == 0 ? TimestampDisplay.Utc : TimestampDisplay.Local);
+        await activityLog.SetUsesUtcAsync(TimeDisplaySelector.SelectedIndex == 0);
     }
     private void ActivityChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => RenderActivity();
     private void RenderActivity()
     {
         if (!ready) return;
-        ClearLogButton.IsEnabled = workspace.Activity.Count > 0;
-        LogEmpty.Visibility = workspace.Activity.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        ClearLogButton.IsEnabled = !activityLog.IsEmpty;
+        LogEmpty.Visibility = activityLog.IsEmpty ? Visibility.Visible : Visibility.Collapsed;
         LogText.Document.Blocks.Clear();
-        foreach (var entry in workspace.Activity)
+        foreach (var line in activityLog.Lines)
         {
             var paragraph = new Paragraph { Margin = new Thickness(0, 2, 0, 2) };
-            paragraph.Inlines.Add(new Run(ActivityTime(entry.TimestampUtc) + "   ")
+            paragraph.Inlines.Add(new Run(line.Time + "   ")
             {
                 Foreground = new SolidColorBrush(Color.FromRgb(135, 167, 191)),
-                ToolTip = ActivityDate(entry.TimestampUtc)
+                ToolTip = line.Date
             });
-            paragraph.Inlines.Add(new Run(entry.Warning ? "WARN    " : entry.Watch ? "WATCH   " : "INFO    ")
+            paragraph.Inlines.Add(new Run(line.Label)
             {
-                Foreground = entry.Warning ? Brushes.Orange : entry.Watch ? Brushes.Cyan : Brushes.LightGreen
+                Foreground = line.Level switch
+                {
+                    ActivityLevel.Warning => Brushes.Orange,
+                    ActivityLevel.Watch => Brushes.Cyan,
+                    _ => Brushes.LightGreen
+                }
             });
-            paragraph.Inlines.Add(new Run(entry.Message));
+            paragraph.Inlines.Add(new Run(line.Message));
             LogText.Document.Blocks.Add(paragraph);
         }
-        var last = workspace.Activity.LastOrDefault();
-        LastOperationTime.Text = last is null ? "" : ActivityTime(last.TimestampUtc);
-        LastOperationTime.ToolTip = last is null ? null : ActivityDate(last.TimestampUtc);
+        LastOperationTime.Text = activityLog.LastTime;
+        LastOperationTime.ToolTip = activityLog.LastDate;
         LogText.ScrollToEnd();
     }
-
-    private string ActivityDate(DateTimeOffset instant)
-    {
-        bool local = workspace.Preferences.TimestampDisplay == TimestampDisplay.Local;
-        return DateDisplay.Timestamp(local ? instant.ToLocalTime() : instant.ToUniversalTime(), workspace.Preferences.DateFormat)
-            + (local ? " Local" : " UTC");
-    }
-
-    private string ActivityTime(DateTimeOffset instant) => workspace.Preferences.TimestampDisplay == TimestampDisplay.Utc
-        ? instant.ToString("HH:mm:ss") + " UTC"
-        : instant.ToLocalTime().ToString("HH:mm:ss") + " Local";
 
 }
