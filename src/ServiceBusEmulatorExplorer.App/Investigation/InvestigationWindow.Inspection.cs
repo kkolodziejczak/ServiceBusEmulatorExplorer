@@ -175,12 +175,12 @@ public partial class InvestigationWindow
                 BodyEditor.SetInspectionDocument(editorDocument);
             }
 
-            BodyEditor.IsReadOnly = inspector.IsReadOnly || replayPending;
+            BodyEditor.IsReadOnly = inspector.IsReadOnly || actions.IsReplayPending;
             bool editable = inspectorMode == "Body" && !BodyEditor.IsReadOnly;
             string editability = editable ? "Editable" : "Read-only";
             string editabilityHelp = editable
                 ? "Edit this body, then replay a new copy. Original stays unchanged."
-                : replayPending ? "Read-only while replay is in progress."
+                : actions.IsReplayPending ? "Read-only while replay is in progress."
                 : inspectorMode != "Body" ? "Message properties are read-only. You can select and copy them."
                 : "This message body is read-only. You can select, find, fold and copy its content.";
             InspectorEditabilityStatus.Visibility = hasMessage ? Visibility.Visible : Visibility.Collapsed;
