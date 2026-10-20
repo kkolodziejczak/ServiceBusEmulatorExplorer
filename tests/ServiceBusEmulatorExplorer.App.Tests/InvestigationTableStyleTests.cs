@@ -16,6 +16,7 @@ using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
+using ServiceBusEmulatorExplorer.Presentation.Workbench;
 namespace ServiceBusEmulatorExplorer.App.Tests;
 
 [Collection("WPF presentation")]

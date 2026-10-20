@@ -1,5 +1,4 @@
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
-using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -22,14 +21,9 @@ namespace ServiceBusEmulatorExplorer.App.Investigation;
 public partial class MessageLibraryPrototypeReviewSurface : UserControl
 {
     private readonly DispatcherTimer dispatchTimer = new() { Interval = TimeSpan.FromMilliseconds(550) };
-    private readonly ObservableCollection<PrototypeResult> results = [];
-    private readonly ObservableCollection<PrototypeScheduledResult> scheduledResults = [];
-    private readonly ObservableCollection<PrototypeCancellationAttempt> cancellationAttempts = [];
+    private readonly WorkbenchRun workbenchRun;
     private IReadOnlyList<PrototypePreparedMessage> preparedMessages = [];
     private int messageCount;
-    private int dispatchIndex;
-    private bool dispatchScheduled;
-    private DateTimeOffset? dispatchDueUtc;
     private readonly DispatcherTimer scheduleClock = new() { Interval = TimeSpan.FromSeconds(15) };
     private ScheduleProblem? scheduleProblem;
     private TimeProvider clock = TimeProvider.System;
@@ -53,6 +47,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     public MessageLibraryPrototypeReviewSurface(string profile, string target, int count)
     {
         utcNow = () => clock.GetUtcNow().UtcDateTime;
+        workbenchRun = new(() => clock.GetUtcNow());
         InitializeComponent();
         InitializeScheduleInputs();
         RefreshDatePresentation();
@@ -98,9 +93,9 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     public void Configure(string profile, string target, int count)
     {
         messageCount = count;
-        ResultsGrid.ItemsSource = results;
-        ScheduledGrid.ItemsSource = scheduledResults;
-        HistoryGrid.ItemsSource = cancellationAttempts;
+        ResultsGrid.ItemsSource = workbenchRun.Results;
+        ScheduledGrid.ItemsSource = workbenchRun.ScheduledReceipts;
+        HistoryGrid.ItemsSource = workbenchRun.CancellationAttempts;
         ReviewProfile.Text = profile;
         ReviewTarget.Text = target;
         ReviewTargetKind.Text = target == "order-replies" ? "Queue" : "Topic";
@@ -218,30 +213,16 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         ReviewTotalSize.Text = $"{totalBytes:N0} bytes UTF-8 across prepared messages";
     }
 
-    public PrototypeRunSnapshot? CaptureRun() => results.Count == 0 ? null : new PrototypeRunSnapshot(
-        ReviewProfile.Text, ReviewTarget.Text, dispatchScheduled,
-        results.Select(row => (row.Row, row.MessageId, row.Outcome, row.Details)).ToArray(),
-        scheduledResults.Select(row => (row.Row, row.Receipt, row.Payload, row.Outcome, row.DueTime,
-            row.Selected, row.CancellationStatus, row.AttemptTime)).ToArray())
-        { CancellationAttempts = cancellationAttempts.ToArray() };
+    public PrototypeRunSnapshot? CaptureRun() => workbenchRun.Capture(ReviewProfile.Text, ReviewTarget.Text);
 
     public void RestoreRun(PrototypeRunSnapshot run)
     {
         ArgumentNullException.ThrowIfNull(run);
         ReviewProfile.Text = run.Profile;
         ReviewTarget.Text = run.Target;
-        dispatchScheduled = run.Scheduled;
-        results.Clear();
-        foreach (var row in run.Results)
-            results.Add(new PrototypeResult(row.Row, row.MessageId, row.Outcome, row.Details));
-        scheduledResults.Clear();
-        foreach (var row in run.ScheduledResults)
-            scheduledResults.Add(new PrototypeScheduledResult(row.Row, row.Receipt, row.Payload, row.Outcome, row.DueTime)
-            { Selected = row.Selected, CancellationStatus = row.CancellationStatus, AttemptTime = row.AttemptTime, DateFormat = DatePresentation.GetFormat(this) });
-        cancellationAttempts.Clear();
-        foreach (var attempt in run.CancellationAttempts) cancellationAttempts.Add(attempt);
+        workbenchRun.Restore(run, DatePresentation.GetFormat(this));
         UpdateCancellationActions();
-        CancelScheduled.Visibility = scheduledResults.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        CancelScheduled.Visibility = workbenchRun.ScheduledReceipts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private static IReadOnlyList<PrototypePreparedMessage> CreateSamplePreparedMessages(int count) =>
@@ -332,8 +313,8 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
             ConfirmDispatch.IsEnabled = false;
             return;
         }
-        dispatchScheduled = ReviewSchedule.IsChecked == true;
-        ScheduleResolution? schedule = dispatchScheduled
+        bool scheduled = ReviewSchedule.IsChecked == true;
+        ScheduleResolution? schedule = scheduled
             ? WorkbenchSchedule.Resolve(ChosenSchedule(), utcNow(), TimeZoneInfo.Local, DatePresentation.GetFormat(this)) : null;
         if (schedule?.Problem is { } problem)
         {
@@ -343,43 +324,28 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
             return;
         }
         scheduleClock.Stop();
-        dispatchDueUtc = schedule is null ? null : new DateTimeOffset(schedule.Utc);
         ReviewError.Visibility = Visibility.Collapsed;
         SetSurface(ProgressSurface);
         ReviewFooter.Visibility = Visibility.Collapsed;
-        ProgressHeading.Text = $"{(dispatchScheduled ? "Scheduling" : "Sending")} {messageCount} messages";
+        ProgressHeading.Text = $"{(scheduled ? "Scheduling" : "Sending")} {messageCount} messages";
         ProgressTarget.Text = $"Target: {ReviewProfile.Text} / {ReviewEndpoint.Text} / {ReviewTarget.Text}";
         DispatchProgress.Maximum = messageCount;
-        dispatchIndex = 0;
-        results.Clear();
-        scheduledResults.Clear();
-        cancellationAttempts.Clear();
+        workbenchRun.Start(preparedMessages.Select(message => message.MessageId).ToArray(), schedule is null ? null : new DateTimeOffset(schedule.Utc), ReviewTarget.Text);
         dispatchTimer.Start();
     }
 
     private void DispatchTick(object? sender, EventArgs e)
     {
-        dispatchIndex++;
-        string id = preparedMessages[dispatchIndex - 1].MessageId;
-        string outcome = dispatchScheduled ? "Confirmed scheduled" : "Confirmed sent";
-        results.Add(new PrototypeResult(dispatchIndex, id, outcome, dispatchScheduled ? "Sample receipt retained" : "Sample acknowledgement"));
-        if (dispatchScheduled)
-            scheduledResults.Add(new PrototypeScheduledResult(dispatchIndex, (700 + dispatchIndex).ToString(CultureInfo.InvariantCulture), $"{ReviewTarget.Text}-{dispatchIndex}.json", outcome, dispatchDueUtc!.Value.ToString("O", CultureInfo.InvariantCulture)) { Selected = true, DateFormat = DatePresentation.GetFormat(this) });
-        DispatchProgress.Value = dispatchIndex;
-        ProgressStatus.Text = $"{dispatchIndex} of {messageCount} acknowledged";
-        if (dispatchIndex == messageCount) FinishDispatch();
+        bool finished = workbenchRun.SendNext(DatePresentation.GetFormat(this));
+        DispatchProgress.Value = workbenchRun.Sent;
+        ProgressStatus.Text = $"{workbenchRun.Sent} of {messageCount} acknowledged";
+        if (finished) FinishDispatch();
     }
 
     private void StopDispatch_Click(object sender, RoutedEventArgs e)
     {
         dispatchTimer.Stop();
-        if (dispatchIndex < messageCount)
-        {
-            int unknown = dispatchIndex + 1;
-            results.Add(new PrototypeResult(unknown, preparedMessages[unknown - 1].MessageId, "Outcome unknown", "In flight when stopped"));
-            for (int row = unknown + 1; row <= messageCount; row++)
-                results.Add(new PrototypeResult(row, preparedMessages[row - 1].MessageId, "Not attempted", "Not submitted"));
-        }
+        workbenchRun.Stop();
         FinishDispatch();
     }
 
@@ -388,7 +354,7 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
         dispatchTimer.Stop();
         SetSurface(ResultsSurface);
         ResultsHeading.Text = "Run results";
-        CancelScheduled.Visibility = scheduledResults.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        CancelScheduled.Visibility = workbenchRun.ScheduledReceipts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         SetWindowTitle("Run results");
         if (CaptureRun() is { } run) RunCompleted?.Invoke(run);
     }
@@ -438,7 +404,5 @@ public partial class MessageLibraryPrototypeReviewSurface : UserControl
     {
         if (Window.GetWindow(this) is MessageLibraryPrototypeDialog dialog) dialog.Title = title;
     }
-
-    private sealed record PrototypeResult(int Row, string MessageId, string Outcome, string Details);
 
 }

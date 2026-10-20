@@ -7,6 +7,7 @@ using System.Windows.Media;
 using ServiceBusEmulatorExplorer.App.Investigation;
 using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
+using ServiceBusEmulatorExplorer.Presentation.Workbench;
 namespace ServiceBusEmulatorExplorer.ReadmeScreenshot;
 
 internal static class Program
