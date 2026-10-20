@@ -20,6 +20,16 @@ public sealed class WorkbenchLibraryTests
         Assert.All(library.Templates.Where(template => template.Name != "Order reply"),
             template => Assert.Equal(EntityKind.Topic, template.DestinationKind));
         Assert.Empty(library.CreatedFolders);
+        Assert.Equal(["order-events", "order-events", "order-events", "inventory-events", "order-replies", ""],
+            library.Templates.Select(template => template.Topic));
+        Assert.All(library.Templates, template => Assert.Null(template.Associations));
+        Assert.Equal("{\n  \"eventId\": \"$(EventId)\",\n  \"sku\": \"$(CustomerId)\",\n  \"quantity\": \"$(Amount)\"\n}",
+            library.Find("Stock reserved")!.Body);
+        Assert.Equal("{\n  \"customerId\": \"$(CustomerId)\",\n  \"accepted\": true\n}", library.Find("Order reply")!.Body);
+        Assert.Contains("\"occurredAt\": \"$(OccurredAt)\"", library.Find("Order created")!.Body);
+        Assert.Contains("\"state\": \"Updated\"", library.Find("Order updated")!.Body);
+        Assert.Contains("\"state\": \"Dispatched\"", library.Find("Order dispatched")!.Body);
+        Assert.Equal("Local draft without a discovered destination.", library.Find("Unassociated sample")!.Description);
     }
 
     [Fact]
@@ -83,6 +93,8 @@ public sealed class WorkbenchLibraryTests
         Assert.True(library.HasUnsavedChanges("Order created", template.Body, template.Topic, template.DestinationKind, Settings("changed")));
         Assert.True(library.HasUnsavedChanges("Order created", template.Body, template.Topic, template.DestinationKind,
             Saved with { Variables = [new("Extra", "string", "Input", false, "")] }));
+        Assert.True(library.HasUnsavedChanges("Order created", template.Body, template.Topic, template.DestinationKind,
+            Saved with { ApplicationProperties = [new("amount", "decimal", "$(Total)")] }));
         Assert.False(library.HasUnsavedChanges("Missing", "{}", "", EntityKind.Topic, Saved));
     }
 
@@ -120,6 +132,8 @@ public sealed class WorkbenchLibraryTests
     public void Moving_and_relocating_change_template_folders_folders_and_created_folders()
     {
         var library = Library();
+        library.Add(Template("Root note", ""), Saved);
+        library.Add(Template("Late", "orders/late"), Saved);
         library.AddFolderAndParents("Orders/Returns");
         library.AddFolderAndParents("OrdersArchive");
         library.MarkCreated("orders/returns");
@@ -129,7 +143,7 @@ public sealed class WorkbenchLibraryTests
         library.RelocateFolder("Orders", "Inventory/Orders");
 
         Assert.Equal(["Inventory/Orders", "Inventory", "Inventory/Orders/Returns", "OrdersArchive"], library.Folders);
-        Assert.Equal(["Inventory/Orders", "Inventory/Orders/Returns"], library.Templates.Select(template => template.Folder));
+        Assert.Equal(["Inventory/Orders", "Inventory/Orders/Returns", "", "Inventory/Orders/late"], library.Templates.Select(template => template.Folder));
         Assert.Equal(["Inventory/Orders/returns", "OrdersArchive"], library.CreatedFolders.Order(StringComparer.Ordinal));
     }
 
