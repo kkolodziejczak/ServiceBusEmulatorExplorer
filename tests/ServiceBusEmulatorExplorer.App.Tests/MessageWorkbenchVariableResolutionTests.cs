@@ -86,6 +86,38 @@ public sealed class MessageWorkbenchVariableResolutionTests
         });
 
     [Fact]
+    public void Variable_referenced_by_any_message_property_blocks_review_and_invalid_json_replaces_the_hint()
+        => Run((window, view) =>
+        {
+            AddVariable(window, view, "RequiredText");
+            foreach (string box in new[] { "PropertySubject", "PropertyCorrelationId", "PropertySessionId", "PropertyReplyTo",
+                         "PropertyReplySessionId", "PropertyPartitionKey" })
+            {
+                TextBox property = Get<TextBox>(view, box);
+                string original = property.Text;
+                property.Text = "$(RequiredText)";
+                Drain(window);
+                Assert.False(Get<Button>(view, "ReviewButton").IsEnabled, box);
+                Assert.Contains("RequiredText", Get<TextBlock>(view, "PreviewHint").Text);
+                property.Text = original;
+                Drain(window);
+                Assert.True(Get<Button>(view, "ReviewButton").IsEnabled, box);
+            }
+
+            Get<TextBox>(view, "PropertySubject").Text = "$(RequiredText)";
+            Drain(window);
+            Get<Button>(view, "EditorBodyTab").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Get<JsonEditor>(view, "EditorText").Text = "{ not json";
+            Get<TextBox>(view, "PropertySubject").Text = "";
+            Drain(window);
+
+            Assert.False(Get<Button>(view, "ReviewButton").IsEnabled);
+            Assert.Contains("not valid JSON", Get<TextBlock>(view, "PreviewHint").Text);
+            Assert.DoesNotContain("RequiredText", Get<TextBlock>(view, "PreviewHint").Text);
+            Assert.Equal("No preview generated.", Get<JsonEditor>(view, "PreviewText").Text);
+        });
+
+    [Fact]
     public void Generated_variable_keeps_its_detail_row_visible_and_does_not_erase_input_defaults()
         => Run((window, view) =>
         {

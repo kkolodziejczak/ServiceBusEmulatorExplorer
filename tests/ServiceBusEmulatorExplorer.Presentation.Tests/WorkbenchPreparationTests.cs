@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using ServiceBusEmulatorExplorer.Presentation.Workbench;
 
@@ -95,6 +96,38 @@ public sealed class WorkbenchPreparationTests
         Assert.Equal(new PreparationResult(null, "Variable 'Missing' is not declared."), Prepare("""{"x":"$(Missing)"}"""));
         Assert.Equal(new PreparationResult(null, null), Prepare("""{"x": $(CustomerId)}"""));
         Assert.Equal(new PreparationResult(null, null), Prepare("not json"));
+    }
+
+    [Fact]
+    public void A_row_that_fails_discards_the_rows_before_it_and_stops_before_the_next()
+    {
+        int issued = 0;
+        var result = WorkbenchPreparation.Prepare([new(1, "123", 1m), new(2, "not-json", 1m), new(3, "456", 1m)],
+            new("$(CustomerId)", BuiltIn, [], null), Now, () => new Guid(Id(++issued)));
+
+        Assert.Equal(new PreparationResult(null, null), result);
+        Assert.Equal(2, issued);
+    }
+
+    [Fact]
+    public void Values_and_names_do_not_depend_on_the_culture()
+    {
+        foreach (string name in new[] { "fr-FR", "tr-TR" })
+        {
+            var previous = CultureInfo.CurrentCulture;
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name);
+            try
+            {
+                var message = Prepare("""{"amount":$(Amount),"customer":"$(CUSTOMERID)","region":"$(REGION)"}""",
+                    BuiltIn.Append(new("Region", "string", "Input", true, "eu"))).Messages![0];
+                Assert.Equal("149.90", message.VariableValues["Amount"]);
+                using var body = JsonDocument.Parse(message.Body);
+                Assert.Equal(149.90m, body.RootElement.GetProperty("amount").GetDecimal());
+                Assert.Equal("C1001", body.RootElement.GetProperty("customer").GetString());
+                Assert.Equal("eu", body.RootElement.GetProperty("region").GetString());
+            }
+            finally { CultureInfo.CurrentCulture = previous; }
+        }
     }
 
     private static PreparationResult Prepare(string body, IEnumerable<TemplateVariable>? variables = null, string? customMessageId = null,
