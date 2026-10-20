@@ -1,47 +1,25 @@
-using System.Globalization;
 using System.Windows;
 using ServiceBusEmulatorExplorer.App.Investigation.Resources;
 using ServiceBusEmulatorExplorer.Presentation;
+using ServiceBusEmulatorExplorer.Presentation.Workbench;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
 public partial class MessageLibraryPrototypeReviewSurface
 {
-    private const int MaximumCancellationAttempts = 10;
-
     private void ShowCancellation_Click(object sender, RoutedEventArgs e)
     {
         SetSurface(CancellationSurface);
         CancellationError.Visibility = Visibility.Collapsed;
-        CancellationTarget.Text = $"{ReviewProfile.Text} · localhost · {ReviewTarget.Text} · " +
-            string.Join("; ", scheduledResults.Select(row => row.DueTimeDisplay).Distinct());
+        CancellationTarget.Text = $"{ReviewProfile.Text} · localhost · {ReviewTarget.Text} · " + workbenchRun.DueTimes;
         UpdateCancellationActions();
         SetWindowTitle("Scheduled results");
     }
 
     private void UpdateCancellationActions()
     {
-        RetryCancellation.IsEnabled = scheduledResults.Any(row => row.Selected && CanCancel(row));
-        bool capped = scheduledResults.Any(row => AttemptCount(row) >= MaximumCancellationAttempts);
-        CancellationHistoryNotice.Text = capped
-            ? "10 attempts reached for a receipt; further attempts for that receipt are disabled. Dispatch results remain unchanged."
-            : "Dispatch results remain unchanged. Retry requires fresh confirmation; only future, unacknowledged receipts are eligible.";
-    }
-
-    private bool CanCancel(PrototypeScheduledResult row) =>
-        row.Outcome is "Confirmed scheduled" or "Scheduled" &&
-        row.CancellationStatus != "Cancellation acknowledged" &&
-        AttemptCount(row) < MaximumCancellationAttempts &&
-        long.TryParse(row.Receipt, NumberStyles.None, CultureInfo.InvariantCulture, out _) &&
-        TryGetDueUtc(row, out DateTime dueUtc) && dueUtc > clock.GetUtcNow().UtcDateTime;
-
-    private int AttemptCount(PrototypeScheduledResult row) =>
-        cancellationAttempts.Count(attempt => attempt.Row == row.Row && attempt.Receipt == row.Receipt);
-
-    private static bool TryGetDueUtc(PrototypeScheduledResult row, out DateTime dueUtc)
-    {
-        dueUtc = row.DueAtUtc?.UtcDateTime ?? default;
-        return row.DueAtUtc.HasValue;
+        RetryCancellation.IsEnabled = workbenchRun.CanRetryCancellation;
+        CancellationHistoryNotice.Text = workbenchRun.CancellationNotice;
     }
 
     private void BackToResults_Click(object sender, RoutedEventArgs e)
@@ -52,8 +30,8 @@ public partial class MessageLibraryPrototypeReviewSurface
 
     private void ConfirmCancellation_Click(object sender, RoutedEventArgs e)
     {
-        var selected = scheduledResults.Where(row => row.Selected && CanCancel(row)).ToArray();
-        if (selected.Length == 0)
+        var selected = workbenchRun.CancellableSelection();
+        if (selected.Count == 0)
         {
             CancellationError.Text = "Select at least one future scheduled receipt without an acknowledged cancellation or 10 prior attempts.";
             CancellationError.Visibility = Visibility.Visible;
@@ -62,27 +40,15 @@ public partial class MessageLibraryPrototypeReviewSurface
         }
         CancellationError.Visibility = Visibility.Collapsed;
         var confirmation = new MessageLibraryPrototypeDialog(PrototypeDialogMode.CancellationConfirmation,
-            ReviewProfile.Text, ReviewTarget.Text, selected.Length) { Owner = Window.GetWindow(this) };
+            ReviewProfile.Text, ReviewTarget.Text, selected.Count) { Owner = Window.GetWindow(this) };
         if (TryFindResource("PrimaryBrush") is System.Windows.Media.SolidColorBrush accent)
             ProfileTheme.Apply(confirmation, accent.Color.ToString());
         confirmation.ConfigureCancellationConfirmation(
-            $"Profile: {ReviewProfile.Text}\nEndpoint: localhost\nDestination: {ReviewTarget.Text}\nSelected: {selected.Length}\n\n" +
+            $"Profile: {ReviewProfile.Text}\nEndpoint: localhost\nDestination: {ReviewTarget.Text}\nSelected: {selected.Count}\n\n" +
             string.Join("\n", selected.Select(CancellationReceiptSummary)));
         if (confirmation.ShowDialog() != true || !confirmation.CancellationConfirmed) return;
 
-        bool stopped = false;
-        foreach (var row in selected)
-        {
-            if (!CanCancel(row)) continue;
-            row.CancellationStatus = stopped ? "Not attempted" :
-                row.Row % 2 == 0 ? "Outcome unknown" : "Cancellation acknowledged";
-            DateTimeOffset requestedAt = clock.GetUtcNow();
-            row.AttemptTime = requestedAt.ToString("HH:mm 'UTC'", CultureInfo.InvariantCulture);
-            cancellationAttempts.Add(new PrototypeCancellationAttempt(row.Row, row.Receipt, row.Payload,
-                row.CancellationStatus, requestedAt));
-            if (row.CancellationStatus == "Cancellation acknowledged") row.Selected = false;
-            else if (row.CancellationStatus == "Outcome unknown") stopped = true;
-        }
+        workbenchRun.Cancel(selected);
         ScheduledGrid.Items.Refresh();
         UpdateCancellationActions();
         SetSurface(HistorySurface);
@@ -90,9 +56,9 @@ public partial class MessageLibraryPrototypeReviewSurface
         if (CaptureRun() is { } run) RunCompleted?.Invoke(run);
     }
 
-    private string CancellationReceiptSummary(PrototypeScheduledResult row)
+    private string CancellationReceiptSummary(WorkbenchScheduledReceipt row)
     {
-        TryGetDueUtc(row, out DateTime utc);
+        DateTime utc = row.DueAtUtc?.UtcDateTime ?? default;
         return $"Receipt {row.Receipt} · {row.DueTimeDisplay}\nLocal: {DateDisplay.Timestamp(new DateTimeOffset(utc).ToLocalTime(), DatePresentation.GetFormat(this), seconds: false)} {new DateTimeOffset(utc).ToLocalTime():zzz}";
     }
 }

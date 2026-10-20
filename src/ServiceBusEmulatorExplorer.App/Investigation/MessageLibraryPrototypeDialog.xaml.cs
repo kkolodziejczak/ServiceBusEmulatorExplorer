@@ -1,18 +1,12 @@
 using System.Windows;
 using System.Windows.Controls;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
+using ServiceBusEmulatorExplorer.Presentation.Workbench;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
 public enum PrototypeDialogMode { SampleCsv, Mapping, Capture, Validation, DraftGuard, Review, Results, CancellationConfirmation }
 public enum PrototypeDraftChoice { Cancel, Save, Discard }
-public sealed record PrototypeRunSnapshot(string Profile, string Target, bool Scheduled,
-    IReadOnlyList<(int Row, string MessageId, string Outcome, string Details)> Results,
-    IReadOnlyList<(int Row, string Receipt, string Payload, string Outcome, string DueTime, bool Selected, string CancellationStatus, string AttemptTime)> ScheduledResults)
-{
-    public IReadOnlyList<PrototypeCancellationAttempt> CancellationAttempts { get; init; } = [];
-}
-public sealed record PrototypeCancellationAttempt(int Row, string Receipt, string Payload, string Outcome, DateTimeOffset RequestedAtUtc);
 public sealed record PrototypeCaptureProperties(string? Subject, string? ContentType, string? CorrelationId,
     string? SessionId, int? TtlMinutes, IReadOnlyDictionary<string, object?> ApplicationProperties);
 
