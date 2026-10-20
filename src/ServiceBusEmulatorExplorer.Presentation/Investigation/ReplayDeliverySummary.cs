@@ -1,6 +1,6 @@
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 public static class ReplayDeliverySummary
 {

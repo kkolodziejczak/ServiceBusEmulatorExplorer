@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation.Inspection;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation.Inspection;
 
 /// <summary>Creates inspection documents from observed messages without mutating their payloads.</summary>
 public static class MessageInspectionPresenter

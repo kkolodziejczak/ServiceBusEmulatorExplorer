@@ -3,7 +3,7 @@ using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using ServiceBusEmulatorExplorer.Presentation;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 /// <summary>Stable column identities and typed message values, independent of the grid.</summary>
 public static class MessageColumnCatalog

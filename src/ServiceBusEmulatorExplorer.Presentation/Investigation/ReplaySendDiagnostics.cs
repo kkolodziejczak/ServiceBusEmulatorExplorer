@@ -2,7 +2,7 @@ using System.IO;
 using Azure.Messaging.ServiceBus;
 using ServiceBusEmulatorExplorer.Core.Investigation;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 /// <summary>Only allowlisted categories cross the durable-history boundary; never exception text.</summary>
 internal static class ReplaySendDiagnostics

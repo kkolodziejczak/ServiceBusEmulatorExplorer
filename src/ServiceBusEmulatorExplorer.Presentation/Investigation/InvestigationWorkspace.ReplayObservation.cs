@@ -1,7 +1,7 @@
 using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 public sealed record PreparedReplayCleanup(ReplayAttempt Attempt, MessageDelivery Original);
 

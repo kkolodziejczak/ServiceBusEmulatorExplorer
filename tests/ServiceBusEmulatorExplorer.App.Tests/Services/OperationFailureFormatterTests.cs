@@ -1,7 +1,7 @@
 using Azure;
 using Azure.Identity;
 using Azure.Messaging.ServiceBus;
-using ServiceBusEmulatorExplorer.App.Services;
+using ServiceBusEmulatorExplorer.Presentation.Services;
 using ServiceBusEmulatorExplorer.Core.Connection;
 
 namespace ServiceBusEmulatorExplorer.App.Tests.Services;

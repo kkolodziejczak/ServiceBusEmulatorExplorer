@@ -8,6 +8,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Threading;
 using ServiceBusEmulatorExplorer.Core.Investigation;
+using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 

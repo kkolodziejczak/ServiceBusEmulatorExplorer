@@ -9,6 +9,7 @@ using System.Windows.Threading;
 using Azure;
 using Azure.Messaging.ServiceBus;
 using ServiceBusEmulatorExplorer.App.Investigation;
+using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 namespace ServiceBusEmulatorExplorer.ReadmeScreenshot;
 

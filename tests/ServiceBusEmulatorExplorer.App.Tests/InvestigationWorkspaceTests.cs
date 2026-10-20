@@ -4,6 +4,7 @@ using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using Azure;
 using Azure.Messaging.ServiceBus;
+using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 namespace ServiceBusEmulatorExplorer.App.Tests;
 

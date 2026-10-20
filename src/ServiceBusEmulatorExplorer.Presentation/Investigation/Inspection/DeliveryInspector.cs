@@ -4,7 +4,7 @@ using ServiceBusEmulatorExplorer.Core.Investigation;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 using ServiceBusEmulatorExplorer.Presentation.Investigation;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation.Inspection;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation.Inspection;
 
 /// <summary>
 /// Maintains the selected delivery's inspection documents and session-only DLQ edits.

@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace ServiceBusEmulatorExplorer.App.Investigation;
+namespace ServiceBusEmulatorExplorer.Presentation.Investigation;
 
 public sealed class MessageColumnOption(MessageColumnDefinition definition) : ObservableObject
 {
