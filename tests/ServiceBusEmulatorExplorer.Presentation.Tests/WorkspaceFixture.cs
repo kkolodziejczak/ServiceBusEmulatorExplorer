@@ -182,9 +182,13 @@ internal sealed class WorkspaceFixture : IAsyncDisposable
         /// <summary>Runs before each peek; a peek waits for it.</summary>
         public Func<Task> BeforePeek { get; set; } = () => Task.CompletedTask;
 
+        /// <summary>How many peeks were made, by entity name.</summary>
+        public Dictionary<string, int> Count { get; } = [];
+
         public async Task<IReadOnlyList<ExplorerMessage>> PeekMessagesAsync(EntityAddress address, MessageBucket bucket, int take,
             long? fromSequenceNumber, CancellationToken cancellationToken)
         {
+            lock (Count) Count[address.Name] = Count.GetValueOrDefault(address.Name) + 1;
             await BeforePeek().WaitAsync(cancellationToken);
             return BrokerMessages.Where(message => address.Kind == EntityKind.Queue && bucket == MessageBucket.DeadLetter)
                 .Where(message => fromSequenceNumber is null || message.SequenceNumber >= fromSequenceNumber)

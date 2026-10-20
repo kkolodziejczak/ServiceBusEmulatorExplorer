@@ -26,11 +26,11 @@ public partial class InvestigationWindow : Window, IMessageActionsHost, IWatchNo
     private readonly WatchNotificationsViewModel watchNotifications;
     private readonly ConnectionBarViewModel connectionBar;
     private readonly ActivityLogViewModel activityLog;
+    private readonly MessageListToolbarViewModel listToolbar;
     private readonly AutoRefreshTimer refreshTimer;
     private readonly Action<string> copyText;
     private bool ready;
     private bool updating;
-    private bool paused;
     private bool closing;
     private bool synchronizingBucketTabs;
     private bool synchronizingWorkspaceTabs;
@@ -62,6 +62,7 @@ public partial class InvestigationWindow : Window, IMessageActionsHost, IWatchNo
         watchNotifications.PropertyChanged += WatchNotificationsChanged;
         connectionBar = new ConnectionBarViewModel(workspace);
         activityLog = new ActivityLogViewModel(workspace);
+        listToolbar = new MessageListToolbarViewModel(workspace);
         refreshTimer = new(workspace.Clock, tick => Dispatcher.BeginInvoke(DispatcherPriority.Background, tick));
         InitializeComponent();
         MessageLibraryPrototype.ConnectionRepairRequested += () => ConnectionButton.Focus();
@@ -140,7 +141,7 @@ public partial class InvestigationWindow : Window, IMessageActionsHost, IWatchNo
             LastOperation.Text = connectionBar.LastOperation;
             DatePresentation.SetFormat(this, workspace.Preferences.DateFormat);
             TimeDisplaySelector.SelectedIndex = activityLog.UsesUtc ? 0 : 1;
-            AutoInterval.SelectedIndex = Array.IndexOf(new[] { 0, 5, 10, 30 }, workspace.Preferences.AutoRefreshSeconds);
+            AutoInterval.SelectedIndex = listToolbar.IntervalIndex;
             LogPanel.Visibility = activityLog.IsExpanded ? Visibility.Visible : Visibility.Collapsed;
             LogToggle.ToolTip = activityLog.ToggleLabel;
             System.Windows.Automation.AutomationProperties.SetName(LogToggle, activityLog.ToggleLabel);
@@ -173,9 +174,8 @@ public partial class InvestigationWindow : Window, IMessageActionsHost, IWatchNo
             MessageGrid.SelectedItem = workspace.Surface.FocusedMessage;
         EmptyResults.Visibility = workspace.Surface.Messages.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         MessageGrid.Visibility = workspace.Surface.Messages.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
-        SelectAllBox.IsEnabled = workspace.Surface.Messages.Count > 0;
-        SelectAllBox.IsChecked = workspace.Surface.SelectedCount == 0 ? false :
-            workspace.Surface.SelectedCount == workspace.Surface.Messages.Count ? true : null;
+        SelectAllBox.IsEnabled = listToolbar.CanCheckAll;
+        SelectAllBox.IsChecked = listToolbar.AllChecked;
         EmptyMessage.Text = workspace.Surface.IsBusy ? "Loading messages…" : workspace.IsConnecting ? "Connecting to Service Bus…"
             : workspace.IsConnected ? "No messages in this view" : "Connect to browse messages";
         EmptyDescription.Text = workspace.Surface.IsBusy ? "Reading without consuming messages."
@@ -433,62 +433,47 @@ public partial class InvestigationWindow : Window, IMessageActionsHost, IWatchNo
 
     private async Task SelectBucket(bool deadLetter)
     {
-        if (workspace.Search.IsActive || workspace.Browse.SelectedEntity is not { } node)
+        if (!await listToolbar.SelectBucketAsync(deadLetter))
         {
             SynchronizeBucketTabs();
             return;
         }
-        await workspace.RunReadAsync(() => workspace.Browse.SelectAsync(node, deadLetter));
         FindMessageScrollViewer(MessageGrid)?.ScrollToTop();
     }
-    private async void LoadMore_Click(object sender, RoutedEventArgs e) => await workspace.RunReadAsync(workspace.Search.IsActive ? workspace.Search.ContinueAsync : workspace.Browse.LoadMoreAsync);
-    private async void Refresh_Click(object sender, RoutedEventArgs e) => await workspace.RunReadAsync(workspace.Search.IsActive ? workspace.Search.RefreshAsync : workspace.Browse.RefreshAsync);
+    private async void LoadMore_Click(object sender, RoutedEventArgs e) => await listToolbar.LoadMoreAsync();
+    private async void Refresh_Click(object sender, RoutedEventArgs e) => await listToolbar.RefreshAsync();
 
     private async void Interval_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (!ready || updating || AutoInterval.SelectedIndex < 0) return;
-        await workspace.UpdateDisplayPreferencesAsync(autoRefreshSeconds: new[] { 0, 5, 10, 30 }[AutoInterval.SelectedIndex]);
+        await listToolbar.SetIntervalAsync(AutoInterval.SelectedIndex);
     }
 
     private void Pause_Click(object sender, RoutedEventArgs e)
     {
-        paused = !paused;
+        listToolbar.TogglePause();
         PauseButton.Content = new System.Windows.Shapes.Path
         {
-            Data = (Geometry)FindResource(paused ? "PlayGeometry" : "PauseGeometry"),
+            Data = (Geometry)FindResource(listToolbar.IsPaused ? "PlayGeometry" : "PauseGeometry"),
             Width = 14, Height = 14, Stretch = Stretch.Uniform, Stroke = (Brush)FindResource("IconBrush"), StrokeThickness = 1.8
         };
-        System.Windows.Automation.AutomationProperties.SetName(PauseButton, paused ? "Resume automatic refresh" : "Pause automatic refresh");
+        System.Windows.Automation.AutomationProperties.SetName(PauseButton, listToolbar.PauseLabel);
         ConfigureRefresh();
     }
 
     private void ConfigureRefresh()
     {
         UpdateNamespaceIndicators();
-        bool investigationSearch = MessageLibraryPrototype?.Visibility != Visibility.Visible && workspace.Search.IsActive;
-        if (paused || (investigationSearch && !workspace.Browse.HasWatchedTargets) || !workspace.IsConnected || workspace.Preferences.AutoRefreshSeconds == 0)
+        if (listToolbar.RefreshInterval(MessageLibraryPrototype?.Visibility == Visibility.Visible) is not { } interval)
         {
             refreshTimer.Stop();
-            workspace.Browse.CancelBackgroundRefresh();
+            listToolbar.CancelBackgroundRefresh();
             return;
         }
-        refreshTimer.Start(TimeSpan.FromSeconds(workspace.Preferences.AutoRefreshSeconds));
+        refreshTimer.Start(interval);
     }
 
-    private async void RefreshTimerTick()
-    {
-        if (workspace.Browse.HasWatchedTargets)
-        {
-            bool refreshSelected = MessageLibraryPrototype.Visibility != Visibility.Visible && !workspace.Search.IsActive;
-            await workspace.RunReadAsync(() => workspace.Browse.RefreshBackgroundAsync(refreshSelected));
-            return;
-        }
-        if (workspace.Browse.IsBusy) return;
-        if (MessageLibraryPrototype.Visibility == Visibility.Visible)
-            await workspace.RunReadAsync(workspace.Browse.RefreshAsync);
-        else if (!workspace.Search.IsActive)
-            await workspace.RunReadAsync(workspace.Browse.RefreshAsync);
-    }
+    private async void RefreshTimerTick() => await listToolbar.TickAsync(MessageLibraryPrototype.Visibility == Visibility.Visible);
 
 
 
