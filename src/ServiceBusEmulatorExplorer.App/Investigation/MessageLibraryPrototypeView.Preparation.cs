@@ -1,15 +1,9 @@
-using System.Globalization;
-using System.Text.Json;
-using System.Text.RegularExpressions;
+using ServiceBusEmulatorExplorer.Presentation.Workbench;
 
 namespace ServiceBusEmulatorExplorer.App.Investigation;
 
 public partial class MessageLibraryPrototypeView
 {
-    private static readonly Regex VariableToken = new(
-        "(?<quoted>\\\")?\\$\\((?<name>[A-Za-z_][A-Za-z0-9_]*)\\)(?(quoted)\\\")",
-        RegexOptions.CultureInvariant | RegexOptions.Compiled);
-
     private IReadOnlyList<PrototypePreparedMessage> preparedMessages = [];
     private string? preparationError;
 
@@ -32,58 +26,23 @@ public partial class MessageLibraryPrototypeView
 
     private bool PrepareMessages(IEnumerable<CsvPreviewRow> rows)
     {
-        string occurredAt = Clock.GetUtcNow().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
-        var prepared = new List<PrototypePreparedMessage>();
-        try
+        var template = new PreparationTemplate(currentBody,
+            variables.Select(variable => new TemplateVariable(variable.Name, variable.Type, variable.Source, variable.HasDefault,
+                variable.DefaultValue)).ToArray(),
+            [.. applicationProperties.Select(property => property.Value), PropertySubject.Text, PropertyCorrelationId.Text,
+                PropertySessionId.Text, PropertyReplyTo.Text, PropertyReplySessionId.Text, PropertyPartitionKey.Text],
+            CustomMessageId.IsChecked == true ? CustomMessageIdInput.Text : null);
+        var result = WorkbenchPreparation.Prepare(rows.Select(row => new PreparationRow(row.Row, row.CustomerId, row.Amount!.Value)),
+            template, Clock.GetUtcNow(), NewEventId);
+        if (result.Messages is not { } prepared)
         {
-            foreach (var row in rows)
-            {
-                string eventId = NewEventId().ToString("D");
-                string messageId = CustomMessageId.IsChecked == true ? CustomMessageIdInput.Text : eventId;
-                string amount = row.Amount!.Value.ToString(CultureInfo.InvariantCulture);
-                var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["CustomerId"] = row.CustomerId,
-                    ["Amount"] = amount,
-                    ["EventId"] = eventId,
-                    ["OccurredAt"] = occurredAt
-                };
-                foreach (var variable in variables)
-                {
-                    if (values.ContainsKey(variable.Name)) continue;
-                    if (variable.Source == "Input" && variable.HasDefault)
-                    {
-                        values[variable.Name] = variable.DefaultValue;
-                        continue;
-                    }
-                    if (IsVariableReferenced(variable.Name))
-                        throw new PrototypePreparationException(
-                            $"Variable '{variable.Name}' requires a default value before this message can be reviewed.");
-                }
-
-                string body = ExpandTemplate(currentBody, values);
-                using var json = JsonDocument.Parse(body);
-                body = JsonSerializer.Serialize(json.RootElement, new JsonSerializerOptions { WriteIndented = true });
-                prepared.Add(new PrototypePreparedMessage(row.Row, messageId, eventId, occurredAt, body)
-                {
-                    VariableValues = values
-                });
-            }
-        }
-        catch (PrototypePreparationException exception)
-        {
-            preparationError = exception.Message;
-            PreviewText.Text = "No preview generated.";
-            return false;
-        }
-        catch (JsonException)
-        {
-            preparationError = null;
+            preparationError = result.Error;
             PreviewText.Text = "No preview generated.";
             return false;
         }
 
-        preparedMessages = prepared.ToArray();
+        preparedMessages = prepared.Select(message => new PrototypePreparedMessage(message.Row, message.MessageId, message.EventId,
+            message.OccurredAt, message.Body) { VariableValues = message.VariableValues }).ToArray();
         if (SingleMode.IsChecked == true && prepared.Count == 1)
         {
             SingleEventId.Text = prepared[0].EventId;
@@ -91,35 +50,4 @@ public partial class MessageLibraryPrototypeView
         }
         return true;
     }
-
-    private bool IsVariableReferenced(string name)
-    {
-        bool Contains(string value) => VariableToken.Matches(value)
-            .Cast<Match>()
-            .Any(match => string.Equals(match.Groups["name"].Value, name, StringComparison.OrdinalIgnoreCase));
-
-        return Contains(currentBody) ||
-            applicationProperties.Any(property => Contains(property.Value)) ||
-            Contains(PropertySubject.Text) || Contains(PropertyCorrelationId.Text) ||
-            Contains(PropertySessionId.Text) || Contains(PropertyReplyTo.Text) ||
-            Contains(PropertyReplySessionId.Text) || Contains(PropertyPartitionKey.Text);
-    }
-
-    private string ExpandTemplate(string template, IReadOnlyDictionary<string, string> values)
-    {
-        return VariableToken.Replace(template, match =>
-        {
-            string name = match.Groups["name"].Value;
-            if (!values.TryGetValue(name, out string? value))
-                throw new PrototypePreparationException($"Variable '{name}' is not declared.");
-            if (string.Equals(name, "Amount", StringComparison.OrdinalIgnoreCase) ||
-                variables.FirstOrDefault(variable => variable.Name.Equals(name, StringComparison.OrdinalIgnoreCase))?.Type == "number")
-                return value;
-
-            string encoded = JsonSerializer.Serialize(value);
-            return match.Groups["quoted"].Success ? encoded : encoded[1..^1];
-        });
-    }
-
-    private sealed class PrototypePreparationException(string message) : Exception(message);
 }
