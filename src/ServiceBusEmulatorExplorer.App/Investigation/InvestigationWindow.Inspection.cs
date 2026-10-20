@@ -59,8 +59,7 @@ public partial class InvestigationWindow
 
     private void SelectAll_Click(object sender, RoutedEventArgs e)
     {
-        bool select = workspace.Surface.SelectedCount < workspace.Surface.Messages.Count;
-        workspace.Surface.SetAllChecked(select);
+        listToolbar.ToggleAll();
         e.Handled = true;
     }
 

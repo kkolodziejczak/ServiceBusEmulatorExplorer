@@ -12,7 +12,7 @@ public partial class InvestigationWindow
         NamespaceIndicators.Apply(
             workspace.Browse.Roots.Concat(workspace.Search.Roots).SelectMany(WatchRuleEditor.Flatten).Distinct(),
             (editor ?? CreateWatchEditor()).Targets,
-            new(workspace.IsConnected, workspace.Preferences.AutoRefreshSeconds, paused, workspace.Browse.IsDeadLetter,
+            new(workspace.IsConnected, workspace.Preferences.AutoRefreshSeconds, listToolbar.IsPaused, workspace.Browse.IsDeadLetter,
                 showsCurrent ? workspace.Browse.SelectedEntity?.Address : null));
     }
 }
