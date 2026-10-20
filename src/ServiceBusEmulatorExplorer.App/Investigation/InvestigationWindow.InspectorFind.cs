@@ -10,10 +10,7 @@ namespace ServiceBusEmulatorExplorer.App.Investigation;
 
 public partial class InvestigationWindow
 {
-    private readonly List<int> inspectorMatches = [];
-    private int inspectorMatchIndex = -1;
-    private string? inspectorSearchText;
-    private string? inspectorSearchQuery;
+    private readonly TextFindViewModel textFind = new();
 
     private void InspectorFind_CanExecute(object sender, CanExecuteRoutedEventArgs e)
     {
@@ -54,7 +51,7 @@ public partial class InvestigationWindow
         BodyViewer.ClearValue(RichTextBox.SelectionBrushProperty);
         BodyViewer.ClearValue(RichTextBox.SelectionOpacityProperty);
         ClearInspectorMatchSelection();
-        inspectorSearchText = null;
+        textFind.Forget();
         if (!restoreFocus) return;
         if (inspectorPanel.Mode == InspectorMode.Body) BodyEditor.Focus();
         else BodyViewer.Focus();
@@ -76,34 +73,18 @@ public partial class InvestigationWindow
         if (FindPanel?.Visibility != Visibility.Visible || FindBox is null || FindMatchCount is null) return;
         string text = inspectorPanel.Mode == InspectorMode.Body ? BodyEditor.Text
             : new TextRange(BodyViewer.Document.ContentStart, BodyViewer.Document.ContentEnd).Text;
-        string query = FindBox.Text;
-        if (!force && text == inspectorSearchText && query == inspectorSearchQuery) return;
-        inspectorSearchText = text;
-        inspectorSearchQuery = query;
-        inspectorMatches.Clear();
-        if (query.Length > 0)
-        {
-            int offset = 0;
-            while (offset <= text.Length - query.Length)
-            {
-                int match = text.IndexOf(query, offset, StringComparison.OrdinalIgnoreCase);
-                if (match < 0) break;
-                inspectorMatches.Add(match);
-                offset = match + query.Length;
-            }
-        }
+        if (!textFind.Search(text, FindBox.Text, force)) return;
         bool preserveEditingSelection = !force && BodyEditor.IsKeyboardFocusWithin && inspectorPanel.Mode == InspectorMode.Body;
-        inspectorMatchIndex = inspectorMatches.Count == 0 ? -1 : 0;
-        FindPrevious.IsEnabled = FindNext.IsEnabled = inspectorMatches.Count > 0;
-        if (inspectorMatchIndex < 0)
+        FindPrevious.IsEnabled = FindNext.IsEnabled = textFind.Matches.Count > 0;
+        if (textFind.Current < 0)
         {
-            FindMatchCount.Text = query.Length == 0 ? "" : "No matches";
+            FindMatchCount.Text = textFind.CountText;
             if (!preserveEditingSelection) ClearInspectorMatchSelection();
         }
         else if (preserveEditingSelection)
         {
-            inspectorMatchIndex = -1;
-            FindMatchCount.Text = $"{inspectorMatches.Count} matches";
+            textFind.Unselect();
+            FindMatchCount.Text = textFind.CountText;
         }
         else SelectInspectorMatch();
     }
@@ -117,17 +98,14 @@ public partial class InvestigationWindow
     private void MoveInspectorMatch(int direction)
     {
         RefreshInspectorFind();
-        if (inspectorMatches.Count == 0) return;
-        inspectorMatchIndex = inspectorMatchIndex < 0 ? (direction > 0 ? 0 : inspectorMatches.Count - 1)
-            : (inspectorMatchIndex + direction + inspectorMatches.Count) % inspectorMatches.Count;
-        SelectInspectorMatch();
+        if (textFind.Move(direction)) SelectInspectorMatch();
     }
 
     private void SelectInspectorMatch()
     {
-        int index = inspectorMatches[inspectorMatchIndex];
-        int length = FindBox.Text.Length;
-        FindMatchCount.Text = $"{inspectorMatchIndex + 1} of {inspectorMatches.Count}";
+        int index = textFind.Matches[textFind.Current];
+        int length = textFind.QueryLength;
+        FindMatchCount.Text = textFind.CountText;
         if (inspectorPanel.Mode == InspectorMode.Body)
         {
             BodyEditor.RevealRange(index, length);
