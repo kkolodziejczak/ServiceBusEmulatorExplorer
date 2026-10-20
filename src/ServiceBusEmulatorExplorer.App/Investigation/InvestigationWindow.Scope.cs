@@ -18,7 +18,7 @@ public partial class InvestigationWindow
     {
         if (ScopeHeader is null) return;
 
-        var header = scope.HeaderFor(MessageLibraryPrototype.Visibility == Visibility.Visible);
+        var header = namespaceScope.HeaderFor(MessageLibraryPrototype.Visibility == Visibility.Visible);
         AutomationProperties.SetName(ScopeHeader, header.AutomationName);
         BrowseScopeHeader.Visibility = header.IsShown ? Visibility.Visible : Visibility.Collapsed;
         ListBreadcrumb.Visibility = header.IsShown ? Visibility.Collapsed : Visibility.Visible;
@@ -55,11 +55,11 @@ public partial class InvestigationWindow
     {
         if (!ready || MessageLibraryPrototype.Visibility == Visibility.Visible) return;
 
-        if (scope.SelectionToRestore is not { } address) return;
+        if (namespaceScope.SelectionToRestore is not { } address) return;
         TreeViewItem? item = FindNamespaceItem(NamespaceTree, workspace.Surface.Roots, address);
         if (item is null) return;
 
-        scope.Restored(address);
+        namespaceScope.Restored(address);
         if (item.IsSelected) return;
 
         restoringNamespaceSelection = true;

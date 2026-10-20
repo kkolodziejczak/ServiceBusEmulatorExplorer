@@ -19,7 +19,7 @@ public partial class InvestigationWindow : Window, IMessageActionsHost
     private readonly MessageActionsViewModel actions;
     private readonly WatchToolbarViewModel watch;
     private readonly SearchSurfaceViewModel searchSurface;
-    private readonly NamespaceScopeViewModel scope;
+    private readonly NamespaceScopeViewModel namespaceScope;
     private readonly MessageColumnsViewModel columns;
     private readonly AutoRefreshTimer refreshTimer;
     private readonly Action<string> copyText;
@@ -49,7 +49,7 @@ public partial class InvestigationWindow : Window, IMessageActionsHost
         watch = new WatchToolbarViewModel(workspace);
         watch.PropertyChanged += WatchChanged;
         searchSurface = new SearchSurfaceViewModel(workspace);
-        scope = new NamespaceScopeViewModel(workspace);
+        namespaceScope = new NamespaceScopeViewModel(workspace);
         columns = new MessageColumnsViewModel(workspace);
         columns.PropertyChanged += ColumnsChanged;
         refreshTimer = new(workspace.Clock, tick => Dispatcher.BeginInvoke(DispatcherPriority.Background, tick));
@@ -367,7 +367,7 @@ public partial class InvestigationWindow : Window, IMessageActionsHost
     {
         if (restoringNamespaceSelection || namespaceTreeReconciliation && !NamespaceTree.IsKeyboardFocusWithin) return;
         if (e.NewValue is EntityNode { Address: { } selectedAddress })
-            scope.Remember(selectedAddress);
+            namespaceScope.Remember(selectedAddress);
 
         if (MessageLibraryPrototype.Visibility == Visibility.Visible)
         {
