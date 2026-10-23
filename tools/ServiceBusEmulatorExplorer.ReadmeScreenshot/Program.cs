@@ -44,13 +44,14 @@ internal static class Program
             "--message-library-map" or "--message-library-capture" or "--message-library-review" or "--message-library-results"
             or "--message-library-schedule" or "--message-library-schedule-past-date" or "--message-library-schedule-past-time" or "--message-library-validation"
             or "--message-library-scheduled-results" or "--message-library-cancellation-history";
-        int captureWidth = cleanupProposalProof || namespaceIndicatorsProof ? 1500 : dialogCapture ? 760 :
+        int captureWidth = cleanupProposalProof || namespaceIndicatorsProof ? 1500 : dialogCapture ? args[1] == "--message-library-capture" ? 480 : 760 :
             args.Length == 2 && args[1] is "--message-library-prepare" or "--message-library-properties" or "--message-library-properties-bottom" or "--message-library-properties-selected" or "--message-library-variables" or "--message-library-single" or "--message-library-prepare-log" or "--message-library-wizard-review" or "--message-library-wizard-review-queue" or "--message-library-wizard-review-large-batch" ? 1642 :
             args.Length == 2 && args[1] == "--message-library-prepare-1500" ? 1500 :
             args.Length == 2 && args[1] == "--message-library-prepare-compact" ? 1100 :
             args.Length == 2 && args[1] is "--message-library-prepare-minimum" or "--message-library-author-minimum" or "--message-library-properties-minimum" or "--message-library-single-minimum" or "--message-library-wizard-review-minimum" ? 980 : WpfScreenshot.CaptureWidth;
         int captureHeight = cleanupProposalProof || namespaceIndicatorsProof ? 1000 : dialogCapture ?
-            args[1] == "--message-library-capture" ? 925 :
+            args[1] == "--message-library-capture" ? 331 :
+            args[1] == "--message-library-validation" ? 386 :
             args[1] == "--message-library-map" ? 461 : 620 :
             captureWidth == 1642 ? 958 : captureWidth == 1500 ? 1000 : captureWidth == 1100 ? 800 : captureWidth == 980 ? 640 : WpfScreenshot.CaptureHeight;
         if ((args.Length != 1 && !prototypeCapture && !dialogCapture && !namespaceTreeProof && !sideBySideProof && !footerStatusProof && !cleanupProposalProof && !namespaceIndicatorsProof) || string.IsNullOrWhiteSpace(args[0]))

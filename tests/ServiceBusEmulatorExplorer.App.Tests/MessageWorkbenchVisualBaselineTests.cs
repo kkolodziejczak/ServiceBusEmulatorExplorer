@@ -21,7 +21,8 @@ public sealed class MessageWorkbenchVisualBaselineTests
         "--message-library-single", "--message-library-single-minimum",
         "--message-library-wizard-review", "--message-library-wizard-review-minimum", "--message-library-wizard-review-queue",
         "--message-library-wizard-review-large-batch",
-        "--message-library-map", "--message-library-review", "--message-library-results",
+        "--message-library-map", "--message-library-capture", "--message-library-validation",
+        "--message-library-review", "--message-library-results",
         "--message-library-schedule", "--message-library-schedule-past-date", "--message-library-schedule-past-time",
         "--message-library-scheduled-results", "--message-library-cancellation-history",
         "--organization", "--responsive-compose"

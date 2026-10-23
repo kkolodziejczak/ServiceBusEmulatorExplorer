@@ -386,10 +386,24 @@ internal static class DestinationScreenshotScenario
             RequireInside(Get<Border>(view, "PrepareDestinationWarning"), window, "Prepare destination warning");
             RequireInside(Get<Button>(view, "PrepareDestinationAction"), window, "Prepare destination action");
         }
-        RequireInside(Get<FrameworkElement>(view, "PreviewSurface"), window, "Message preview");
+        RequireReachable(Get<FrameworkElement>(view, "PreviewSurface"), Get<ScrollViewer>(view, "PrepareBodyScroll"), window, "Message preview");
         RequireInside(Get<Button>(view, "ReviewButton"), window, "Prepare footer Review action");
         Require(Get<TextBlock>(view, "PrepareDestinationWarningText").TextWrapping == TextWrapping.Wrap,
             "Prepare warning text must wrap at compact widths.");
+    }
+
+    /// <summary>
+    /// Requires the element in bounds once scrolled into view: narrow layouts stack it below the inputs. The scroll
+    /// position is restored so later captures are unchanged.
+    /// </summary>
+    private static void RequireReachable(FrameworkElement element, ScrollViewer scroll, FrameworkElement ancestor, string name)
+    {
+        double offset = scroll.VerticalOffset;
+        element.BringIntoView();
+        ancestor.UpdateLayout();
+        RequireInside(element, ancestor, name);
+        scroll.ScrollToVerticalOffset(offset);
+        ancestor.UpdateLayout();
     }
 
     private static void RequireInside(FrameworkElement element, FrameworkElement ancestor, string name)

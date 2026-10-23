@@ -248,9 +248,9 @@ public sealed class DailyWindowAuditTests
                 var node = label;
                 while (node is not null && node.ControlType != ControlType.TreeItem) node = node.Parent;
                 Assert.NotNull(node);
-                Assert.Single(node.FindAllDescendants(cf => cf.ByText("1*")));
-                Assert.Equal(bucket == "active" ? 2 : 1, node.FindAllDescendants(cf => cf.ByText("—")).Length);
-                if (bucket == "dlq") Assert.Single(node.FindAllDescendants(cf => cf.ByText("0*")));
+                Assert.Equal(bucket == "active" ? "1*" : "0*", CountShown(node, "Messages"));
+                Assert.Equal("—", CountShown(node, "Scheduled"));
+                Assert.Equal(bucket == "active" ? "—" : "1*", CountShown(node, "DLQ"));
                 Assert.False(Element("MessageCountSummary").IsOffscreen);
                 Assert.False(Element("RefreshButton").IsOffscreen);
                 if (Environment.GetEnvironmentVariable("SBE_CAPTURE_DAILY_FIX_UI") == "true")
@@ -262,6 +262,11 @@ public sealed class DailyWindowAuditTests
                 }
             }
         }
+
+        // A tree count's accessible name opens with "<label>: <shown value>", followed by its detail.
+        private static string CountShown(AutomationElement node, string label) =>
+            node.FindAllDescendants().Select(element => element.Name.Split('\n')[0])
+                .Single(name => name.StartsWith(label + ": ", StringComparison.Ordinal))[(label.Length + 2)..];
 
         public void Wait(Func<bool> condition)
         {
