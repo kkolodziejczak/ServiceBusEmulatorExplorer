@@ -1,0 +1,50 @@
+<!-- The Avalonia view of DeleteMessagesViewModel, matching the WPF DeleteMessagesWindow. WPF's Width 470 includes
+     its 8 px frame on each side, so the client area here is 454 wide. -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ServiceBusEmulatorExplorer.Presentation.Investigation"
+        x:Class="ServiceBusEmulatorExplorer.Avalonia.Investigation.DeleteMessagesDialog"
+        x:DataType="vm:DeleteMessagesViewModel"
+        Title="Delete messages" Width="454" SizeToContent="Height" MinWidth="384" CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource CanvasBrush}" Foreground="{DynamicResource InkBrush}"
+        FontFamily="{StaticResource UiFont}" FontSize="14">
+  <Window.Styles>
+    <Style Selector="Button.delete">
+      <Setter Property="Background" Value="#D11A2A" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="#D11A2A" />
+    </Style>
+    <Style Selector="Button.delete:disabled">
+      <Setter Property="Background" Value="#E1E8F1" />
+      <Setter Property="BorderBrush" Value="#D2DCE9" />
+      <Setter Property="Foreground" Value="#627692" />
+    </Style>
+  </Window.Styles>
+  <Border Background="{DynamicResource CanvasBrush}" Padding="24">
+    <StackPanel>
+      <TextBlock x:Name="DeleteHeading" Text="{Binding Heading}" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" />
+      <TextBlock x:Name="DeleteSummary" Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,12,0,12" />
+      <Border Background="#FFF0ED" BorderBrush="#F1C4BF" BorderThickness="1" CornerRadius="4" Padding="12">
+        <TextBlock Text="This cannot be undone. Only the selected dead-letter deliveries will be deleted. Other deliveries and active messages will remain."
+                   Foreground="#B31222" TextWrapping="Wrap" />
+      </Border>
+      <Label Content="Type DELETE to confirm" Target="DeleteConfirmationInput" Padding="0" Margin="0,18,0,7" Foreground="#000000" />
+      <TextBox x:Name="DeleteConfirmationInput" Padding="10,8" BorderBrush="{DynamicResource ControlBorderBrush}"
+               Text="{Binding ConfirmationText}"
+               AutomationProperties.Name="Type DELETE to confirm deletion" AutomationProperties.AutomationId="DeleteConfirmationInput" />
+      <WrapPanel HorizontalAlignment="Right" Margin="0,22,0,0">
+        <Button x:Name="CancelButton" Content="Cancel" IsCancel="True" IsDefault="True" Command="{Binding CancelCommand}"
+                Margin="0,0,8,0" AutomationProperties.AutomationId="CancelDeleteButton" />
+        <Button x:Name="ConfirmDeleteButton" Classes="delete" Command="{Binding ConfirmCommand}"
+                AutomationProperties.Name="Confirm delete messages" AutomationProperties.AutomationId="ConfirmDeleteButton">
+          <StackPanel Orientation="Horizontal">
+            <Path Data="M2,4 H16 M6,4 V1 H12 V4 M4,4 L5,18 H13 L14,4 M7,7 V14 M11,7 V14"
+                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.6" Width="14" Height="16" Stretch="Uniform" Margin="0,0,8,0" />
+            <TextBlock x:Name="DeleteButtonLabel" Text="{Binding ConfirmLabel}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+      </WrapPanel>
+    </StackPanel>
+  </Border>
+</Window>

@@ -74,6 +74,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-055 | accepted | Settings | Profiles save explicitly; unsaved edits are marked and asked about on close |
 | DEC-056 | accepted | Architecture | The inspector's text is editor-neutral; tests reach AvalonEdit through the bridge |
 | DEC-057 | accepted | Architecture | The Message Workbench migrates to view models now, behind new pixel baselines |
+| DEC-058 | accepted | Architecture | Avalonia screens are approved side by side, then pinned by their own exact baselines |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -474,3 +475,10 @@ DLQ palette clarification: the user explicitly disallowed changing DLQ tag color
 - Decision: the Workbench moves onto WPF-free view models in Presentation like the rest of the app (DEC-053). Before its code changes, its screens get exact-pixel baselines (DEC-050) so each extraction step proves it looks the same.
 - Because: the user considers the Workbench mature enough after the time spent making it as good as possible, its components are separate from the investigation's, and the user will go through the whole application after the migration anyway.
 - Consequences: Workbench screens join the pixel baselines and characterization tests. A later Workbench design change goes through a mockup approval and updates its baselines explicitly, like every other screen.
+
+## DEC-058 - Avalonia screens are approved side by side, then pinned by their own exact baselines
+
+- Status: accepted, 2026-10-23; the user chose option 4a after learning that Avalonia draws through Skia, which positions and anti-aliases text differently from WPF, and approved a spike (option 3a).
+- Decision: an Avalonia screen does not have to reproduce its WPF baseline's pixels. Each ported screen is shown to the user beside its WPF baseline with a diff; once approved, its Avalonia render becomes that screen's exact baseline (DEC-050), the same on every operating system. Layout, sizes, colours and text must still match WPF; only rasterization may differ.
+- Because: reproducing WPF's text rendering exactly is not achievable with another renderer, and the user's requirement is that the app looks the same everywhere, which one renderer with bundled fonts can prove.
+- Consequences: the Avalonia spike (`src/ServiceBusEmulatorExplorer.Avalonia`, `tests/ServiceBusEmulatorExplorer.Avalonia.Tests`) renders the Delete messages dialog headlessly and compares it exactly with its own baselines on Windows, Linux and macOS CI runners, writing a diff against the WPF baseline for review. Profile colours come from the shared `ProfilePalette` so both frameworks use the same values.
