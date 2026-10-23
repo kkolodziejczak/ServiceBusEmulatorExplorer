@@ -264,15 +264,12 @@ public sealed class DailyWindowAuditTests
             }
         }
 
-        // Waits for a tree count to show the expected text. Below 1,000 its accessible name announces that same value
-        // first, then its detail.
-        private void RequireCountShown(AutomationElement node, string label, string expected)
-        {
-            AutomationElement? count = null;
-            Wait(() => (count = node.FindAllDescendants().Single(element => element.Name.StartsWith(label + ": ", StringComparison.Ordinal)))
-                .Patterns.Text.Pattern.DocumentRange.GetText(-1) == expected);
-            Assert.StartsWith($"{label}: {expected}\n", count!.Name, StringComparison.Ordinal);
-        }
+        // Waits for a tree count to announce the expected value. WPF exposes no Text pattern on these labels, so the
+        // count is read from its accessible name, "<label>: <value>" then its detail; NamespaceTreeRefreshTests pins
+        // the shown text to that same value.
+        private void RequireCountShown(AutomationElement node, string label, string expected) =>
+            Wait(() => node.FindAllDescendants().Select(element => element.Name.Split('\n')[0])
+                .Single(name => name.StartsWith(label + ": ", StringComparison.Ordinal)) == $"{label}: {expected}");
 
         public void Wait(Func<bool> condition)
         {

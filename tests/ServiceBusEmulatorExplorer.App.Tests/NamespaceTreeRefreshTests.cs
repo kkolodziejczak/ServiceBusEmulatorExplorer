@@ -2,7 +2,9 @@
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
 using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
@@ -77,6 +79,54 @@ public sealed class NamespaceTreeRefreshTests
         }
     });
 
+    // The UI smoke audit reads counts from their accessible names; this pins the shown text to the same value.
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void Observed_tree_counts_show_the_value_their_accessible_name_announces() => OnSta(() =>
+    {
+        SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+        var messages = new FakeMessages();
+        var store = new EntityAddress(EntityKind.Subscription, "store", "inv");
+        messages.Set(store, 1, 2);
+        messages.SetDeadLetter(store, 3);
+        var workspace = new InvestigationWorkspace(new Store(),
+            new BrokerConnectionWorkflow(() => new Factory(), _ => new Browser(), _ => messages), timeProvider: new ManualClock());
+        var window = new InvestigationWindow(workspace);
+        window.Show();
+        try
+        {
+            Complete(workspace.ConnectAsync());
+            var item = TreeItems((TreeView)window.FindName("NamespaceTree")).Single(candidate => candidate.DataContext is EntityNode { Name: "store" });
+            item.IsSelected = true;
+            var node = (EntityNode)item.DataContext;
+            Wait(() => node.DisplayMessageCount == "2*" && node.DisplayDlqCount == "1*");
+            item.UpdateLayout();
+
+            foreach (var (label, shown) in new[] { ("Messages", "2*"), ("Scheduled", "—"), ("DLQ", "1*") })
+            {
+                var count = Descendants(item).OfType<TextBlock>()
+                    .Single(text => AutomationProperties.GetName(text).StartsWith(label + ": ", StringComparison.Ordinal));
+                Assert.Equal(shown, count.Text);
+                Assert.StartsWith($"{label}: {shown}\n", AutomationProperties.GetName(count), StringComparison.Ordinal);
+            }
+        }
+        finally
+        {
+            window.Close();
+            Complete(workspace.DisposeAsync().AsTask());
+        }
+    });
+
+    private static IEnumerable<DependencyObject> Descendants(DependencyObject parent)
+    {
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(parent, index);
+            yield return child;
+            foreach (DependencyObject descendant in Descendants(child)) yield return descendant;
+        }
+    }
+
     private static void OnSta(Action action)
     {
         Exception? failure = null;
@@ -147,13 +197,17 @@ public sealed class NamespaceTreeRefreshTests
     private sealed class FakeMessages : IServiceBusMessageService
     {
         private readonly Dictionary<EntityAddress, ExplorerMessage[]> messages = [];
+        private readonly Dictionary<EntityAddress, ExplorerMessage[]> deadLetters = [];
         public int Calls { get; private set; }
+        // Both buckets return these messages unless SetDeadLetter gives the dead-letter queue its own.
         public void Set(EntityAddress address, params long[] sequences) => messages[address] = sequences.Select(Message).ToArray();
+        public void SetDeadLetter(EntityAddress address, params long[] sequences) => deadLetters[address] = sequences.Select(Message).ToArray();
         public Task<IReadOnlyList<ExplorerMessage>> PeekMessagesAsync(EntityAddress address, MessageBucket bucket, int take,
             long? fromSequenceNumber, CancellationToken cancellationToken)
         {
             Calls++;
-            IReadOnlyList<ExplorerMessage> result = messages.TryGetValue(address, out var source)
+            IReadOnlyList<ExplorerMessage> result =
+                (bucket == MessageBucket.DeadLetter && deadLetters.TryGetValue(address, out var source)) || messages.TryGetValue(address, out source)
                 ? source.Where(message => fromSequenceNumber is null || message.SequenceNumber >= fromSequenceNumber.Value).Take(take).ToArray()
                 : [];
             return Task.FromResult(result);
