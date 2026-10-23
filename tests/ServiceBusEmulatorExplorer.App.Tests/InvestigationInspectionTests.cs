@@ -153,6 +153,35 @@ public sealed class InvestigationInspectionTests
         Assert.Equal("-2.5e+3", text.Substring(tokens[3].Start, tokens[3].Length));
     }
 
+    [Fact]
+    public void FindTokens_ColorsAnUnterminatedStringToTheEndOfTheLine()
+    {
+        const string text = "{\"say\": \"open 42";
+
+        IReadOnlyList<JsonTokenSpan> tokens = JsonSyntaxColorizer.FindTokens(text);
+
+        Assert.Equal(2, tokens.Count);
+        Assert.Equal(JsonTokenKind.PropertyName, tokens[0].Kind);
+        Assert.Equal("\"open 42", text.Substring(tokens[1].Start, tokens[1].Length));
+        Assert.Equal(JsonTokenKind.String, tokens[1].Kind);
+    }
+
+    [Fact]
+    public void FindTokens_ScansAHostileLineOfUnclosedEscapedQuotesInLinearTime()
+    {
+        // Before the atomic string body this 100k-character line took about 7 seconds on the UI thread; it now takes
+        // milliseconds. Warm up first so the regex compilation and brush creation are not timed on a cold runner.
+        string text = "x\"" + string.Concat(Enumerable.Repeat("\\\"", 50_000));
+        JsonSyntaxColorizer.FindTokens("{\"warm\": \"up\\\"\"}");
+        System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        IReadOnlyList<JsonTokenSpan> tokens = JsonSyntaxColorizer.FindTokens(text);
+
+        stopwatch.Stop();
+        Assert.Equal(text.Length - 1, Assert.Single(tokens).Length);
+        Assert.True(stopwatch.ElapsedMilliseconds < 2_000, $"Tokenizing took {stopwatch.ElapsedMilliseconds} ms.");
+    }
+
     private static ExplorerMessage CreateMessage(string body)
     {
         return new ExplorerMessage(

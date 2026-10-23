@@ -33,6 +33,7 @@ public sealed partial class ProtectedWorkspacePreferencesStore : IWorkspacePrefe
     };
 
     private readonly string filePath;
+    private bool unreadableFileUnkept;
 
     public ProtectedWorkspacePreferencesStore(string filePath)
     {
@@ -51,6 +52,7 @@ public sealed partial class ProtectedWorkspacePreferencesStore : IWorkspacePrefe
 
     public async Task<PreferencesLoadResult> LoadAsync(CancellationToken cancellationToken)
     {
+        unreadableFileUnkept = false;
         if (!File.Exists(filePath))
             return new PreferencesLoadResult(DefaultPreferences() with { WasConnected = true });
 
@@ -89,7 +91,27 @@ public sealed partial class ProtectedWorkspacePreferencesStore : IWorkspacePrefe
         }
         catch (Exception exception) when (IsStorageFailure(exception))
         {
-            return new PreferencesLoadResult(DefaultPreferences(), LoadWarning);
+            // The next save replaces the file with defaults, so keep what could not be read. When the copy fails,
+            // for example while another process locks the file, the next save tries again before replacing it.
+            string? copy = KeepUnreadableCopy();
+            unreadableFileUnkept = copy is null;
+            return new PreferencesLoadResult(DefaultPreferences(), copy is null
+                ? LoadWarning
+                : $"{LoadWarning} A copy of the saved file was kept as {copy}.");
+        }
+    }
+
+    private string? KeepUnreadableCopy()
+    {
+        string copyPath = $"{filePath}.unreadable-{DateTime.UtcNow:yyyyMMdd'T'HHmmss'Z'}";
+        try
+        {
+            File.Copy(filePath, copyPath, overwrite: false);
+            return Path.GetFileName(copyPath);
+        }
+        catch (Exception exception) when (IsStorageFailure(exception))
+        {
+            return null;
         }
     }
 
@@ -103,6 +125,11 @@ public sealed partial class ProtectedWorkspacePreferencesStore : IWorkspacePrefe
     public async Task SaveAsync(WorkspacePreferences preferences, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(preferences);
+        if (unreadableFileUnkept)
+        {
+            if (File.Exists(filePath) && KeepUnreadableCopy() is null) throw new InvalidOperationException(SaveWarning);
+            unreadableFileUnkept = false;
+        }
 
         try
         {

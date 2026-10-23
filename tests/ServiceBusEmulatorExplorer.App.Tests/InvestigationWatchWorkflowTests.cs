@@ -294,6 +294,31 @@ public sealed class InvestigationWatchWorkflowTests
         finally { await workflow.StopAsync(); }
     }
 
+    [Fact]
+    public async Task A_flood_of_arrivals_keeps_only_the_latest_for_notifications()
+    {
+        var clock = new PollClock();
+        var messages = new Messages();
+        messages.Set("orders", 1);
+        var workflow = new MessageWatchWorkflow(clock);
+        var results = Observe(workflow);
+        try
+        {
+            workflow.Start(Session(new Browser(Snapshot(true, "orders")), messages), 1, WatchActive);
+            await Next(results);
+            await clock.WaitForPollDelay();
+            int flood = MessageWatchWorkflow.MaxPendingArrivals + 500;
+            messages.Set("orders", Enumerable.Range(1, flood + 1).Select(value => (long)value).ToArray());
+            clock.FirePollDelay();
+            for (int seen = 0; seen < flood;) seen += (await Next(results)).Arrivals.Count;
+
+            Assert.Equal(MessageWatchWorkflow.MaxPendingArrivals, workflow.PendingArrivals.Count);
+            Assert.Equal(flood + 1 - MessageWatchWorkflow.MaxPendingArrivals + 1, workflow.PendingArrivals[0].Identity.SequenceNumber);
+            Assert.Equal(flood + 1, workflow.PendingArrivals[^1].Identity.SequenceNumber);
+        }
+        finally { await workflow.StopAsync(); }
+    }
+
     private static Channel<WatchPollResult> Observe(MessageWatchWorkflow workflow)
     {
         var channel = Channel.CreateUnbounded<WatchPollResult>();

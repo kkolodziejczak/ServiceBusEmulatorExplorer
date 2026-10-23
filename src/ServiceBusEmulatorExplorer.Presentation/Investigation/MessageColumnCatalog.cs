@@ -57,9 +57,17 @@ public static class MessageColumnCatalog
         return order.Select(id => visibleIds.Contains(id) ? remaining.Dequeue() : id).ToArray();
     }
 
+    /// <summary>
+    /// The most application properties offered as columns. Senders choose the keys, so without a cap one page of
+    /// messages could add thousands of columns; keys in the selection or order are always offered.
+    /// </summary>
+    public const int MaxDiscoveredProperties = 256;
+
     public static IReadOnlyList<MessageColumnDefinition> Discover(IEnumerable<MessageRow> rows, IReadOnlyList<string> selected)
     {
-        var keys = rows.SelectMany(row => row.Delivery.Message.ApplicationProperties.Keys)
+        var discovered = rows.SelectMany(row => row.Delivery.Message.ApplicationProperties.Keys)
+            .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).Take(MaxDiscoveredProperties);
+        var keys = discovered
             .Concat(selected.Where(id => id.StartsWith(ApplicationPrefix, StringComparison.Ordinal))
                 .Select(id => id[ApplicationPrefix.Length..]))
             .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal);

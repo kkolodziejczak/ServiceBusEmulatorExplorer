@@ -131,12 +131,47 @@ public sealed class InvestigationReplayLineageTests
     }
 
     [Fact]
-    public void Attempt_overflow_is_rejected_instead_of_wrapping()
+    public void A_family_saved_at_the_largest_attempt_replays_again_at_the_bound_instead_of_overflowing()
     {
         MessageDelivery original = Delivery();
         ReplayFamilyState family = ReplayLineage.Reserve(original, []).Family with { LastAttempt = long.MaxValue };
 
-        Assert.Throws<OverflowException>(() => ReplayLineage.Reserve(original, [family]));
+        Assert.Equal(ReplayLineage.MaxAttempt, ReplayLineage.Reserve(original, [family]).Family.LastAttempt);
+    }
+
+    [Fact]
+    public void A_value_or_sequence_body_cannot_be_replayed_because_the_copy_would_change_it()
+    {
+        MessageDelivery original = Delivery();
+        var nonData = new MessageDelivery(original.Identity, original.Message with { HasDataBody = false, RawBody = null });
+
+        Assert.Throws<ArgumentException>(() => ReplayLineage.Reserve(nonData, []));
+    }
+
+    [Fact]
+    public void Forged_attempt_beyond_the_bound_is_refused_and_leaves_the_original_replayable()
+    {
+        MessageDelivery original = Delivery();
+        ReplayReservation first = ReplayLineage.Reserve(original, []);
+        ServiceBusMessage sent = ReplayLineage.CreateMessage(original, first);
+        MessageDelivery CopyWithAttempt(long attempt)
+        {
+            var properties = sent.ApplicationProperties.ToDictionary(pair => pair.Key, pair => (object?)pair.Value);
+            properties[ReplayLineage.AttemptProperty] = attempt;
+            return Delivery(sequence: 91, messageId: sent.MessageId, properties: properties);
+        }
+
+        Assert.Throws<ArgumentException>(() => ReplayLineage.Reserve(CopyWithAttempt(long.MaxValue - 1), [first.Family]));
+        Assert.Equal(2, ReplayLineage.Reserve(original, [first.Family]).Family.LastAttempt);
+
+        // A copy at the bound still replays, and the copy it makes is accepted in turn.
+        ReplayReservation atBound = ReplayLineage.Reserve(CopyWithAttempt(ReplayLineage.MaxAttempt), [first.Family]);
+        Assert.Equal(ReplayLineage.MaxAttempt, atBound.Family.LastAttempt);
+        ServiceBusMessage next = ReplayLineage.CreateMessage(original, atBound);
+        var nextCopy = Delivery(sequence: 92, messageId: next.MessageId,
+            properties: next.ApplicationProperties.ToDictionary(pair => pair.Key, pair => (object?)pair.Value));
+        Assert.True(ReplayLineage.BelongsTo(nextCopy, atBound.Family));
+        Assert.Equal(ReplayLineage.MaxAttempt, ReplayLineage.Reserve(nextCopy, [atBound.Family]).Family.LastAttempt);
     }
 
     [Fact]

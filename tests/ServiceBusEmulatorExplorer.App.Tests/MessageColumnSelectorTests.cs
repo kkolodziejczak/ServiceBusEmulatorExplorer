@@ -63,6 +63,20 @@ public sealed class MessageColumnSelectorTests
     }
 
     [Fact]
+    public void Catalog_caps_sender_chosen_property_keys_but_keeps_chosen_columns()
+    {
+        MessageRow[] rows = Enumerable.Range(0, 200).Select(row => CreateRow("many-" + row, row,
+            Enumerable.Range(0, 50).ToDictionary(key => $"key-{row:D3}-{key:D2}", key => (object?)key))).ToArray();
+
+        IReadOnlyList<MessageColumnDefinition> discovered = MessageColumnCatalog.Discover(rows, ["application:zz-chosen"]);
+
+        MessageColumnDefinition[] properties = discovered.Where(column => column.Section == "Application properties").ToArray();
+        Assert.Equal(MessageColumnCatalog.MaxDiscoveredProperties + 1, properties.Length);
+        Assert.Equal("application:key-000-00", properties[0].Id);
+        Assert.Contains(properties, column => column.Id == "application:zz-chosen");
+    }
+
+    [Fact]
     public void Catalog_formats_values_invariantly_and_compares_typed_values()
     {
         var preferences = new WorkspacePreferences { DateFormat = DateDisplayFormat.Iso };
