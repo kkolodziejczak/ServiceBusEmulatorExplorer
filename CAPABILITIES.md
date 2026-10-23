@@ -102,6 +102,7 @@ Startup presentation example: `src/ServiceBusEmulatorExplorer.App/Investigation/
 | --- | --- | --- |
 | Fast test loop excluding gated categories | shared | `AGENTS.md` (Fast Development Loop); `tests/README.md` |
 | Docker-gated integration tests against the local emulator | adapt | `tests/ServiceBusEmulatorExplorer.Integration.Tests/`; `compose.yaml` |
+| An action row that wraps its last actions onto right-aligned lines instead of clipping them | shared | `src/ServiceBusEmulatorExplorer.App/Investigation/RightAlignedWrapPanel.cs` |
 | FlaUI UI smoke tests using UI Automation patterns, not physical input | adapt | `tests/ServiceBusEmulatorExplorer.UiSmoke.Tests/`; runner `scripts/Invoke-UiSmoke.ps1` |
 | Checking a label whose accessible name carries a longer detail: WPF exposes no Text pattern on a TextBlock, so FlaUI reads the value the name announces, and an in-process render test pins the shown text to that value | adapt | `tests/ServiceBusEmulatorExplorer.UiSmoke.Tests/DailyWindowAuditTests.cs` (`Fixture.RequireCountShown`); `tests/ServiceBusEmulatorExplorer.App.Tests/NamespaceTreeRefreshTests.cs` (`Observed_tree_counts_show_the_value_their_accessible_name_announces`) |
 | Headless screenshot of the real window with synthetic services | shared | `tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/Program.cs`; `WpfScreenshot.cs` |

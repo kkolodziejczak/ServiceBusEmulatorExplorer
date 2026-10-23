@@ -201,6 +201,7 @@ result.
 | Replay identity badge | `MessageReplayBadge`, `MessageReplayBadgeText` | hidden for ordinary/not-sent IDs; exact saved replay ID with original/time tooltip; independent Active/DLQ badge | Browse and search rows | Approved Replay 35, DEC-032 |
 | Replay history action | existing outlined Button with `HistoryGeometry`, immediately before Settings | label hidden at existing compact breakpoint; tooltip and accessible name retained | Investigation toolbar | Approved Replay 34/35, DEC-032 |
 | JSON folding visuals | `JsonFoldButton`, `JsonFoldingMargin`, `JsonFoldPlaceholder` | expanded/down, collapsed/right, hover, pressed, keyboard focus; dark rounded ellipsis | Shared inspection editor | Approved Inspect 36, DEC-032 |
+| Wrapping action row | `RightAlignedWrapPanel` | one right-aligned row when it fits; otherwise the last actions wrap onto a right-aligned line 8 below, so the primary action stays last | Workbench Run results actions | Approved Results 71 v1 |
 | Activity log footer | `InvestigationWindow.xaml` bottom | expanded, collapsed, UTC/Local | Investigation | Approved |
 | Watch notification | `WatchNotificationWindow.cs` | hover, dismiss | Tray notifications | Approved |
 | Active badge | inline in `InvestigationWindow.xaml` (literal colours) | — | Message rows, inspector | Approved look, not yet a style |

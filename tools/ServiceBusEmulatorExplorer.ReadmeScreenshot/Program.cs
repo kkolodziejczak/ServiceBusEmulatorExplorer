@@ -34,7 +34,7 @@ internal static class Program
             "--message-library-prepare" or "--message-library-prepare-1500" or "--message-library-prepare-compact" or "--message-library-prepare-minimum"
             or "--message-library-properties" or "--message-library-properties-bottom" or "--message-library-properties-selected" or "--message-library-variables" or "--message-library-single"
             or "--message-library-author-minimum" or "--message-library-properties-minimum" or "--message-library-wizard-review" or "--message-library-wizard-review-minimum" or "--message-library-wizard-review-queue" or "--message-library-wizard-review-large-batch"
-            or "--message-library-single-minimum" or "--message-library-prepare-log";
+            or "--message-library-single-minimum" or "--message-library-prepare-log" or "--message-library-scheduled-results-minimum";
         bool namespaceTreeProof = args.Length == 2 && args[1] == "--namespace-tree";
         bool sideBySideProof = args.Length == 2 && args[1] == "--investigation-side-by-side";
         bool footerStatusProof = args.Length == 2 && args[1] == "--footer-status";
@@ -48,7 +48,7 @@ internal static class Program
             args.Length == 2 && args[1] is "--message-library-prepare" or "--message-library-properties" or "--message-library-properties-bottom" or "--message-library-properties-selected" or "--message-library-variables" or "--message-library-single" or "--message-library-prepare-log" or "--message-library-wizard-review" or "--message-library-wizard-review-queue" or "--message-library-wizard-review-large-batch" ? 1642 :
             args.Length == 2 && args[1] == "--message-library-prepare-1500" ? 1500 :
             args.Length == 2 && args[1] == "--message-library-prepare-compact" ? 1100 :
-            args.Length == 2 && args[1] is "--message-library-prepare-minimum" or "--message-library-author-minimum" or "--message-library-properties-minimum" or "--message-library-single-minimum" or "--message-library-wizard-review-minimum" ? 980 : WpfScreenshot.CaptureWidth;
+            args.Length == 2 && args[1] is "--message-library-prepare-minimum" or "--message-library-author-minimum" or "--message-library-properties-minimum" or "--message-library-single-minimum" or "--message-library-wizard-review-minimum" or "--message-library-scheduled-results-minimum" ? 980 : WpfScreenshot.CaptureWidth;
         int captureHeight = cleanupProposalProof || namespaceIndicatorsProof ? 1000 : dialogCapture ?
             args[1] == "--message-library-capture" ? 331 :
             args[1] == "--message-library-validation" ? 386 :
@@ -245,12 +245,12 @@ internal static class Program
                         var author = (Button)prototype.FindName("ComposeStepButton")!;
                         author.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, author));
                     }
-                    if (args[1] is "--message-library-prepare" or "--message-library-prepare-1500" or "--message-library-prepare-compact" or "--message-library-prepare-minimum" or "--message-library-prepare-log" or "--message-library-single" or "--message-library-single-minimum" or "--message-library-wizard-review" or "--message-library-wizard-review-minimum" or "--message-library-wizard-review-queue" or "--message-library-wizard-review-large-batch")
+                    if (args[1] is "--message-library-prepare" or "--message-library-prepare-1500" or "--message-library-prepare-compact" or "--message-library-prepare-minimum" or "--message-library-prepare-log" or "--message-library-single" or "--message-library-single-minimum" or "--message-library-wizard-review" or "--message-library-wizard-review-minimum" or "--message-library-wizard-review-queue" or "--message-library-wizard-review-large-batch" or "--message-library-scheduled-results-minimum")
                     {
                         var next = (Button)prototype.FindName("ContinueToPrepareButton")!;
                         next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, next));
                     }
-                    if (args[1] is "--message-library-wizard-review" or "--message-library-wizard-review-minimum" or "--message-library-wizard-review-queue" or "--message-library-wizard-review-large-batch")
+                    if (args[1] is "--message-library-wizard-review" or "--message-library-wizard-review-minimum" or "--message-library-wizard-review-queue" or "--message-library-wizard-review-large-batch" or "--message-library-scheduled-results-minimum")
                     {
                         var review = (Button)prototype.FindName("ReviewButton")!;
                         review.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, review));
@@ -258,6 +258,15 @@ internal static class Program
                         {
                             var surface = (MessageLibraryPrototypeReviewSurface)((ContentControl)prototype.FindName("ReviewHost")!).Content;
                             surface.Configure("Demo retail workspace", "order-events", 1000);
+                        }
+                        // Results 71: a scheduled run's three actions wrap at the minimum window size.
+                        if (args[1] == "--message-library-scheduled-results-minimum")
+                        {
+                            var surface = (MessageLibraryPrototypeReviewSurface)((ContentControl)prototype.FindName("ReviewHost")!).Content;
+                            surface.RestoreRun(new PrototypeRunSnapshot("Demo retail workspace", "order-events", true,
+                                [(1, "00000000-0000-0000-0000-000000000001", "Scheduled", "Sample acknowledgement")],
+                                [(1, "1001", "Order created", "Scheduled", "2026-10-19 14:30", true, "", "")]));
+                            surface.ShowResults();
                         }
                     }
                     if (args[1] == "--message-library-prepare-log")

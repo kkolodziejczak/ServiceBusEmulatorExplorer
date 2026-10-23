@@ -24,7 +24,7 @@ public sealed class MessageWorkbenchVisualBaselineTests
         "--message-library-map", "--message-library-capture", "--message-library-validation",
         "--message-library-review", "--message-library-results",
         "--message-library-schedule", "--message-library-schedule-past-date", "--message-library-schedule-past-time",
-        "--message-library-scheduled-results", "--message-library-cancellation-history",
+        "--message-library-scheduled-results", "--message-library-scheduled-results-minimum", "--message-library-cancellation-history",
         "--organization", "--responsive-compose"
     };
 

@@ -37,6 +37,7 @@ the existing pale-orange/dark-orange DLQ palette.
 | Typography | [Fonts 68 v1](message-library/design/proposed/fonts-68-v1-bundled-fonts.png), option A, DEC-051; the board redraws its screenshots, so judge glyphs from the [real option A render](message-library/design/proposed/fonts-68-v1-real-A-selawik-cascadia.png) |
 | Third-party licences | [Licences 69 v1](message-library/design/proposed/licences-69-v1-third-party.png), option with fonts and MIT libraries, DEC-052; one row per licence holder (nine rows) in a compact row height so the licence text stays visible, and the copy status sits beside the button |
 | Unsaved profile edits in Settings | [Settings 70 v4](message-library/design/proposed/settings-70-v4-modified-inside-tab.png), DEC-055; supersedes v1–v3, kept beside it in the same folder. v2 put the Modified pill beside the tab, against Inspect 33. The question's Save button takes the profile accent like every primary button |
+| Run results actions at minimum width | [Results 71 v1](message-library/design/proposed/results-71-v1-footer-wrap.png), approved 2026-10-23; the board redraws the panels, so only its action row is the reference |
 
 ## Proposals under consideration
 
@@ -54,7 +55,6 @@ the existing pale-orange/dark-orange DLQ palette.
 | [Updates 56 v1](message-library/design/proposed/updates-56-v1-fresh-view-explicit-waits.png) | Fresh view, explicit waits (gpt-6-astra): Updates menu, keep this view fresh, Wait for a message form. |
 | [Updates 57 v1](message-library/design/proposed/updates-57-v1-live-arrivals-feed.png) | Live mode + Arrivals feed (claude-opus-5-5): namespace-wide arrivals list with "Landed in" and notify on match. |
 | [Updates 58 v1](message-library/design/proposed/updates-58-v1-combined-live-and-waits.png) | Combined: Live pill with a panel listing everything kept up to date, per-view freshness line, Alert per place, search that keeps searching. Awaiting choice among 54–58. |
-| [Results 71 v1](message-library/design/proposed/results-71-v1-footer-wrap.png) | At the 980×640 minimum, the Run results actions after a scheduled send clip "Export results"; they wrap onto a second right-aligned line with View destination last. The board redraws the panels; judge only the action row. |
 
 Existing filenames remain stable for retained references. Superseded draft boards, rejected
 alternatives and completed execution ledgers are not part of the current specification.
