@@ -114,13 +114,14 @@ jobs:
           $portableHash = (Get-FileHash -LiteralPath '${{ steps.publish.outputs.portable_asset }}' -Algorithm SHA256).Hash
           Write-Host "Hosted launch smoke is skipped only because a maintainer explicitly confirmed the documented interactive proof for both final assets."
           Write-Host "This run remains draft-only and must still complete every other validation gate."
+          # A doubled backtick writes one Markdown backtick; a single one would escape the next character.
           @"
           ## Interactive launch-smoke gate
 
-          - Tag: `${{ steps.tag.outputs.tag }}`
-          - Proof reference: `$env:MANUAL_PROOF_REFERENCE`
-          - Runtime-required SHA-256: `$runtimeRequiredHash`
-          - Portable SHA-256: `$portableHash`
+          - Tag: ``${{ steps.tag.outputs.tag }}``
+          - Proof reference: ``$env:MANUAL_PROOF_REFERENCE``
+          - Runtime-required SHA-256: ``$runtimeRequiredHash``
+          - Portable SHA-256: ``$portableHash``
           "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
 
       - name: Create or update the draft release

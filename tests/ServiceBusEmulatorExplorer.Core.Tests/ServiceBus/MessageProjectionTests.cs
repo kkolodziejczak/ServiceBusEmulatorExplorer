@@ -1,3 +1,4 @@
+using Azure.Core.Amqp;
 using Azure.Messaging.ServiceBus;
 using ServiceBusEmulatorExplorer.Core.ServiceBus;
 
@@ -16,6 +17,43 @@ public sealed class MessageProjectionTests
         Assert.NotNull(message.RawBody);
         Assert.Equal(bytes, message.RawBody.ToArray());
         Assert.Equal(bytes.Length, message.BodySizeBytes);
+    }
+
+    [Fact]
+    public void Create_describes_a_value_body_instead_of_failing_the_page()
+    {
+        ExplorerMessage message = MessageProjection.Create(FromAmqp(AmqpMessageBody.FromValue(42)));
+
+        Assert.False(message.HasDataBody);
+        Assert.Null(message.RawBody);
+        Assert.Equal("42", message.Body);
+        Assert.Equal(0, message.BodySizeBytes);
+    }
+
+    [Fact]
+    public void Create_describes_a_sequence_body_one_section_per_line()
+    {
+        ExplorerMessage message = MessageProjection.Create(FromAmqp(AmqpMessageBody.FromSequence(
+            [new List<object> { "a", 1 }, new List<object> { 2.5 }])));
+
+        Assert.False(message.HasDataBody);
+        Assert.Equal($"[a, 1]{Environment.NewLine}[2.5]", message.Body);
+    }
+
+    [Fact]
+    public void Create_marks_a_data_body_as_data()
+    {
+        Assert.True(MessageProjection.Create(ServiceBusModelFactory.ServiceBusReceivedMessage(body: BinaryData.FromString("x"))).HasDataBody);
+    }
+
+    // Shaped like a broker delivery: a header with the delivery count and the sequence and enqueue annotations.
+    private static ServiceBusReceivedMessage FromAmqp(AmqpMessageBody body)
+    {
+        var amqp = new AmqpAnnotatedMessage(body);
+        amqp.Header.DeliveryCount = 0;
+        amqp.MessageAnnotations["x-opt-sequence-number"] = 4L;
+        amqp.MessageAnnotations["x-opt-enqueued-time"] = new DateTime(2026, 7, 8, 10, 0, 0, DateTimeKind.Utc);
+        return ServiceBusReceivedMessage.FromAmqpMessage(amqp, BinaryData.FromBytes(Guid.NewGuid().ToByteArray()));
     }
 
     [Fact]

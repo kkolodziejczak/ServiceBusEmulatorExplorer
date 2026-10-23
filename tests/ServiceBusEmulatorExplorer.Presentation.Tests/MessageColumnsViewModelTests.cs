@@ -214,4 +214,16 @@ public sealed class MessageColumnsViewModelTests
         columns.Refresh(chooserOpen: false, narrow: false);
         Assert.DoesNotContain(columns.Options, option => option.Id == Tenant);
     }
+
+    [Fact]
+    public async Task Choices_for_newly_listed_properties_are_added_only_while_the_chooser_is_closed()
+    {
+        await using var fixture = await WorkspaceFixture.OpenAsync();
+        var columns = new MessageColumnsViewModel(fixture.Workspace);
+
+        Assert.Contains(columns.Refresh(chooserOpen: true, narrow: false).PropertyColumns, column => column.Id == Tenant);
+        Assert.Equal([Event, Correlation, Enqueued], columns.Options.Select(option => option.Id));
+        columns.Refresh(chooserOpen: false, narrow: false);
+        Assert.Contains(columns.Options, option => option.Id == Tenant);
+    }
 }

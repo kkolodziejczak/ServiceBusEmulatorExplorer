@@ -11,6 +11,10 @@ public sealed class MessageWatchWorkflow(TimeProvider? timeProvider = null)
     private Run? current;
     private EntityDiscoverySnapshot? lastSnapshot;
     private readonly HashSet<DeliveryIdentity> deleted = [];
+
+    /// <summary>The most arrivals kept for notifications; the oldest are dropped first.</summary>
+    public const int MaxPendingArrivals = 1_000;
+
     public ObservableCollection<MessageDelivery> PendingArrivals { get; } = [];
     public event Action<WatchPollResult>? Polled;
     public event Action<string>? Warning;
@@ -77,10 +81,7 @@ public sealed class MessageWatchWorkflow(TimeProvider? timeProvider = null)
                 // The engine has committed these observations. A deadline firing while this
                 // continuation waits for the UI thread must not discard an already-seen arrival.
                 if (!ReferenceEquals(current, run)) return;
-                var targets = resolver.Resolve(run.Rules, run.Snapshot).ToHashSet();
-                foreach (var arrival in result.Arrivals)
-                    if (!deleted.Contains(arrival.Identity) && targets.Contains(new(arrival.Identity.Source, arrival.Identity.Bucket))
-                        && !PendingArrivals.Any(existing => existing.Identity == arrival.Identity)) PendingArrivals.Add(arrival);
+                AddPending(result.Arrivals, resolver.Resolve(run.Rules, run.Snapshot).ToHashSet());
                 Polled?.Invoke(result);
                 remaining -= result.ScannedDeliveries;
                 if (!result.HasPendingScans || result.Failures.Count > 0 || result.ScannedDeliveries == 0) break;
@@ -95,6 +96,17 @@ public sealed class MessageWatchWorkflow(TimeProvider? timeProvider = null)
         {
             ReportPollFailure(run, discoveryCompleted, "Watch could not refresh or inspect the namespace. The scan will be retried.");
         }
+    }
+
+    // Senders decide how many messages arrive, so only the latest arrivals are kept for notifications.
+    private void AddPending(IReadOnlyList<MessageDelivery> arrivals, HashSet<WatchTarget> targets)
+    {
+        if (arrivals.Count == 0) return;
+        var pending = PendingArrivals.Select(delivery => delivery.Identity).ToHashSet();
+        foreach (var arrival in arrivals)
+            if (!deleted.Contains(arrival.Identity) && targets.Contains(new(arrival.Identity.Source, arrival.Identity.Bucket))
+                && pending.Add(arrival.Identity)) PendingArrivals.Add(arrival);
+        while (PendingArrivals.Count > MaxPendingArrivals) PendingArrivals.RemoveAt(0);
     }
 
     private void ReportPollFailure(Run run, bool discoveryCompleted, string warning)

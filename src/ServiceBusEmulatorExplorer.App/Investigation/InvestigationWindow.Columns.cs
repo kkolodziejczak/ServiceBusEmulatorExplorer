@@ -31,6 +31,7 @@ public partial class InvestigationWindow
         EventColumn.Visibility = layout.ShowsEvent ? Visibility.Visible : Visibility.Collapsed;
         CorrelationColumn.Visibility = layout.ShowsCorrelation ? Visibility.Visible : Visibility.Collapsed;
         EnqueuedColumn.Visibility = layout.ShowsEnqueued ? Visibility.Visible : Visibility.Collapsed;
+        RemoveStalePropertyColumns(layout.PropertyColumns);
         foreach (var definition in layout.PropertyColumns)
         {
             if (propertyColumns.ContainsKey(definition.Id)) continue;
@@ -54,6 +55,17 @@ public partial class InvestigationWindow
             column.Visibility = layout.Shown.Contains(id) ? Visibility.Visible : Visibility.Collapsed;
         ApplyColumnOrder(layout.Order, layout.IsFixed);
         FitMessageIdentityColumns();
+    }
+
+    // Keeps the grid's property columns to the ones the listed messages still have, so columns do not pile up page after page.
+    private void RemoveStalePropertyColumns(IReadOnlyList<MessageColumnDefinition> current)
+    {
+        var currentIds = current.Select(definition => definition.Id).ToHashSet(StringComparer.Ordinal);
+        foreach (var id in propertyColumns.Keys.Where(id => !currentIds.Contains(id)).ToArray())
+        {
+            MessageGrid.Columns.Remove(propertyColumns[id]);
+            propertyColumns.Remove(id);
+        }
     }
 
     private void ColumnsChanged(object? sender, PropertyChangedEventArgs e)

@@ -17,6 +17,12 @@ public static class ReplayLineage
     public const string OriginalIdProperty = "sbe-explorer.replay.original-id";
     public const string SourceProperty = "sbe-explorer.replay.source";
     public const string AttemptProperty = "sbe-explorer.replay.attempt";
+    /// <summary>
+    /// The highest attempt a message may carry. Anyone who has seen a replay copy can forge its lineage, so a received
+    /// attempt above it is refused, and new attempts stop at it instead of overflowing. Saved families are not
+    /// bounded, so families already saved above it still load and replay again at the bound.
+    /// </summary>
+    public const long MaxAttempt = 1_000_000;
     private static readonly string[] LineageProperties = [FamilyProperty, RootProperty, OriginalIdProperty, SourceProperty, AttemptProperty];
 
     public static ReplayReservation Reserve(MessageDelivery delivery, IReadOnlyList<ReplayFamilyState> families,
@@ -25,6 +31,8 @@ public static class ReplayLineage
         ArgumentNullException.ThrowIfNull(delivery);
         ArgumentNullException.ThrowIfNull(families);
         if (delivery.Identity.Bucket != MessageBucket.DeadLetter) throw new ArgumentException("Only DLQ deliveries can be replayed.");
+        if (!delivery.Message.HasDataBody)
+            throw new ArgumentException("This message's body is an AMQP value or sequence; replay would change it, so it cannot be replayed.");
         _ = Destination(delivery.Identity.Source);
         ReplayFamilyState? lineage = ReadLineage(delivery.Message.ApplicationProperties);
         string root = lineage?.RootFingerprint ?? Fingerprint(delivery);
@@ -37,7 +45,8 @@ public static class ReplayLineage
             || existing.OriginalSource != lineage.OriginalSource || existing.OriginalMessageId != lineage.OriginalMessageId))
             throw new ArgumentException("Replay lineage conflicts with the saved message family.");
         var family = existing ?? lineage ?? new ReplayFamilyState(new Guid(Convert.FromHexString(root)[..16]), root, delivery.Message.MessageId, delivery.Identity.Source, 0);
-        long attempt = checked(Math.Max(family.LastAttempt, lineage?.LastAttempt ?? 0) + 1);
+        // Attempts stop at the bound so every copy stays readable; the ID's GUID suffix keeps copies unique there.
+        long attempt = Math.Min(Math.Max(family.LastAttempt, lineage?.LastAttempt ?? 0), MaxAttempt - 1) + 1;
         family = family with { LastAttempt = attempt, RootFingerprint = root.ToUpperInvariant() };
         ValidateFamily(family);
         string suffix = $"-replay-{attempt}-{(newId ?? Guid.NewGuid)():N}";
@@ -52,7 +61,8 @@ public static class ReplayLineage
         if (!LineageProperties.All(properties.ContainsKey)
             || properties[FamilyProperty] is not string familyId || !Guid.TryParseExact(familyId, "N", out var id)
             || properties[RootProperty] is not string root || properties[OriginalIdProperty] is not string originalId
-            || properties[SourceProperty] is not string sourceJson || properties[AttemptProperty] is not long attempt)
+            || properties[SourceProperty] is not string sourceJson || properties[AttemptProperty] is not long attempt
+            || attempt > MaxAttempt)
             throw new ArgumentException("The message contains incomplete or invalid replay lineage.");
         EntityAddress source;
         try { source = JsonSerializer.Deserialize<EntityAddress>(sourceJson) ?? throw new JsonException(); }

@@ -34,8 +34,9 @@ public sealed class MessageColumnsViewModel : ObservableObject
     public IReadOnlyList<string> Order => pendingOrder ?? MessageColumnCatalog.NormalizeOrder(workspace.Preferences.MessageColumnOrder, Selected);
 
     /// <summary>
-    /// Brings the choices up to date with the messages listed and returns what the list shows. Choices for columns no
-    /// longer found are only removed while the chooser is closed, so it does not change under the pointer.
+    /// Brings the choices up to date with the messages listed and returns what the list shows. While the chooser is
+    /// open only shown columns are added and none are removed, so it does not change under the pointer or grow while
+    /// left open.
     /// </summary>
     /// <param name="chooserOpen">The column chooser is open.</param>
     /// <param name="narrow">The window is too narrow to show the Enqueued column by default.</param>
@@ -45,14 +46,19 @@ public sealed class MessageColumnsViewModel : ObservableObject
         bool fixedLayout = IsFixedLayout;
         var order = Order;
         var available = MessageColumnCatalog.Discover(workspace.Surface.Messages, order);
+        var selectedIds = selected.ToHashSet(StringComparer.Ordinal);
         if (!chooserOpen)
-            foreach (var stale in Options.Where(option => !available.Any(item => item.Id == option.Id)).ToArray())
+        {
+            var availableIds = available.Select(definition => definition.Id).ToHashSet(StringComparer.Ordinal);
+            foreach (var stale in Options.Where(option => !availableIds.Contains(option.Id)).ToArray())
                 Options.Remove(stale);
+        }
+        var offeredIds = Options.Select(option => option.Id).ToHashSet(StringComparer.Ordinal);
         foreach (var definition in available)
-            if (!Options.Any(option => option.Id == definition.Id)) Options.Add(new(definition));
+            if ((!chooserOpen || selectedIds.Contains(definition.Id)) && offeredIds.Add(definition.Id)) Options.Add(new(definition));
         foreach (var option in Options)
         {
-            option.IsSelected = selected.Contains(option.Id);
+            option.IsSelected = selectedIds.Contains(option.Id);
             option.CanToggle = !option.IsSelected || selected.Count > 1;
         }
         ArrangeOptions(order, selected);
@@ -134,7 +140,8 @@ public sealed class MessageColumnsViewModel : ObservableObject
             .OrderBy(option => option.Section == "Default columns" ? 0 : option.Section == "System properties" ? 1 : 2)
             .ThenBy(option => option.Label, StringComparer.Ordinal)
             .Select(option => option.Id)).ToArray();
-        var arranged = choices.Select(id => Options.Single(item => item.Id == id)).ToArray();
+        var optionsById = Options.ToDictionary(option => option.Id, StringComparer.Ordinal);
+        var arranged = choices.Select(id => optionsById[id]).ToArray();
         // Reset the grouped view after membership changes; incremental Move notifications can
         // otherwise target the old group after a checkbox changes Visible columns membership.
         if (!Options.SequenceEqual(arranged))

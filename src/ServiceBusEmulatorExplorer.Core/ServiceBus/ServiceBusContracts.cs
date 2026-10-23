@@ -62,6 +62,12 @@ public sealed record ExplorerMessage(
 {
     /// <summary>Original broker bytes, independent of the decoded body used for text display.</summary>
     public BinaryData? RawBody { get; init; }
+
+    /// <summary>
+    /// <c>false</c> when the AMQP body is a value or sequence; <see cref="Body"/> then only describes it and
+    /// <see cref="RawBody"/> is <c>null</c>, so the message cannot be replayed without changing it.
+    /// </summary>
+    public bool HasDataBody { get; init; } = true;
     public Azure.Messaging.ServiceBus.ServiceBusMessageState? BrokerState { get; init; }
 }
 

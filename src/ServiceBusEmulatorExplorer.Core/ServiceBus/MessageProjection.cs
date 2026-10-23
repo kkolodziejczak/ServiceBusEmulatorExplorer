@@ -1,3 +1,4 @@
+using Azure.Core.Amqp;
 using Azure.Messaging.ServiceBus;
 
 namespace ServiceBusEmulatorExplorer.Core.ServiceBus;
@@ -6,13 +7,16 @@ public static class MessageProjection
 {
     public static ExplorerMessage Create(ServiceBusReceivedMessage message)
     {
-        string body = message.Body.ToString();
+        // message.Body throws for value and sequence bodies, and one such message would fail its whole page.
+        AmqpMessageBody amqpBody = message.GetRawAmqpMessage().Body;
+        BinaryData? rawBody = amqpBody.BodyType == AmqpMessageBodyType.Data ? BinaryData.FromBytes(message.Body.ToArray()) : null;
+        string body = rawBody?.ToString() ?? DescribeNonDataBody(amqpBody);
         return new ExplorerMessage(
             message.MessageId,
             message.SequenceNumber,
             body,
             Messaging.MessageBodyPreview.Create(body, 160),
-            message.Body.ToMemory().Length,
+            rawBody?.ToMemory().Length ?? 0,
             ToUtc(message.EnqueuedTime),
             ToUtc(message.ExpiresAt),
             message.DeliveryCount,
@@ -23,10 +27,27 @@ public static class MessageProjection
             CopyProperties(message.ApplicationProperties),
             CreateSystemProperties(message))
         {
-            RawBody = BinaryData.FromBytes(message.Body.ToArray()),
+            RawBody = rawBody,
+            HasDataBody = rawBody is not null,
             BrokerState = message.State
         };
     }
+
+    private static string DescribeNonDataBody(AmqpMessageBody body)
+    {
+        if (body.TryGetValue(out object? value)) return Describe(value);
+        if (body.TryGetSequence(out var sequence) && sequence is not null)
+            return string.Join(Environment.NewLine, sequence.Select(section => "[" + string.Join(", ", section.Select(Describe)) + "]"));
+        return string.Empty;
+    }
+
+    private static string Describe(object? value) => value switch
+    {
+        null => "null",
+        byte[] bytes => Convert.ToBase64String(bytes),
+        IFormattable formatted => formatted.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
+        _ => value.ToString() ?? string.Empty
+    };
 
     private static IReadOnlyDictionary<string, object?> CreateSystemProperties(ServiceBusReceivedMessage message)
     {
