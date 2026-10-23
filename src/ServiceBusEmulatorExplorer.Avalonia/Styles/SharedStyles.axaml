@@ -1,0 +1,67 @@
+<!-- The Avalonia counterpart of the WPF SharedStyles.xaml: the same tokens (DESIGN.md) for the controls the spike uses. -->
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:styles="using:ServiceBusEmulatorExplorer.Avalonia.Styles">
+  <Styles.Resources>
+    <FontFamily x:Key="UiFont">avares://ServiceBusEmulatorExplorer.Avalonia/Assets/Fonts#Selawik</FontFamily>
+    <FontFamily x:Key="CodeFont">avares://ServiceBusEmulatorExplorer.Avalonia/Assets/Fonts#Cascadia Mono</FontFamily>
+    <!-- Default-blue values; ProfileTheme replaces them per window from ProfilePalette. -->
+    <SolidColorBrush x:Key="PrimaryBrush" Color="#0069FA" />
+    <SolidColorBrush x:Key="InkBrush" Color="#17213D" />
+    <SolidColorBrush x:Key="ActionTextBrush" Color="#234266" />
+    <SolidColorBrush x:Key="CanvasBrush" Color="#FAFCFF" />
+    <SolidColorBrush x:Key="RaisedBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="ControlBorderBrush" Color="#CBD8E8" />
+    <SolidColorBrush x:Key="NeutralHoverBrush" Color="#EAF4FF" />
+    <SolidColorBrush x:Key="SelectionBrush" Color="#DBEDFF" />
+    <SolidColorBrush x:Key="DisabledBackgroundBrush" Color="#F1F4F8" />
+    <SolidColorBrush x:Key="DisabledBorderBrush" Color="#DCE3EC" />
+    <SolidColorBrush x:Key="DisabledTextBrush" Color="#738196" />
+  </Styles.Resources>
+
+  <Style Selector="TextBlock">
+    <Setter Property="LineHeight" Value="{Binding $self.FontSize, Converter={x:Static styles:WpfLineSpacing.Instance}}" />
+  </Style>
+
+  <Style Selector="Button">
+    <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="MinHeight" Value="32" />
+    <Setter Property="Padding" Value="12,7" />
+    <Setter Property="Margin" Value="3,0" />
+    <Setter Property="Background" Value="{DynamicResource RaisedBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionTextBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="3" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <!-- WPF's button states. The Simple theme styles its presenter for these states, so they are set there too;
+       WPF shows a disabled button through its colours only, where the Simple theme would also fade it. -->
+  <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource NeutralHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{Binding $parent[Button].BorderBrush}" />
+  </Style>
+  <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SelectionBrush}" />
+    <Setter Property="BorderBrush" Value="{Binding $parent[Button].BorderBrush}" />
+  </Style>
+  <Style Selector="Button:disabled">
+    <Setter Property="Opacity" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" />
+  </Style>
+  <Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource DisabledBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource DisabledBorderBrush}" />
+  </Style>
+
+  <!-- WPF's stock TextBox: white, black text, square 1 px border. -->
+  <Style Selector="TextBox">
+    <Setter Property="LineHeight" Value="{Binding $self.FontSize, Converter={x:Static styles:WpfLineSpacing.Instance}}" />
+    <Setter Property="Background" Value="#FFFFFF" />
+    <Setter Property="Foreground" Value="#000000" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="0" />
+  </Style>
+</Styles>
