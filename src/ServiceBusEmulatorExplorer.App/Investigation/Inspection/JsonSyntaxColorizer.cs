@@ -15,8 +15,10 @@ public static class JsonSyntaxColorizer
     public static readonly Brush StringBrush = CreateBrush("#56E5E5");
     public static readonly Brush ScalarBrush = CreateBrush("#F4D071");
 
+    // The atomic string body and the end-of-input close let an unterminated string match once in linear time;
+    // a backtracking body rescans the rest of the line from every quote, which a hostile body makes quadratic.
     private static readonly Regex Tokens = new(
-        "\\\"(?:\\\\.|[^\\\"\\\\])*\\\"(?=\\s*:)|\\\"(?:\\\\.|[^\\\"\\\\])*\\\"|(?<![\\w.])-?\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?\\b|\\b(?:true|false|null)\\b",
+        "\"(?>(?:[^\"\\\\]|\\\\[\\s\\S]?)*)(?:\"|\\z)|(?<![\\w.])-?\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?\\b|\\b(?:true|false|null)\\b",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public static IReadOnlyList<JsonTokenSpan> FindTokens(string text)

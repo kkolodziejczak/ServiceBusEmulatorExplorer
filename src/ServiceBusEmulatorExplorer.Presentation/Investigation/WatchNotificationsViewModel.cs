@@ -49,8 +49,9 @@ public sealed class WatchNotificationsViewModel : ObservableObject
     {
         get
         {
+            if (!workspace.Preferences.NotificationsEnabled) return null;
             var groups = PendingGroups();
-            if (!workspace.Preferences.NotificationsEnabled || groups.Length == 0) return null;
+            if (groups.Length == 0) return null;
             var first = groups[0];
             return new(new MessageRow(first[^1], workspace.Preferences.TimestampDisplay, workspace.Preferences.DateFormat),
                 first.Length, groups.Length - 1, workspace.SelectedProfile.Connection.Name, workspace.SelectedProfile.ColorHex);

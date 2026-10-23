@@ -156,6 +156,42 @@ public sealed class InvestigationPreferencesTests
     }
 
     [Fact]
+    public async Task Unreadable_file_is_copied_aside_before_the_next_save_replaces_it()
+    {
+        string path = CreatePath();
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        const string unreadable = "{ saved by a newer version }";
+        await File.WriteAllTextAsync(path, unreadable);
+        var store = new ProtectedWorkspacePreferencesStore(path);
+
+        PreferencesLoadResult loaded = await store.LoadAsync(CancellationToken.None);
+        await store.SaveAsync(loaded.Preferences, CancellationToken.None);
+
+        string copy = Assert.Single(Directory.GetFiles(Path.GetDirectoryName(path)!, "connection-profiles.json.unreadable-*"));
+        Assert.Equal(unreadable, await File.ReadAllTextAsync(copy));
+        Assert.Contains(Path.GetFileName(copy), loaded.Warning, StringComparison.Ordinal);
+        Assert.NotEqual(unreadable, await File.ReadAllTextAsync(path));
+    }
+
+    [Fact]
+    public async Task A_file_locked_during_load_is_copied_aside_before_a_later_save_replaces_it()
+    {
+        string path = CreatePath();
+        var store = new ProtectedWorkspacePreferencesStore(path);
+        await store.SaveAsync(new WorkspacePreferences { WasConnected = true }, CancellationToken.None);
+        byte[] saved = await File.ReadAllBytesAsync(path);
+        PreferencesLoadResult loaded;
+        using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+            loaded = await store.LoadAsync(CancellationToken.None);
+        Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(path)!, "connection-profiles.json.unreadable-*"));
+
+        await store.SaveAsync(loaded.Preferences, CancellationToken.None);
+
+        string copy = Assert.Single(Directory.GetFiles(Path.GetDirectoryName(path)!, "connection-profiles.json.unreadable-*"));
+        Assert.Equal(saved, await File.ReadAllBytesAsync(copy));
+    }
+
+    [Fact]
     public async Task Canceled_save_leaves_the_previous_valid_file_unchanged()
     {
         string path = CreatePath();
