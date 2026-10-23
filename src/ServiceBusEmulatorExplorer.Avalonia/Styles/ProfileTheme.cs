@@ -14,5 +14,8 @@ public static class ProfileTheme
         PaletteColor selected = Color.TryParse(hex, out Color color) ? new(color.R, color.G, color.B) : ProfilePalette.DefaultPrimary;
         foreach (var (key, palette) in ProfilePalette.For(selected))
             window.Resources[key] = new ImmutableSolidColorBrush(Color.FromRgb(palette.R, palette.G, palette.B));
+        // Unhinted, greyscale-antialiased text, so glyphs do not depend on each OS's hinting and subpixel settings.
+        TextOptions.SetTextHintingMode(window, TextHintingMode.None);
+        TextOptions.SetTextRenderingMode(window, TextRenderingMode.Antialias);
     }
 }
