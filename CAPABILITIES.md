@@ -102,6 +102,7 @@ Startup presentation example: `src/ServiceBusEmulatorExplorer.App/Investigation/
 | Fast test loop excluding gated categories | shared | `AGENTS.md` (Fast Development Loop); `tests/README.md` |
 | Docker-gated integration tests against the local emulator | adapt | `tests/ServiceBusEmulatorExplorer.Integration.Tests/`; `compose.yaml` |
 | FlaUI UI smoke tests using UI Automation patterns, not physical input | adapt | `tests/ServiceBusEmulatorExplorer.UiSmoke.Tests/`; runner `scripts/Invoke-UiSmoke.ps1` |
+| Checking the text a control shows when its accessible name carries a longer detail: read the Text pattern, then require the name to announce the same value | adapt | `tests/ServiceBusEmulatorExplorer.UiSmoke.Tests/DailyWindowAuditTests.cs` (`Fixture.RequireCountShown`) |
 | Headless screenshot of the real window with synthetic services | shared | `tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/Program.cs`; `WpfScreenshot.cs` |
 | Behaviour contracts that drive controls through UI Automation Invoke and Toggle, so they hold when Click handlers become view-model commands | shared | `tests/ServiceBusEmulatorExplorer.App.Tests/AutomationPress.cs` (`AutomationPress.Press`); contracts in `InvestigationWindowContractTests.cs` and `SettingsPersistenceContractTests.cs` |
 | Exact-pixel visual baselines checked from the existing render tests (DEC-050), with a frozen clock and repeatable replay IDs | shared | `tests/ServiceBusEmulatorExplorer.App.Tests/VisualBaselines/VisualBaseline.cs` (`VisualBaseline.AssertMatches`); `BaselineClock.cs` |

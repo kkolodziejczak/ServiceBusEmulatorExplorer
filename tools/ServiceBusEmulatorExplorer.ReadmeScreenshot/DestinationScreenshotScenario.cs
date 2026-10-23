@@ -385,6 +385,9 @@ internal static class DestinationScreenshotScenario
         {
             RequireInside(Get<Border>(view, "PrepareDestinationWarning"), window, "Prepare destination warning");
             RequireInside(Get<Button>(view, "PrepareDestinationAction"), window, "Prepare destination action");
+            double warningBottom = Bounds(Get<Border>(view, "PrepareDestinationWarning"), window).Bottom;
+            Require(new[] { "BackToComposeButton", "ReviewButton" }.All(footer => Bounds(Get<Button>(view, footer), window).Top >= warningBottom),
+                "Prepare destination warning must sit above the footer actions, not under them.");
         }
         RequireReachable(Get<FrameworkElement>(view, "PreviewSurface"), Get<ScrollViewer>(view, "PrepareBodyScroll"), "Message preview");
         RequireInside(Get<Button>(view, "ReviewButton"), window, "Prepare footer Review action");
@@ -393,27 +396,36 @@ internal static class DestinationScreenshotScenario
     }
 
     /// <summary>
-    /// Requires the element wholly inside the scroll viewport once scrolled into view: narrow layouts stack it below
-    /// the inputs. The scroll position is restored so later captures are unchanged.
+    /// Requires the element, once scrolled into view, to fill as much of the scroll viewport as it can: wholly inside
+    /// when it fits, otherwise the whole viewport height. Narrow layouts stack it below the inputs. The scroll position
+    /// is restored so later captures are unchanged.
     /// </summary>
     private static void RequireReachable(FrameworkElement element, ScrollViewer scroll, string name)
     {
         double offset = scroll.VerticalOffset;
         element.BringIntoView();
         scroll.UpdateLayout();
-        RequireInside(element, scroll, name);
+        Rect bounds = Bounds(element, scroll);
+        double shown = Math.Min(bounds.Bottom, scroll.ViewportHeight) - Math.Max(bounds.Top, 0);
+        Require(element.IsVisible && bounds.Left >= 0 && bounds.Right <= scroll.ViewportWidth + Flush
+                && shown >= Math.Min(bounds.Height, scroll.ViewportHeight) - Flush,
+            $"{name} must be reachable in its scroll viewport: {bounds}, viewport={scroll.ViewportWidth}x{scroll.ViewportHeight}.");
         scroll.ScrollToVerticalOffset(offset);
         scroll.UpdateLayout();
     }
 
+    // Layout rounding leaves flush edges a few billionths of a pixel apart.
+    private const double Flush = 0.001;
+
+    private static Rect Bounds(FrameworkElement element, FrameworkElement ancestor) =>
+        element.TransformToAncestor(ancestor).TransformBounds(new Rect(element.RenderSize));
+
     private static void RequireInside(FrameworkElement element, FrameworkElement ancestor, string name)
     {
-        Rect bounds = element.TransformToAncestor(ancestor).TransformBounds(new Rect(element.RenderSize));
-        // Layout rounding leaves flush edges a few billionths of a pixel apart.
-        const double flush = 0.001;
+        Rect bounds = Bounds(element, ancestor);
         Require(element.IsVisible && element.ActualWidth > 0 && element.ActualHeight > 0
-            && bounds.Left >= -flush && bounds.Top >= -flush
-            && bounds.Right <= ancestor.ActualWidth + flush && bounds.Bottom <= ancestor.ActualHeight + flush,
+            && bounds.Left >= -Flush && bounds.Top >= -Flush
+            && bounds.Right <= ancestor.ActualWidth + Flush && bounds.Bottom <= ancestor.ActualHeight + Flush,
             $"{name} must remain visible and in bounds: {bounds}, ancestor={ancestor.ActualWidth}x{ancestor.ActualHeight}.");
     }
 

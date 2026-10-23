@@ -248,9 +248,10 @@ public sealed class DailyWindowAuditTests
                 var node = label;
                 while (node is not null && node.ControlType != ControlType.TreeItem) node = node.Parent;
                 Assert.NotNull(node);
-                Assert.Equal(bucket == "active" ? "1*" : "0*", CountShown(node, "Messages"));
-                Assert.Equal("—", CountShown(node, "Scheduled"));
-                Assert.Equal(bucket == "active" ? "—" : "1*", CountShown(node, "DLQ"));
+                // Opening the queue counts both buckets; the empty one settles at zero.
+                RequireCountShown(node, "Messages", bucket == "active" ? "1*" : "0*");
+                RequireCountShown(node, "Scheduled", "—");
+                RequireCountShown(node, "DLQ", bucket == "active" ? "0*" : "1*");
                 Assert.False(Element("MessageCountSummary").IsOffscreen);
                 Assert.False(Element("RefreshButton").IsOffscreen);
                 if (Environment.GetEnvironmentVariable("SBE_CAPTURE_DAILY_FIX_UI") == "true")
@@ -263,13 +264,14 @@ public sealed class DailyWindowAuditTests
             }
         }
 
-        // The text a tree count shows; its accessible name must announce the same value first, then its detail.
-        private static string CountShown(AutomationElement node, string label)
+        // Waits for a tree count to show the expected text. Below 1,000 its accessible name announces that same value
+        // first, then its detail.
+        private void RequireCountShown(AutomationElement node, string label, string expected)
         {
-            var count = node.FindAllDescendants().Single(element => element.Name.StartsWith(label + ": ", StringComparison.Ordinal));
-            string shown = count.Patterns.Text.Pattern.DocumentRange.GetText(-1);
-            Assert.StartsWith($"{label}: {shown}\n", count.Name, StringComparison.Ordinal);
-            return shown;
+            AutomationElement? count = null;
+            Wait(() => (count = node.FindAllDescendants().Single(element => element.Name.StartsWith(label + ": ", StringComparison.Ordinal)))
+                .Patterns.Text.Pattern.DocumentRange.GetText(-1) == expected);
+            Assert.StartsWith($"{label}: {expected}\n", count!.Name, StringComparison.Ordinal);
         }
 
         public void Wait(Func<bool> condition)
