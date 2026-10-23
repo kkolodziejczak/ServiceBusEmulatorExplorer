@@ -248,9 +248,10 @@ public sealed class DailyWindowAuditTests
                 var node = label;
                 while (node is not null && node.ControlType != ControlType.TreeItem) node = node.Parent;
                 Assert.NotNull(node);
-                Assert.Single(node.FindAllDescendants(cf => cf.ByText("1*")));
-                Assert.Equal(bucket == "active" ? 2 : 1, node.FindAllDescendants(cf => cf.ByText("—")).Length);
-                if (bucket == "dlq") Assert.Single(node.FindAllDescendants(cf => cf.ByText("0*")));
+                // Opening the queue counts both buckets; the empty one settles at zero.
+                RequireCountShown(node, "Messages", bucket == "active" ? "1*" : "0*");
+                RequireCountShown(node, "Scheduled", "—");
+                RequireCountShown(node, "DLQ", bucket == "active" ? "0*" : "1*");
                 Assert.False(Element("MessageCountSummary").IsOffscreen);
                 Assert.False(Element("RefreshButton").IsOffscreen);
                 if (Environment.GetEnvironmentVariable("SBE_CAPTURE_DAILY_FIX_UI") == "true")
@@ -262,6 +263,13 @@ public sealed class DailyWindowAuditTests
                 }
             }
         }
+
+        // Waits for a tree count to announce the expected value. WPF exposes no Text pattern on these labels, so the
+        // count is read from its accessible name, "<label>: <value>" then its detail; NamespaceTreeRefreshTests pins
+        // the shown text to that same value.
+        private void RequireCountShown(AutomationElement node, string label, string expected) =>
+            Wait(() => node.FindAllDescendants().Select(element => element.Name.Split('\n')[0])
+                .Single(name => name.StartsWith(label + ": ", StringComparison.Ordinal)) == $"{label}: {expected}");
 
         public void Wait(Func<bool> condition)
         {

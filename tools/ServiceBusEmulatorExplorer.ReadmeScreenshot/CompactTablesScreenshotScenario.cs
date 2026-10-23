@@ -294,8 +294,9 @@ internal static class CompactTablesScreenshotScenario
         var schedule = Elements(review).OfType<RadioButton>().Single(button =>
             AutomationProperties.GetAutomationId(button) == "PrototypeScheduleLater");
         schedule.IsChecked = true;
-        ((DatePicker)review.FindName("ScheduleDateInput")!).SelectedDate = DateTime.Today.AddDays(2);
-        ((TextBox)review.FindName("ScheduleTimeInput")!).Text = "23:59";
+        ((DatePicker)review.FindName("ScheduleDateInput")!).SelectedDate = WorkbenchDeterminism.Today.AddDays(2);
+        ((ComboBox)review.FindName("ScheduleHourInput")!).SelectedItem = "23";
+        ((ComboBox)review.FindName("ScheduleMinuteInput")!).SelectedItem = "59";
         var scheduleNow = (Button)review.FindName("ConfirmDispatch")!;
         Require(scheduleNow.IsEnabled, "The valid future schedule must enable its action.");
         scheduleNow.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, scheduleNow));

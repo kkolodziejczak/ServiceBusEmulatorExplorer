@@ -74,8 +74,7 @@ internal static class WorkbenchTreeScreenshotScenario
                 Require(Item(view, "Refund approved") is not null, "Inline rename must update the tree.");
                 Select(view, "Returns");
                 Capture(window, outputDirectory, "properties", width, height);
-                var propertyScroll = Elements(view).OfType<ScrollViewer>()
-                    .Single(scroll => scroll.Content is StackPanel panel && panel.Children.OfType<Grid>().Any(grid => grid.Children.Contains(destination)));
+                var propertyScroll = (ScrollViewer)view.FindName("PropertiesEditorSurface")!;
                 propertyScroll.ScrollToBottom();
                 Capture(window, outputDirectory, "properties-bottom", width, height);
                 propertyScroll.ScrollToTop();

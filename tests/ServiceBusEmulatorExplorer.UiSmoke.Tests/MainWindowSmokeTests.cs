@@ -141,7 +141,9 @@ public sealed class MainWindowSmokeTests
             CapturePrototypeState(window, "workbench-wide");
 
             InvokeButton(window, "LibraryContinueToPrepare", TimeSpan.FromSeconds(5));
-            Assert.False(WaitForAutomationId(window, "LibraryValidationDetails", TimeSpan.FromSeconds(5)).IsEnabled);
+            // A valid CSV hides the View errors action.
+            Assert.NotNull(WaitForText(window, "3 of 3 rows valid", TimeSpan.FromSeconds(5)));
+            Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("LibraryValidationDetails")));
 
             InvokeButton(window, "LibraryMapColumns", TimeSpan.FromSeconds(5));
             Window mapping = WaitForWindowWithAutomationId(application, automation,
