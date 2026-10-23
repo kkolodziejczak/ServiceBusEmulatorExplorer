@@ -9,7 +9,7 @@ namespace ServiceBusEmulatorExplorer.Avalonia.Tests;
 
 /// <summary>
 /// The spike's question (DEC-058): does the Delete dialog render the same pixels on Windows, Linux and macOS, and how
-/// close is it to the WPF baseline of the same state? The same assertions as the WPF dialog test pin its behaviour.
+/// close is it to the WPF baseline of the same state? DeleteMessagesDialogBehaviourTests covers its behaviour.
 /// </summary>
 public sealed class DeleteMessagesDialogRenderTests
 {

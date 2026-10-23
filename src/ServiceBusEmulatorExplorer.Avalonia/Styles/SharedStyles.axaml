@@ -12,6 +12,11 @@
     <SolidColorBrush x:Key="CanvasBrush" Color="#FAFCFF" />
     <SolidColorBrush x:Key="RaisedBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="ControlBorderBrush" Color="#CBD8E8" />
+    <SolidColorBrush x:Key="NeutralHoverBrush" Color="#EAF4FF" />
+    <SolidColorBrush x:Key="SelectionBrush" Color="#DBEDFF" />
+    <SolidColorBrush x:Key="DisabledBackgroundBrush" Color="#F1F4F8" />
+    <SolidColorBrush x:Key="DisabledBorderBrush" Color="#DCE3EC" />
+    <SolidColorBrush x:Key="DisabledTextBrush" Color="#738196" />
   </Styles.Resources>
 
   <Style Selector="TextBlock">
@@ -32,9 +37,23 @@
     <Setter Property="HorizontalContentAlignment" Value="Center" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
-  <!-- WPF shows a disabled button through its colours only; the Simple theme would also fade it. -->
+  <!-- WPF's button states. The Simple theme styles its presenter for these states, so they are set there too;
+       WPF shows a disabled button through its colours only, where the Simple theme would also fade it. -->
+  <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource NeutralHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{Binding $parent[Button].BorderBrush}" />
+  </Style>
+  <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SelectionBrush}" />
+    <Setter Property="BorderBrush" Value="{Binding $parent[Button].BorderBrush}" />
+  </Style>
   <Style Selector="Button:disabled">
     <Setter Property="Opacity" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" />
+  </Style>
+  <Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource DisabledBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource DisabledBorderBrush}" />
   </Style>
 
   <!-- WPF's stock TextBox: white, black text, square 1 px border. -->

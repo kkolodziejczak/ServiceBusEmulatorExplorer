@@ -15,10 +15,18 @@
       <Setter Property="Foreground" Value="White" />
       <Setter Property="BorderBrush" Value="#D11A2A" />
     </Style>
+    <Style Selector="Button.delete:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#B31222" />
+    </Style>
+    <Style Selector="Button.delete:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#940D1B" />
+    </Style>
     <Style Selector="Button.delete:disabled">
+      <Setter Property="Foreground" Value="#627692" />
+    </Style>
+    <Style Selector="Button.delete:disabled /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="Background" Value="#E1E8F1" />
       <Setter Property="BorderBrush" Value="#D2DCE9" />
-      <Setter Property="Foreground" Value="#627692" />
     </Style>
   </Window.Styles>
   <Border Background="{DynamicResource CanvasBrush}" Padding="24">
