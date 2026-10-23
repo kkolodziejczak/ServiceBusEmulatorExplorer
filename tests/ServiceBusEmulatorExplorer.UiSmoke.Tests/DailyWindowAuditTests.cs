@@ -263,10 +263,14 @@ public sealed class DailyWindowAuditTests
             }
         }
 
-        // A tree count's accessible name opens with "<label>: <shown value>", followed by its detail.
-        private static string CountShown(AutomationElement node, string label) =>
-            node.FindAllDescendants().Select(element => element.Name.Split('\n')[0])
-                .Single(name => name.StartsWith(label + ": ", StringComparison.Ordinal))[(label.Length + 2)..];
+        // The text a tree count shows; its accessible name must announce the same value first, then its detail.
+        private static string CountShown(AutomationElement node, string label)
+        {
+            var count = node.FindAllDescendants().Single(element => element.Name.StartsWith(label + ": ", StringComparison.Ordinal));
+            string shown = count.Patterns.Text.Pattern.DocumentRange.GetText(-1);
+            Assert.StartsWith($"{label}: {shown}\n", count.Name, StringComparison.Ordinal);
+            return shown;
+        }
 
         public void Wait(Func<bool> condition)
         {

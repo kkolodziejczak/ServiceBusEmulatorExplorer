@@ -386,31 +386,34 @@ internal static class DestinationScreenshotScenario
             RequireInside(Get<Border>(view, "PrepareDestinationWarning"), window, "Prepare destination warning");
             RequireInside(Get<Button>(view, "PrepareDestinationAction"), window, "Prepare destination action");
         }
-        RequireReachable(Get<FrameworkElement>(view, "PreviewSurface"), Get<ScrollViewer>(view, "PrepareBodyScroll"), window, "Message preview");
+        RequireReachable(Get<FrameworkElement>(view, "PreviewSurface"), Get<ScrollViewer>(view, "PrepareBodyScroll"), "Message preview");
         RequireInside(Get<Button>(view, "ReviewButton"), window, "Prepare footer Review action");
         Require(Get<TextBlock>(view, "PrepareDestinationWarningText").TextWrapping == TextWrapping.Wrap,
             "Prepare warning text must wrap at compact widths.");
     }
 
     /// <summary>
-    /// Requires the element in bounds once scrolled into view: narrow layouts stack it below the inputs. The scroll
-    /// position is restored so later captures are unchanged.
+    /// Requires the element wholly inside the scroll viewport once scrolled into view: narrow layouts stack it below
+    /// the inputs. The scroll position is restored so later captures are unchanged.
     /// </summary>
-    private static void RequireReachable(FrameworkElement element, ScrollViewer scroll, FrameworkElement ancestor, string name)
+    private static void RequireReachable(FrameworkElement element, ScrollViewer scroll, string name)
     {
         double offset = scroll.VerticalOffset;
         element.BringIntoView();
-        ancestor.UpdateLayout();
-        RequireInside(element, ancestor, name);
+        scroll.UpdateLayout();
+        RequireInside(element, scroll, name);
         scroll.ScrollToVerticalOffset(offset);
-        ancestor.UpdateLayout();
+        scroll.UpdateLayout();
     }
 
     private static void RequireInside(FrameworkElement element, FrameworkElement ancestor, string name)
     {
         Rect bounds = element.TransformToAncestor(ancestor).TransformBounds(new Rect(element.RenderSize));
+        // Layout rounding leaves flush edges a few billionths of a pixel apart.
+        const double flush = 0.001;
         Require(element.IsVisible && element.ActualWidth > 0 && element.ActualHeight > 0
-            && bounds.Left >= 0 && bounds.Top >= 0 && bounds.Right <= ancestor.ActualWidth && bounds.Bottom <= ancestor.ActualHeight,
+            && bounds.Left >= -flush && bounds.Top >= -flush
+            && bounds.Right <= ancestor.ActualWidth + flush && bounds.Bottom <= ancestor.ActualHeight + flush,
             $"{name} must remain visible and in bounds: {bounds}, ancestor={ancestor.ActualWidth}x{ancestor.ActualHeight}.");
     }
 
