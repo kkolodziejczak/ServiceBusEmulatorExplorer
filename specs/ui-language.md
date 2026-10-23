@@ -54,6 +54,7 @@ the existing pale-orange/dark-orange DLQ palette.
 | [Updates 56 v1](message-library/design/proposed/updates-56-v1-fresh-view-explicit-waits.png) | Fresh view, explicit waits (gpt-6-astra): Updates menu, keep this view fresh, Wait for a message form. |
 | [Updates 57 v1](message-library/design/proposed/updates-57-v1-live-arrivals-feed.png) | Live mode + Arrivals feed (claude-opus-5-5): namespace-wide arrivals list with "Landed in" and notify on match. |
 | [Updates 58 v1](message-library/design/proposed/updates-58-v1-combined-live-and-waits.png) | Combined: Live pill with a panel listing everything kept up to date, per-view freshness line, Alert per place, search that keeps searching. Awaiting choice among 54–58. |
+| [Results 71 v1](message-library/design/proposed/results-71-v1-footer-wrap.png) | At the 980×640 minimum, the Run results actions after a scheduled send clip "Export results"; they wrap onto a second right-aligned line with View destination last. The board redraws the panels; judge only the action row. |
 
 Existing filenames remain stable for retained references. Superseded draft boards, rejected
 alternatives and completed execution ledgers are not part of the current specification.
