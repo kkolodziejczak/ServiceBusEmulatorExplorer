@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Cross-platform spike (DEC-049, DEC-058): the Delete messages dialog on Avalonia, rendered identically on every OS. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Themes.Simple" Version="12.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The same bundled typefaces as the WPF app (DEC-051). -->
+    <AvaloniaResource Include="..\ServiceBusEmulatorExplorer.App\Assets\Fonts\*.ttf" Link="Assets\Fonts\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ServiceBusEmulatorExplorer.Presentation\ServiceBusEmulatorExplorer.Presentation.csproj" />
+  </ItemGroup>
+
+</Project>

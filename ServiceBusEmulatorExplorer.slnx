@@ -1,11 +1,13 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/ServiceBusEmulatorExplorer.App/ServiceBusEmulatorExplorer.App.csproj" />
+    <Project Path="src/ServiceBusEmulatorExplorer.Avalonia/ServiceBusEmulatorExplorer.Avalonia.csproj" />
     <Project Path="src/ServiceBusEmulatorExplorer.Core/ServiceBusEmulatorExplorer.Core.csproj" />
     <Project Path="src/ServiceBusEmulatorExplorer.Presentation/ServiceBusEmulatorExplorer.Presentation.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ServiceBusEmulatorExplorer.App.Tests/ServiceBusEmulatorExplorer.App.Tests.csproj" />
+    <Project Path="tests/ServiceBusEmulatorExplorer.Avalonia.Tests/ServiceBusEmulatorExplorer.Avalonia.Tests.csproj" />
     <Project Path="tests/ServiceBusEmulatorExplorer.Core.Tests/ServiceBusEmulatorExplorer.Core.Tests.csproj" />
     <Project Path="tests/ServiceBusEmulatorExplorer.Integration.Tests/ServiceBusEmulatorExplorer.Integration.Tests.csproj" />
     <Project Path="tests/ServiceBusEmulatorExplorer.Presentation.Tests/ServiceBusEmulatorExplorer.Presentation.Tests.csproj" />

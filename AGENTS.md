@@ -44,6 +44,7 @@ before designing anything; update them in the same change as the code.
 - App: WPF desktop app in `src/ServiceBusEmulatorExplorer.App`.
 - Domain/SDK layer: `src/ServiceBusEmulatorExplorer.Core`.
 - View models: `src/ServiceBusEmulatorExplorer.Presentation`, plain `net10.0` without WPF (DEC-053).
+- Avalonia spike: `src/ServiceBusEmulatorExplorer.Avalonia` with headless exact-pixel tests in `tests/ServiceBusEmulatorExplorer.Avalonia.Tests` (DEC-058). It ports the Delete messages dialog only; the WPF app stays the product.
 - Test layers:
   - fast unit/view-model tests in `tests/ServiceBusEmulatorExplorer.Core.Tests`, `tests/ServiceBusEmulatorExplorer.Presentation.Tests` and `tests/ServiceBusEmulatorExplorer.App.Tests`;
   - Docker-backed Service Bus emulator tests in `tests/ServiceBusEmulatorExplorer.Integration.Tests`;
