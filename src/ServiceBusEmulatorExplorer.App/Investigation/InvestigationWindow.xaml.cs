@@ -209,6 +209,13 @@ public partial class InvestigationWindow : Window, IMessageActionsHost, IWatchNo
     private void InvestigationWorkspace_Checked(object sender, RoutedEventArgs e) => SelectWorkspaceTab(false);
     private void MessageLibrary_Checked(object sender, RoutedEventArgs e) => SelectWorkspaceTab(true);
 
+    /// <summary>Removes the workspace tabs and Create template, the only two ways into the Workbench.</summary>
+    public void HideMessageWorkbench()
+    {
+        WorkspaceTabs.Visibility = Visibility.Collapsed;
+        SaveInspectedTemplateButton.Visibility = Visibility.Collapsed;
+    }
+
     internal void OpenMessageWorkbenchPrototype()
     {
         sampleWorkbenchDestinations = true;

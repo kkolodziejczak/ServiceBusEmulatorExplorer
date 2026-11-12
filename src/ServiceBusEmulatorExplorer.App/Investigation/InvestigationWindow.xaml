@@ -52,7 +52,7 @@
   <Grid.RowDefinitions><RowDefinition Height="40"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
   <Border Background="{DynamicResource ChromeBrush}" x:Name="ToolbarSeparator" BorderBrush="{DynamicResource ToolbarDividerBrush}" BorderThickness="0,0,0,1">
    <DockPanel Margin="15,0" LastChildFill="False">
-    <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
+    <StackPanel x:Name="WorkspaceTabs" DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
      <TextBlock Text="Workspaces" Foreground="{DynamicResource SecondaryBrush}" VerticalAlignment="Center" Margin="0,0,18,0" AutomationProperties.Name="Workspaces"/>
      <ToggleButton x:Name="InvestigationWorkspaceTab" Content="Investigation" Style="{StaticResource TabToggle}" Padding="11,5" Height="38" IsChecked="True" Checked="InvestigationWorkspace_Checked" AutomationProperties.AutomationId="InvestigationWorkspaceTab"/>
      <ToggleButton x:Name="MessageLibraryTab" Content="Message Workbench" Style="{StaticResource TabToggle}" Padding="11,5" Height="38" IsChecked="False" Checked="MessageLibrary_Checked" AutomationProperties.AutomationId="MessageLibraryTab"/>

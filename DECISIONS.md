@@ -74,6 +74,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-055 | accepted | Settings | Profiles save explicitly; unsaved edits are marked and asked about on close |
 | DEC-056 | accepted | Architecture | The inspector's text is editor-neutral; tests reach AvalonEdit through the bridge |
 | DEC-057 | accepted | Architecture | The Message Workbench migrates to view models now, behind new pixel baselines |
+| DEC-058 | accepted | Release | Releases hide the Message Workbench until it is finished |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -474,3 +475,10 @@ DLQ palette clarification: the user explicitly disallowed changing DLQ tag color
 - Decision: the Workbench moves onto WPF-free view models in Presentation like the rest of the app (DEC-053). Before its code changes, its screens get exact-pixel baselines (DEC-050) so each extraction step proves it looks the same.
 - Because: the user considers the Workbench mature enough after the time spent making it as good as possible, its components are separate from the investigation's, and the user will go through the whole application after the migration anyway.
 - Consequences: Workbench screens join the pixel baselines and characterization tests. A later Workbench design change goes through a mockup approval and updates its baselines explicitly, like every other screen.
+
+## DEC-058 - Releases hide the Message Workbench until it is finished
+
+- Status: accepted, 2026-11-12; the user asked for a release they can use and approved Release 72 v1, hidden by default with a switch, for v0.3.0.
+- Decision: the app hides the workspace tabs and the inspector's Create template button, the only two ways into the Workbench, unless it is started with `--message-workbench-prototype`. `App.OnStartup` is the one place that decides; the window itself still shows the Workbench by default.
+- Because: the user wants a new release to use now, and the Workbench is not ready for it ("we might hide the Message Workbench for now in the release").
+- Consequences: Workbench code, tests, pixel baselines and UI smoke tests are unchanged, because they build the window directly or pass the switch. The README screenshot hides the Workbench too, so it shows what a release shows. Remove the hiding, and this entry's effect, when the Workbench is approved for release.
