@@ -37,6 +37,9 @@ public sealed class MainWindowSmokeTests
             Assert.NotNull(WaitForAutomationId(window, "SearchBox", TimeSpan.FromSeconds(10)));
             Assert.NotNull(WaitForAutomationId(window, "RefreshButton", TimeSpan.FromSeconds(10)));
             Assert.NotNull(WaitForAutomationId(window, "SettingsButton", TimeSpan.FromSeconds(10)));
+            // The unfinished Workbench needs --message-workbench-prototype (Release 72).
+            Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("MessageLibraryTab")));
+            Assert.Null(window.FindFirstDescendant(cf => cf.ByAutomationId("InvestigationWorkspaceTab")));
 
             InvokeButton(window, "SettingsButton", TimeSpan.FromSeconds(5));
             Window settings = WaitForWindowWithAutomationId(

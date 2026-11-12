@@ -24,8 +24,11 @@ public partial class App : Application
         ShutdownMode = ShutdownMode.OnMainWindowClose;
         window.InitializeSystemTray();
         window.Show();
+        // The Workbench is unfinished, so a release shows it only when asked (Release 72).
         if (e.Args.Contains(MessageWorkbenchPrototypeOption, StringComparer.OrdinalIgnoreCase))
             window.OpenMessageWorkbenchPrototype();
+        else
+            window.HideMessageWorkbench();
     }
 
     private static ServiceProvider CreateServices(string[] args)

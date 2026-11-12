@@ -152,6 +152,8 @@ internal static class Program
                     Top = 0
                 };
 
+                // The README shows what a release shows: the Workbench stays hidden (Release 72).
+                if (args.Length == 1) window.HideMessageWorkbench();
                 WorkbenchDeterminism.Apply((MessageLibraryPrototypeView)window.FindName("MessageLibraryPrototype")!);
                 var contentRendered = new TaskCompletionSource<bool>(
                     TaskCreationOptions.RunContinuationsAsynchronously);

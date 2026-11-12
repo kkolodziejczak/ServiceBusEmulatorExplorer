@@ -37,6 +37,40 @@ public sealed class InvestigationStartupRenderTests
         if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
+    [Fact]
+    [Trait("TestCategory", "UiRender")]
+    public void Hiding_the_message_workbench_removes_both_ways_into_it()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                Dispatcher dispatcher = Dispatcher.CurrentDispatcher;
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(dispatcher));
+                var workflow = new BrokerConnectionWorkflow(() => new DelayedFactory(), _ => new EmptyBrowser(), _ => new EmptyMessages());
+                var workspace = new InvestigationWorkspace(new DelayedStore(), workflow, timeProvider: BaselineClock.Instance);
+                var window = new InvestigationWindow(workspace);
+                var workspaceTabs = (FrameworkElement)window.FindName("WorkspaceTabs")!;
+                var createTemplate = (FrameworkElement)window.FindName("SaveInspectedTemplateButton")!;
+                Assert.Equal(Visibility.Visible, workspaceTabs.Visibility);
+                Assert.Equal(Visibility.Visible, createTemplate.Visibility);
+
+                window.HideMessageWorkbench();
+
+                Assert.Equal(Visibility.Collapsed, workspaceTabs.Visibility);
+                Assert.Equal(Visibility.Collapsed, createTemplate.Visibility);
+                window.Close();
+                Complete(dispatcher, workspace.DisposeAsync().AsTask());
+            }
+            catch (Exception exception) { failure = exception; }
+        }) { IsBackground = true };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        Assert.True(thread.Join(TimeSpan.FromSeconds(35)), "The hidden Workbench proof exceeded its 35-second bound.");
+        if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
     private static void RenderStartupStates(int width, int height)
     {
         Dispatcher dispatcher = Dispatcher.CurrentDispatcher;
