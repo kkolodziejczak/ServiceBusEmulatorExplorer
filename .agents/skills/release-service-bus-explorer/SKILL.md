@@ -15,6 +15,7 @@ Publish one immutable `vMAJOR.MINOR.PATCH` release from the current repository. 
    - `.github/workflows/release.yml`
    - `.github/workflows/update-readme-screenshot.yml`
    - `scripts/Push-ReleaseTag.ps1`
+   - `scripts/Sync-ReleaseScreenshot.ps1`, `scripts/Approve-ReleaseSigning.ps1` and the module they share, `scripts/ReleaseConsole.psm1`
    - every publish, artifact-validation, or smoke-test script invoked by `release.yml`
 3. Confirm that the inspected files still implement this contract:
    - a `v*` tag triggers the release workflow;
@@ -54,7 +55,7 @@ If release changes are uncommitted:
 
 If the working tree is clean and `HEAD` already contains the intended payload, use that commit; do not create an empty version-bump commit. This repository injects the assembly/file version from the release tag during `Publish-Release.ps1`, so no project-file version edit is required unless the inspected repository contract explicitly introduces one.
 
-Leave the release commit on the checked-out branch with its `origin/<branch>` upstream configured, and verify that the working tree is clean. The tag helper owns the ordered branch push and tag push in step 5. This gate is complete only when the intended release SHA is known and ready to push.
+`master` is protected and accepts changes only through pull requests with passing checks. Bring a new release commit to `origin/master` that way, then check out `master`, fast-forward it and verify that the working tree is clean and `origin/master...master` reports `0 0`. The README screenshot gate in step 5 needs this, and step 6's branch push then has nothing left to push. This gate is complete only when the intended release commit is on `origin/master`.
 
 ## 4. Choose the version
 
@@ -68,7 +69,17 @@ Verify the new tag is absent from:
 
 Keep existing releases unchanged. Publishing the new release as latest must not draft, delete, hide, or modify older releases.
 
-## 5. Push branch, then tag
+## 5. Bring the README screenshot up to date
+
+Run this on `master`, level with `origin/master` (step 3), before tagging (DEC-060), so the tag already contains the current UI:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Sync-ReleaseScreenshot.ps1 -Branch master
+```
+
+Give it a 45-minute timeout; the script bounds its whole run at 40 minutes. It runs the screenshot workflow for the branch's commit. When the image changed, it opens the pull request, waits for its checks, merges it and fast-forwards the local branch. Invoking this skill authorizes that merge. When it reports that the screenshot is already current, nothing changed. Either way, tag the commit the branch points to afterwards. If it fails, stop before tagging and report the run or pull request it names. If it reports an earlier screenshot pull request that is still open, finish or close that one first.
+
+## 6. Push branch, then tag
 
 Use `scripts/Push-ReleaseTag.ps1`; it is the single source of truth for ordered branch and tag publication. Run its dry run first:
 
@@ -86,7 +97,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command '& { & ".\scripts\Push-Re
 
 Verify the local and remote tag both resolve to the release commit. This gate is complete only when the tag is pushed once at the intended SHA.
 
-## 6. Watch the release gate
+## 7. Watch the release gate
 
 The `sign` job waits for the user: they approve the `code-signing` environment and type the SimplySign phone code (DEC-059). An agent must do neither. Right after the tag push, open the signing helper in a visible Windows PowerShell window on the user's desktop. Launch it outside the sandbox, otherwise the window stays invisible:
 
@@ -119,7 +130,7 @@ Require successful completion of every applicable job step, including:
 
 Inspect the draft with `gh release view <tag> --json ...`. Require `isDraft: true`, `isPrerelease: false`, exactly the expected two uploaded executable assets, non-zero sizes, and names containing the tag. This gate is complete only when the hosted run and the draft asset contract both pass.
 
-## 7. Publish last
+## 8. Publish last
 
 Publish only the validated draft as latest:
 
@@ -129,9 +140,9 @@ gh release edit v0.1.4 --draft=false --latest
 
 Verify the canonical `/releases/tag/<tag>` URL reports `isDraft: false`, `isPrerelease: false`, a publication timestamp, and the same two assets. This gate is complete only when the public release is readable as latest.
 
-## 8. Prove the README automation
+## 9. Check the README safety net
 
-Find the `update-readme-screenshot.yml` release run for the new tag and watch it to completion:
+Publishing runs the screenshot workflow again for the published tag. Find that run and watch it to completion:
 
 ```powershell
 gh run list --workflow update-readme-screenshot.yml --event release --branch v0.1.4 --limit 5 --json databaseId,status,conclusion,headBranch,url
@@ -143,11 +154,11 @@ Require both jobs to succeed:
 - capture and validate the UI from the published tag;
 - compare and commit the documentation image when visuals changed.
 
-A successful no-change result is valid when the generated released image matches the committed README screenshot. Fetch `origin` afterward. If the screenshot workflow created a commit and the local working tree is clean, fast-forward with `git pull --ff-only`. Verify `origin/<branch>...<branch>` reports `0 0`.
+Because step 5 already updated the screenshot, the expected result is no change. If the run still pushed a branch, open and merge that pull request and report it as a gap in step 5. Fetch `origin` afterward. If the screenshot workflow created a commit and the local working tree is clean, fast-forward with `git pull --ff-only`. Verify `origin/<branch>...<branch>` reports `0 0`.
 
 This gate is complete only when the released tag reproduced a valid screenshot and the local checkout is synchronized.
 
-## 9. Report evidence
+## 10. Report evidence
 
 Return:
 
