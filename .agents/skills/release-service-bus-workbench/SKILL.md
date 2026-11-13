@@ -4,7 +4,7 @@ description: Release ServiceBusWorkbench through its verified tag, GitHub Action
 disable-model-invocation: true
 ---
 
-# Release Service Bus Explorer
+# Release Service Bus Workbench
 
 Publish one immutable `vMAJOR.MINOR.PATCH` release from the current repository. Treat the release as a sequence of gates: **branch first, tag second, publish last**. Invocation authorizes the normal release writes, including the release commit, branch push, tag push, and publication; it does not authorize rewriting history or moving an existing tag.
 

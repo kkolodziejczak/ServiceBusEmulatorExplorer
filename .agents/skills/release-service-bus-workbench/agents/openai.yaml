@@ -1,5 +1,5 @@
 interface:
-  display_name: "Release Service Bus Explorer"
+  display_name: "Release Service Bus Workbench"
   short_description: "Release the app through verified GitHub gates"
   default_prompt: "Use $release-service-bus-workbench to publish the current app as the next patch release."
 policy:

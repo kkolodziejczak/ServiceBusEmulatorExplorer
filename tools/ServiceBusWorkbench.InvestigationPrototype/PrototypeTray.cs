@@ -13,7 +13,7 @@ internal sealed class PrototypeTray : IDisposable
     {
         image = new System.Drawing.Icon(Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico"));
         menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("Open Service Bus Explorer", null, (_, _) => show());
+        menu.Items.Add("Open Service Bus Workbench", null, (_, _) => show());
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Exit", null, (_, _) => exit());
         icon = new Forms.NotifyIcon { Icon = image, Text = "Service Bus Workbench", ContextMenuStrip = menu, Visible = true };

@@ -298,11 +298,26 @@ public sealed class InvestigationPreferencesTests
     }
 
     [Fact]
-    public async Task Current_folder_wins_over_a_folder_left_from_the_former_product_name()
+    public async Task Preferences_saved_under_the_former_product_name_move_into_a_current_folder_without_preferences()
+    {
+        string localApplicationData = CreateLocalApplicationData();
+        await SaveDisconnectedAsync(Path.Combine(localApplicationData, "ServiceBusEmulatorExplorer"));
+        Directory.CreateDirectory(Path.Combine(localApplicationData, "ServiceBusWorkbench"));
+
+        var store = ProtectedWorkspacePreferencesStore.CreateDefault(localApplicationData);
+
+        Assert.False((await store.LoadAsync(CancellationToken.None)).Preferences.WasConnected);
+        Assert.True(File.Exists(Path.Combine(localApplicationData, "ServiceBusWorkbench", "connection-profiles.json")));
+    }
+
+    [Fact]
+    public async Task Current_preferences_win_over_preferences_left_under_the_former_product_name()
     {
         string localApplicationData = CreateLocalApplicationData();
         string formerFile = await SaveDisconnectedAsync(Path.Combine(localApplicationData, "ServiceBusEmulatorExplorer"));
-        Directory.CreateDirectory(Path.Combine(localApplicationData, "ServiceBusWorkbench"));
+        await new ProtectedWorkspacePreferencesStore(
+                Path.Combine(localApplicationData, "ServiceBusWorkbench", "connection-profiles.json"))
+            .SaveAsync(new WorkspacePreferences { WasConnected = true }, CancellationToken.None);
 
         var store = ProtectedWorkspacePreferencesStore.CreateDefault(localApplicationData);
 

@@ -42,7 +42,7 @@ public sealed class AzureRbacProofTests
         await messageService.SendMessageAsync(
             new SendMessageCommand(
                 new EntityAddress(EntityKind.Topic, topic.Name),
-                $"Service Bus Explorer Azure RBAC proof {proofId}",
+                $"Service Bus Workbench Azure RBAC proof {proofId}",
                 ContentType: "text/plain",
                 ApplicationProperties: new Dictionary<string, object?> { ["sbe-proof-id"] = proofId }),
             timeout.Token);

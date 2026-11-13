@@ -13,7 +13,7 @@ public sealed class WatchNotificationWindow : Window
 
     public WatchNotificationWindow(Action investigate, Action dismiss)
     {
-        Title = "Service Bus Explorer notification";
+        Title = "Service Bus Workbench notification";
         Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("SharedStyles.xaml", UriKind.Relative) });
         FontFamily = new FontFamily("Segoe UI"); FontSize = 14;
         SetResourceReference(ForegroundProperty, "InkBrush");

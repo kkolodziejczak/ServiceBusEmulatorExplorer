@@ -20,7 +20,7 @@ public sealed class WatchNotificationWindow : Window
     public WatchNotificationWindow(Action investigate, Action dismiss, Window? anchor = null)
     {
         this.anchor = anchor;
-        Title = "Service Bus Explorer notification";
+        Title = "Service Bus Workbench notification";
         Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("/ServiceBusWorkbench.App;component/Investigation/Resources/SharedStyles.xaml", UriKind.RelativeOrAbsolute) });
         FontFamily = AppFonts.Ui; FontSize = 14;
         SetResourceReference(ForegroundProperty, "InkBrush");

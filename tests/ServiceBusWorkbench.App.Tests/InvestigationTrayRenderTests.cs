@@ -237,7 +237,7 @@ public sealed class InvestigationTrayRenderTests
             try
             {
                 Assert.True(Property<bool>(icon, "Visible"));
-                ClickMenu(menu, "Open Service Bus Explorer");
+                ClickMenu(menu, "Open Service Bus Workbench");
                 ClickMenu(menu, "Exit");
                 Assert.Equal((1, 1), (opens, exits));
             }

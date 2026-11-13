@@ -18,6 +18,7 @@ namespace ServiceBusWorkbench.App.Investigation.Settings;
 public sealed partial class ProtectedWorkspacePreferencesStore : IWorkspacePreferencesStore
 {
     private const int CurrentVersion = 1;
+    private const string FileName = "connection-profiles.json";
     private const int DefaultPageSize = 50;
     private const int DefaultSearchTimeBudgetSeconds = 30;
     private const int DefaultSearchDeliveryBudget = 10_000;
@@ -46,20 +47,33 @@ public sealed partial class ProtectedWorkspacePreferencesStore : IWorkspacePrefe
 
     /// <summary>
     /// The product was called Service Bus Emulator Explorer before; preferences saved under that name move to the
-    /// current folder on first start. While the move fails, for example because the former version is still
-    /// running, the former folder stays in use and the next start tries again.
+    /// current folder on first start. While the move fails, for example because the former version is saving at
+    /// that moment, the former file stays in use and the next start tries again.
     /// </summary>
     public static ProtectedWorkspacePreferencesStore CreateDefault(string localApplicationData)
     {
-        string directory = Path.Combine(localApplicationData, "ServiceBusWorkbench");
-        string formerDirectory = Path.Combine(localApplicationData, "ServiceBusEmulatorExplorer");
-        if (!Directory.Exists(directory) && Directory.Exists(formerDirectory))
+        string filePath = Path.Combine(localApplicationData, "ServiceBusWorkbench", FileName);
+        string formerFilePath = Path.Combine(localApplicationData, "ServiceBusEmulatorExplorer", FileName);
+        if (!File.Exists(filePath) && File.Exists(formerFilePath))
         {
-            try { Directory.Move(formerDirectory, directory); }
-            catch (Exception exception) when (IsStorageFailure(exception)) { directory = formerDirectory; }
+            MoveIfPossible(formerFilePath, filePath);
+            // Checked again instead of trusting the move: another instance may have moved the file first.
+            if (!File.Exists(filePath)) filePath = formerFilePath;
         }
 
-        return new ProtectedWorkspacePreferencesStore(Path.Combine(directory, "connection-profiles.json"));
+        return new ProtectedWorkspacePreferencesStore(filePath);
+    }
+
+    private static void MoveIfPossible(string formerFilePath, string filePath)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+            File.Move(formerFilePath, filePath);
+            // Removes the former folder only when nothing else is left in it.
+            Directory.Delete(Path.GetDirectoryName(formerFilePath)!);
+        }
+        catch (Exception exception) when (IsStorageFailure(exception)) { }
     }
 
     public async Task<PreferencesLoadResult> LoadAsync(CancellationToken cancellationToken)

@@ -16,7 +16,7 @@
 
 Service Bus Workbench is a WPF investigation workspace for browsing namespaces, inspecting message deliveries, monitoring arrivals, and working safely with dead-letter queues (DLQs). It supports connection strings for the local emulator or SAS-based namespaces, and Azure CLI credentials for Azure public-cloud namespaces.
 
-It was called Service Bus Emulator Explorer before. Profiles saved by that version move to the new folder the first time you start this one.
+It was called Service Bus Emulator Explorer before. Profiles saved by that version move to the new folder the first time you start this one, so close the old version first.
 
 <!-- Updated automatically before each release from a deterministic WPF UI scenario by .github/workflows/update-readme-screenshot.yml (scripts/Sync-ReleaseScreenshot.ps1). -->
 ![Service Bus Workbench Investigation Workspace showing a connected demo profile, order-events subscriptions, active deliveries, and an OrderDispatched inspector](docs/images/service-bus-workbench.png)

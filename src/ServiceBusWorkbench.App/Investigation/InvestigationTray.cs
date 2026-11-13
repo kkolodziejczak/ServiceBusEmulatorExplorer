@@ -19,7 +19,7 @@ public sealed class InvestigationTray : IDisposable
         {
             image = new System.Drawing.Icon(stream);
             menu = new Forms.ContextMenuStrip();
-            menu.Items.Add("Open Service Bus Explorer", null, (_, _) => open());
+            menu.Items.Add("Open Service Bus Workbench", null, (_, _) => open());
             menu.Items.Add(new Forms.ToolStripSeparator());
             menu.Items.Add("Exit", null, (_, _) => exit());
             icon = new Forms.NotifyIcon();
