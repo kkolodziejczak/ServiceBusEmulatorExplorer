@@ -115,6 +115,8 @@ flowchart LR
 
 This template is authoritative for asset naming and choice guidance. Version values are examples and must be replaced from the validated tag. It is not an application UI mock because this feature does not change application UI.
 
+> Releases after v0.3.0 replace the "Windows security notice" below with the signed-publisher notice in `release.yml` (DEC-059).
+
 ```markdown
 ## Choose a download
 
@@ -197,6 +199,8 @@ Do not enable `PublishTrimmed`, Native AOT, ReadyToRun, or globalization reducti
 - If either gate fails, stop and inspect the bundle contents rather than weakening the threshold without evidence.
 
 ### Unsigned-release contract
+
+> Superseded after v0.3.0 by DEC-059: the release workflow signs both executables and artifact validation requires a valid, timestamped signature from the release certificate. The contract below describes v0.1.x–v0.3.x.
 
 - Initial releases intentionally have no Authenticode signature.
 - Artifact validation reports signature status but does not fail because it is `NotSigned`.

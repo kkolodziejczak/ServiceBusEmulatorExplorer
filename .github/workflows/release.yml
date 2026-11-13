@@ -23,14 +23,22 @@ on:
 permissions:
   contents: write
 
+env:
+  # Certum "Open Source Developer" code-signing certificate (SimplySign). Update after each yearly renewal.
+  SIGNING_CERT_THUMBPRINT: CFBAA0C626ABF4BAD8FEC533B9F36860011CA1C1
+
 jobs:
-  release:
-    name: Validate and draft release
+  build:
+    name: Test and build unsigned assets
     runs-on: windows-latest
     timeout-minutes: 30
-    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.use_manual_launch_smoke_proof && 'manual-launch-smoke' || '' }}
+    permissions:
+      contents: read
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
 
     steps:
       - name: Validate release tag
@@ -78,11 +86,144 @@ jobs:
         run: dotnet test ServiceBusEmulatorExplorer.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
 
       - name: Publish and validate release assets
+        shell: pwsh
+        run: |
+          .\scripts\Publish-Release.ps1 -Version '${{ steps.tag.outputs.version }}' -PublishTimeoutSeconds 300
+          .\scripts\Test-ReleaseArtifacts.ps1 -Version '${{ steps.tag.outputs.version }}'
+
+      - name: Keep the unsigned assets for signing
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: unsigned-release
+          path: artifacts/release/${{ steps.tag.outputs.tag }}/*.exe
+          if-no-files-found: error
+          # Signing must be approved, and failed jobs rerun, within this window.
+          retention-days: 7
+
+  sign:
+    name: Sign release executables
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 30
+    # The approval gate: only the owner can start this job, and its secrets exist only here (DEC-059).
+    environment: code-signing
+    # One signing job at a time: each has its own mailbox, but logout removes leftover ones.
+    concurrency:
+      group: code-signing
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    env:
+      RELEASE_PATH: artifacts/release/${{ needs.build.outputs.tag }}
+
+    steps:
+      # The workflow's own commit supplies the signing scripts; the assets come from the build job.
+      - name: Check out the signing scripts
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download the unsigned assets
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: unsigned-release
+          path: ${{ env.RELEASE_PATH }}
+
+      - name: Install SimplySign Desktop
+        shell: pwsh
+        run: .\scripts\SimplySign-Ci.ps1 -Install
+
+      - name: Open the SimplySign login window
+        shell: pwsh
+        run: .\scripts\SimplySign-Ci.ps1 -OpenLogin
+
+      # scripts/Approve-ReleaseSigning.ps1 finds this step by the text after the emoji; keep it in sync.
+      - name: "📬 Waiting for your SimplySign code"
+        shell: pwsh
+        env:
+          CERTUM_EMAIL: ${{ secrets.CERTUM_EMAIL }}
+          MAILBOX_TOKEN: ${{ secrets.MAILBOX_TOKEN }}
+        run: .\scripts\SimplySign-Ci.ps1 -WaitAndLogin
+
+      - name: Sign and verify both executables
+        shell: pwsh
+        run: |
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
+            Sort-Object { [version]$_.Directory.Parent.Name } -Descending | Select-Object -First 1 -ExpandProperty FullName
+          $assets = @(Get-ChildItem -LiteralPath $env:RELEASE_PATH -Filter *.exe | ForEach-Object FullName)
+          # Retry while the SimplySign session is still open: the timestamp server occasionally fails a request.
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            & $signtool sign /sha1 $env:SIGNING_CERT_THUMBPRINT /fd sha256 /tr http://time.certum.pl /td sha256 $assets
+            if ($LASTEXITCODE -eq 0) { break }
+            if ($attempt -eq 3) { throw "signtool sign failed three times; last exit code $LASTEXITCODE." }
+            Start-Sleep -Seconds (10 * $attempt)
+          }
+          & $signtool verify /pa $assets
+          if ($LASTEXITCODE -ne 0) { throw "signtool verify failed with exit code $LASTEXITCODE." }
+          .\scripts\Test-ReleaseArtifacts.ps1 -Version '${{ needs.build.outputs.version }}' -ExpectedSignerThumbprint $env:SIGNING_CERT_THUMBPRINT
+
+      - name: Keep the signed assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: signed-release
+          path: ${{ env.RELEASE_PATH }}/*.exe
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Empty the mailbox and stop SimplySign
+        if: always()
+        shell: pwsh
+        env:
+          MAILBOX_TOKEN: ${{ secrets.MAILBOX_TOKEN }}
+        run: .\scripts\SimplySign-Ci.ps1 -Logout
+
+  release:
+    name: Smoke-test signed assets and draft release
+    needs: [build, sign]
+    runs-on: windows-latest
+    timeout-minutes: 30
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.use_manual_launch_smoke_proof && 'manual-launch-smoke' || '' }}
+
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.build.outputs.tag }}
+
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Use a 1920x1080 desktop for visual baselines
+        shell: pwsh
+        run: |
+          # Windows shrinks test windows to fit the screen; hosted runners start at 1024x768 (DEC-050).
+          Set-DisplayResolution -Width 1920 -Height 1080 -Force
+          Add-Type -AssemblyName System.Windows.Forms
+          $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          "Desktop: $($bounds.Width)x$($bounds.Height)"
+          if ($bounds.Width -lt 1920 -or $bounds.Height -lt 1080) { throw "Visual baselines need a 1920x1080 desktop; got $($bounds.Width)x$($bounds.Height)." }
+
+      - name: Build the UI smoke tests
+        shell: pwsh
+        run: dotnet build tests\ServiceBusEmulatorExplorer.UiSmoke.Tests\ServiceBusEmulatorExplorer.UiSmoke.Tests.csproj
+
+      - name: Download the signed assets
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: signed-release
+          path: artifacts/release/${{ needs.build.outputs.tag }}
+
+      - name: Locate the signed assets
         id: publish
         shell: pwsh
         run: |
-          .\scripts\Publish-Release.ps1 -Version '${{ steps.tag.outputs.version }}' -PublishTimeoutSeconds 300 -GitHubOutputPath $env:GITHUB_OUTPUT
-          .\scripts\Test-ReleaseArtifacts.ps1 -Version '${{ steps.tag.outputs.version }}'
+          # The sign job's Test-ReleaseArtifacts proved the two names; an empty path would make the smoke test fall back to a Debug build.
+          $releasePath = "artifacts\release\${{ needs.build.outputs.tag }}"
+          foreach ($asset in @(@{ Output = 'runtime_required_asset'; Suffix = '-requires-dotnet10.exe' }, @{ Output = 'portable_asset'; Suffix = '-portable.exe' })) {
+            $files = @(Get-ChildItem -LiteralPath $releasePath -Filter "*$($asset.Suffix)")
+            if ($files.Count -ne 1) { throw "Expected one signed *$($asset.Suffix) in $releasePath; found $($files.Count)." }
+            "$($asset.Output)=$($files[0].FullName)" | Add-Content -Path $env:GITHUB_OUTPUT
+          }
 
       - name: Launch-smoke runtime-required asset
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.use_manual_launch_smoke_proof) }}
@@ -118,7 +259,7 @@ jobs:
           @"
           ## Interactive launch-smoke gate
 
-          - Tag: ``${{ steps.tag.outputs.tag }}``
+          - Tag: ``${{ needs.build.outputs.tag }}``
           - Proof reference: ``$env:MANUAL_PROOF_REFERENCE``
           - Runtime-required SHA-256: ``$runtimeRequiredHash``
           - Portable SHA-256: ``$portableHash``
@@ -128,8 +269,8 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.tag.outputs.tag }}
-          VERSION: ${{ steps.tag.outputs.version }}
+          TAG: ${{ needs.build.outputs.tag }}
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
           $runtimeRequiredAsset = '${{ steps.publish.outputs.runtime_required_asset }}'
           $portableAsset = '${{ steps.publish.outputs.portable_asset }}'
@@ -161,7 +302,7 @@ jobs:
 
           ## Windows security notice
 
-          This release is currently unsigned. Windows Defender SmartScreen may display an unrecognized-app warning. Download releases only from this repository and verify that the tag and release correspond to the version you intended to install.
+          Both executables are signed by **Open Source Developer Krzysztof Kołodziejczak** (certificate issued by Certum). To check, right-click the file, choose Properties > Digital Signatures, and confirm that name. Windows Defender SmartScreen may still show an unrecognized-app warning while the certificate builds download reputation. Download releases only from this repository and verify that the tag and release correspond to the version you intended to install.
           "@
           Set-Content -LiteralPath $notesPath -Value $notes -NoNewline
 

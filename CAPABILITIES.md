@@ -112,6 +112,7 @@ Startup presentation example: `src/ServiceBusEmulatorExplorer.App/Investigation/
 | Fail a baseline when visible text would fall back to an installed font | shared | `tests/ServiceBusEmulatorExplorer.App.Tests/VisualBaselines/BundledFontCheck.cs` (`BundledFontCheck.AssertBundledOnly`), called by `VisualBaseline.AssertMatches` |
 | Exact WPF test viewport beyond a hosted desktop size limit | shared | `tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/NativeWindowSizeOverride.cs`, `NativeWindowSizeOverride.Install`; linked into App.Tests through its project file; dispose the window hook after proof |
 | Guarded release tagging and two-flavour Windows publish | shared | `scripts/Push-ReleaseTag.ps1`, `scripts/Publish-Windows.ps1`, `scripts/Test-ReleaseArtifacts.ps1` |
+| Signing on a GitHub-hosted runner with a cloud certificate and a hand-typed one-time code, delivered through an environment-variable mailbox behind an approval gate | adapt | `scripts/SimplySign-Ci.ps1`, `scripts/Approve-ReleaseSigning.ps1`, `sign` job in `.github/workflows/release.yml` |
 | Convention check with ratchet baseline | shared | `tools/check-docs.ps1`; config `.agent-kit.json` |
 
 Scheduling controls: reuse [SchedulingStyles.xaml](src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SchedulingStyles.xaml) for the date picker, calendar and aligned radio choices. [Scheduling contract](specs/message-library/scheduling-controls.md).

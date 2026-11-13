@@ -23,7 +23,7 @@ The maintainer will assess the report, request additional details if needed, and
 
 ## Security considerations for users
 
-- Download executables only from this repository's [GitHub Releases](https://github.com/kkolodziejczak/ServiceBusEmulatorExplorer/releases). Current executables are unsigned.
+- Download executables only from this repository's [GitHub Releases](https://github.com/kkolodziejczak/ServiceBusEmulatorExplorer/releases). Releases after v0.3.0 are signed by "Open Source Developer Krzysztof Kołodziejczak" (Certum); do not run a release executable whose signature is missing or names someone else.
 - Saved connection-string profiles are written locally to `%LOCALAPPDATA%\ServiceBusEmulatorExplorer\connection-profiles.json`. Treat this file as a secret and restrict access to it.
 - Azure CLI mode uses the existing Azure CLI credential chain. The app does not store Azure CLI tokens, but operations run with the permissions of the signed-in identity.
 - The app can send messages, replay messages, settle DLQ messages, and create, update, or delete entities depending on the connection mode. Confirm the namespace and selected entity before an operation.

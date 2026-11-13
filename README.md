@@ -38,7 +38,7 @@ Download the latest Windows x64 executable from [GitHub Releases](https://github
 | `*-win-x64-portable.exe` | You want the simplest setup. This is the recommended download. | No separate .NET installation. |
 | `*-win-x64-requires-dotnet10.exe` | You already have the desktop runtime and prefer a smaller download. | [.NET 10 Desktop Runtime for Windows x64](https://dotnet.microsoft.com/en-us/download/dotnet/10.0/runtime). |
 
-The executables are currently unsigned. Windows Defender SmartScreen may show an unrecognized-app warning. Download them only from this repository's Releases page and confirm that the release tag is the version you intended to install.
+Releases after v0.3.0 are signed by **Open Source Developer Krzysztof Kołodziejczak** (certificate issued by Certum). To check, right-click the file, choose Properties > Digital Signatures, and confirm that name. Windows Defender SmartScreen may still show an unrecognized-app warning while the certificate builds download reputation. Download the executables only from this repository's Releases page and confirm that the release tag is the version you intended to install.
 
 ## Connect to the local emulator
 
