@@ -565,7 +565,7 @@ public sealed class MessageColumnSelectorTests
     private static void CapturePopupIfEnabled(Popup popup, int width, int height)
     {
         if (popup.Child is FrameworkElement popupContent) VisualBaseline.AssertMatches(popupContent, $"columns-popup-{width}x{height}");
-        if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_MESSAGE_COLUMNS"), "true", StringComparison.OrdinalIgnoreCase)
+        if (!string.Equals(Environment.GetEnvironmentVariable("SBW_CAPTURE_MESSAGE_COLUMNS"), "true", StringComparison.OrdinalIgnoreCase)
             || popup.Child is not FrameworkElement child)
             return;
 
@@ -594,7 +594,7 @@ public sealed class MessageColumnSelectorTests
     private static void CaptureWindowIfEnabled(Window window, int width, int height, string state)
     {
         VisualBaseline.AssertMatches(window, $"columns-{state}-{width}x{height}");
-        if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_MESSAGE_COLUMNS"), "true", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(Environment.GetEnvironmentVariable("SBW_CAPTURE_MESSAGE_COLUMNS"), "true", StringComparison.OrdinalIgnoreCase))
             return;
 
         window.UpdateLayout();

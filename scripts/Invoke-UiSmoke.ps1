@@ -61,11 +61,11 @@ function Stop-LaunchedWpfApps {
         [DateTime]$StartedAt
     )
 
-    if ([string]::IsNullOrWhiteSpace($env:SBE_APP_EXE)) {
+    if ([string]::IsNullOrWhiteSpace($env:SBW_APP_EXE)) {
         return
     }
 
-    $expectedPath = [System.IO.Path]::GetFullPath($env:SBE_APP_EXE)
+    $expectedPath = [System.IO.Path]::GetFullPath($env:SBW_APP_EXE)
     $expectedProcessName = [System.IO.Path]::GetFileNameWithoutExtension($expectedPath)
     Get-Process -Name $expectedProcessName -ErrorAction SilentlyContinue |
         Where-Object {
@@ -144,8 +144,8 @@ function Normalize-CurrentPathEnvironment {
     }
 }
 
-if ([string]::IsNullOrWhiteSpace($env:SBE_APP_EXE)) {
-    $env:SBE_APP_EXE = $defaultAppExe
+if ([string]::IsNullOrWhiteSpace($env:SBW_APP_EXE)) {
+    $env:SBW_APP_EXE = $defaultAppExe
 }
 
 if ($FullSuite) {

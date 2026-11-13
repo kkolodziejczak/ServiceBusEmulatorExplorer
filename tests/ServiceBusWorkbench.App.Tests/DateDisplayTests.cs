@@ -115,7 +115,7 @@ public sealed class DateDisplayTests
     private sealed class PreferencesFile : IDisposable
     {
         public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
-            "sbe-date-display-preferences-" + Guid.NewGuid().ToString("N"), "preferences.json");
+            "sbw-date-display-preferences-" + Guid.NewGuid().ToString("N"), "preferences.json");
 
         public void Dispose()
         {

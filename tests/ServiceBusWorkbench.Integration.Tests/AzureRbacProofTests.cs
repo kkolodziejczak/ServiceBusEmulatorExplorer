@@ -11,9 +11,9 @@ public sealed class AzureRbacProofTests
     [Trait("TestCategory", "AzureRbac")]
     public async Task Preprovisioned_topic_and_subscription_support_browse_peek_and_send()
     {
-        string fullyQualifiedNamespace = RequiredEnvironmentVariable("SBE_AZURE_NAMESPACE");
-        string topicName = RequiredEnvironmentVariable("SBE_AZURE_TOPIC");
-        string subscriptionName = RequiredEnvironmentVariable("SBE_AZURE_SUBSCRIPTION");
+        string fullyQualifiedNamespace = RequiredEnvironmentVariable("SBW_AZURE_NAMESPACE");
+        string topicName = RequiredEnvironmentVariable("SBW_AZURE_TOPIC");
+        string subscriptionName = RequiredEnvironmentVariable("SBW_AZURE_SUBSCRIPTION");
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         await using var clientFactory = new DirectServiceBusClientFactory();
         await clientFactory.ConnectAsync(
@@ -44,7 +44,7 @@ public sealed class AzureRbacProofTests
                 new EntityAddress(EntityKind.Topic, topic.Name),
                 $"Service Bus Workbench Azure RBAC proof {proofId}",
                 ContentType: "text/plain",
-                ApplicationProperties: new Dictionary<string, object?> { ["sbe-proof-id"] = proofId }),
+                ApplicationProperties: new Dictionary<string, object?> { ["sbw-proof-id"] = proofId }),
             timeout.Token);
     }
 

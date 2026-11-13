@@ -65,7 +65,7 @@ public sealed class CalendarPointerInteractionTests
             Assert.Equal((1, 0), (calendarOpened, calendarClosed));
             Assert.Equal(originalDate, date.SelectedDate!.Value.Date);
 
-            string? proofDirectory = Environment.GetEnvironmentVariable("SBE_POINTER_PROOF_DIR");
+            string? proofDirectory = Environment.GetEnvironmentVariable("SBW_POINTER_PROOF_DIR");
             if (!string.IsNullOrWhiteSpace(proofDirectory))
             {
                 string captureName = $"calendar-{width}-{(clickCalendarButton ? "icon" : "date")}.png";
@@ -291,7 +291,7 @@ public sealed class PointerInputTheoryAttribute : TheoryAttribute
 {
     public PointerInputTheoryAttribute()
     {
-        if (!string.Equals(Environment.GetEnvironmentVariable("SBE_RUN_POINTER_TESTS"), "true", StringComparison.OrdinalIgnoreCase))
-            Skip = "Set SBE_RUN_POINTER_TESTS=true to allow the guarded native pointer proof.";
+        if (!string.Equals(Environment.GetEnvironmentVariable("SBW_RUN_POINTER_TESTS"), "true", StringComparison.OrdinalIgnoreCase))
+            Skip = "Set SBW_RUN_POINTER_TESTS=true to allow the guarded native pointer proof.";
     }
 }

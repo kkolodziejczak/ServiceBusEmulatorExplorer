@@ -441,7 +441,7 @@ public sealed class InvestigationInspectorSearchTests
     {
         // "capture-" states belong to the Message Workbench capture dialog, which is not baselined until approved (DEC-049).
         if (!filename.StartsWith("capture-", StringComparison.Ordinal)) VisualBaseline.AssertMatches(window, "inspector-" + Path.GetFileNameWithoutExtension(filename));
-        if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase)) return;
+        if (!string.Equals(Environment.GetEnvironmentVariable("SBW_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase)) return;
         window.UpdateLayout();
         var content = (FrameworkElement)window.Content;
         WpfScreenshot.SaveWindowContent(window, ScreenshotPath(filename),

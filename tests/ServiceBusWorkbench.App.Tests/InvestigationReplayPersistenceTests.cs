@@ -270,7 +270,7 @@ public sealed class InvestigationReplayPersistenceTests
     private sealed class PreferencesFile : IDisposable
     {
         public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
-            "sbe-replay-preferences-" + Guid.NewGuid().ToString("N"), "preferences.json");
+            "sbw-replay-preferences-" + Guid.NewGuid().ToString("N"), "preferences.json");
 
         public void Dispose()
         {

@@ -5,13 +5,13 @@ namespace ServiceBusWorkbench.Integration.Tests.Infrastructure;
 public static class ServiceBusEmulatorEnvironment
 {
     public static string RuntimeConnectionString =>
-        GetRequiredVariable("SBE_RUNTIME_CONNECTION_STRING")
-        ?? GetRequiredVariable("SBE_CONNECTION_STRING")
-        ?? throw new InvalidOperationException("SBE_RUNTIME_CONNECTION_STRING or SBE_CONNECTION_STRING must be set for integration tests.");
+        GetRequiredVariable("SBW_RUNTIME_CONNECTION_STRING")
+        ?? GetRequiredVariable("SBW_CONNECTION_STRING")
+        ?? throw new InvalidOperationException("SBW_RUNTIME_CONNECTION_STRING or SBW_CONNECTION_STRING must be set for integration tests.");
 
     public static string AdminConnectionString =>
-        GetRequiredVariable("SBE_ADMIN_CONNECTION_STRING")
-        ?? throw new InvalidOperationException("SBE_ADMIN_CONNECTION_STRING must be set for integration tests.");
+        GetRequiredVariable("SBW_ADMIN_CONNECTION_STRING")
+        ?? throw new InvalidOperationException("SBW_ADMIN_CONNECTION_STRING must be set for integration tests.");
 
     public static async Task WaitUntilReadyAsync(CancellationToken cancellationToken)
     {

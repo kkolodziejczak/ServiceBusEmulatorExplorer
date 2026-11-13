@@ -158,7 +158,7 @@ public sealed class InvestigationDeleteDialogTests
     private static void Capture(Window window, string name)
     {
         VisualBaseline.AssertMatches(window, name);
-        if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase)) return;
+        if (!string.Equals(Environment.GetEnvironmentVariable("SBW_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase)) return;
         DirectoryInfo? root = new(AppContext.BaseDirectory);
         while (root is not null && !Directory.Exists(Path.Combine(root.FullName, ".git"))) root = root.Parent;
         Assert.NotNull(root);

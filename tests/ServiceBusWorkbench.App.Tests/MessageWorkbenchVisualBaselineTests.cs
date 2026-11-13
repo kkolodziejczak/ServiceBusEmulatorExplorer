@@ -33,7 +33,7 @@ public sealed class MessageWorkbenchVisualBaselineTests
     [Trait("TestCategory", "UiRender")]
     public void Workbench_screen_matches_its_baseline(string screen)
     {
-        string output = Path.Combine(Path.GetTempPath(), "sbe-workbench-" + Guid.NewGuid().ToString("N"));
+        string output = Path.Combine(Path.GetTempPath(), "sbw-workbench-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(output);
         try
         {

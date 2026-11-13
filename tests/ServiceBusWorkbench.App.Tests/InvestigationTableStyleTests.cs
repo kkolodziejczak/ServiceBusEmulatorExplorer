@@ -328,7 +328,7 @@ public sealed class InvestigationTableStyleTests
 
     private static void CaptureFocusedCorrelationCellIfRequested(Window window, string fileName)
     {
-        if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_CELL_FOCUS"), "true", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(Environment.GetEnvironmentVariable("SBW_CAPTURE_CELL_FOCUS"), "true", StringComparison.OrdinalIgnoreCase))
             return;
 
         window.UpdateLayout();

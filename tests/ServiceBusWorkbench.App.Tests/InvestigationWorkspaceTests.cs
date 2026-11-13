@@ -37,7 +37,7 @@ public sealed class InvestigationWorkspaceTests
     [InlineData(true)]
     public async Task Fresh_store_automatically_attempts_local_emulator_and_handles_failure(bool failure)
     {
-        string directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "sbe-startup-tests", Guid.NewGuid().ToString("N"));
+        string directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "sbw-startup-tests", Guid.NewGuid().ToString("N"));
         var store = new ServiceBusWorkbench.App.Investigation.Settings.ProtectedWorkspacePreferencesStore(
             System.IO.Path.Combine(directory, "profiles.json"));
         var factory = new FakeFactory { FailConnect = failure };

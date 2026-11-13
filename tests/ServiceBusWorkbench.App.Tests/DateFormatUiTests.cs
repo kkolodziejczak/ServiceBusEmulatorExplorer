@@ -216,7 +216,7 @@ public sealed class DateFormatUiTests
 
     private static void CaptureIfEnabled(Window window, string name)
     {
-        string? directory = Environment.GetEnvironmentVariable("SBE_DATE_FORMAT_PROOF_DIR");
+        string? directory = Environment.GetEnvironmentVariable("SBW_DATE_FORMAT_PROOF_DIR");
         if (string.IsNullOrWhiteSpace(directory)) return;
         window.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
         window.UpdateLayout();
@@ -227,7 +227,7 @@ public sealed class DateFormatUiTests
 
     private static void CaptureIfEnabled(Window window, Popup popup, string name)
     {
-        string? directory = Environment.GetEnvironmentVariable("SBE_DATE_FORMAT_PROOF_DIR");
+        string? directory = Environment.GetEnvironmentVariable("SBW_DATE_FORMAT_PROOF_DIR");
         if (string.IsNullOrWhiteSpace(directory)) return;
         window.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
         window.UpdateLayout();

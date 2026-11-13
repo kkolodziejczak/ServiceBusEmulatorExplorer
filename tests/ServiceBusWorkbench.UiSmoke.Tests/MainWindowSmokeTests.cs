@@ -593,7 +593,7 @@ public sealed class MainWindowSmokeTests
 
     private static void CapturePrototypeState(Window window, string name)
     {
-        string? directory = Environment.GetEnvironmentVariable("SBE_UI_CAPTURE_DIR");
+        string? directory = Environment.GetEnvironmentVariable("SBW_UI_CAPTURE_DIR");
         if (string.IsNullOrWhiteSpace(directory)) return;
         Directory.CreateDirectory(directory);
         using var capture = Capture.Element(window);

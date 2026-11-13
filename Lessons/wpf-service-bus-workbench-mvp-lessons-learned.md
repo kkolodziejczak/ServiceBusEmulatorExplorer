@@ -1,4 +1,4 @@
-# WPF Service Bus Emulator Explorer MVP Lessons Learned
+# WPF Service Bus Workbench MVP Lessons Learned
 
 Date: 2026-07-08
 
@@ -17,4 +17,4 @@ Date: 2026-07-08
 - For context-sensitive WPF command surfaces, distinguish "does not apply here" from "applies here but is currently blocked." Hide commands that do not belong to the selected entity context, but keep valid blocked commands visible, disabled, and explained by tooltip text.
 - Topic-level convenience workflows should not silently change the current inspection model. Refreshing a topic's child subscriptions can update counts and per-subscription caches, while message grids should remain scoped to a selected queue or subscription unless a combined topic view is explicitly planned.
 
-Related spec: ../specs/wpf-service-bus-emulator-explorer-mvp.html
+Related spec: ../specs/wpf-service-bus-workbench-mvp.html

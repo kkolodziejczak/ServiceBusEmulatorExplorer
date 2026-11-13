@@ -93,11 +93,11 @@ Read the [approved five-board visual contract](message-library/design/README.md)
 
 ## Shared files and schema v1
 
-A root is any user-selected local directory. Only recursive `*.sbetemplate.json` files are indexed. Directory structure is the collection structure; there is no manifest to keep synchronized. Skip `.git`, hidden/system directories and all reparse-point entries, including junctions/symlinks. Reject a selected root that is itself a reparse point. Do not execute files, resolve includes, fetch URLs or expand environment variables from template content.
+A root is any user-selected local directory. Only recursive `*.sbwtemplate.json` files are indexed. Directory structure is the collection structure; there is no manifest to keep synchronized. Skip `.git`, hidden/system directories and all reparse-point entries, including junctions/symlinks. Reject a selected root that is itself a reparse point. Do not execute files, resolve includes, fetch URLs or expand environment variables from template content.
 
 Use relative paths for template identity within a root; local root identity is a generated registration ID and canonical absolute path. Same template IDs in different roots are valid; duplicate IDs within a root produce an error on both files. Windows canonical path comparison is ordinal-ignore-case. Registering the same root twice focuses its existing entry. Reject overlapping registered roots with a clear explanation; this avoids duplicate scanning and ambiguous saves.
 
-The runnable examples are [template](message-library/examples/order-created.sbetemplate.json) and [CSV](message-library/examples/orders.csv). Files are intended to be copied together for a smoke test. New library folders/files are only created by explicit user actions.
+The runnable examples are [template](message-library/examples/order-created.sbwtemplate.json) and [CSV](message-library/examples/orders.csv). Files are intended to be copied together for a smoke test. New library folders/files are only created by explicit user actions.
 
 ```json
 {

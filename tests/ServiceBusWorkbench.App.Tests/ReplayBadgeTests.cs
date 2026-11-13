@@ -372,7 +372,7 @@ public sealed class ReplayBadgeTests
 
     private static void CaptureIfEnabled(Window window, string filename)
     {
-        if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase)) return;
+        if (!string.Equals(Environment.GetEnvironmentVariable("SBW_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase)) return;
         var content = (FrameworkElement)window.Content;
         SettleLayout(window.Dispatcher, content);
         DirectoryInfo? directory = new(AppContext.BaseDirectory);

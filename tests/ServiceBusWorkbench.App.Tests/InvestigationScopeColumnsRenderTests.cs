@@ -389,7 +389,7 @@ public sealed class InvestigationScopeColumnsRenderTests
     private static void CaptureIfRequested(Window window, string fileName)
     {
         VisualBaseline.AssertMatches(window, "scope-" + Path.GetFileNameWithoutExtension(fileName));
-        string? directory = Environment.GetEnvironmentVariable("SBE_SCOPE_PROOF");
+        string? directory = Environment.GetEnvironmentVariable("SBW_SCOPE_PROOF");
         if (string.IsNullOrWhiteSpace(directory)) return;
         Directory.CreateDirectory(directory);
         var content = (FrameworkElement)window.Content;

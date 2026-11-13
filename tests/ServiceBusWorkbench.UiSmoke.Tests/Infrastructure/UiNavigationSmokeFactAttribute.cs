@@ -11,20 +11,20 @@ public sealed class UiNavigationSmokeFactAttribute : FactAttribute
 
         if (!IsUiSmokeEnabled())
         {
-            Skip = "Set SBE_RUN_UI_TESTS=true to run WPF FlaUI/UIA3 smoke tests.";
+            Skip = "Set SBW_RUN_UI_TESTS=true to run WPF FlaUI/UIA3 smoke tests.";
             return;
         }
 
         if (!ServiceBusUiSmokeEnvironment.HasNavigationEnvironment())
         {
-            Skip = "Set SBE_ADMIN_CONNECTION_STRING and SBE_RUNTIME_CONNECTION_STRING or SBE_CONNECTION_STRING to run navigation UI smoke tests.";
+            Skip = "Set SBW_ADMIN_CONNECTION_STRING and SBW_RUNTIME_CONNECTION_STRING or SBW_CONNECTION_STRING to run navigation UI smoke tests.";
         }
     }
 
     private static bool IsUiSmokeEnabled()
     {
         return string.Equals(
-            Environment.GetEnvironmentVariable("SBE_RUN_UI_TESTS"),
+            Environment.GetEnvironmentVariable("SBW_RUN_UI_TESTS"),
             "true",
             StringComparison.OrdinalIgnoreCase);
     }

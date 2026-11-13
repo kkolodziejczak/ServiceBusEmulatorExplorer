@@ -124,7 +124,7 @@ public sealed class MessageWorkbenchStateTests
         rows.SelectedIndex = 1;
         Click(view, "BodyTab");
         window.UpdateLayout();
-        string? proofDirectory = Environment.GetEnvironmentVariable("SBE_ROW_PREVIEW_PROOF");
+        string? proofDirectory = Environment.GetEnvironmentVariable("SBW_ROW_PREVIEW_PROOF");
         if (!string.IsNullOrEmpty(proofDirectory))
         {
             var content = (FrameworkElement)window.Content;

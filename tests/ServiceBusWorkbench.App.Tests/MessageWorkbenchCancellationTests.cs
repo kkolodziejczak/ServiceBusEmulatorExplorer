@@ -106,7 +106,7 @@ public sealed class MessageWorkbenchCancellationTests
 
     private static void CaptureProof(Window window, string name)
     {
-        string? directory = Environment.GetEnvironmentVariable("SBE_UI_PROOF_DIR");
+        string? directory = Environment.GetEnvironmentVariable("SBW_UI_PROOF_DIR");
         if (string.IsNullOrWhiteSpace(directory)) return;
         window.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
         window.UpdateLayout();

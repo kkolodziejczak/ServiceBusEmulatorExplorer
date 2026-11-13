@@ -316,7 +316,7 @@ public sealed class DailyBrowseAuditTests
             QueueName = $"daily-audit-q-{runId}";
             SecondQueueName = $"daily-audit-q2-{runId}";
             TopicName = $"daily-audit-t-{runId}";
-            profilePath = Path.Combine(Path.GetTempPath(), "sbe-daily-audit", runId, "preferences.json");
+            profilePath = Path.Combine(Path.GetTempPath(), "sbw-daily-audit", runId, "preferences.json");
             admin = new ServiceBusAdministrationClient(ServiceBusUiSmokeEnvironment.AdminConnectionString);
             setupFactory = new DirectServiceBusClientFactory();
             Profile = new InvestigationProfile(profileId, new ConnectionProfile(

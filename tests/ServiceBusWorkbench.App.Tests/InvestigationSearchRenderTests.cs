@@ -651,7 +651,7 @@ public sealed class InvestigationSearchRenderTests
     private static void CaptureIfEnabled(Window window, string name)
     {
         VisualBaseline.AssertMatches(window, "search-" + name);
-        if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase)) return;
+        if (!string.Equals(Environment.GetEnvironmentVariable("SBW_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase)) return;
 
         string root = FindRepositoryRoot();
         string directory = Path.Combine(root, "artifacts", "investigation-ui");

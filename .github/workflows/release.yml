@@ -167,16 +167,16 @@ jobs:
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.use_manual_launch_smoke_proof) }}
         shell: pwsh
         env:
-          SBE_RUN_UI_TESTS: "true"
-          SBE_APP_EXE: ${{ steps.publish.outputs.runtime_required_asset }}
+          SBW_RUN_UI_TESTS: "true"
+          SBW_APP_EXE: ${{ steps.publish.outputs.runtime_required_asset }}
         run: .\scripts\Invoke-UiSmoke.ps1 -NoBuild -TimeoutSeconds 90
 
       - name: Launch-smoke portable asset
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.use_manual_launch_smoke_proof) }}
         shell: pwsh
         env:
-          SBE_RUN_UI_TESTS: "true"
-          SBE_APP_EXE: ${{ steps.publish.outputs.portable_asset }}
+          SBW_RUN_UI_TESTS: "true"
+          SBW_APP_EXE: ${{ steps.publish.outputs.portable_asset }}
         run: .\scripts\Invoke-UiSmoke.ps1 -NoBuild -TimeoutSeconds 90
 
       - name: Record interactive launch-smoke gate

@@ -359,7 +359,7 @@ public sealed class InvestigationReplayRenderTests
     private static void CaptureInspectorActionLayoutIfEnabled(Window window, string name)
     {
         VisualBaseline.AssertMatches(window, "replay-actions-" + name);
-        string? directory = Environment.GetEnvironmentVariable("SBE_INSPECTOR_ACTION_PROOF_DIR");
+        string? directory = Environment.GetEnvironmentVariable("SBW_INSPECTOR_ACTION_PROOF_DIR");
         if (string.IsNullOrWhiteSpace(directory)) return;
 
         var content = (FrameworkElement)window.Content;

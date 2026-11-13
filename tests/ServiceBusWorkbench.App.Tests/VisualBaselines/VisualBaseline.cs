@@ -13,11 +13,11 @@ namespace ServiceBusWorkbench.App.Tests.VisualBaselines;
 
 /// <summary>
 /// Compares a rendered window, pixel for pixel, with its committed baseline (DEC-050).
-/// Set SBE_UPDATE_VISUAL_BASELINES=true to rewrite baselines after an approved visual change.
+/// Set SBW_UPDATE_VISUAL_BASELINES=true to rewrite baselines after an approved visual change.
 /// </summary>
 internal static class VisualBaseline
 {
-    private const string UpdateVariable = "SBE_UPDATE_VISUAL_BASELINES";
+    private const string UpdateVariable = "SBW_UPDATE_VISUAL_BASELINES";
     private const string EnvironmentFile = "environment.json";
     private static readonly HashSet<string> CheckedNames = new(StringComparer.OrdinalIgnoreCase);
 

@@ -254,7 +254,7 @@ public sealed class DailyWindowAuditTests
                 RequireCountShown(node, "DLQ", bucket == "active" ? "0*" : "1*");
                 Assert.False(Element("MessageCountSummary").IsOffscreen);
                 Assert.False(Element("RefreshButton").IsOffscreen);
-                if (Environment.GetEnvironmentVariable("SBE_CAPTURE_DAILY_FIX_UI") == "true")
+                if (Environment.GetEnvironmentVariable("SBW_CAPTURE_DAILY_FIX_UI") == "true")
                 {
                     string captures = Path.Combine(AppContext.BaseDirectory, "daily-fix-captures");
                     Directory.CreateDirectory(captures);

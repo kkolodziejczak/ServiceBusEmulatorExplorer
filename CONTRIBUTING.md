@@ -104,9 +104,9 @@ dotnet test ServiceBusWorkbench.slnx --filter "TestCategory!=Integration&TestCat
 Integration tests use the Docker-backed Service Bus emulator and are opt-in:
 
 ```powershell
-$env:SBE_RUN_INTEGRATION_TESTS = "true"
-$env:SBE_CONNECTION_STRING = "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
-$env:SBE_ADMIN_CONNECTION_STRING = "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+$env:SBW_RUN_INTEGRATION_TESTS = "true"
+$env:SBW_CONNECTION_STRING = "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+$env:SBW_ADMIN_CONNECTION_STRING = "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
 dotnet test tests\ServiceBusWorkbench.Integration.Tests\ServiceBusWorkbench.Integration.Tests.csproj
 ```
 
@@ -116,8 +116,8 @@ UI smoke tests launch the application. Use the bounded runner rather than invoki
 
 ```powershell
 dotnet build src\ServiceBusWorkbench.App\ServiceBusWorkbench.App.csproj
-$env:SBE_RUN_UI_TESTS = "true"
-$env:SBE_APP_EXE = "$PWD\src\ServiceBusWorkbench.App\bin\Debug\net10.0-windows\ServiceBusWorkbench.App.exe"
+$env:SBW_RUN_UI_TESTS = "true"
+$env:SBW_APP_EXE = "$PWD\src\ServiceBusWorkbench.App\bin\Debug\net10.0-windows\ServiceBusWorkbench.App.exe"
 .\scripts\Invoke-UiSmoke.ps1 -NoBuild
 ```
 

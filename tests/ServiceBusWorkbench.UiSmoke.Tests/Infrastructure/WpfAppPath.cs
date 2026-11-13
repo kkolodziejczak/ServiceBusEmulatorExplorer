@@ -4,7 +4,7 @@ public static class WpfAppPath
 {
     public static string Resolve()
     {
-        string? configuredPath = Environment.GetEnvironmentVariable("SBE_APP_EXE");
+        string? configuredPath = Environment.GetEnvironmentVariable("SBW_APP_EXE");
         if (!string.IsNullOrWhiteSpace(configuredPath))
         {
             return configuredPath;

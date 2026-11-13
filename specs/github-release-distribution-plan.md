@@ -30,7 +30,7 @@ Both variants target `win-x64`. A pushed semantic-version tag starts validation 
 - ZIP compression reduced the existing self-contained executable to 56.95 MiB. This proves that the payload is compressible, but it does not establish the exact size produced by `.NET` single-file compression.
 - WPF is not trim-compatible. `PublishTrimmed` must not be introduced as a size optimization.
 - There is no `.github` workflow directory, no release automation, no Git tags, and no explicit product-version configuration.
-- `scripts/Invoke-UiSmoke.ps1` already supports launching an alternate executable through `SBE_APP_EXE`, but process cleanup contains a hard-coded development executable name.
+- `scripts/Invoke-UiSmoke.ps1` already supports launching an alternate executable through `SBW_APP_EXE`, but process cleanup contains a hard-coded development executable name.
 - `scripts/Invoke-ManualProof.ps1` calls `scripts/Publish-Windows.ps1` without arguments and expects `artifacts/publish/win-x64`; that behavior must remain working.
 
 ## Intent Model
@@ -209,7 +209,7 @@ Do not enable `PublishTrimmed`, Native AOT, ReadyToRun, or globalization reducti
 
 ### UI smoke contract
 
-- Update `scripts/Invoke-UiSmoke.ps1` cleanup to derive the process name from `SBE_APP_EXE` rather than hard-coding `ServiceBusWorkbench.App`.
+- Update `scripts/Invoke-UiSmoke.ps1` cleanup to derive the process name from `SBW_APP_EXE` rather than hard-coding `ServiceBusWorkbench.App`.
 - Run the existing launch smoke once for each final renamed executable.
 - Continue passing a per-test `--profile-store-path`; release verification must not write profiles to user-local AppData.
 - Keep physical mouse input out of the smoke path.
@@ -265,10 +265,10 @@ The GitHub workflow should pass the validated tag/version into the script and sh
 dotnet test ServiceBusWorkbench.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
 .\scripts\Publish-Release.ps1 -Version 0.1.0
 .\scripts\Test-ReleaseArtifacts.ps1 -Version 0.1.0
-$env:SBE_RUN_UI_TESTS = "true"
-$env:SBE_APP_EXE = "<runtime-required-exe>"
+$env:SBW_RUN_UI_TESTS = "true"
+$env:SBW_APP_EXE = "<runtime-required-exe>"
 .\scripts\Invoke-UiSmoke.ps1 -NoBuild
-$env:SBE_APP_EXE = "<portable-exe>"
+$env:SBW_APP_EXE = "<portable-exe>"
 .\scripts\Invoke-UiSmoke.ps1 -NoBuild
 .\scripts\Publish-Windows.ps1
 ```

@@ -268,7 +268,7 @@ public sealed class InvestigationSettingsRenderTests
     private static void CaptureIfEnabled(Window window, string name)
     {
         VisualBaseline.AssertMatches(window, name);
-        if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(Environment.GetEnvironmentVariable("SBW_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase))
         {
             return;
         }

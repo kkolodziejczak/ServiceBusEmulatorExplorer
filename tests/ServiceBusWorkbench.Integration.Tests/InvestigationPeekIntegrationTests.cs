@@ -288,7 +288,7 @@ public sealed class InvestigationPeekIntegrationTests
 
         for (int index = 0; index < FixtureCount; index++)
         {
-            string messageId = $"sbe-investigation-{source}-{runId}-{index:D3}";
+            string messageId = $"sbw-investigation-{source}-{runId}-{index:D3}";
             string body = $"fixture|source={source}|run={runId}|index={index:D3}|π|終";
             // Keep one deliberately non-UTF8 body in the fixture to prove RawBody survives
             // independently of the replacement-character display text.

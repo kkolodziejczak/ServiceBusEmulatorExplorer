@@ -375,12 +375,12 @@ internal static class LiveMessageCaptureScenario
     private static ConnectionProfile CreateEmulatorProfile()
     {
         ConnectionProfile defaults = ConnectionProfileDefaults.LocalEmulator;
-        string runtimeConnectionString = Environment.GetEnvironmentVariable("SBE_CONNECTION_STRING")
+        string runtimeConnectionString = Environment.GetEnvironmentVariable("SBW_CONNECTION_STRING")
             ?? defaults.RuntimeConnectionString;
-        string administrationConnectionString = Environment.GetEnvironmentVariable("SBE_ADMIN_CONNECTION_STRING")
+        string administrationConnectionString = Environment.GetEnvironmentVariable("SBW_ADMIN_CONNECTION_STRING")
             ?? defaults.AdministrationConnectionString;
-        EnsureLocalEmulatorConnection(runtimeConnectionString, expectedPort: -1, "SBE_CONNECTION_STRING");
-        EnsureLocalEmulatorConnection(administrationConnectionString, expectedPort: 5300, "SBE_ADMIN_CONNECTION_STRING");
+        EnsureLocalEmulatorConnection(runtimeConnectionString, expectedPort: -1, "SBW_CONNECTION_STRING");
+        EnsureLocalEmulatorConnection(administrationConnectionString, expectedPort: 5300, "SBW_ADMIN_CONNECTION_STRING");
         return defaults with
         {
             RuntimeConnectionString = runtimeConnectionString,

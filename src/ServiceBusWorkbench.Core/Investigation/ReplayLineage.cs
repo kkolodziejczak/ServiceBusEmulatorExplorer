@@ -12,11 +12,14 @@ public sealed record ReplayReservation(ReplayFamilyState Family, string MessageI
 /// <summary>Explicit replay lineage and locally persisted attempt numbering; message IDs are not family keys.</summary>
 public static class ReplayLineage
 {
-    public const string FamilyProperty = "sbe-explorer.replay.family";
-    public const string RootProperty = "sbe-explorer.replay.root";
-    public const string OriginalIdProperty = "sbe-explorer.replay.original-id";
-    public const string SourceProperty = "sbe-explorer.replay.source";
-    public const string AttemptProperty = "sbe-explorer.replay.attempt";
+    /// <summary>Copies replayed while the product was called Service Bus Emulator Explorer carry these names.</summary>
+    private const string FormerPrefix = "sbe-explorer.replay.";
+    private const string Prefix = "sb-workbench.replay.";
+    public const string FamilyProperty = Prefix + "family";
+    public const string RootProperty = Prefix + "root";
+    public const string OriginalIdProperty = Prefix + "original-id";
+    public const string SourceProperty = Prefix + "source";
+    public const string AttemptProperty = Prefix + "attempt";
     /// <summary>
     /// The highest attempt a message may carry. Anyone who has seen a replay copy can forge its lineage, so a received
     /// attempt above it is refused, and new attempts stop at it instead of overflowing. Saved families are not
@@ -57,6 +60,7 @@ public static class ReplayLineage
 
     private static ReplayFamilyState? ReadLineage(IReadOnlyDictionary<string, object?> properties)
     {
+        properties = WithCurrentNames(properties);
         if (!LineageProperties.Any(properties.ContainsKey)) return null;
         if (!LineageProperties.All(properties.ContainsKey)
             || properties[FamilyProperty] is not string familyId || !Guid.TryParseExact(familyId, "N", out var id)
@@ -71,6 +75,18 @@ public static class ReplayLineage
         ValidateFamily(family);
         return family;
     }
+
+    private static IReadOnlyDictionary<string, object?> WithCurrentNames(IReadOnlyDictionary<string, object?> properties)
+    {
+        if (!properties.Keys.Any(IsFormerName)) return properties;
+        var renamed = properties.Where(property => !IsFormerName(property.Key))
+            .ToDictionary(property => property.Key, property => property.Value);
+        foreach (var property in properties.Where(property => IsFormerName(property.Key)))
+            renamed.TryAdd(Prefix + property.Key[FormerPrefix.Length..], property.Value);
+        return renamed;
+    }
+
+    private static bool IsFormerName(string property) => property.StartsWith(FormerPrefix, StringComparison.Ordinal);
 
     public static bool BelongsTo(MessageDelivery delivery, ReplayFamilyState family)
     {
@@ -137,7 +153,8 @@ public static class ReplayLineage
             TransactionPartitionKey = TextProperty(original, "TransactionPartitionKey")
         };
         if (original.SystemProperties.TryGetValue("TimeToLive", out var ttl) && ttl is TimeSpan duration) message.TimeToLive = duration;
-        foreach (var property in original.ApplicationProperties) message.ApplicationProperties[property.Key] = property.Value;
+        foreach (var property in original.ApplicationProperties.Where(property => !IsFormerName(property.Key)))
+            message.ApplicationProperties[property.Key] = property.Value;
         message.ApplicationProperties[FamilyProperty] = reservation.Family.FamilyId.ToString("N");
         message.ApplicationProperties[RootProperty] = reservation.Family.RootFingerprint;
         message.ApplicationProperties[OriginalIdProperty] = reservation.Family.OriginalMessageId;

@@ -117,9 +117,9 @@ Invoke-CheckedCommand `
     -TimeoutSeconds $CommandTimeoutSeconds `
     -PollSeconds $PollSeconds
 
-$env:SBE_RUN_INTEGRATION_TESTS = "true"
-$env:SBE_CONNECTION_STRING = "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
-$env:SBE_ADMIN_CONNECTION_STRING = "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+$env:SBW_RUN_INTEGRATION_TESTS = "true"
+$env:SBW_CONNECTION_STRING = "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+$env:SBW_ADMIN_CONNECTION_STRING = "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
 
 Write-Host "Running Docker-backed integration proof."
 Invoke-CheckedCommand `

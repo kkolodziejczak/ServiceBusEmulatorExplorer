@@ -134,7 +134,7 @@ public sealed class InvestigationReplayCleanupPersistenceTests
     private sealed class PreferencesFile : IDisposable
     {
         public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
-            "sbe-cleanup-preferences-" + Guid.NewGuid().ToString("N"), "preferences.json");
+            "sbw-cleanup-preferences-" + Guid.NewGuid().ToString("N"), "preferences.json");
 
         public void Dispose()
         {

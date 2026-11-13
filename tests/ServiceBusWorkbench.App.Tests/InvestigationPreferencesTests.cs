@@ -340,7 +340,7 @@ public sealed class InvestigationPreferencesTests
     }
 
     private static string CreateLocalApplicationData() => Path.Combine(
-        Path.GetTempPath(), "sbe-preferences-tests", Guid.NewGuid().ToString("N"));
+        Path.GetTempPath(), "sbw-preferences-tests", Guid.NewGuid().ToString("N"));
 
     private static async Task<string> SaveDisconnectedAsync(string directory)
     {
@@ -351,5 +351,5 @@ public sealed class InvestigationPreferencesTests
     }
 
     private static string CreatePath() => Path.Combine(
-        Path.GetTempPath(), "sbe-preferences-tests", Guid.NewGuid().ToString("N"), "connection-profiles.json");
+        Path.GetTempPath(), "sbw-preferences-tests", Guid.NewGuid().ToString("N"), "connection-profiles.json");
 }

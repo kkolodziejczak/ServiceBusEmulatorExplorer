@@ -159,7 +159,7 @@ public sealed class InspectorEditabilityStatusTests
     private static void CaptureIfEnabled(Window window, int width, int height, string state)
     {
         VisualBaseline.AssertMatches(window, $"inspector-status-{state}-{width}x{height}");
-        if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INSPECTOR_STATUS"), "true", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(Environment.GetEnvironmentVariable("SBW_CAPTURE_INSPECTOR_STATUS"), "true", StringComparison.OrdinalIgnoreCase))
             return;
 
         window.UpdateLayout();

@@ -11,14 +11,14 @@ public sealed class UiSmokeFactAttribute : FactAttribute
 
         if (!IsEnabled())
         {
-            Skip = "Set SBE_RUN_UI_TESTS=true to run WPF FlaUI/UIA3 smoke tests.";
+            Skip = "Set SBW_RUN_UI_TESTS=true to run WPF FlaUI/UIA3 smoke tests.";
         }
     }
 
     private static bool IsEnabled()
     {
         return string.Equals(
-            Environment.GetEnvironmentVariable("SBE_RUN_UI_TESTS"),
+            Environment.GetEnvironmentVariable("SBW_RUN_UI_TESTS"),
             "true",
             StringComparison.OrdinalIgnoreCase);
     }

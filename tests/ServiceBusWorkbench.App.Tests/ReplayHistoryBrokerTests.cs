@@ -14,8 +14,8 @@ public sealed class ReplayBrokerTheoryAttribute : TheoryAttribute
 {
     public ReplayBrokerTheoryAttribute()
     {
-        if (!string.Equals(Environment.GetEnvironmentVariable("SBE_RUN_INTEGRATION_TESTS"), "true", StringComparison.OrdinalIgnoreCase))
-            Skip = "Set SBE_RUN_INTEGRATION_TESTS=true to run the isolated local Service Bus replay history proof.";
+        if (!string.Equals(Environment.GetEnvironmentVariable("SBW_RUN_INTEGRATION_TESTS"), "true", StringComparison.OrdinalIgnoreCase))
+            Skip = "Set SBW_RUN_INTEGRATION_TESTS=true to run the isolated local Service Bus replay history proof.";
     }
 }
 
@@ -272,7 +272,7 @@ public sealed class ReplayHistoryBrokerTests
 
     private sealed class TemporaryWorkspaceFile : IDisposable
     {
-        private readonly string directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "SBE-replay-history-" + Guid.NewGuid().ToString("N"));
+        private readonly string directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "SBW-replay-history-" + Guid.NewGuid().ToString("N"));
         public string Path => System.IO.Path.Combine(directory, "workspace.json");
         public TemporaryWorkspaceFile() => Directory.CreateDirectory(directory);
         public void Dispose()

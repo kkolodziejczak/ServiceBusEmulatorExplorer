@@ -181,7 +181,7 @@ public sealed class InvestigationStartupRenderTests
 
     private static void CaptureIfRequested(Window window, string fileName)
     {
-        string? directory = Environment.GetEnvironmentVariable("SBE_STARTUP_PROOF");
+        string? directory = Environment.GetEnvironmentVariable("SBW_STARTUP_PROOF");
         if (string.IsNullOrWhiteSpace(directory)) return;
         Directory.CreateDirectory(directory);
         FrameworkElement content = (FrameworkElement)window.Content;

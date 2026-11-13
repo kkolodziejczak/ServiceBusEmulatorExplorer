@@ -175,6 +175,25 @@ public sealed class InvestigationReplayLineageTests
     }
 
     [Fact]
+    public void Copy_replayed_under_the_former_product_name_keeps_its_family_and_is_replayed_with_current_names()
+    {
+        MessageDelivery original = Delivery();
+        ReplayReservation first = ReplayLineage.Reserve(original, []);
+        var formerNames = ReplayLineage.CreateMessage(original, first).ApplicationProperties.ToDictionary(
+            pair => pair.Key.Replace("sb-workbench.replay.", "sbe-explorer.replay."), pair => (object?)pair.Value);
+        Assert.Contains("sbe-explorer.replay.family", formerNames.Keys);
+        MessageDelivery formerCopy = Delivery(sequence: 91, messageId: first.MessageId, properties: formerNames);
+
+        Assert.True(ReplayLineage.BelongsTo(formerCopy, first.Family));
+        ReplayReservation second = ReplayLineage.Reserve(formerCopy, [first.Family]);
+        Assert.Equal(2, second.Family.LastAttempt);
+
+        var replayed = ReplayLineage.CreateMessage(formerCopy, second).ApplicationProperties;
+        Assert.DoesNotContain(replayed.Keys, key => key.StartsWith("sbw-explorer.", StringComparison.Ordinal));
+        Assert.Equal(2L, replayed[ReplayLineage.AttemptProperty]);
+    }
+
+    [Fact]
     public void Partial_or_malformed_lineage_cannot_silently_start_a_new_family()
     {
         MessageDelivery original = Delivery();

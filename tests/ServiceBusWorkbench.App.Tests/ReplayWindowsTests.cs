@@ -210,7 +210,7 @@ public sealed partial class ReplayWindowsTests
     private static void Capture(Window window, string filename)
     {
         VisualBaseline.AssertMatches(window, "replay-" + Path.GetFileNameWithoutExtension(filename));
-        if (!string.Equals(Environment.GetEnvironmentVariable("SBE_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase)) return;
+        if (!string.Equals(Environment.GetEnvironmentVariable("SBW_CAPTURE_INVESTIGATION_UI"), "true", StringComparison.OrdinalIgnoreCase)) return;
         var content = (FrameworkElement)window.Content;
         SettleLayout(window.Dispatcher, content);
         WpfScreenshot.SaveWindowContent(window, ScreenshotPath(filename),

@@ -7,14 +7,14 @@ public sealed class IntegrationFactAttribute : FactAttribute
     {
         if (!IsEnabled())
         {
-            Skip = "Set SBE_RUN_INTEGRATION_TESTS=true to run Docker-backed Service Bus emulator integration tests.";
+            Skip = "Set SBW_RUN_INTEGRATION_TESTS=true to run Docker-backed Service Bus emulator integration tests.";
         }
     }
 
     private static bool IsEnabled()
     {
         return string.Equals(
-            Environment.GetEnvironmentVariable("SBE_RUN_INTEGRATION_TESTS"),
+            Environment.GetEnvironmentVariable("SBW_RUN_INTEGRATION_TESTS"),
             "true",
             StringComparison.OrdinalIgnoreCase);
     }

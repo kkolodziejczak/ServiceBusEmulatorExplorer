@@ -74,7 +74,7 @@ public sealed class InvestigationDeleteSelectionRenderTests
     private static void Capture(Window window, int width, int height, string state)
     {
         VisualBaseline.AssertMatches(window, $"delete-selection-{state}-{width}x{height}");
-        string? directory = Environment.GetEnvironmentVariable("SBE_DELETE_SELECTION_PROOF");
+        string? directory = Environment.GetEnvironmentVariable("SBW_DELETE_SELECTION_PROOF");
         if (string.IsNullOrWhiteSpace(directory)) return;
         System.IO.Directory.CreateDirectory(directory);
         var content = (FrameworkElement)window.Content;

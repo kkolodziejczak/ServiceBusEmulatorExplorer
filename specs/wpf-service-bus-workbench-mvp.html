@@ -991,8 +991,8 @@ public interface IDeadLetterReplayService
       <tbody>
         <tr><td><code>ServiceBusWorkbench.Core.Tests</code></td><td>Stage 1</td><td>Connection profile validation, replay ID policy, DTO/projection helpers.</td><td>Yes</td></tr>
         <tr><td><code>ServiceBusWorkbench.App.Tests</code></td><td>Stage 1</td><td>Shell command enablement, connection view model states, operation log UTC formatting.</td><td>Yes</td></tr>
-        <tr><td><code>ServiceBusWorkbench.Integration.Tests</code></td><td>Stage 1</td><td>Fixture readiness test that is skipped unless emulator env vars are present.</td><td>No, gated by <code>SBE_RUN_INTEGRATION_TESTS=true</code></td></tr>
-        <tr><td><code>ServiceBusWorkbench.UiSmoke.Tests</code></td><td>Stage 1</td><td>Launch app, find main window, verify title/Connect/Disconnect/Refresh controls, close cleanly.</td><td>No, gated by <code>SBE_RUN_UI_TESTS=true</code></td></tr>
+        <tr><td><code>ServiceBusWorkbench.Integration.Tests</code></td><td>Stage 1</td><td>Fixture readiness test that is skipped unless emulator env vars are present.</td><td>No, gated by <code>SBW_RUN_INTEGRATION_TESTS=true</code></td></tr>
+        <tr><td><code>ServiceBusWorkbench.UiSmoke.Tests</code></td><td>Stage 1</td><td>Launch app, find main window, verify title/Connect/Disconnect/Refresh controls, close cleanly.</td><td>No, gated by <code>SBW_RUN_UI_TESTS=true</code></td></tr>
       </tbody>
     </table>
     <h3>Integration Test Contract</h3>
@@ -1001,7 +1001,7 @@ public interface IDeadLetterReplayService
         <tr><th>Area</th><th>Required Proof</th></tr>
       </thead>
       <tbody>
-        <tr><td>Startup</td><td>Test fixture starts only when <code>SBE_RUN_INTEGRATION_TESTS=true</code> and required connection strings are present.</td></tr>
+        <tr><td>Startup</td><td>Test fixture starts only when <code>SBW_RUN_INTEGRATION_TESTS=true</code> and required connection strings are present.</td></tr>
         <tr><td>Readiness</td><td>Fixture retries a harmless administration operation until the emulator is ready, with a bounded timeout.</td></tr>
         <tr><td>Isolation</td><td>Every test uses unique entity names such as <code>it-{guid}</code> and deletes entities in cleanup.</td></tr>
         <tr><td>Entity management</td><td>Create, list, update supported metadata, and delete queue, topic, and subscription.</td></tr>
@@ -1012,12 +1012,12 @@ public interface IDeadLetterReplayService
       </tbody>
     </table>
     <h3>Suggested Test Environment Variables</h3>
-    <pre><code class="language-powershell">$env:SBE_RUN_INTEGRATION_TESTS = "true"
-$env:SBE_CONNECTION_STRING = "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
-$env:SBE_ADMIN_CONNECTION_STRING = "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+    <pre><code class="language-powershell">$env:SBW_RUN_INTEGRATION_TESTS = "true"
+$env:SBW_CONNECTION_STRING = "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+$env:SBW_ADMIN_CONNECTION_STRING = "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
 dotnet test --filter TestCategory=Integration</code></pre>
     <h3>Suggested UI Smoke Test Environment Variables</h3>
-    <pre><code class="language-powershell">$env:SBE_RUN_UI_TESTS = "true"
+    <pre><code class="language-powershell">$env:SBW_RUN_UI_TESTS = "true"
 dotnet test --filter TestCategory=UiSmoke</code></pre>
     <h3>UI Automation Position</h3>
     <p>
@@ -1123,7 +1123,7 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
       <li><input type="checkbox" checked> All Stage 1 through Stage 5 acceptance criteria pass locally.</li>
       <li><input type="checkbox" checked> Unit tests cover service contracts, view model command states, and DLQ replay default behavior.</li>
       <li><input type="checkbox" checked> Docker-backed integration tests pass when the root compose emulator is running and integration tests are explicitly enabled.</li>
-      <li><input type="checkbox" checked> An intentionally small FlaUI/UIA3 smoke suite covers launch, connect, navigation, and DLQ command enablement behind <code>SBE_RUN_UI_TESTS=true</code>.</li>
+      <li><input type="checkbox" checked> An intentionally small FlaUI/UIA3 smoke suite covers launch, connect, navigation, and DLQ command enablement behind <code>SBW_RUN_UI_TESTS=true</code>.</li>
       <li><input type="checkbox" checked> Manual proof confirms default replay leaves DLQ originals untouched.</li>
       <li><input type="checkbox" checked> Destructive operations require confirmation and report success/failure accurately.</li>
       <li><input type="checkbox" checked> README documents emulator startup, connection strings, and the DLQ workflow.</li>
@@ -1144,7 +1144,7 @@ dotnet test --filter TestCategory=UiSmoke</code></pre>
           <td>2026-07-08</td>
           <td>Codex</td>
           <td>Created MVP system scope and implementation plan for direct-SDK WPF Service Bus emulator explorer.</td>
-          <td><a href="./wpf-service-bus-workbench-mvpResources/ui-wireframe.html">Wireframe</a>, <a href="../Lessons/wpf-service-bus-emulator-explorer-mvp-lessons-learned.md">Lessons</a></td>
+          <td><a href="./wpf-service-bus-workbench-mvpResources/ui-wireframe.html">Wireframe</a>, <a href="../Lessons/wpf-service-bus-workbench-mvp-lessons-learned.md">Lessons</a></td>
         </tr>
         <tr>
           <td>2026-07-08</td>

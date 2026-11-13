@@ -168,7 +168,7 @@ public sealed class MessageColumnPreferencesTests
     private static ReplayFamilyState Family() => new(new Guid("11111111-1111-1111-1111-111111111111"), new string('A', 64), "original-id",
         new EntityAddress(EntityKind.Queue, "orders"), 1);
 
-    private static string CreatePath() => Path.Combine(Path.GetTempPath(), "sbe-message-columns",
+    private static string CreatePath() => Path.Combine(Path.GetTempPath(), "sbw-message-columns",
         Guid.NewGuid().ToString("N"), "profiles.json");
 
     private static void DeletePreferenceFile(string path)
