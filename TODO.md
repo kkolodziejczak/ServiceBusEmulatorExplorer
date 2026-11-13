@@ -20,3 +20,11 @@ Open work as of 2026-10-27. Each item names the branch or T3 session to continue
 
 - Main checkout: proposed design images under `specs/message-library/design/proposed/` and
   `specs/app-icon/`, and `.bugstash.json`. Keep (commit) or delete.
+
+## Follow-ups
+
+- Release signing (issue #7, DEC-059): the manual launch-smoke fallback (`use_manual_launch_smoke_proof`)
+  rebuilds and re-signs, so the hashes in its proof reference describe other files than the drafted
+  ones, and it costs a second approval and phone code. The `manual-launch-smoke` environment it names
+  does not exist yet, although AGENTS.md says it must have required reviewers. Let the fallback reuse
+  the failed run's `signed-release` artifact, and create the environment with a reviewer.
