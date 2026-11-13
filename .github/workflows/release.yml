@@ -96,7 +96,7 @@ jobs:
           # Signing must be approved, and failed jobs rerun, within this window.
           retention-days: 7
 
-  # The approval gate, SimplySign login and signing live in kkolodziejczak/gh-release-signing (DEC-059, DEC-060).
+  # The approval gate, SimplySign login and signing live in kkolodziejczak/gh-release-signing (DEC-059, DEC-061).
   sign:
     needs: build
     uses: kkolodziejczak/gh-release-signing/.github/workflows/sign.yml@main
