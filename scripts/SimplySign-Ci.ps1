@@ -112,18 +112,24 @@ function Send-Text([string]$Text) {
     [System.Windows.Forms.SendKeys]::SendWait(($Text -replace '([+^%~(){}\[\]])', '{$1}'))
 }
 
-function Clear-Mailbox {
+# Calls the mailbox API with the mailbox token. Only "not found" means an empty
+# mailbox; any other failure (expired token, network) stops the job visibly.
+function Invoke-Mailbox([string[]]$GhArguments) {
     $env:GH_TOKEN = $env:MAILBOX_TOKEN
-    gh api -X DELETE $MailboxApi --silent 2>$null
+    $ErrorActionPreference = 'Continue'
+    $Output = & gh @GhArguments 2>&1
+    $Failed = $LASTEXITCODE -ne 0
     $global:LASTEXITCODE = 0
+    $Stdout = ($Output | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }) -join "`n"
+    $Stderr = ($Output | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] } | ForEach-Object { "$_" }) -join "`n"
+    if ($Failed -and $Stderr -notmatch 'HTTP 404') { throw "The SIMPLYSIGN_CODE mailbox call failed: $Stderr" }
+    if ($Failed) { return $null }
+    return $Stdout.Trim()
 }
 
-function Read-Mailbox {
-    $env:GH_TOKEN = $env:MAILBOX_TOKEN
-    $Value = gh api $MailboxApi --jq .value 2>$null
-    if ($LASTEXITCODE -ne 0) { $global:LASTEXITCODE = 0; return $null }
-    return "$Value".Trim()
-}
+function Read-Mailbox { return Invoke-Mailbox @('api', $MailboxApi, '--jq', '.value') }
+
+function Clear-Mailbox { Invoke-Mailbox @('api', '-X', 'DELETE', $MailboxApi, '--silent') | Out-Null }
 
 function Find-Certificate {
     Get-ChildItem Cert:\CurrentUser\My |
@@ -137,8 +143,9 @@ function Invoke-WaitAndLogin {
     Import-Win32
     Set-LoginFocus
 
-    # An old code must never be used, so start with an empty mailbox.
-    Clear-Mailbox
+    # The helper writes "<run id>-<run attempt>:<code>". Anything else, such as a
+    # late code for an earlier run, is deleted unused.
+    $Expected = "$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
     Write-Host "::notice title=Waiting for your SimplySign code::Run .\scripts\Approve-ReleaseSigning.ps1 on your machine; it asks for the code."
     $Deadline = [DateTime]::UtcNow.AddMinutes($WaitMinutes)
     $Code = $null
@@ -146,11 +153,12 @@ function Invoke-WaitAndLogin {
         $Value = Read-Mailbox
         if ($Value) {
             Add-Mask $Value
+            Add-Mask ($Value -replace '^.*:', '')
             Clear-Mailbox
-            if ($Value -match '^\d{6}$') { $Code = $Value }
-            else { Write-Host "The mailbox held something that is not a 6-digit code; it was emptied. Waiting again." }
+            if ($Value -match "^$Expected`:(\d{6})$") { $Code = $Matches[1] }
+            else { Write-Host "Ignored and deleted a mailbox value that was not a code for this run attempt." }
         }
-        else { Start-Sleep -Seconds 2 }
+        Start-Sleep -Seconds 2
     }
     if (-not $Code) { throw "No code arrived within $WaitMinutes minutes" }
     Write-Host "Code received; logging in."
@@ -167,7 +175,8 @@ function Invoke-WaitAndLogin {
     while ([DateTime]::UtcNow -lt $Until -and -not ($Certificate = Find-Certificate)) { Start-Sleep -Seconds 3 }
     if (-not $Certificate) {
         Write-Windows "no certificate"
-        throw "SimplySign did not mount certificate $env:SIGNING_CERT_THUMBPRINT. Re-run the job to try with a new code."
+        $Mounted = @(Get-ChildItem Cert:\CurrentUser\My | ForEach-Object { "$($_.Thumbprint) $($_.Subject)" })
+        throw "SimplySign did not mount certificate $env:SIGNING_CERT_THUMBPRINT (mounted: $(if ($Mounted) { $Mounted -join '; ' } else { 'none' })). If another certificate is listed, update SIGNING_CERT_THUMBPRINT in release.yml; otherwise the code was wrong or expired: re-run the job with a new code."
     }
     Write-Host "SimplySign mounted $($Certificate.Subject), valid until $($Certificate.NotAfter.ToString('u'))."
 }

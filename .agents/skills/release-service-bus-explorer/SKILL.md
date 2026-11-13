@@ -88,11 +88,16 @@ Verify the local and remote tag both resolve to the release commit. This gate is
 
 ## 6. Watch the release gate
 
-The `sign` job waits for the user: they approve the `code-signing` environment and type the SimplySign phone code (DEC-059). An agent cannot do either. Ask the user to run this in their own Windows PowerShell and keep it open until it reports the run result:
+The `sign` job waits for the user: they approve the `code-signing` environment and type the SimplySign phone code (DEC-059). An agent must do neither. Right after the tag push, open the signing helper in a visible Windows PowerShell window on the user's desktop. Launch it outside the sandbox, otherwise the window stays invisible:
 
 ```powershell
-.\scripts\Approve-ReleaseSigning.ps1 -Tag v0.1.4
+$signing = Start-Process powershell.exe -WorkingDirectory (Resolve-Path .) -PassThru -ArgumentList @(
+    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-NoExit',
+    '-File', '.\scripts\Approve-ReleaseSigning.ps1', '-Tag', 'v0.1.4')
+$signing.Id
 ```
+
+Tell the user that a "signing" PowerShell window is open: it shows each step, asks to approve once the build is done, then asks for the phone code. Report the window's process ID. `-NoExit` keeps the result visible; the window belongs to the user, so never close it yourself. Keep watching the run below while the user answers.
 
 Find the newest `release.yml` push run whose `headBranch` equals the tag:
 

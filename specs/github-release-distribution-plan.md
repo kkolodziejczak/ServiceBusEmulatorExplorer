@@ -115,6 +115,8 @@ flowchart LR
 
 This template is authoritative for asset naming and choice guidance. Version values are examples and must be replaced from the validated tag. It is not an application UI mock because this feature does not change application UI.
 
+> Releases after v0.3.0 replace the "Windows security notice" below with the signed-publisher notice in `release.yml` (DEC-059).
+
 ```markdown
 ## Choose a download
 

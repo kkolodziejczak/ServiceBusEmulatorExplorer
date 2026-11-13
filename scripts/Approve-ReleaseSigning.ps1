@@ -4,12 +4,13 @@ Approves the signing job of a release run and sends it your SimplySign code.
 
 .DESCRIPTION
 Follows a release.yml run on GitHub. When the run waits for the code-signing
-approval it asks you to approve; when the signing job waits for the phone code
-it asks for the code (shown as you type) and puts it in the SIMPLYSIGN_CODE
-mailbox, which the job empties within seconds (DEC-059). Requires an
-authenticated GitHub CLI. A fine-grained token needs, on this repository:
-Actions read, Deployments read and write (to approve), and Environments read
-and write (to send the code).
+approval it shows what the run builds and asks you to approve; when the signing
+job waits for the phone code it asks for the code (shown as you type) and puts
+it in the SIMPLYSIGN_CODE mailbox, tied to that run attempt, then confirms the
+runner picked it up (DEC-059). Requires an authenticated GitHub CLI. A
+fine-grained token needs, on this repository: Actions read, Contents read,
+Deployments read and write (to approve), and Environments read and write (to
+send the code).
 
 .EXAMPLE
 .\scripts\Approve-ReleaseSigning.ps1 -Tag v0.4.0
@@ -34,19 +35,26 @@ $environmentName = 'code-signing'
 # matched as text because the step name's leading emoji is easy to garble.
 $waitingStepName = 'Waiting for your SimplySign code'
 
+# Runs gh and returns its output, or $null for "HTTP 404" when -AllowNotFound.
 function Invoke-Gh {
-    param([Parameter(Mandatory = $true)][string[]]$Arguments, [string]$InputText = '')
+    param([Parameter(Mandatory = $true)][string[]]$Arguments, [string]$InputText = '', [switch]$AllowNotFound)
     # gh writes UTF-8; Windows PowerShell would otherwise decode it with the console's code page.
     $consoleEncoding = [Console]::OutputEncoding
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    # Windows PowerShell turns redirected native stderr into errors, so collect it without stopping.
+    $ErrorActionPreference = 'Continue'
     try {
-        $output = if ($InputText) { $InputText | gh @Arguments } else { gh @Arguments }
+        $output = if ($InputText) { $InputText | gh @Arguments 2>&1 } else { gh @Arguments 2>&1 }
     }
     finally {
         [Console]::OutputEncoding = $consoleEncoding
     }
-    if ($LASTEXITCODE -ne 0) { throw "gh $($Arguments -join ' ') failed with exit code $LASTEXITCODE." }
-    return ($output -join "`n")
+    # Keep stderr (notices, errors) out of the returned stdout, which callers parse as JSON.
+    $stdout = ($output | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }) -join "`n"
+    $stderr = ($output | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] } | ForEach-Object { "$_" }) -join "`n"
+    if ($LASTEXITCODE -eq 0) { return $stdout }
+    if ($AllowNotFound -and $stderr -match 'HTTP 404') { return $null }
+    throw "gh $($Arguments[0..1] -join ' ') failed: $stderr"
 }
 
 function Get-GhJson {
@@ -57,13 +65,22 @@ function Get-GhJson {
 function Find-ReleaseRun {
     $deadline = (Get-Date).AddMinutes(3)
     while ((Get-Date) -lt $deadline) {
-        $runs = Invoke-Gh -Arguments @('run', 'list', '--workflow', 'release.yml', '--limit', '10', '--json', 'databaseId,status,headBranch') | ConvertFrom-Json
-        $run = $runs | Where-Object { $_.status -ne 'completed' -and (-not $Tag -or $_.headBranch -eq $Tag) } | Select-Object -First 1
+        $runs = Invoke-Gh -Arguments @('run', 'list', '--workflow', 'release.yml', '--limit', '10', '--json', 'databaseId,status,headBranch,event') | ConvertFrom-Json
+        $run = @($runs) | Where-Object { $_.status -ne 'completed' -and (-not $Tag -or ($_.event -eq 'push' -and $_.headBranch -eq $Tag)) } | Select-Object -First 1
         if ($run) { return [long]$run.databaseId }
         Write-Host 'No running release found yet; checking again in 10 seconds...'
         Start-Sleep -Seconds 10
     }
     throw 'No running release.yml run found. Pass -RunId for a run started another way.'
+}
+
+# With -Tag, refuse a run that does not build exactly that tag's commit.
+function Assert-RunBuildsTag($run) {
+    if (-not $Tag) { return }
+    $tagCommit = Invoke-Gh -Arguments @('api', "repos/$repository/commits/$Tag", '--jq', '.sha')
+    if ($run.event -ne 'push' -or $run.head_sha -ne $tagCommit) {
+        throw "Run $RunId ($($run.event) of '$($run.head_branch)' at $($run.head_sha)) is not the push of tag $Tag at $tagCommit. Not approving."
+    }
 }
 
 function Read-SigningCode {
@@ -73,6 +90,31 @@ function Read-SigningCode {
         if ($code -match '^\d{6}$') { return $code }
         Write-Host 'That is not a 6-digit code. Try again with a fresh one.'
     }
+}
+
+function Test-StillWaiting([long]$jobId) {
+    $job = Get-GhJson "repos/$repository/actions/jobs/$jobId"
+    return [bool]($job.steps | Where-Object { $_.name -like "*$waitingStepName" -and $_.status -eq 'in_progress' })
+}
+
+function Send-SigningCode($job) {
+    $code = Read-SigningCode
+    if (-not (Test-StillWaiting $job.id)) {
+        Write-Host 'The signing job stopped waiting before the code was sent; nothing was sent.'
+        return
+    }
+
+    Invoke-Gh -Arguments @('variable', 'set', 'SIMPLYSIGN_CODE', '--env', $environmentName, '--repo', $repository) -InputText "$RunId-$($job.run_attempt):$code" | Out-Null
+    $code = $null
+    $pickedUpBy = (Get-Date).AddSeconds(30)
+    while ((Get-Date) -lt $pickedUpBy) {
+        Start-Sleep -Seconds 2
+        if ($null -eq (Invoke-Gh -Arguments @('api', "repos/$repository/environments/$environmentName/variables/SIMPLYSIGN_CODE") -AllowNotFound)) {
+            Write-Host 'The runner picked up the code and is logging in.'
+            return
+        }
+    }
+    Write-Host "The runner has not picked up the code after 30 seconds. Check the signing job at $runUrl."
 }
 
 $repository = Invoke-Gh -Arguments @('repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner')
@@ -93,7 +135,9 @@ while ((Get-Date) -lt $deadline) {
         $deployments = Get-GhJson "repos/$repository/actions/runs/$RunId/pending_deployments"
         $pending = @(@($deployments) | Where-Object { $_.environment.name -eq $environmentName })
         if ($pending.Count -gt 0) {
-            $answer = Read-Host "The release is built and waits for signing approval. Approve signing? [y/N]"
+            Assert-RunBuildsTag $run
+            Write-Host "Signing waits for approval: $($run.event) of '$($run.head_branch)', commit $($run.head_sha.Substring(0, 7)), started by $($run.triggering_actor.login)."
+            $answer = Read-Host 'Approve signing this build? [y/N]'
             if ($answer -notmatch '^(y|yes)$') {
                 Write-Host 'Not approved. The run keeps waiting; reject or approve it on GitHub, or run this script again.'
                 return
@@ -103,13 +147,19 @@ while ((Get-Date) -lt $deadline) {
             $approved = $true
             try {
                 Invoke-Gh -Arguments @('api', '-X', 'POST', "repos/$repository/actions/runs/$RunId/pending_deployments", '--input', '-') -InputText $body | Out-Null
-                Write-Host 'Approved. SimplySign is being installed on the runner; the code prompt follows in a few minutes.'
+                Write-Host 'Approved. SimplySign is being installed on the runner; the code prompt follows in about a minute.'
             }
             catch {
-                Write-Host "GitHub refused the approval: $($_.Exception.Message)"
-                Write-Host 'A fine-grained gh token needs Deployments: Read and write for this. Approve on the run page instead:'
-                Write-Host "  $runUrl  (Review deployments > code-signing > Approve and deploy)"
-                Write-Host 'This script keeps waiting and asks for the code once signing starts.'
+                $stillPending = @(@(Get-GhJson "repos/$repository/actions/runs/$RunId/pending_deployments") | Where-Object { $_.environment.name -eq $environmentName })
+                if ($stillPending.Count -eq 0) {
+                    Write-Host 'Signing was already approved elsewhere.'
+                }
+                else {
+                    Write-Host "GitHub refused the approval: $($_.Exception.Message)"
+                    Write-Host 'A fine-grained gh token needs Deployments: Read and write for this. Approve on the run page instead:'
+                    Write-Host "  $runUrl  (Review deployments > code-signing > Approve and deploy)"
+                    Write-Host 'This script keeps waiting and asks for the code once signing starts.'
+                }
             }
         }
     }
@@ -127,11 +177,8 @@ while ((Get-Date) -lt $deadline) {
     foreach ($job in $jobs) {
         $waiting = $job.steps | Where-Object { $_.name -like "*$waitingStepName" -and $_.status -eq 'in_progress' }
         if ($waiting -and $job.id -notin $answeredJobIds) {
-            $code = Read-SigningCode
-            Invoke-Gh -Arguments @('variable', 'set', 'SIMPLYSIGN_CODE', '--env', $environmentName, '--repo', $repository) -InputText $code | Out-Null
-            $code = $null
             $answeredJobIds += $job.id
-            Write-Host 'Code sent. The runner logs in and signs now.'
+            Send-SigningCode $job
         }
     }
 

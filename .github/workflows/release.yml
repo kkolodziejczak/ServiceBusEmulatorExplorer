@@ -39,8 +39,6 @@ jobs:
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
       version: ${{ steps.tag.outputs.version }}
-      runtime_required_name: ${{ steps.publish.outputs.runtime_required_name }}
-      portable_name: ${{ steps.publish.outputs.portable_name }}
 
     steps:
       - name: Validate release tag
@@ -88,13 +86,10 @@ jobs:
         run: dotnet test ServiceBusEmulatorExplorer.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
 
       - name: Publish and validate release assets
-        id: publish
         shell: pwsh
         run: |
-          .\scripts\Publish-Release.ps1 -Version '${{ steps.tag.outputs.version }}' -PublishTimeoutSeconds 300 -GitHubOutputPath $env:GITHUB_OUTPUT
+          .\scripts\Publish-Release.ps1 -Version '${{ steps.tag.outputs.version }}' -PublishTimeoutSeconds 300
           .\scripts\Test-ReleaseArtifacts.ps1 -Version '${{ steps.tag.outputs.version }}'
-          "runtime_required_name=$(Split-Path -Leaf (Get-Item artifacts\release\$env:RELEASE_TAG\*-requires-dotnet10.exe))" | Add-Content -Path $env:GITHUB_OUTPUT
-          "portable_name=$(Split-Path -Leaf (Get-Item artifacts\release\$env:RELEASE_TAG\*-portable.exe))" | Add-Content -Path $env:GITHUB_OUTPUT
 
       - name: Keep the unsigned assets for signing
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -102,7 +97,8 @@ jobs:
           name: unsigned-release
           path: artifacts/release/${{ steps.tag.outputs.tag }}/*.exe
           if-no-files-found: error
-          retention-days: 1
+          # Signing must be approved, and failed jobs rerun, within this window.
+          retention-days: 7
 
   sign:
     name: Sign release executables
@@ -111,6 +107,10 @@ jobs:
     timeout-minutes: 30
     # The approval gate: only the owner can start this job, and its secrets exist only here (DEC-059).
     environment: code-signing
+    # All signing jobs share one SIMPLYSIGN_CODE mailbox, so they run one at a time.
+    concurrency:
+      group: code-signing
+      cancel-in-progress: false
     permissions:
       contents: read
     env:
@@ -149,8 +149,13 @@ jobs:
           $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
             Sort-Object { [version]$_.Directory.Parent.Name } -Descending | Select-Object -First 1 -ExpandProperty FullName
           $assets = @(Get-ChildItem -LiteralPath $env:RELEASE_PATH -Filter *.exe | ForEach-Object FullName)
-          & $signtool sign /sha1 $env:SIGNING_CERT_THUMBPRINT /fd sha256 /tr http://time.certum.pl /td sha256 $assets
-          if ($LASTEXITCODE -ne 0) { throw "signtool sign failed with exit code $LASTEXITCODE." }
+          # Retry while the SimplySign session is still open: the timestamp server occasionally fails a request.
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            & $signtool sign /sha1 $env:SIGNING_CERT_THUMBPRINT /fd sha256 /tr http://time.certum.pl /td sha256 $assets
+            if ($LASTEXITCODE -eq 0) { break }
+            if ($attempt -eq 3) { throw "signtool sign failed three times; last exit code $LASTEXITCODE." }
+            Start-Sleep -Seconds (10 * $attempt)
+          }
           & $signtool verify /pa $assets
           if ($LASTEXITCODE -ne 0) { throw "signtool verify failed with exit code $LASTEXITCODE." }
           .\scripts\Test-ReleaseArtifacts.ps1 -Version '${{ needs.build.outputs.version }}' -ExpectedSignerThumbprint $env:SIGNING_CERT_THUMBPRINT
@@ -161,7 +166,7 @@ jobs:
           name: signed-release
           path: ${{ env.RELEASE_PATH }}/*.exe
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7
 
       - name: Empty the mailbox and stop SimplySign
         if: always()
@@ -212,9 +217,10 @@ jobs:
         id: publish
         shell: pwsh
         run: |
-          $releasePath = Resolve-Path "artifacts\release\${{ needs.build.outputs.tag }}"
-          "runtime_required_asset=$(Join-Path $releasePath '${{ needs.build.outputs.runtime_required_name }}')" | Add-Content -Path $env:GITHUB_OUTPUT
-          "portable_asset=$(Join-Path $releasePath '${{ needs.build.outputs.portable_name }}')" | Add-Content -Path $env:GITHUB_OUTPUT
+          # Test-ReleaseArtifacts already proved these are the only two assets and named as Publish-Release.ps1 names them.
+          $releasePath = "artifacts\release\${{ needs.build.outputs.tag }}"
+          "runtime_required_asset=$((Get-Item "$releasePath\*-requires-dotnet10.exe").FullName)" | Add-Content -Path $env:GITHUB_OUTPUT
+          "portable_asset=$((Get-Item "$releasePath\*-portable.exe").FullName)" | Add-Content -Path $env:GITHUB_OUTPUT
 
       - name: Launch-smoke runtime-required asset
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.use_manual_launch_smoke_proof) }}
