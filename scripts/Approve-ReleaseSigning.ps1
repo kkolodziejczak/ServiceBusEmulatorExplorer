@@ -5,7 +5,7 @@ Approves the signing job of a release run and sends it your SimplySign code.
 .DESCRIPTION
 Follows a release.yml run on GitHub. When the run waits for the code-signing
 approval it asks you to approve; when the signing job waits for the phone code
-it asks for the code (hidden as you type) and puts it in the SIMPLYSIGN_CODE
+it asks for the code (shown as you type) and puts it in the SIMPLYSIGN_CODE
 mailbox, which the job empties within seconds (DEC-059). Requires an
 authenticated GitHub CLI. A fine-grained token needs, on this repository:
 Actions read, Deployments read and write (to approve), and Environments read
@@ -68,8 +68,8 @@ function Find-ReleaseRun {
 
 function Read-SigningCode {
     while ($true) {
-        $secure = Read-Host 'Open the SimplySign app and type the 6-digit code (hidden)' -AsSecureString
-        $code = [System.Net.NetworkCredential]::new('', $secure).Password.Trim()
+        # Shown while typed to catch typos: the code works once and only for about 30 seconds.
+        $code = (Read-Host 'Open the SimplySign app and type the 6-digit code').Trim()
         if ($code -match '^\d{6}$') { return $code }
         Write-Host 'That is not a 6-digit code. Try again with a fresh one.'
     }
