@@ -78,6 +78,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-059 | accepted | Release | Releases are signed on GitHub's runner with a phone code the owner types each time |
 | DEC-060 | accepted | Release | The README screenshot is updated on master before the release is tagged |
 | DEC-061 | accepted | Release | Signing lives in one shared repository, gh-release-signing, that every repository calls |
+| DEC-062 | accepted | Build | Workflow actions stay on their latest releases, pinned by SHA and updated by Dependabot |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -506,3 +507,10 @@ DLQ palette clarification: the user explicitly disallowed changing DLQ tag color
 - Decision: the public repository `kkolodziejczak/gh-release-signing` holds the reusable `sign.yml`, the SimplySign runner script and the `gh release-signing approve` extension. This repository's `sign` job calls `sign.yml@main` with `secrets: inherit` (a called workflow sees no secrets otherwise, not even its environment's) and `id-token: write`; the reusable job reads its own commit from the OIDC token and checks out its scripts at that commit, because the `github` context of a called workflow belongs to the caller. The certificate thumbprint lives only in `sign.yml`, and the release job re-validates the downloaded assets against the thumbprint the sign job reports. Each repository keeps its own `code-signing` environment, reviewer and secrets, so DEC-059's approval gate and mailbox stay per repository.
 - Because: one copy means a fix or the yearly certificate renewal is one change for every repository. Callers follow `main` rather than a moving `v1` tag, because moving a tag needs a force-push.
 - Consequences: a broken commit on `gh-release-signing`'s `main` breaks signing in every repository until it is fixed; its `self-test.yml` signs a throwaway executable through the same path and should pass before relying on a change. Each computer that approves signing needs `gh extension install kkolodziejczak/gh-release-signing` once.
+
+## DEC-062 - Workflow actions stay on their latest releases, pinned by SHA and updated by Dependabot
+
+- Status: accepted, 2026-11-13; GitHub warned that the pinned v4 actions target the deprecated Node.js 20, and the user wanted to stay up to date and not use outdated versions.
+- Decision: every `uses:` of a third-party action is pinned to a full commit SHA with its version as a comment, on the action's latest release (checkout v7, setup-dotnet v6, upload-artifact v7, download-artifact v8 at the time). `.github/dependabot.yml` opens one grouped pull request a week for `github-actions` updates. `gh-release-signing` follows the same rule.
+- Because: a SHA pin keeps a moved tag from changing what runs, and Dependabot keeps the pins from going stale the way the v4 pins did.
+- Consequences: review and merge the weekly actions pull request after its checks pass; read the release notes of a new major version before merging it.
