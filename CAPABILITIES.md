@@ -101,6 +101,7 @@ Startup presentation example: `src/ServiceBusWorkbench.App/Investigation/Investi
 | Capability | Reuse | Where |
 | --- | --- | --- |
 | Fast test loop excluding gated categories | shared | `AGENTS.md` (Fast Development Loop); `tests/README.md` |
+| Topping up the local emulator with Active and DLQ demo messages before manual testing, safe to run again | shared | `tools/ServiceBusWorkbench.DemoData/Program.cs`; `AGENTS.md` (Launching for user testing) |
 | Docker-gated integration tests against the local emulator | adapt | `tests/ServiceBusWorkbench.Integration.Tests/`; `compose.yaml` |
 | An action row that wraps its last actions onto right-aligned lines instead of clipping them | shared | `src/ServiceBusWorkbench.App/Investigation/RightAlignedWrapPanel.cs` |
 | FlaUI UI smoke tests using UI Automation patterns, not physical input | adapt | `tests/ServiceBusWorkbench.UiSmoke.Tests/`; runner `scripts/Invoke-UiSmoke.ps1` |
