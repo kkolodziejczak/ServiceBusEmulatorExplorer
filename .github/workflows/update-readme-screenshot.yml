@@ -1,4 +1,6 @@
 name: Update README Screenshot
+# The request id lets Sync-ReleaseScreenshot.ps1 find exactly the run it dispatched.
+run-name: README screenshot ${{ inputs.branch || inputs.tag || github.event.release.tag_name }} ${{ inputs.request_id }}
 
 on:
   release:
@@ -11,7 +13,11 @@ on:
         required: false
         type: string
       branch:
-        description: Branch to capture before a release (normally master); a changed image becomes a pull request into it. Leave empty when using tag.
+        description: Branch to capture before a release (normally master); dispatch the workflow from that same branch. A changed image becomes a pull request into it. Leave empty when using tag.
+        required: false
+        type: string
+      request_id:
+        description: Set by Sync-ReleaseScreenshot.ps1 to find its run; leave empty.
         required: false
         type: string
 
@@ -53,9 +59,12 @@ jobs:
           }
 
           if ($env:SOURCE_BRANCH) {
-            if ($env:SOURCE_BRANCH -notmatch '^[A-Za-z0-9._/-]+$') { throw "Invalid branch name '$env:SOURCE_BRANCH'." }
-            $commit = gh api "repos/$env:GITHUB_REPOSITORY/commits/heads/$env:SOURCE_BRANCH" --jq .sha
-            if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{40}$') { throw "Branch '$env:SOURCE_BRANCH' does not exist." }
+            # Capture exactly the commit the run was dispatched at, so the script's
+            # pull request can only fast-forward that commit (strict branch protection).
+            if ($env:SOURCE_BRANCH -cne $env:GITHUB_REF_NAME -or $env:GITHUB_REF_TYPE -ne 'branch') {
+              throw "Dispatch this workflow from the branch it captures: --ref '$env:SOURCE_BRANCH' -f branch='$env:SOURCE_BRANCH'."
+            }
+            $commit = $env:GITHUB_SHA
             "label=$($env:SOURCE_BRANCH -replace '[^A-Za-z0-9.-]', '-')-$($commit.Substring(0, 7))" | Add-Content -Path $env:GITHUB_OUTPUT
             "commit=$commit" | Add-Content -Path $env:GITHUB_OUTPUT
             "base=$env:SOURCE_BRANCH" | Add-Content -Path $env:GITHUB_OUTPUT
@@ -92,7 +101,7 @@ jobs:
         timeout-minutes: 3
         run: dotnet build tools\ServiceBusEmulatorExplorer.ReadmeScreenshot\ServiceBusEmulatorExplorer.ReadmeScreenshot.csproj --configuration Release -p:UseSharedCompilation=false -p:NodeReuse=false
 
-      - name: Capture released application
+      - name: Capture the application
         shell: pwsh
         timeout-minutes: 2
         run: |
@@ -118,6 +127,7 @@ jobs:
     env:
       LABEL: ${{ needs.capture.outputs.label }}
       BASE_BRANCH: ${{ needs.capture.outputs.base }}
+      BRANCH_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.branch != '' }}
 
     steps:
       # Branch mode builds on the exact captured commit; tag mode on the default branch.
@@ -197,16 +207,19 @@ jobs:
             throw "Could not commit the generated README screenshot."
           }
 
-          # scripts/Sync-ReleaseScreenshot.ps1 finds this branch by its run id and attempt suffix.
-          $automationBranch = "automation/readme-screenshot-$env:LABEL-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          # Run id first: scripts/Sync-ReleaseScreenshot.ps1 looks the branch up by that prefix.
+          $automationBranch = "automation/readme-screenshot-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-$env:LABEL"
           git push origin "HEAD:refs/heads/$automationBranch"
           if ($LASTEXITCODE -ne 0) {
             throw "Could not push the generated README screenshot branch '$automationBranch'."
           }
 
-          gh workflow run ci.yml --ref $automationBranch
-          if ($LASTEXITCODE -ne 0) {
-            throw "Could not dispatch fast CI for the generated README screenshot branch."
+          # In branch mode Sync-ReleaseScreenshot.ps1 opens the pull request, which runs CI itself.
+          if ($env:BRANCH_MODE -ne 'true') {
+            gh workflow run ci.yml --ref $automationBranch
+            if ($LASTEXITCODE -ne 0) {
+              throw "Could not dispatch fast CI for the generated README screenshot branch."
+            }
           }
 
           $compareUrl = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/compare/$env:BASE_BRANCH...$automationBranch`?expand=1"
@@ -215,8 +228,8 @@ jobs:
 
           - Source: ``$env:LABEL``
           - Generated file: ``$imagePath``
-          - Fast CI: dispatched for ``$automationBranch``
-          - Next step: [open a pull request]($compareUrl)
+          - Branch: ``$automationBranch``
+          - Next step: $(if ($env:BRANCH_MODE -eq 'true') { 'Sync-ReleaseScreenshot.ps1 opens and merges the pull request.' } else { "fast CI was dispatched; [open a pull request]($compareUrl)" })
 
           Branch protection intentionally requires a maintainer to open and merge the pull request.
           "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY

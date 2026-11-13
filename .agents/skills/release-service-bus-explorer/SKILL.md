@@ -15,6 +15,7 @@ Publish one immutable `vMAJOR.MINOR.PATCH` release from the current repository. 
    - `.github/workflows/release.yml`
    - `.github/workflows/update-readme-screenshot.yml`
    - `scripts/Push-ReleaseTag.ps1`
+   - `scripts/Sync-ReleaseScreenshot.ps1`, `scripts/Approve-ReleaseSigning.ps1` and the module they share, `scripts/ReleaseConsole.psm1`
    - every publish, artifact-validation, or smoke-test script invoked by `release.yml`
 3. Confirm that the inspected files still implement this contract:
    - a `v*` tag triggers the release workflow;
@@ -54,7 +55,7 @@ If release changes are uncommitted:
 
 If the working tree is clean and `HEAD` already contains the intended payload, use that commit; do not create an empty version-bump commit. This repository injects the assembly/file version from the release tag during `Publish-Release.ps1`, so no project-file version edit is required unless the inspected repository contract explicitly introduces one.
 
-Leave the release commit on the checked-out branch with its `origin/<branch>` upstream configured, and verify that the working tree is clean. The tag helper owns the ordered branch push and tag push in step 6. This gate is complete only when the intended release SHA is known and ready to push.
+`master` is protected and accepts changes only through pull requests with passing checks. Bring a new release commit to `origin/master` that way, then check out `master`, fast-forward it and verify that the working tree is clean and `origin/master...master` reports `0 0`. The README screenshot gate in step 5 needs this, and step 6's branch push then has nothing left to push. This gate is complete only when the intended release commit is on `origin/master`.
 
 ## 4. Choose the version
 
@@ -70,13 +71,13 @@ Keep existing releases unchanged. Publishing the new release as latest must not 
 
 ## 5. Bring the README screenshot up to date
 
-Run this on the release branch after the release commit is pushed and before tagging (DEC-060), so the tag already contains the current UI:
+Run this on `master`, level with `origin/master` (step 3), before tagging (DEC-060), so the tag already contains the current UI:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Sync-ReleaseScreenshot.ps1 -Branch master
 ```
 
-Give it a 45-minute timeout. It runs the screenshot workflow for the branch's commit. When the image changed, it opens the pull request, waits for its checks, merges it and fast-forwards the local branch. Invoking this skill authorizes that merge. When it reports that the screenshot is already current, nothing changed. Either way, tag the commit the branch points to afterwards. If it fails, stop before tagging and report the run or pull request it names.
+Give it a 45-minute timeout; the script bounds its whole run at 40 minutes. It runs the screenshot workflow for the branch's commit. When the image changed, it opens the pull request, waits for its checks, merges it and fast-forwards the local branch. Invoking this skill authorizes that merge. When it reports that the screenshot is already current, nothing changed. Either way, tag the commit the branch points to afterwards. If it fails, stop before tagging and report the run or pull request it names. If it reports an earlier screenshot pull request that is still open, finish or close that one first.
 
 ## 6. Push branch, then tag
 
