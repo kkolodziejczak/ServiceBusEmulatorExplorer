@@ -1,15 +1,17 @@
 # Logs in to Certum SimplySign Desktop on a GitHub-hosted Windows runner with a
 # one-time code the owner reads on their phone and drops into a "mailbox": the
-# environment variable SIMPLYSIGN_CODE of the code-signing environment
-# (scripts/Approve-ReleaseSigning.ps1 does that). Nothing that can sign on its
-# own is stored in GitHub (DEC-059).
+# code-signing environment variable SIMPLYSIGN_CODE_<run id>_<run attempt>
+# (scripts/Approve-ReleaseSigning.ps1 does that). Only this job attempt reads or
+# deletes its own mailbox, so a code cannot be lost to another run, and the
+# mailbox disappearing tells the helper the code was picked up. Nothing that can
+# sign on its own is stored in GitHub (DEC-059).
 #
 #   -Install       download the pinned SimplySign Desktop MSI, check its hash and
 #                  Asseco signature, install it silently.
 #   -OpenLogin     start SimplySign Desktop until its login window shows.
-#   -WaitAndLogin  empty the mailbox, wait for a 6-digit code, type the e-mail
-#                  and code into the login window, wait for the certificate.
-#   -Logout        empty the mailbox and stop SimplySign Desktop.
+#   -WaitAndLogin  wait for a 6-digit code in this attempt's mailbox, type the
+#                  e-mail and code into the login window, wait for the certificate.
+#   -Logout        delete this and any leftover mailboxes, stop SimplySign Desktop.
 #
 # Environment: CERTUM_EMAIL, SIGNING_CERT_THUMBPRINT, MAILBOX_TOKEN (fine-grained token
 # with Environments read/write on this repository), GITHUB_REPOSITORY.
@@ -21,7 +23,8 @@ $MsiVersion = "9.4.5.95"
 $MsiSha256 = "6309E8B46F1F4E786288E777AEF515A2C30D885165B71A21191E9941BADEBD6B"
 $MsiUrl = "https://files.certum.eu/software/SimplySignDesktop/Windows/$MsiVersion/SimplySignDesktop-$MsiVersion-64-bit-en.msi"
 $SimplySignExe = "C:\Program Files\Certum\SimplySign Desktop\SimplySignDesktop.exe"
-$MailboxApi = "repos/$env:GITHUB_REPOSITORY/environments/code-signing/variables/SIMPLYSIGN_CODE"
+$VariablesApi = "repos/$env:GITHUB_REPOSITORY/environments/code-signing/variables"
+$MailboxApi = "$VariablesApi/SIMPLYSIGN_CODE_$($env:GITHUB_RUN_ID)_$($env:GITHUB_RUN_ATTEMPT)"
 $WaitMinutes = 10
 
 function Add-Mask([string]$Value) { if ($Value) { Write-Host "::add-mask::$Value" } }
@@ -129,7 +132,16 @@ function Invoke-Mailbox([string[]]$GhArguments) {
 
 function Read-Mailbox { return Invoke-Mailbox @('api', $MailboxApi, '--jq', '.value') }
 
-function Clear-Mailbox { Invoke-Mailbox @('api', '-X', 'DELETE', $MailboxApi, '--silent') | Out-Null }
+function Clear-Mailbox([string]$Api = $MailboxApi) { Invoke-Mailbox @('api', '-X', 'DELETE', $Api, '--silent') | Out-Null }
+
+# Removes codes sent too late for earlier runs. Signing jobs run one at a time,
+# so at logout no other job is waiting on its mailbox.
+function Clear-LeftoverMailboxes {
+    $Names = Invoke-Mailbox @('api', "$VariablesApi`?per_page=100", '--jq', '.variables[].name')
+    foreach ($Name in @("$Names" -split "`n" | Where-Object { $_ -like 'SIMPLYSIGN_CODE*' })) {
+        Clear-Mailbox "$VariablesApi/$($Name.Trim())"
+    }
+}
 
 function Find-Certificate {
     Get-ChildItem Cert:\CurrentUser\My |
@@ -143,9 +155,6 @@ function Invoke-WaitAndLogin {
     Import-Win32
     Set-LoginFocus
 
-    # The helper writes "<run id>-<run attempt>:<code>". Anything else, such as a
-    # late code for an earlier run, is deleted unused.
-    $Expected = "$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
     Write-Host "::notice title=Waiting for your SimplySign code::Run .\scripts\Approve-ReleaseSigning.ps1 on your machine; it asks for the code."
     $Deadline = [DateTime]::UtcNow.AddMinutes($WaitMinutes)
     $Code = $null
@@ -153,12 +162,12 @@ function Invoke-WaitAndLogin {
         $Value = Read-Mailbox
         if ($Value) {
             Add-Mask $Value
-            Add-Mask ($Value -replace '^.*:', '')
+            # Deleting the mailbox is the helper's sign that the code was picked up.
             Clear-Mailbox
-            if ($Value -match "^$Expected`:(\d{6})$") { $Code = $Matches[1] }
-            else { Write-Host "Ignored and deleted a mailbox value that was not a code for this run attempt." }
+            if ($Value -match '^\d{6}$') { $Code = $Value }
+            else { Write-Host "The mailbox held something that is not a 6-digit code; it was deleted. Waiting again." }
         }
-        Start-Sleep -Seconds 2
+        else { Start-Sleep -Seconds 2 }
     }
     if (-not $Code) { throw "No code arrived within $WaitMinutes minutes" }
     Write-Host "Code received; logging in."
@@ -182,7 +191,7 @@ function Invoke-WaitAndLogin {
 }
 
 function Invoke-Logout {
-    if ($env:MAILBOX_TOKEN) { Clear-Mailbox }
+    if ($env:MAILBOX_TOKEN) { Clear-LeftoverMailboxes }
     Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -like "*SimplySign*" } |
         Stop-Process -Force -ErrorAction SilentlyContinue
     Write-Host "Mailbox emptied and SimplySign Desktop stopped."

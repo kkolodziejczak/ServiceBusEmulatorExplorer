@@ -107,7 +107,7 @@ jobs:
     timeout-minutes: 30
     # The approval gate: only the owner can start this job, and its secrets exist only here (DEC-059).
     environment: code-signing
-    # All signing jobs share one SIMPLYSIGN_CODE mailbox, so they run one at a time.
+    # One signing job at a time: each has its own mailbox, but logout removes leftover ones.
     concurrency:
       group: code-signing
       cancel-in-progress: false

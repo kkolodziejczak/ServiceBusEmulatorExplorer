@@ -6,7 +6,7 @@ Approves the signing job of a release run and sends it your SimplySign code.
 Follows a release.yml run on GitHub. When the run waits for the code-signing
 approval it shows what the run builds and asks you to approve; when the signing
 job waits for the phone code it asks for the code (shown as you type) and puts
-it in the SIMPLYSIGN_CODE mailbox, tied to that run attempt, then confirms the
+it in that run attempt's own SIMPLYSIGN_CODE_<run id>_<attempt> mailbox, then confirms the
 runner picked it up (DEC-059). Requires an authenticated GitHub CLI. A
 fine-grained token needs, on this repository: Actions read, Contents read,
 Deployments read and write (to approve), and Environments read and write (to
@@ -74,12 +74,13 @@ function Find-ReleaseRun {
     throw 'No running release.yml run found. Pass -RunId for a run started another way.'
 }
 
-# With -Tag, refuse a run that does not build exactly that tag's commit.
+# With -Tag, refuse a run that is not the push of exactly that tag at its commit.
 function Assert-RunBuildsTag($run) {
     if (-not $Tag) { return }
-    $tagCommit = Invoke-Gh -Arguments @('api', "repos/$repository/commits/$Tag", '--jq', '.sha')
-    if ($run.event -ne 'push' -or $run.head_sha -ne $tagCommit) {
-        throw "Run $RunId ($($run.event) of '$($run.head_branch)' at $($run.head_sha)) is not the push of tag $Tag at $tagCommit. Not approving."
+    $ref = Get-GhJson "repos/$repository/git/ref/tags/$Tag"
+    $tagCommit = if ($ref.object.type -eq 'tag') { (Get-GhJson "repos/$repository/git/tags/$($ref.object.sha)").object.sha } else { $ref.object.sha }
+    if ($run.event -ne 'push' -or $run.head_branch -ne $Tag -or $run.head_sha -ne $tagCommit) {
+        throw "Run $RunId ($($run.event) of '$($run.head_branch)' at $($run.head_sha)) is not the push of tag $Tag at $tagCommit. Nothing was approved or sent."
     }
 }
 
@@ -97,30 +98,38 @@ function Test-StillWaiting([long]$jobId) {
     return [bool]($job.steps | Where-Object { $_.name -like "*$waitingStepName" -and $_.status -eq 'in_progress' })
 }
 
+# Sends one code to the job attempt's own mailbox (see SimplySign-Ci.ps1). Returns
+# $true once the runner took it, $false if the job should be asked again.
 function Send-SigningCode($job) {
     $code = Read-SigningCode
     if (-not (Test-StillWaiting $job.id)) {
         Write-Host 'The signing job stopped waiting before the code was sent; nothing was sent.'
-        return
+        return $true
     }
 
-    Invoke-Gh -Arguments @('variable', 'set', 'SIMPLYSIGN_CODE', '--env', $environmentName, '--repo', $repository) -InputText "$RunId-$($job.run_attempt):$code" | Out-Null
+    $mailbox = "SIMPLYSIGN_CODE_$($RunId)_$($job.run_attempt)"
+    Invoke-Gh -Arguments @('variable', 'set', $mailbox, '--env', $environmentName, '--repo', $repository) -InputText $code | Out-Null
     $code = $null
     $pickedUpBy = (Get-Date).AddSeconds(30)
     while ((Get-Date) -lt $pickedUpBy) {
         Start-Sleep -Seconds 2
-        if ($null -eq (Invoke-Gh -Arguments @('api', "repos/$repository/environments/$environmentName/variables/SIMPLYSIGN_CODE") -AllowNotFound)) {
+        if ($null -eq (Invoke-Gh -Arguments @('api', "repos/$repository/environments/$environmentName/variables/$mailbox") -AllowNotFound)) {
             Write-Host 'The runner picked up the code and is logging in.'
-            return
+            return $true
         }
     }
-    Write-Host "The runner has not picked up the code after 30 seconds. Check the signing job at $runUrl."
+
+    # The code has expired by now; take it back so it can never be used late.
+    Invoke-Gh -Arguments @('api', '-X', 'DELETE', "repos/$repository/environments/$environmentName/variables/$mailbox") -AllowNotFound | Out-Null
+    Write-Host 'The runner did not pick up the code within 30 seconds, so it was withdrawn. You will be asked for a fresh code.'
+    return $false
 }
 
 $repository = Invoke-Gh -Arguments @('repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner')
 if ($RunId -eq 0) { $RunId = Find-ReleaseRun }
 $runUrl = "https://github.com/$repository/actions/runs/$RunId"
 Write-Host "Following $runUrl"
+Assert-RunBuildsTag (Get-GhJson "repos/$repository/actions/runs/$RunId")
 
 $approved = $false
 $answeredJobIds = @()
@@ -135,7 +144,6 @@ while ((Get-Date) -lt $deadline) {
         $deployments = Get-GhJson "repos/$repository/actions/runs/$RunId/pending_deployments"
         $pending = @(@($deployments) | Where-Object { $_.environment.name -eq $environmentName })
         if ($pending.Count -gt 0) {
-            Assert-RunBuildsTag $run
             Write-Host "Signing waits for approval: $($run.event) of '$($run.head_branch)', commit $($run.head_sha.Substring(0, 7)), started by $($run.triggering_actor.login)."
             $answer = Read-Host 'Approve signing this build? [y/N]'
             if ($answer -notmatch '^(y|yes)$') {
@@ -176,9 +184,8 @@ while ((Get-Date) -lt $deadline) {
 
     foreach ($job in $jobs) {
         $waiting = $job.steps | Where-Object { $_.name -like "*$waitingStepName" -and $_.status -eq 'in_progress' }
-        if ($waiting -and $job.id -notin $answeredJobIds) {
+        if ($waiting -and $job.id -notin $answeredJobIds -and (Send-SigningCode $job)) {
             $answeredJobIds += $job.id
-            Send-SigningCode $job
         }
     }
 
