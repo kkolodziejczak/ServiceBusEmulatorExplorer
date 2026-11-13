@@ -113,6 +113,8 @@ Startup presentation example: `src/ServiceBusEmulatorExplorer.App/Investigation/
 | Exact WPF test viewport beyond a hosted desktop size limit | shared | `tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/NativeWindowSizeOverride.cs`, `NativeWindowSizeOverride.Install`; linked into App.Tests through its project file; dispose the window hook after proof |
 | Guarded release tagging and two-flavour Windows publish | shared | `scripts/Push-ReleaseTag.ps1`, `scripts/Publish-Windows.ps1`, `scripts/Test-ReleaseArtifacts.ps1` |
 | Signing on a GitHub-hosted runner with a cloud certificate and a hand-typed one-time code, delivered through an environment-variable mailbox behind an approval gate | adapt | `scripts/SimplySign-Ci.ps1`, `scripts/Approve-ReleaseSigning.ps1`, `sign` job in `.github/workflows/release.yml` |
+| Interactive release console: gh wrapper safe in Windows PowerShell 5.1 (UTF-8, stderr, JSON arrays) and progress/action/result banners | shared | `scripts/ReleaseConsole.psm1` (`Invoke-Gh`, `Show-Banner`) |
+| Workflow-generated file brought to a branch through a pull request the maintainer's CLI opens and merges | adapt | `scripts/Sync-ReleaseScreenshot.ps1`, `capture` job in `.github/workflows/update-readme-screenshot.yml` |
 | Convention check with ratchet baseline | shared | `tools/check-docs.ps1`; config `.agent-kit.json` |
 
 Scheduling controls: reuse [SchedulingStyles.xaml](src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SchedulingStyles.xaml) for the date picker, calendar and aligned radio choices. [Scheduling contract](specs/message-library/scheduling-controls.md).
