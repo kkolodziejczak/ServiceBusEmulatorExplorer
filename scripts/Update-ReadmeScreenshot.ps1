@@ -7,9 +7,9 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$projectPath = Join-Path $repoRoot "tools\ServiceBusEmulatorExplorer.ReadmeScreenshot\ServiceBusEmulatorExplorer.ReadmeScreenshot.csproj"
+$projectPath = Join-Path $repoRoot "tools\ServiceBusWorkbench.ReadmeScreenshot\ServiceBusWorkbench.ReadmeScreenshot.csproj"
 if ([string]::IsNullOrWhiteSpace($OutputPath)) {
-    $OutputPath = Join-Path $repoRoot "docs\images\service-bus-emulator-explorer.png"
+    $OutputPath = Join-Path $repoRoot "docs\images\service-bus-workbench.png"
 }
 else {
     $OutputPath = [System.IO.Path]::GetFullPath($OutputPath)

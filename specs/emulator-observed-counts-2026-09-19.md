@@ -30,7 +30,7 @@ Twenty new test cases cover counts, startup, and UI paging; existing UI assertio
 
 ## UI verification
 
-The approved direction and existing WPF components were the design authority. Six screenshots of active and DLQ counts were inspected at 1500×1000, 1100×800, and 980×640. They are in `artifacts/emulator-observed/build/bin/ServiceBusEmulatorExplorer.UiSmoke.Tests/debug/daily-fix-captures`.
+The approved direction and existing WPF components were the design authority. Six screenshots of active and DLQ counts were inspected at 1500×1000, 1100×800, and 980×640. They are in `artifacts/emulator-observed/build/bin/ServiceBusWorkbench.UiSmoke.Tests/debug/daily-fix-captures`.
 
 | Gate | Result | Evidence |
 | --- | --- | --- |

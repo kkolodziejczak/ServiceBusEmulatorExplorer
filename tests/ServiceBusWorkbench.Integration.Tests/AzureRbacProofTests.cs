@@ -1,0 +1,56 @@
+using ServiceBusWorkbench.Core.Connection;
+using ServiceBusWorkbench.Core.Investigation;
+using ServiceBusWorkbench.Core.ServiceBus;
+using ServiceBusWorkbench.Integration.Tests.Infrastructure;
+
+namespace ServiceBusWorkbench.Integration.Tests;
+
+public sealed class AzureRbacProofTests
+{
+    [AzureRbacProofFact]
+    [Trait("TestCategory", "AzureRbac")]
+    public async Task Preprovisioned_topic_and_subscription_support_browse_peek_and_send()
+    {
+        string fullyQualifiedNamespace = RequiredEnvironmentVariable("SBW_AZURE_NAMESPACE");
+        string topicName = RequiredEnvironmentVariable("SBW_AZURE_TOPIC");
+        string subscriptionName = RequiredEnvironmentVariable("SBW_AZURE_SUBSCRIPTION");
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        await using var clientFactory = new DirectServiceBusClientFactory();
+        await clientFactory.ConnectAsync(
+            new ConnectionProfile("Azure RBAC proof", "", "", ConnectionAuthenticationMode.AzureCli, fullyQualifiedNamespace),
+            timeout.Token);
+        var browser = new InvestigationEntityBrowser(clientFactory);
+        var messageService = new ServiceBusMessageService(clientFactory);
+
+        EntityDiscoverySnapshot snapshot = await browser.DiscoverAsync(timeout.Token);
+        IReadOnlyList<DiscoveredEntity> entities = snapshot.Entities.Select(observation => observation.Entity).ToArray();
+        DiscoveredEntity topic = Assert.Single(entities, entity =>
+            entity.Kind == EntityKind.Topic && string.Equals(entity.Name, topicName, StringComparison.OrdinalIgnoreCase));
+        DiscoveredEntity subscription = Assert.Single(entities, entity =>
+            entity.Kind == EntityKind.Subscription
+            && string.Equals(entity.TopicName, topic.Name, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(entity.Name, subscriptionName, StringComparison.OrdinalIgnoreCase));
+
+        await messageService.PeekMessagesAsync(
+            new EntityAddress(EntityKind.Subscription, subscription.Name, topic.Name),
+            MessageBucket.Active,
+            take: 1,
+            fromSequenceNumber: null,
+            timeout.Token);
+
+        string proofId = Guid.NewGuid().ToString("N");
+        await messageService.SendMessageAsync(
+            new SendMessageCommand(
+                new EntityAddress(EntityKind.Topic, topic.Name),
+                $"Service Bus Workbench Azure RBAC proof {proofId}",
+                ContentType: "text/plain",
+                ApplicationProperties: new Dictionary<string, object?> { ["sbw-proof-id"] = proofId }),
+            timeout.Token);
+    }
+
+    private static string RequiredEnvironmentVariable(string variable)
+    {
+        return Environment.GetEnvironmentVariable(variable)
+            ?? throw new InvalidOperationException($"{variable} must be set by AzureRbacProofFactAttribute.");
+    }
+}

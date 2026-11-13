@@ -13,7 +13,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$appProject = Join-Path $repoRoot "src\ServiceBusEmulatorExplorer.App\ServiceBusEmulatorExplorer.App.csproj"
+$appProject = Join-Path $repoRoot "src\ServiceBusWorkbench.App\ServiceBusWorkbench.App.csproj"
 
 if ([string]::IsNullOrWhiteSpace($OutputPath)) {
     $OutputPath = Join-Path $repoRoot "artifacts\publish\$RuntimeIdentifier"
@@ -113,4 +113,4 @@ if ($process.ExitCode -ne 0) {
     throw "dotnet publish failed with exit code $($process.ExitCode)."
 }
 
-Write-Host "Published $DeploymentMode Service Bus Emulator Explorer to $OutputPath"
+Write-Host "Published $DeploymentMode Service Bus Workbench to $OutputPath"

@@ -43,9 +43,9 @@ The final solution build completed with **0 warnings and 0 errors**. Production 
 
 Independent read-only review: **PASS on Spec and Standards/Quality**, no actionable findings. The metadata regression is closed by explicit red/green proof. The review checked the final diff, executed-test artifacts, emulator/cloud branches, empty topics, timestamp projection, test-contract correction and diagnostic cleanup. `git diff --check` passed and all 12 local Markdown links in the affected documents resolved.
 
-Runtime: isolated Compose project `sbe-daily-fix`, runtime port 5674 and administration port 5302, using the same pinned emulator/SQL images as the original audit. Broker suites ran serially. The user's demo runtime and already-open app were left untouched. Builds used `--artifacts-path artifacts/daily-fix/final` to avoid the running app's binaries.
+Runtime: isolated Compose project `sbw-daily-fix`, runtime port 5674 and administration port 5302, using the same pinned emulator/SQL images as the original audit. Broker suites ran serially. The user's demo runtime and already-open app were left untouched. Builds used `--artifacts-path artifacts/daily-fix/final` to avoid the running app's binaries.
 
-After verification, only the `sbe-daily-fix` containers and network were removed. Generated local evidence remains under ignored `artifacts/` paths.
+After verification, only the `sbw-daily-fix` containers and network were removed. Generated local evidence remains under ignored `artifacts/` paths.
 
 ### Rendered UI verification
 
@@ -59,7 +59,7 @@ After verification, only the `sbe-daily-fix` containers and network were removed
 | External rich-text accessibility | BLOCKED | UIA text extraction is empty despite visible JSON; screen-reader impact remains unverified. |
 | Regression/clean close | PASS | Full affected daily journeys rerun; temporary diagnostic code removed; fixtures use isolated profiles and unique broker entities. |
 
-Six count screenshots are under `artifacts/daily-fix/final/bin/ServiceBusEmulatorExplorer.UiSmoke.Tests/debug/daily-fix-captures`. The external UIA diagnostic screenshot remains a local artifact under `artifacts/daily-fix/properties-probe`, not a production asset. This is a scoped functional/render verification, not a complete accessibility certification.
+Six count screenshots are under `artifacts/daily-fix/final/bin/ServiceBusWorkbench.UiSmoke.Tests/debug/daily-fix-captures`. The external UIA diagnostic screenshot remains a local artifact under `artifacts/daily-fix/properties-probe`, not a production asset. This is a scoped functional/render verification, not a complete accessibility certification.
 
 ## Residual scope
 

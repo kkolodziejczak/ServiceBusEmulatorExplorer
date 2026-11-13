@@ -1,0 +1,362 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:res="clr-namespace:ServiceBusWorkbench.App.Investigation.Resources">
+ <ResourceDictionary.MergedDictionaries>
+  <ResourceDictionary Source="IconResources.xaml"/>
+  <ResourceDictionary Source="DropdownStyles.xaml"/>
+  <ResourceDictionary Source="SchedulingStyles.xaml"/>
+ </ResourceDictionary.MergedDictionaries>
+ <SolidColorBrush x:Key="PrimaryBrush" Color="#0069FA"/>
+ <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#005BD8"/>
+ <SolidColorBrush x:Key="PrimaryPressedBrush" Color="#004FBD"/>
+ <SolidColorBrush x:Key="InkBrush" Color="#17213D"/>
+ <SolidColorBrush x:Key="SecondaryBrush" Color="#627692"/>
+ <SolidColorBrush x:Key="ActionTextBrush" Color="#234266"/>
+ <SolidColorBrush x:Key="CanvasBrush" Color="#FAFCFF"/>
+ <SolidColorBrush x:Key="ChromeBrush" Color="#F5F9FE"/>
+ <SolidColorBrush x:Key="ControlBorderBrush" Color="#CBD8E8"/>
+ <SolidColorBrush x:Key="DividerBrush" Color="#DFE6EE"/>
+ <SolidColorBrush x:Key="ToolbarDividerBrush" Color="#DFE6EE"/>
+ <SolidColorBrush x:Key="NeutralHoverBrush" Color="#EAF4FF"/>
+ <SolidColorBrush x:Key="SelectionBrush" Color="#DBEDFF"/>
+ <SolidColorBrush x:Key="RaisedBrush" Color="#FFFFFF"/>
+ <SolidColorBrush x:Key="SubtleSurfaceBrush" Color="#F3F7FC"/>
+ <SolidColorBrush x:Key="ColumnHeaderBrush" Color="#EEF4FA"/>
+ <SolidColorBrush x:Key="IconBrush" Color="#52708D"/>
+ <SolidColorBrush x:Key="EntityPrimaryBrush" Color="#087BC1"/>
+ <SolidColorBrush x:Key="NeutralPressedBrush" Color="#C7E2FF"/>
+ <SolidColorBrush x:Key="DisabledBackgroundBrush" Color="#F1F4F8"/>
+ <SolidColorBrush x:Key="DisabledBorderBrush" Color="#DCE3EC"/>
+ <SolidColorBrush x:Key="DisabledTextBrush" Color="#738196"/>
+ <SolidColorBrush x:Key="DeadLetterBrush" Color="#FFE6C8"/>
+ <SolidColorBrush x:Key="ConnectedHealthBrush" Color="#17823B"/>
+ <SolidColorBrush x:Key="WarningHealthBrush" Color="#A56700"/>
+ <SolidColorBrush x:Key="DisconnectedHealthBrush" Color="#C83B3B"/>
+ <SolidColorBrush x:Key="DeadLetterTextBrush" Color="#A65B00"/>
+ <SolidColorBrush x:Key="ModifiedBrush" Color="#FFE38D"/>
+ <SolidColorBrush x:Key="ModifiedTextBrush" Color="#5E4600"/>
+ <SolidColorBrush x:Key="EditorBackgroundBrush" Color="#1C2937"/>
+ <SolidColorBrush x:Key="EditorForegroundBrush" Color="#DCE7F3"/>
+ <SolidColorBrush x:Key="EditorLineNumberBrush" Color="#8394A9"/>
+ <SolidColorBrush x:Key="SubscriptionBrush" Color="#7351B5"/>
+ <SolidColorBrush x:Key="DestructiveBrush" Color="#D11A2A"/>
+ <SolidColorBrush x:Key="DestructiveHoverBrush" Color="#FFF0F1"/>
+ <SolidColorBrush x:Key="DestructivePressedBrush" Color="#FFDADD"/>
+ <SolidColorBrush x:Key="DestructivePressedTextBrush" Color="#B81020"/>
+ <SolidColorBrush x:Key="DarkButtonBrush" Color="#253546"/>
+ <SolidColorBrush x:Key="DarkButtonBorderBrush" Color="#526578"/>
+ <SolidColorBrush x:Key="DarkButtonHoverBrush" Color="#344B63"/>
+ <SolidColorBrush x:Key="DarkButtonPressedBrush" Color="#182432"/>
+ <SolidColorBrush x:Key="DarkButtonDisabledTextBrush" Color="#99A9BB"/>
+ <DataTemplate x:Key="SearchSuggestionGroupHeaderTemplate">
+  <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Margin="10,5,10,0" Padding="2,9,2,3"><TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource ActionTextBrush}"/></Border>
+ </DataTemplate>
+ <Style x:Key="SearchSuggestionListItem" TargetType="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="10,6"/></Style>
+ <Style x:Key="SearchSuggestionCaption" TargetType="TextBlock"><Setter Property="FontSize" Value="11"/><Setter Property="Foreground" Value="{DynamicResource SecondaryBrush}"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}"/></Style>
+ <Style x:Key="SearchSuggestionDetail" TargetType="TextBlock" BasedOn="{StaticResource SearchSuggestionCaption}"><Setter Property="MaxWidth" Value="155"/><Setter Property="Margin" Value="8,0,0,0"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+ <Style x:Key="SearchSuggestionBadge" TargetType="TextBlock" BasedOn="{StaticResource SearchSuggestionCaption}"><Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/><Setter Property="Margin" Value="8,0,0,0"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+ <Style x:Key="WorkbenchSuggestionContext" TargetType="TextBlock" BasedOn="{StaticResource SearchSuggestionCaption}"/>
+ <Style x:Key="WorkbenchSuggestionType" TargetType="TextBlock" BasedOn="{StaticResource SearchSuggestionCaption}"><Setter Property="VerticalAlignment" Value="Center"/></Style>
+ <Style x:Key="DialogHeading" TargetType="TextBlock">
+  <Setter Property="FontSize" Value="24"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Margin" Value="0,0,0,16"/>
+ </Style>
+ <Style x:Key="WorkbenchHeading" TargetType="TextBlock" BasedOn="{StaticResource DialogHeading}">
+  <Setter Property="FontWeight" Value="Bold"/>
+ </Style>
+ <Style x:Key="SectionTitle" TargetType="TextBlock">
+  <Setter Property="FontSize" Value="16"/><Setter Property="FontWeight" Value="SemiBold"/>
+ </Style>
+ <Style x:Key="DialogLabel" TargetType="TextBlock">
+  <Setter Property="FontWeight" Value="SemiBold"/><Setter Property="VerticalAlignment" Value="Center"/>
+ </Style>
+ <Style x:Key="DialogCaption" TargetType="TextBlock">
+  <Setter Property="FontSize" Value="12"/><Setter Property="Foreground" Value="{DynamicResource SecondaryBrush}"/>
+ </Style>
+ <Style x:Key="InspectorStatusText" TargetType="TextBlock" BasedOn="{StaticResource DialogCaption}">
+  <Setter Property="Foreground" Value="{DynamicResource EditorForegroundBrush}"/><Setter Property="VerticalAlignment" Value="Center"/>
+ </Style>
+ <Style x:Key="CompactDataGridColumnHeader" TargetType="DataGridColumnHeader">
+  <Setter Property="ToolTip" Value="{Binding Content, RelativeSource={RelativeSource Self}}"/>
+  <Setter Property="Background" Value="{DynamicResource ColumnHeaderBrush}"/><Setter Property="Foreground" Value="{DynamicResource ActionTextBrush}"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/><Setter Property="BorderThickness" Value="0,0,0,1"/><Setter Property="Padding" Value="8,7"/>
+ </Style>
+ <Style x:Key="CompactDataGridRow" TargetType="DataGridRow">
+  <Setter Property="Background" Value="{DynamicResource RaisedBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}"/><Setter Property="BorderThickness" Value="0,0,0,1"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+  <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource NeutralHoverBrush}"/></Trigger><Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource SelectionBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Trigger></Style.Triggers>
+ </Style>
+ <Style x:Key="KeyboardActionFocusVisual" TargetType="Control">
+  <Setter Property="Template"><Setter.Value><ControlTemplate><Border BorderBrush="{DynamicResource PrimaryBrush}" BorderThickness="0,0,0,2" Margin="2" IsHitTestVisible="False"/></ControlTemplate></Setter.Value></Setter>
+ </Style>
+ <Style x:Key="CompactDataGridCell" TargetType="DataGridCell">
+  <Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardActionFocusVisual}"/>
+  <Setter Property="Background" Value="{DynamicResource RaisedBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="8,0"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True"><ContentPresenter VerticalAlignment="{TemplateBinding VerticalContentAlignment}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/></Border></ControlTemplate></Setter.Value></Setter>
+  <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource NeutralHoverBrush}"/></Trigger><Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource SelectionBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Trigger></Style.Triggers>
+ </Style>
+ <Style x:Key="InvestigationMessageCell" TargetType="DataGridCell" BasedOn="{StaticResource CompactDataGridCell}">
+  <Setter Property="Background" Value="{Binding Background, RelativeSource={RelativeSource AncestorType=DataGridRow}}"/>
+  <Style.Triggers>
+   <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{Binding Background, RelativeSource={RelativeSource AncestorType=DataGridRow}}"/></Trigger>
+   <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{Binding Background, RelativeSource={RelativeSource AncestorType=DataGridRow}}"/></Trigger>
+  </Style.Triggers>
+ </Style>
+ <Style x:Key="CompactDataGridText" TargetType="TextBlock">
+  <Setter Property="HorizontalAlignment" Value="Left"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="TextAlignment" Value="Left"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="MaxWidth" Value="200"/><Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+ </Style>
+ <Style x:Key="CompactDataGridEditingText" TargetType="TextBox">
+  <Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="TextAlignment" Value="Left"/>
+ </Style>
+ <Style x:Key="CompactDataGridCombo" TargetType="ComboBox" BasedOn="{StaticResource AppComboBox}">
+  <Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+ </Style>
+ <Style x:Key="CompactDataGridComboDisplay" TargetType="ComboBox" BasedOn="{StaticResource {x:Static DataGridComboBoxColumn.TextBlockComboBoxStyleKey}}">
+  <Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="IsHitTestVisible" Value="False"/><Setter Property="IsTabStop" Value="False"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
+ </Style>
+ <Style x:Key="CompactDataGridCheckBox" TargetType="CheckBox">
+  <Setter Property="HorizontalAlignment" Value="Center"/><Setter Property="VerticalAlignment" Value="Center"/>
+ </Style>
+ <Style TargetType="DataGrid">
+  <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
+  <Setter Property="Background" Value="{DynamicResource RaisedBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/>
+  <Setter Property="HeadersVisibility" Value="Column"/><Setter Property="GridLinesVisibility" Value="Horizontal"/><Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource DividerBrush}"/>
+ </Style>
+ <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource CompactDataGridColumnHeader}"/>
+ <Style TargetType="DataGridRow" BasedOn="{StaticResource CompactDataGridRow}"/>
+ <Style TargetType="DataGridCell" BasedOn="{StaticResource CompactDataGridCell}"/>
+ <!-- Tooltips and context menus open in their own popup and do not inherit the window's font. These implicit styles
+      reach them through App.xaml's application resources; a keyed tooltip or menu style sets the font itself (DEC-051). -->
+ <Style TargetType="ToolTip"><Setter Property="FontFamily" Value="{x:Static res:AppFonts.Ui}"/></Style>
+ <Style TargetType="ContextMenu"><Setter Property="FontFamily" Value="{x:Static res:AppFonts.Ui}"/></Style>
+
+ <Style TargetType="Button">
+  <Setter Property="FontFamily" Value="{x:Static res:AppFonts.Ui}"/><Setter Property="FontSize" Value="14"/>
+  <Setter Property="MinHeight" Value="32"/><Setter Property="Padding" Value="12,7"/><Setter Property="Margin" Value="3,0"/>
+  <Setter Property="Background" Value="{DynamicResource RaisedBrush}"/><Setter Property="Foreground" Value="{DynamicResource ActionTextBrush}"/>
+  <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Cursor" Value="Hand"/>
+  <Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardActionFocusVisual}"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+   <Grid>
+    <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3" Padding="{TemplateBinding Padding}">
+     <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True"/>
+    </Border>
+   </Grid>
+   </ControlTemplate></Setter.Value></Setter>
+  <Style.Triggers>
+   <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource NeutralHoverBrush}"/></Trigger>
+   <Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="{DynamicResource SelectionBrush}"/></Trigger>
+   <Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="{DynamicResource DisabledBackgroundBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource DisabledBorderBrush}"/><Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
+  </Style.Triggers>
+ </Style>
+ <Style x:Key="ValidationWarningFrame" TargetType="Border">
+  <Setter Property="Background" Value="#FFF5E3"/><Setter Property="BorderBrush" Value="#D9A441"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="3"/><Setter Property="Padding" Value="12,10"/>
+ </Style>
+ <Style x:Key="ValidationWarningAction" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+  <Setter Property="Background" Value="#FFF5E3"/><Setter Property="Foreground" Value="#714900"/><Setter Property="BorderBrush" Value="#B7790B"/>
+  <Style.Triggers>
+   <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#FFE7BB"/></Trigger>
+   <Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="#FFD995"/></Trigger>
+   <Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="{DynamicResource DisabledBackgroundBrush}"/><Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource DisabledBorderBrush}"/></Trigger>
+  </Style.Triggers>
+ </Style>
+ <Style x:Key="ValidationWarningIcon" TargetType="Path">
+  <Setter Property="Data" Value="M10,1 L20,19 H0 Z M10,6 V12 M10,15 V16"/><Setter Property="Stroke" Value="{DynamicResource WarningHealthBrush}"/><Setter Property="StrokeThickness" Value="1.5"/>
+  <Setter Property="Width" Value="20"/><Setter Property="Height" Value="20"/><Setter Property="Stretch" Value="Uniform"/><Setter Property="Margin" Value="0,0,12,0"/><Setter Property="VerticalAlignment" Value="Center"/>
+ </Style>
+ <Style x:Key="ValidationWarningText" TargetType="TextBlock">
+  <Setter Property="Foreground" Value="#714900"/><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="VerticalAlignment" Value="Center"/>
+ </Style>
+ <!-- CSV delimiter option: key-cap character in a fixed column, then the name (Delimiter 67). -->
+ <DataTemplate x:Key="DelimiterOptionTemplate">
+  <StackPanel Orientation="Horizontal">
+   <Border Background="{DynamicResource DisabledBackgroundBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="3" Width="24" Height="20" Margin="0,0,8,0" VerticalAlignment="Center">
+    <TextBlock Text="{Binding Character}" FontFamily="{x:Static res:AppFonts.Code}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+   </Border>
+   <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+  </StackPanel>
+ </DataTemplate>
+ <!-- Generated or computed value the user can read and copy but not type into (Prepare 64). -->
+ <Style x:Key="ReadOnlyField" TargetType="TextBox">
+  <Setter Property="IsReadOnly" Value="True"/><Setter Property="IsReadOnlyCaretVisible" Value="False"/>
+  <Setter Property="Background" Value="{DynamicResource DisabledBackgroundBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
+  <Setter Property="Padding" Value="8"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+  <Setter Property="ToolTip" Value="Generated automatically. Read-only."/>
+  <Setter Property="Template">
+   <Setter.Value>
+    <ControlTemplate TargetType="TextBox">
+     <Border Background="{TemplateBinding Background}" CornerRadius="3" Padding="{TemplateBinding Padding}">
+      <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+       <ScrollViewer x:Name="PART_ContentHost" Focusable="False" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+       <Path x:Name="ReadOnlyLock" Grid.Column="1" Data="{StaticResource LockGeometry}" Stroke="{DynamicResource SecondaryBrush}" StrokeThickness="1.4" Width="12" Height="14" Stretch="Uniform" Margin="8,0,0,0" VerticalAlignment="Center"/>
+      </Grid>
+     </Border>
+    </ControlTemplate>
+   </Setter.Value>
+  </Setter>
+ </Style>
+ <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+  <Setter Property="MinWidth" Value="28"/><Setter Property="MinHeight" Value="28"/><Setter Property="Padding" Value="6"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
+ </Style>
+ <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+  <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/><Setter Property="Foreground" Value="White"/>
+  <Style.Triggers>
+   <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource PrimaryHoverBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource PrimaryHoverBrush}"/></Trigger>
+   <Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="{DynamicResource PrimaryPressedBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource PrimaryPressedBrush}"/></Trigger>
+   <Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="{DynamicResource DisabledBackgroundBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource DisabledBorderBrush}"/><Setter Property="Foreground" Value="{DynamicResource SecondaryBrush}"/></Trigger>
+  </Style.Triggers>
+ </Style>
+ <Style x:Key="DestructiveButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+  <Setter Property="Foreground" Value="{DynamicResource DestructiveBrush}"/>
+  <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource DestructiveHoverBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource DestructiveBrush}"/></Trigger><Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="{DynamicResource DestructivePressedBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource DestructivePressedTextBrush}"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="{DynamicResource DisabledBackgroundBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource DisabledBorderBrush}"/><Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/></Trigger></Style.Triggers>
+ </Style>
+ <Style x:Key="DarkButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+  <Setter Property="Background" Value="{DynamicResource DarkButtonBrush}"/><Setter Property="Foreground" Value="White"/><Setter Property="BorderBrush" Value="{DynamicResource DarkButtonBorderBrush}"/>
+  <Style.Triggers>
+   <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource DarkButtonHoverBrush}"/></Trigger>
+   <Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="{DynamicResource DarkButtonPressedBrush}"/></Trigger>
+   <Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="{DynamicResource DarkButtonBrush}"/><Setter Property="Foreground" Value="{DynamicResource DarkButtonDisabledTextBrush}"/></Trigger>
+  </Style.Triggers>
+ </Style>
+ <Style x:Key="InspectorModifiedBadge" TargetType="Border">
+  <Setter Property="Background" Value="{DynamicResource ModifiedBrush}"/><Setter Property="CornerRadius" Value="9"/><Setter Property="Padding" Value="7,3"/><Setter Property="VerticalAlignment" Value="Center"/>
+ </Style>
+ <Style x:Key="DialogWindow" TargetType="Window">
+  <Setter Property="FontFamily" Value="{x:Static res:AppFonts.Ui}"/><Setter Property="FontSize" Value="14"/>
+  <Setter Property="Background" Value="{DynamicResource CanvasBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
+ </Style>
+ <Style x:Key="ReplayWindow" TargetType="Window">
+  <Setter Property="FontFamily" Value="{x:Static res:AppFonts.Ui}"/><Setter Property="FontSize" Value="14"/>
+  <Setter Property="Background" Value="{DynamicResource CanvasBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
+ </Style>
+ <Style x:Key="ReplayHistoryGrid" TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
+  <Setter Property="FontSize" Value="16"/><Setter Property="GridLinesVisibility" Value="All"/><Setter Property="VerticalGridLinesBrush" Value="{DynamicResource DividerBrush}"/>
+  <Setter Property="CellStyle"><Setter.Value><Style TargetType="DataGridCell" BasedOn="{StaticResource CompactDataGridCell}"><Setter Property="VerticalContentAlignment" Value="Top"/></Style></Setter.Value></Setter>
+ </Style>
+ <Style x:Key="ReplayHistoryHeading" TargetType="TextBlock"><Setter Property="FontSize" Value="18"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+ <Style x:Key="ReplayHistoryMetadata" TargetType="TextBlock"><Setter Property="FontSize" Value="14"/><Setter Property="Foreground" Value="{DynamicResource SecondaryBrush}"/><Setter Property="TextWrapping" Value="Wrap"/></Style>
+ <Style x:Key="ReplayHistoryIdentity" TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+ <Style x:Key="ReplayHistoryBadge" TargetType="Border"><Setter Property="CornerRadius" Value="4"/><Setter Property="Padding" Value="12,4"/><Setter Property="Margin" Value="0,0,8,0"/><Setter Property="Background" Value="{DynamicResource DisabledBorderBrush}"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+ <Style x:Key="ReplayHistoryBadgeText" TargetType="TextBlock"><Setter Property="FontSize" Value="16"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Style>
+ <Style x:Key="ReplayHistoryDetailId" TargetType="TextBox"><Setter Property="FontSize" Value="14"/><Setter Property="Foreground" Value="{DynamicResource SecondaryBrush}"/><Setter Property="IsReadOnly" Value="True"/><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,0,8,4"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/><Setter Property="VerticalScrollBarVisibility" Value="Disabled"/></Style>
+ <Style x:Key="MessageReplayBadge" TargetType="Border">
+  <Setter Property="Background" Value="{DynamicResource NeutralHoverBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}"/><Setter Property="BorderThickness" Value="1"/>
+  <Setter Property="CornerRadius" Value="3"/><Setter Property="Padding" Value="4,0"/><Setter Property="Margin" Value="4,0,0,0"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Visibility" Value="Collapsed"/>
+  <Style.Triggers><DataTrigger Binding="{Binding IsReplay}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+ </Style>
+ <Style x:Key="MessageReplayBadgeText" TargetType="TextBlock">
+  <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/><Setter Property="FontSize" Value="11"/><Setter Property="FontWeight" Value="Normal"/>
+ </Style>
+ <Style x:Key="JsonFoldButton" TargetType="Button">
+  <Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/>
+  <Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardActionFocusVisual}"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="3"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter>
+  <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource DarkButtonHoverBrush}"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="Background" Value="{DynamicResource DarkButtonHoverBrush}"/></Trigger><Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="{DynamicResource DarkButtonPressedBrush}"/></Trigger></Style.Triggers>
+ </Style>
+ <Style x:Key="InspectorModifiedText" TargetType="TextBlock">
+  <Setter Property="Foreground" Value="{DynamicResource ModifiedTextBrush}"/><Setter Property="FontSize" Value="11"/><Setter Property="FontWeight" Value="Normal"/>
+ </Style>
+ <Style x:Key="InspectorDiscardLink" TargetType="Button" BasedOn="{StaticResource IconButton}">
+  <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+ </Style>
+ <Style x:Key="TabToggle" TargetType="ToggleButton">
+  <Setter Property="FontFamily" Value="{x:Static res:AppFonts.Ui}"/><Setter Property="FontSize" Value="14"/><Setter Property="Padding" Value="12,8"/>
+  <Setter Property="Foreground" Value="{DynamicResource ActionTextBrush}"/><Setter Property="Background" Value="Transparent"/><Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardActionFocusVisual}"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToggleButton"><Grid>
+   <Border x:Name="TabSurface" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" BorderBrush="Transparent" BorderThickness="0,0,0,3"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/></Border>
+   </Grid><ControlTemplate.Triggers>
+    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="{DynamicResource NeutralHoverBrush}"/></Trigger>
+    <Trigger Property="IsChecked" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="{DynamicResource SelectionBrush}"/><Setter TargetName="TabSurface" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/><Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/><Setter Property="FontWeight" Value="SemiBold"/></Trigger>
+    <Trigger Property="IsPressed" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="{DynamicResource NeutralPressedBrush}"/></Trigger>
+    <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
+   </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+ </Style>
+ <Style x:Key="EntityIcon" TargetType="Path">
+   <Setter Property="Width" Value="17"/><Setter Property="Height" Value="17"/><Setter Property="Margin" Value="0,0,7,0"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Stretch" Value="Uniform"/><Setter Property="Stroke" Value="{DynamicResource IconBrush}"/><Setter Property="StrokeThickness" Value="1.5"/>
+   <Setter Property="Data" Value="{StaticResource EntityDefaultGeometry}"/>
+   <Style.Triggers>
+    <DataTrigger Binding="{Binding Kind}" Value="Queue"><Setter Property="Stroke" Value="{DynamicResource EntityPrimaryBrush}"/><Setter Property="Data" Value="{StaticResource QueueGeometry}"/></DataTrigger>
+    <DataTrigger Binding="{Binding Kind}" Value="Topic"><Setter Property="Stroke" Value="{DynamicResource EntityPrimaryBrush}"/><Setter Property="Data" Value="{StaticResource TopicGeometry}"/></DataTrigger>
+    <DataTrigger Binding="{Binding Kind}" Value="Subscription"><Setter Property="Stroke" Value="{DynamicResource SubscriptionBrush}"/><Setter Property="Data" Value="{StaticResource SubscriptionGeometry}"/></DataTrigger>
+   </Style.Triggers>
+  </Style>
+ <Style x:Key="CopyIcon" TargetType="Path"><Setter Property="Data" Value="{StaticResource CopyGeometry}"/><Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/><Setter Property="StrokeThickness" Value="1.4"/><Setter Property="StrokeLineJoin" Value="Round"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/><Setter Property="Width" Value="16"/><Setter Property="Height" Value="18"/><Setter Property="Stretch" Value="Uniform"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+ <Style x:Key="ScrollPageButton" TargetType="RepeatButton">
+  <Setter Property="Focusable" Value="False"/><Setter Property="IsTabStop" Value="False"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate></Setter.Value></Setter>
+ </Style>
+ <Style x:Key="ScrollThumb" TargetType="Thumb">
+  <Setter Property="MinHeight" Value="28"/><Setter Property="Focusable" Value="False"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Thumb"><Grid Background="Transparent">
+   <Border x:Name="ThumbSurface" Background="{DynamicResource SecondaryBrush}" CornerRadius="4" Margin="5,2"/>
+   </Grid><ControlTemplate.Triggers>
+    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ThumbSurface" Property="Background" Value="{DynamicResource PrimaryBrush}"/></Trigger>
+    <Trigger Property="IsDragging" Value="True"><Setter TargetName="ThumbSurface" Property="Background" Value="{DynamicResource PrimaryBrush}"/><Setter TargetName="ThumbSurface" Property="Margin" Value="3,2"/></Trigger>
+    <DataTrigger Binding="{Binding Orientation, RelativeSource={RelativeSource AncestorType=ScrollBar}}" Value="Horizontal"><Setter TargetName="ThumbSurface" Property="Margin" Value="2,5"/></DataTrigger>
+    <MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding Orientation, RelativeSource={RelativeSource AncestorType=ScrollBar}}" Value="Horizontal"/><Condition Binding="{Binding IsDragging, RelativeSource={RelativeSource Self}}" Value="True"/></MultiDataTrigger.Conditions><Setter TargetName="ThumbSurface" Property="Margin" Value="2,3"/></MultiDataTrigger>
+    <Trigger Property="IsEnabled" Value="False"><Setter TargetName="ThumbSurface" Property="Background" Value="{DynamicResource DisabledTextBrush}"/></Trigger>
+   </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  <Style.Triggers><DataTrigger Binding="{Binding Orientation, RelativeSource={RelativeSource AncestorType=ScrollBar}}" Value="Horizontal"><Setter Property="MinWidth" Value="28"/><Setter Property="MinHeight" Value="0"/></DataTrigger></Style.Triggers>
+ </Style>
+ <Style TargetType="ScrollBar">
+  <Setter Property="Width" Value="18"/><Setter Property="Background" Value="Transparent"/>
+  <Setter Property="Focusable" Value="False"/><Setter Property="IsTabStop" Value="False"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollBar"><Grid Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+   <Track x:Name="PART_Track" Orientation="{TemplateBinding Orientation}" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" ViewportSize="{TemplateBinding ViewportSize}" Value="{Binding Value, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" IsDirectionReversed="True">
+    <Track.DecreaseRepeatButton><RepeatButton x:Name="DecreasePage" Style="{StaticResource ScrollPageButton}" Command="{x:Static ScrollBar.PageUpCommand}"/></Track.DecreaseRepeatButton>
+    <Track.Thumb><Thumb Style="{StaticResource ScrollThumb}"/></Track.Thumb>
+    <Track.IncreaseRepeatButton><RepeatButton x:Name="IncreasePage" Style="{StaticResource ScrollPageButton}" Command="{x:Static ScrollBar.PageDownCommand}"/></Track.IncreaseRepeatButton>
+   </Track>
+   </Grid><ControlTemplate.Triggers><Trigger Property="Orientation" Value="Horizontal"><Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/><Setter TargetName="DecreasePage" Property="Command" Value="{x:Static ScrollBar.PageLeftCommand}"/><Setter TargetName="IncreasePage" Property="Command" Value="{x:Static ScrollBar.PageRightCommand}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  <Style.Triggers><Trigger Property="Orientation" Value="Horizontal"><Setter Property="Width" Value="Auto"/><Setter Property="Height" Value="18"/></Trigger></Style.Triggers>
+ </Style>
+ <Style x:Key="NamespaceLegendLabel" TargetType="TextBlock"><Setter Property="FontSize" Value="12"/></Style>
+  <Style x:Key="NamespaceCount" TargetType="TextBlock">
+   <Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="TextAlignment" Value="Right"/>
+   <Setter Property="VerticalAlignment" Value="Center"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+   <Setter Property="Margin" Value="0,0,6,0"/>
+  </Style>
+ <Style x:Key="NamespaceActiveCount" TargetType="TextBlock" BasedOn="{StaticResource NamespaceCount}">
+  <Style.Triggers><DataTrigger Binding="{Binding IsActiveWatched}" Value="True"><Setter Property="TextDecorations" Value="Underline"/></DataTrigger></Style.Triggers>
+ </Style>
+ <Style x:Key="NamespaceDlqCount" TargetType="TextBlock" BasedOn="{StaticResource NamespaceCount}">
+  <Style.Triggers><DataTrigger Binding="{Binding IsDlqWatched}" Value="True"><Setter Property="TextDecorations" Value="Underline"/></DataTrigger></Style.Triggers>
+ </Style>
+ <Style x:Key="NamespaceRefreshIndicator" TargetType="Path">
+  <Setter Property="Width" Value="14"/><Setter Property="Height" Value="14"/><Setter Property="Margin" Value="4,0,0,0"/>
+  <Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Stretch" Value="Uniform"/>
+  <Setter Property="Stroke" Value="{DynamicResource PrimaryBrush}"/><Setter Property="StrokeThickness" Value="1.5"/>
+  <Setter Property="Visibility" Value="Collapsed"/><Setter Property="Data" Value="{StaticResource RefreshGeometry}"/>
+  <Style.Triggers>
+   <DataTrigger Binding="{Binding RefreshIndicator}" Value="Running"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+   <DataTrigger Binding="{Binding RefreshIndicator}" Value="Paused"><Setter Property="Visibility" Value="Visible"/><Setter Property="Data" Value="{StaticResource PauseGeometry}"/><Setter Property="Stroke" Value="{DynamicResource SecondaryBrush}"/></DataTrigger>
+  </Style.Triggers>
+ </Style>
+ <Style x:Key="NamespaceIndicatorLegendIcon" TargetType="Path">
+  <Setter Property="Width" Value="12"/><Setter Property="Height" Value="12"/><Setter Property="Margin" Value="0,0,4,0"/>
+  <Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Stretch" Value="Uniform"/>
+  <Setter Property="Stroke" Value="{DynamicResource SecondaryBrush}"/><Setter Property="StrokeThickness" Value="1.5"/>
+ </Style>
+ <Style x:Key="MessageLocationIcon" TargetType="Path" BasedOn="{StaticResource EntityIcon}">
+  <Setter Property="Width" Value="12"/><Setter Property="Height" Value="12"/><Setter Property="Margin" Value="0,0,4,0"/>
+ </Style>
+ <Style x:Key="MessageLocationText" TargetType="TextBlock">
+  <Setter Property="ToolTip" Value="{Binding SourceDetail}"/>
+  <Setter Property="FontSize" Value="12"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="TextAlignment" Value="Left"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
+ </Style>
+ <DataTemplate x:Key="MessageLocationTemplate">
+  <StackPanel ToolTip="{Binding SourceDetail}" AutomationProperties.Name="{Binding SourceDetail}" VerticalAlignment="Center">
+   <DockPanel x:Name="SourceTopicLine" Visibility="Collapsed">
+    <Path x:Name="SourceTopicIcon" Style="{StaticResource MessageLocationIcon}" Data="{StaticResource TopicGeometry}" Stroke="{DynamicResource EntityPrimaryBrush}"/>
+    <TextBlock x:Name="SourceTopicText" Style="{StaticResource MessageLocationText}" Text="{Binding SourceTopic}" Foreground="{DynamicResource SecondaryBrush}"/>
+   </DockPanel>
+   <DockPanel x:Name="SourceNameLine">
+    <Path x:Name="SourceNameIcon" Style="{StaticResource MessageLocationIcon}" Data="{StaticResource QueueGeometry}" Stroke="{DynamicResource EntityPrimaryBrush}"/>
+    <TextBlock x:Name="SourceNameText" Style="{StaticResource MessageLocationText}" Text="{Binding SourceName}"/>
+   </DockPanel>
+  </StackPanel>
+  <DataTemplate.Triggers>
+   <DataTrigger Binding="{Binding IsSubscription}" Value="True">
+    <Setter TargetName="SourceTopicLine" Property="Visibility" Value="Visible"/>
+    <Setter TargetName="SourceNameLine" Property="Margin" Value="8,0,0,0"/>
+    <Setter TargetName="SourceNameIcon" Property="Data" Value="{StaticResource SubscriptionGeometry}"/>
+    <Setter TargetName="SourceNameIcon" Property="Stroke" Value="{DynamicResource SubscriptionBrush}"/>
+   </DataTrigger>
+  </DataTemplate.Triggers>
+ </DataTemplate>
+</ResourceDictionary>

@@ -99,20 +99,20 @@ jobs:
       - name: Build screenshot generator
         shell: pwsh
         timeout-minutes: 3
-        run: dotnet build tools\ServiceBusEmulatorExplorer.ReadmeScreenshot\ServiceBusEmulatorExplorer.ReadmeScreenshot.csproj --configuration Release -p:UseSharedCompilation=false -p:NodeReuse=false
+        run: dotnet build tools\ServiceBusWorkbench.ReadmeScreenshot\ServiceBusWorkbench.ReadmeScreenshot.csproj --configuration Release -p:UseSharedCompilation=false -p:NodeReuse=false
 
       - name: Capture the application
         shell: pwsh
         timeout-minutes: 2
         run: |
-          $outputPath = Join-Path $env:RUNNER_TEMP "readme-screenshot\service-bus-emulator-explorer.png"
+          $outputPath = Join-Path $env:RUNNER_TEMP "readme-screenshot\service-bus-workbench.png"
           .\scripts\Update-ReadmeScreenshot.ps1 -OutputPath $outputPath -TimeoutSeconds 120
 
       - name: Upload validated screenshot
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: readme-screenshot-${{ steps.source.outputs.label }}
-          path: ${{ runner.temp }}\readme-screenshot\service-bus-emulator-explorer.png
+          path: ${{ runner.temp }}\readme-screenshot\service-bus-workbench.png
           if-no-files-found: error
           retention-days: 7
 
@@ -146,8 +146,8 @@ jobs:
         shell: pwsh
         run: |
           $files = @(Get-ChildItem -LiteralPath generated-screenshot -File -Recurse)
-          if ($files.Count -ne 1 -or $files[0].Name -ne 'service-bus-emulator-explorer.png') {
-            throw 'The screenshot artifact must contain exactly service-bus-emulator-explorer.png.'
+          if ($files.Count -ne 1 -or $files[0].Name -ne 'service-bus-workbench.png') {
+            throw 'The screenshot artifact must contain exactly service-bus-workbench.png.'
           }
           if ($files[0].Length -lt 50000) {
             throw "The screenshot artifact is unexpectedly small: $($files[0].Length) bytes."
@@ -177,8 +177,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $imagePath = 'docs/images/service-bus-emulator-explorer.png'
-          Copy-Item -LiteralPath 'generated-screenshot/service-bus-emulator-explorer.png' -Destination $imagePath -Force
+          $imagePath = 'docs/images/service-bus-workbench.png'
+          Copy-Item -LiteralPath 'generated-screenshot/service-bus-workbench.png' -Destination $imagePath -Force
 
           $imageStatus = git status --porcelain -- $imagePath
           if ($LASTEXITCODE -ne 0) {

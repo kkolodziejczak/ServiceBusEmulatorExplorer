@@ -1,4 +1,4 @@
-# Service Bus Emulator Explorer Tests
+# Service Bus Workbench Tests
 
 This directory contains the fast unit, Docker-backed integration, and explicit WPF UI smoke test projects for the MVP.
 
@@ -6,11 +6,11 @@ This directory contains the fast unit, Docker-backed integration, and explicit W
 
 | Project | Purpose | Default run |
 | --- | --- | --- |
-| `ServiceBusEmulatorExplorer.Core.Tests` | Domain models, projection helpers, replay ID policy, SDK-independent service behavior. | Yes |
-| `ServiceBusEmulatorExplorer.Presentation.Tests` | View models without WPF: state, text, command availability and results (DEC-053). | Yes |
-| `ServiceBusEmulatorExplorer.App.Tests` | View model command states, validation, UTC operation log formatting, shell state transitions with fakes. | Yes |
-| `ServiceBusEmulatorExplorer.Integration.Tests` | Direct Azure SDK behavior against the local Service Bus emulator from `compose.yaml`. | No, gated |
-| `ServiceBusEmulatorExplorer.UiSmoke.Tests` | FlaUI/UIA3 smoke tests that launch the WPF app and verify the Investigation window and Message Workbench. | No, gated |
+| `ServiceBusWorkbench.Core.Tests` | Domain models, projection helpers, replay ID policy, SDK-independent service behavior. | Yes |
+| `ServiceBusWorkbench.Presentation.Tests` | View models without WPF: state, text, command availability and results (DEC-053). | Yes |
+| `ServiceBusWorkbench.App.Tests` | View model command states, validation, UTC operation log formatting, shell state transitions with fakes. | Yes |
+| `ServiceBusWorkbench.Integration.Tests` | Direct Azure SDK behavior against the local Service Bus emulator from `compose.yaml`. | No, gated |
+| `ServiceBusWorkbench.UiSmoke.Tests` | FlaUI/UIA3 smoke tests that launch the WPF app and verify the Investigation window and Message Workbench. | No, gated |
 
 ## Commands
 
@@ -26,16 +26,16 @@ Integration tests:
 Copy-Item .env.example .env
 docker compose --env-file .env up -d
 
-$env:SBE_RUN_INTEGRATION_TESTS = "true"
-$env:SBE_CONNECTION_STRING = "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
-$env:SBE_ADMIN_CONNECTION_STRING = "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+$env:SBW_RUN_INTEGRATION_TESTS = "true"
+$env:SBW_CONNECTION_STRING = "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+$env:SBW_ADMIN_CONNECTION_STRING = "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
 dotnet test --filter TestCategory=Integration
 ```
 
-The focused investigation leaf proof in [InvestigationPeekIntegrationTests.cs](ServiceBusEmulatorExplorer.Integration.Tests/InvestigationPeekIntegrationTests.cs) uses unique queue/topic fixtures, 62 messages, pages of 50, Active/DLQ peeking, cancellation and binary payload preservation. With the integration environment variables above set, run:
+The focused investigation leaf proof in [InvestigationPeekIntegrationTests.cs](ServiceBusWorkbench.Integration.Tests/InvestigationPeekIntegrationTests.cs) uses unique queue/topic fixtures, 62 messages, pages of 50, Active/DLQ peeking, cancellation and binary payload preservation. With the integration environment variables above set, run:
 
 ```powershell
-dotnet test tests/ServiceBusEmulatorExplorer.Integration.Tests/ServiceBusEmulatorExplorer.Integration.Tests.csproj --filter FullyQualifiedName~InvestigationPeekIntegrationTests -m:1 -nr:false --logger "console;verbosity=detailed"
+dotnet test tests/ServiceBusWorkbench.Integration.Tests/ServiceBusWorkbench.Integration.Tests.csproj --filter FullyQualifiedName~InvestigationPeekIntegrationTests -m:1 -nr:false --logger "console;verbosity=detailed"
 ```
 
 Run from the repository root against an isolated emulator. The proof deletes only its generated entities. Runtime counts are logged as observations because the emulator can report zero while messages remain readable. This verifies leaf SDK behavior; it does not verify the investigation workspace UI or combined topic paging.
@@ -43,9 +43,9 @@ Run from the repository root against an isolated emulator. The proof deletes onl
 WPF UI smoke tests:
 
 ```powershell
-dotnet build ..\src\ServiceBusEmulatorExplorer.App\ServiceBusEmulatorExplorer.App.csproj
-$env:SBE_RUN_UI_TESTS = "true"
-$env:SBE_APP_EXE = "$PWD\..\src\ServiceBusEmulatorExplorer.App\bin\Debug\net10.0-windows\ServiceBusEmulatorExplorer.App.exe"
+dotnet build ..\src\ServiceBusWorkbench.App\ServiceBusWorkbench.App.csproj
+$env:SBW_RUN_UI_TESTS = "true"
+$env:SBW_APP_EXE = "$PWD\..\src\ServiceBusWorkbench.App\bin\Debug\net10.0-windows\ServiceBusWorkbench.App.exe"
 ..\scripts\Invoke-UiSmoke.ps1 -NoBuild
 ```
 
@@ -57,16 +57,16 @@ The script checks progress every 15 seconds and stops the test process plus WPF 
 
 The full suite allows 1200 seconds by default. Like the navigation cases, the `DailyAudit` cases are reported as skipped unless the connection strings below are set.
 
-The broker-backed UI smoke tests (`DailyAudit` and the end-to-end cases) also require `SBE_CONNECTION_STRING` or `SBE_RUNTIME_CONNECTION_STRING`, plus `SBE_ADMIN_CONNECTION_STRING`.
+The broker-backed UI smoke tests (`DailyAudit` and the end-to-end cases) also require `SBW_CONNECTION_STRING` or `SBW_RUNTIME_CONNECTION_STRING`, plus `SBW_ADMIN_CONNECTION_STRING`.
 
 Azure RBAC proof tests are a separate, opt-in E2E layer. They require Azure CLI to be installed and signed in, plus pre-provisioned inputs; they do not create/update/delete resources or settle/delete messages:
 
 ```powershell
-$env:SBE_RUN_AZURE_RBAC_TESTS = "true"
-$env:SBE_AZURE_NAMESPACE = "orders.servicebus.windows.net"
-$env:SBE_AZURE_TOPIC = "pre-provisioned-topic"
-$env:SBE_AZURE_SUBSCRIPTION = "pre-provisioned-subscription"
-dotnet test ServiceBusEmulatorExplorer.Integration.Tests\ServiceBusEmulatorExplorer.Integration.Tests.csproj --filter TestCategory=AzureRbac
+$env:SBW_RUN_AZURE_RBAC_TESTS = "true"
+$env:SBW_AZURE_NAMESPACE = "orders.servicebus.windows.net"
+$env:SBW_AZURE_TOPIC = "pre-provisioned-topic"
+$env:SBW_AZURE_SUBSCRIPTION = "pre-provisioned-subscription"
+dotnet test ServiceBusWorkbench.Integration.Tests\ServiceBusWorkbench.Integration.Tests.csproj --filter TestCategory=AzureRbac
 ```
 
 The proof browses the configured topic/subscription, peeks at most one subscription message, and sends one uniquely tagged non-sensitive text message. It is skipped unless explicitly enabled, so Azure credentials are never a normal-test prerequisite. Run it with **Azure Service Bus Data Owner at namespace scope**; Sender-only, Receiver-only, combined, and entity-scoped-only role configurations are not supported proof targets.
@@ -87,7 +87,7 @@ Packaging proof:
 
 ## Visual baselines
 
-Render tests compare each captured screen state, pixel for pixel, with a PNG in `ServiceBusEmulatorExplorer.App.Tests/VisualBaselines/` (DEC-050). A refactor must leave every baseline unchanged. After an approved visual change, rerun the affected render tests with `SBE_UPDATE_VISUAL_BASELINES=true` and commit the updated PNGs with the change. A mismatch writes `<name>.actual.png` and `<name>.diff.png` (changed pixels in magenta) to `artifacts/visual-baselines/`. All App tests run under the en-US culture (`TestCulture`), so dates and numbers render the same on every machine. Baselines compare only what renders the same on every machine (DEC-051): windows render without their OS frame and without hover, and every visible character must come from the bundled fonts, or the check names the text that would fall back to an installed font. Run them on a desktop of at least 1920x1080 at 100% scale: Windows shrinks windows that do not fit the screen, so a smaller desktop reports a size mismatch. The CI and release workflows set that resolution before testing. `environment.json` records the Windows version and culture the baselines were rendered with; the failure message says whether the current environment differs. Use `BaselineClock` for timestamps and generated replay IDs in captured states, and give each captured state its own name. Message Workbench screens are baselined from the screenshot harness: `MessageWorkbenchVisualBaselineTests` runs the built harness for each scripted state, with the Workbench clock, generated IDs and culture fixed, and compares its images the same way (DEC-057). Build the harness project before running them; `dotnet test` on the solution does.
+Render tests compare each captured screen state, pixel for pixel, with a PNG in `ServiceBusWorkbench.App.Tests/VisualBaselines/` (DEC-050). A refactor must leave every baseline unchanged. After an approved visual change, rerun the affected render tests with `SBW_UPDATE_VISUAL_BASELINES=true` and commit the updated PNGs with the change. A mismatch writes `<name>.actual.png` and `<name>.diff.png` (changed pixels in magenta) to `artifacts/visual-baselines/`. All App tests run under the en-US culture (`TestCulture`), so dates and numbers render the same on every machine. Baselines compare only what renders the same on every machine (DEC-051): windows render without their OS frame and without hover, and every visible character must come from the bundled fonts, or the check names the text that would fall back to an installed font. Run them on a desktop of at least 1920x1080 at 100% scale: Windows shrinks windows that do not fit the screen, so a smaller desktop reports a size mismatch. The CI and release workflows set that resolution before testing. `environment.json` records the Windows version and culture the baselines were rendered with; the failure message says whether the current environment differs. Use `BaselineClock` for timestamps and generated replay IDs in captured states, and give each captured state its own name. Message Workbench screens are baselined from the screenshot harness: `MessageWorkbenchVisualBaselineTests` runs the built harness for each scripted state, with the Workbench clock, generated IDs and culture fixed, and compares its images the same way (DEC-057). Build the harness project before running them; `dotnet test` on the solution does.
 
 ## Third-party notices
 
@@ -102,10 +102,10 @@ Render tests compare each captured screen state, pixel for pixel, with a PNG in 
 From the repository root, run the focused production-workspace tests:
 
 ```powershell
-dotnet test tests/ServiceBusEmulatorExplorer.App.Tests/ServiceBusEmulatorExplorer.App.Tests.csproj --filter "FullyQualifiedName~Investigation" -m:1 -nr:false -p:UseSharedCompilation=false
+dotnet test tests/ServiceBusWorkbench.App.Tests/ServiceBusWorkbench.App.Tests.csproj --filter "FullyQualifiedName~Investigation" -m:1 -nr:false -p:UseSharedCompilation=false
 ```
 
-The WPF render cases use synthetic broker services and exercise the real windows at supported sizes. Set `SBE_CAPTURE_INVESTIGATION_UI=true` to save ignored PNG evidence under `artifacts/investigation-ui`. They do not replace broker or FlaUI end-to-end proof. The protected legacy-profile migration uses Windows atomic file replacement; a restricted sandbox can deny that operation even when ordinary temporary-file writes succeed.
+The WPF render cases use synthetic broker services and exercise the real windows at supported sizes. Set `SBW_CAPTURE_INVESTIGATION_UI=true` to save ignored PNG evidence under `artifacts/investigation-ui`. They do not replace broker or FlaUI end-to-end proof. The protected legacy-profile migration uses Windows atomic file replacement; a restricted sandbox can deny that operation even when ordinary temporary-file writes succeed.
 
 `InvestigationSearchRenderTests` exercises the real search controls for partial results, Continue, Stop, match-tree scope, Clear and draft restoration. `InvestigationGlobalSearchTests` covers discovery limits, stale session results and retrying failed sources. Search suggestions use only previously loaded message observations; their tests do not claim a complete namespace index.
 
@@ -113,7 +113,7 @@ WPF presentation tests share a non-parallel xUnit collection because resource in
 
 With the integration environment configured as above, `--filter "FullyQualifiedName~InvestigationLeafReadIntegrationTests"` on the integration project runs discovery, combined paging, repeated non-consuming reads and bounded-search continuation against isolated, uniquely named broker entities. The case deletes those entities afterward and never purges existing entities.
 
-With `SBE_RUN_UI_TESTS=true` and the same broker environment, the current investigation workflow can also be exercised through the actual app executable. From the repository root, after building the UI smoke project:
+With `SBW_RUN_UI_TESTS=true` and the same broker environment, the current investigation workflow can also be exercised through the actual app executable. From the repository root, after building the UI smoke project:
 
 ```powershell
 .\scripts\Invoke-UiSmoke.ps1 -NoBuild -Filter "FullyQualifiedName~InvestigationReadOnlyEndToEndTests" -TimeoutSeconds 180
@@ -131,24 +131,24 @@ The remaining investigation E2E filters use the same runner and isolated profile
 | `Windows_input_navigates_settings_and_restores_focus` | Windows-injected Enter/Tab/Shift+Tab/Space/Escape, Settings actions and return focus |
 | `Window_moves_to_each_available_monitor_and_records_dpi_without_display_changes` | Real window movement across available monitor work areas and observed window DPI |
 
-The last two cases require only `SBE_RUN_UI_TESTS=true`, not a broker. The input case uses UIA to establish its starting focus, then Windows `SendInput` for the tested actions. A restricted desktop sandbox can reject `SendInput` with Access Denied; rerun in an authorized interactive session instead of replacing input with UIA invocation. This is not physical hardware or spoken screen-reader certification. Monitor coverage reports the current environment and does not change display scaling or establish untested 125/150/200% behavior. The current completion boundaries are recorded in the [handoff](../specs/investigation-workspace-handoff.md).
+The last two cases require only `SBW_RUN_UI_TESTS=true`, not a broker. The input case uses UIA to establish its starting focus, then Windows `SendInput` for the tested actions. A restricted desktop sandbox can reject `SendInput` with Access Denied; rerun in an authorized interactive session instead of replacing input with UIA invocation. This is not physical hardware or spoken screen-reader certification. Monitor coverage reports the current environment and does not change display scaling or establish untested 125/150/200% behavior. The current completion boundaries are recorded in the [handoff](../specs/investigation-workspace-handoff.md).
 
 ## Daily workflow audit
 
 The [2026-09-19 audit](../specs/daily-workflow-audit-2026-09-19.md) adds explicit daily-workflow and edge-case integration cases. Its original failures and subsequent fixes are recorded in the [remediation report](../specs/daily-workflow-audit-remediation-2026-09-19.md), including the emulator counter limitation. Keep application failures visible; do not weaken assertions to obtain a green run.
 
-Run against an isolated local emulator with `SBE_RUNTIME_CONNECTION_STRING` and `SBE_ADMIN_CONNECTION_STRING` set to its endpoints. The desktop cases also need an interactive Windows session. They create unique entities and isolated profiles; do not use production credentials. `DailyAudit` workspace tests use actual broker services on a WPF dispatcher, while `DailyWindowAuditTests` launches the executable through FlaUI.
+Run against an isolated local emulator with `SBW_RUNTIME_CONNECTION_STRING` and `SBW_ADMIN_CONNECTION_STRING` set to its endpoints. The desktop cases also need an interactive Windows session. They create unique entities and isolated profiles; do not use production credentials. `DailyAudit` workspace tests use actual broker services on a WPF dispatcher, while `DailyWindowAuditTests` launches the executable through FlaUI.
 
 From the repository root, build into a separate output tree so an already-running application does not lock the build output:
 
 ```powershell
-$env:SBE_RUN_UI_TESTS = "true"
-$env:SBE_RUN_INTEGRATION_TESTS = "true"
-dotnet build tests/ServiceBusEmulatorExplorer.UiSmoke.Tests --artifacts-path artifacts/daily-audit/repro -m:1 -nr:false -p:UseSharedCompilation=false
-dotnet build tests/ServiceBusEmulatorExplorer.Integration.Tests --artifacts-path artifacts/daily-audit/repro -m:1 -nr:false -p:UseSharedCompilation=false
-$env:SBE_APP_EXE = "$PWD/artifacts/daily-audit/repro/bin/ServiceBusEmulatorExplorer.App/debug/ServiceBusEmulatorExplorer.App.exe"
-dotnet test artifacts/daily-audit/repro/bin/ServiceBusEmulatorExplorer.UiSmoke.Tests/debug/ServiceBusEmulatorExplorer.UiSmoke.Tests.dll --filter TestCategory=DailyAudit --logger "trx;LogFileName=daily-workspaces.trx" --results-directory artifacts/daily-audit/repro-results --blame-hang --blame-hang-timeout 110s
-dotnet test artifacts/daily-audit/repro/bin/ServiceBusEmulatorExplorer.Integration.Tests/debug/ServiceBusEmulatorExplorer.Integration.Tests.dll --filter FullyQualifiedName~DailyOperationsAuditTests --logger "trx;LogFileName=daily-operations.trx" --results-directory artifacts/daily-audit/repro-results --blame-hang --blame-hang-timeout 110s
+$env:SBW_RUN_UI_TESTS = "true"
+$env:SBW_RUN_INTEGRATION_TESTS = "true"
+dotnet build tests/ServiceBusWorkbench.UiSmoke.Tests --artifacts-path artifacts/daily-audit/repro -m:1 -nr:false -p:UseSharedCompilation=false
+dotnet build tests/ServiceBusWorkbench.Integration.Tests --artifacts-path artifacts/daily-audit/repro -m:1 -nr:false -p:UseSharedCompilation=false
+$env:SBW_APP_EXE = "$PWD/artifacts/daily-audit/repro/bin/ServiceBusWorkbench.App/debug/ServiceBusWorkbench.App.exe"
+dotnet test artifacts/daily-audit/repro/bin/ServiceBusWorkbench.UiSmoke.Tests/debug/ServiceBusWorkbench.UiSmoke.Tests.dll --filter TestCategory=DailyAudit --logger "trx;LogFileName=daily-workspaces.trx" --results-directory artifacts/daily-audit/repro-results --blame-hang --blame-hang-timeout 110s
+dotnet test artifacts/daily-audit/repro/bin/ServiceBusWorkbench.Integration.Tests/debug/ServiceBusWorkbench.Integration.Tests.dll --filter FullyQualifiedName~DailyOperationsAuditTests --logger "trx;LogFileName=daily-operations.trx" --results-directory artifacts/daily-audit/repro-results --blame-hang --blame-hang-timeout 110s
 ```
 
 Run these suites serially: namespace discovery and search should not overlap another suite's fixture creation/removal. Count final unique cases, excluding superseded harness runs. The audit report separates application failures, provider discrepancies, and unverified environment branches.
@@ -159,7 +159,7 @@ The first FlaUI/UIA3 smoke test should:
 
 1. Launch the WPF app executable.
 2. Find the main window.
-3. Verify the window title is `Service Bus Emulator Explorer`.
+3. Verify the window title is `Service Bus Workbench`.
 4. Verify the connection selector, connection action, search, Refresh and Settings controls are discoverable.
 5. Open Settings and verify queue/topic/subscription page sizes and Azure CLI fields through UI Automation.
 6. Disable close-to-tray, verify clean window-driven shutdown, restart with the same isolated profile and verify that Close still exits. Protected preference saving may require running outside a restrictive filesystem sandbox; do not weaken atomic persistence for the test.

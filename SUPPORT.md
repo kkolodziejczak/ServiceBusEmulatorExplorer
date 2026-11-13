@@ -1,16 +1,16 @@
 # Support
 
-Service Bus Emulator Explorer is a community-maintained open-source project. Support is provided on a best-effort basis through this GitHub repository.
+Service Bus Workbench is a community-maintained open-source project. Support is provided on a best-effort basis through this GitHub repository.
 
 ## Start here
 
 1. Read the [README](README.md), especially the connection and safety sections.
-2. Search [existing issues](https://github.com/kkolodziejczak/ServiceBusEmulatorExplorer/issues) for the error or behavior.
+2. Search [existing issues](https://github.com/kkolodziejczak/ServiceBusWorkbench/issues) for the error or behavior.
 3. Check the operation log in the application and retry only after verifying the selected namespace, entity, and authentication mode.
 
 ## Open an issue
 
-Use the [bug report form](https://github.com/kkolodziejczak/ServiceBusEmulatorExplorer/issues/new?template=bug_report.yml) for reproducible defects and the [feature request form](https://github.com/kkolodziejczak/ServiceBusEmulatorExplorer/issues/new?template=feature_request.yml) for proposed behavior.
+Use the [bug report form](https://github.com/kkolodziejczak/ServiceBusWorkbench/issues/new?template=bug_report.yml) for reproducible defects and the [feature request form](https://github.com/kkolodziejczak/ServiceBusWorkbench/issues/new?template=feature_request.yml) for proposed behavior.
 
 For a useful report, include:
 
