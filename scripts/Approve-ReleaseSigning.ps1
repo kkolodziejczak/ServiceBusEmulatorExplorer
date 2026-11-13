@@ -57,6 +57,37 @@ function Invoke-Gh {
     throw "gh $($Arguments[0..1] -join ' ') failed: $stderr"
 }
 
+# Output: grey lines are progress, green lines are good news, and a yellow box
+# with a beep is the only time the owner has to do something. The window title
+# says the same, so the window can be found from the taskbar.
+function Set-Title([string]$Text) {
+    try { $Host.UI.RawUI.WindowTitle = "Release signing - $Text" } catch { }
+}
+
+function Write-Activity([string]$Text) {
+    Write-Host "$(Get-Date -Format 'HH:mm:ss')  $Text" -ForegroundColor DarkGray
+}
+
+function Write-Good([string]$Text) {
+    Write-Host $Text -ForegroundColor Green
+}
+
+function Show-Banner {
+    param([ValidateSet('Action', 'Success', 'Failure')][string]$Kind, [string]$Title, [string[]]$Lines = @())
+    $colour = @{ Action = 'Yellow'; Success = 'Green'; Failure = 'Red' }[$Kind]
+    $label = @{ Action = 'ACTION NEEDED'; Success = 'DONE'; Failure = 'FAILED' }[$Kind]
+    $bar = '=' * 76
+    Set-Title "$label - $Title"
+    Write-Host ''
+    Write-Host $bar -ForegroundColor $colour
+    Write-Host "  >>> $label`: $Title".PadRight(76) -ForegroundColor Black -BackgroundColor $colour
+    foreach ($line in $Lines) { Write-Host "  $line" -ForegroundColor $colour }
+    Write-Host $bar -ForegroundColor $colour
+    if ($Kind -eq 'Action') {
+        try { [Console]::Beep(880, 200); [Console]::Beep(1175, 300) } catch { }
+    }
+}
+
 function Get-GhJson {
     param([Parameter(Mandatory = $true)][string]$Path)
     return Invoke-Gh -Arguments @('api', $Path) | ConvertFrom-Json
@@ -85,11 +116,14 @@ function Assert-RunBuildsTag($run) {
 }
 
 function Read-SigningCode {
+    Show-Banner -Kind Action -Title 'Step 2 of 2: type the SimplySign code' -Lines @(
+        'Open the SimplySign app on your phone and type the 6-digit code below.',
+        'Use a code with plenty of time left; it works once, for about 30 seconds.')
     while ($true) {
-        # Shown while typed to catch typos: the code works once and only for about 30 seconds.
-        $code = (Read-Host 'Open the SimplySign app and type the 6-digit code').Trim()
+        # Shown while typed to catch typos.
+        $code = (Read-Host 'Code').Trim()
         if ($code -match '^\d{6}$') { return $code }
-        Write-Host 'That is not a 6-digit code. Try again with a fresh one.'
+        Write-Host 'That is not a 6-digit code. Try again with a fresh one.' -ForegroundColor Yellow
     }
 }
 
@@ -103,7 +137,7 @@ function Test-StillWaiting([long]$jobId) {
 function Send-SigningCode($job) {
     $code = Read-SigningCode
     if (-not (Test-StillWaiting $job.id)) {
-        Write-Host 'The signing job stopped waiting before the code was sent; nothing was sent.'
+        Write-Host 'The signing job stopped waiting before the code was sent; nothing was sent.' -ForegroundColor Yellow
         return $true
     }
 
@@ -114,22 +148,27 @@ function Send-SigningCode($job) {
     while ((Get-Date) -lt $pickedUpBy) {
         Start-Sleep -Seconds 2
         if ($null -eq (Invoke-Gh -Arguments @('api', "repos/$repository/environments/$environmentName/variables/$mailbox") -AllowNotFound)) {
-            Write-Host 'The runner picked up the code and is logging in.'
+            Write-Good 'Code picked up; the runner is logging in and signing.'
+            Write-Good 'Nothing more is needed from you. Smoke tests and the draft take about 3 minutes.'
+            Set-Title 'signing and testing (nothing to do)'
             return $true
         }
     }
 
     # The code has expired by now; take it back so it can never be used late.
     Invoke-Gh -Arguments @('api', '-X', 'DELETE', "repos/$repository/environments/$environmentName/variables/$mailbox") -AllowNotFound | Out-Null
-    Write-Host 'The runner did not pick up the code within 30 seconds, so it was withdrawn. You will be asked for a fresh code.'
+    Write-Host 'The runner did not pick up the code within 30 seconds, so it was withdrawn. You will be asked for a fresh code.' -ForegroundColor Yellow
     return $false
 }
 
 $repository = Invoke-Gh -Arguments @('repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner')
 if ($RunId -eq 0) { $RunId = Find-ReleaseRun }
 $runUrl = "https://github.com/$repository/actions/runs/$RunId"
-Write-Host "Following $runUrl"
 Assert-RunBuildsTag (Get-GhJson "repos/$repository/actions/runs/$RunId")
+Write-Host "Following $runUrl"
+Write-Host 'You need to act twice: approve signing, then type the phone code. Each time this window' -ForegroundColor Cyan
+Write-Host 'beeps and shows a yellow ACTION NEEDED box. Grey lines are progress only.' -ForegroundColor Cyan
+Set-Title 'waiting for the build (nothing to do)'
 
 $approved = $false
 $answeredJobIds = @()
@@ -144,10 +183,13 @@ while ((Get-Date) -lt $deadline) {
         $deployments = Get-GhJson "repos/$repository/actions/runs/$RunId/pending_deployments"
         $pending = @(@($deployments) | Where-Object { $_.environment.name -eq $environmentName })
         if ($pending.Count -gt 0) {
-            Write-Host "Signing waits for approval: $($run.event) of '$($run.head_branch)', commit $($run.head_sha.Substring(0, 7)), started by $($run.triggering_actor.login)."
+            Show-Banner -Kind Action -Title 'Step 1 of 2: approve signing' -Lines @(
+                "Build:  $($run.event) of '$($run.head_branch)'",
+                "Commit: $($run.head_sha.Substring(0, 7)), started by $($run.triggering_actor.login)",
+                'Approve only if this is the release you meant to sign.')
             $answer = Read-Host 'Approve signing this build? [y/N]'
             if ($answer -notmatch '^(y|yes)$') {
-                Write-Host 'Not approved. The run keeps waiting; reject or approve it on GitHub, or run this script again.'
+                Show-Banner -Kind Failure -Title 'not approved' -Lines @('The run keeps waiting. Reject or approve it on GitHub, or run this script again.')
                 return
             }
 
@@ -155,21 +197,24 @@ while ((Get-Date) -lt $deadline) {
             $approved = $true
             try {
                 Invoke-Gh -Arguments @('api', '-X', 'POST', "repos/$repository/actions/runs/$RunId/pending_deployments", '--input', '-') -InputText $body | Out-Null
-                Write-Host 'Approved. SimplySign is being installed on the runner; the code prompt follows in about a minute.'
+                Write-Good 'Approved. Nothing to do until the next yellow box, in about a minute.'
             }
             catch {
                 $deployments = Get-GhJson "repos/$repository/actions/runs/$RunId/pending_deployments"
                 $stillPending = @(@($deployments) | Where-Object { $_.environment.name -eq $environmentName })
                 if ($stillPending.Count -eq 0) {
-                    Write-Host 'Signing was already approved elsewhere.'
+                    Write-Good 'Signing was already approved elsewhere. Nothing to do until the next yellow box.'
                 }
                 else {
-                    Write-Host "GitHub refused the approval: $($_.Exception.Message)"
-                    Write-Host 'A fine-grained gh token needs Deployments: Read and write for this. Approve on the run page instead:'
-                    Write-Host "  $runUrl  (Review deployments > code-signing > Approve and deploy)"
-                    Write-Host 'This script keeps waiting and asks for the code once signing starts.'
+                    Show-Banner -Kind Action -Title 'approve on the run page' -Lines @(
+                        "GitHub refused the approval: $($_.Exception.Message)",
+                        'A fine-grained gh token needs Deployments: Read and write for this.',
+                        "Open $runUrl",
+                        'and choose Review deployments > code-signing > Approve and deploy.',
+                        'This window keeps waiting and asks for the code once signing starts.')
                 }
             }
+            Set-Title 'preparing the signer (nothing to do)'
         }
     }
 
@@ -179,7 +224,7 @@ while ((Get-Date) -lt $deadline) {
             if ($step) { "$($_.name) > $($step.name)" } else { "$($_.name) ($($_.status))" }
         }) -join '; '
     if ($activity -and $activity -ne $lastActivity) {
-        Write-Host "$(Get-Date -Format 'HH:mm:ss')  $activity"
+        Write-Activity $activity
         $lastActivity = $activity
     }
 
@@ -196,11 +241,22 @@ while ((Get-Date) -lt $deadline) {
 $run = Get-GhJson "repos/$repository/actions/runs/$RunId"
 if ($run.status -ne 'completed') { throw "The run did not finish within $TimeoutMinutes minutes: $runUrl" }
 if ($run.conclusion -ne 'success') {
-    Write-Host "The run ended with '$($run.conclusion)': $runUrl"
-    $again = if ($Tag) { "-RunId $RunId -Tag $Tag" } else { "-RunId $RunId" }
-    Write-Host "If only signing failed (for example an expired code), run: gh run rerun $RunId --failed; then this script again with $again."
+    $failedJobs = @((Get-GhJson "repos/$repository/actions/runs/$RunId/jobs").jobs | Where-Object { $_.conclusion -eq 'failure' })
+    $lines = @($failedJobs | ForEach-Object {
+            $job = $_
+            $failedSteps = @($job.steps | Where-Object { $_.conclusion -eq 'failure' } | ForEach-Object { $_.name })
+            "Failed: $($job.name) > $($failedSteps -join ', ')"
+        })
+    $lines += "Run: $runUrl"
+    if ($failedJobs | Where-Object { $_.steps | Where-Object { $_.name -like "*$waitingStepName" } }) {
+        $again = if ($Tag) { "-RunId $RunId -Tag $Tag" } else { "-RunId $RunId" }
+        $lines += "Signing failed (for example an expired code). Retry: gh run rerun $RunId --failed"
+        $lines += "then run this script again with $again"
+    }
+    Show-Banner -Kind Failure -Title "the release run ended with '$($run.conclusion)'" -Lines $lines
     exit 1
 }
 
-Write-Host "Release run succeeded: $runUrl"
-Write-Host "Check the draft at https://github.com/$repository/releases, then publish it."
+Show-Banner -Kind Success -Title 'the release run succeeded' -Lines @(
+    "Run: $runUrl",
+    "Check the draft at https://github.com/$repository/releases, then publish it.")
