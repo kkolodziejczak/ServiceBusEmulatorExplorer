@@ -30,11 +30,11 @@ The engineering defaults below make these choices implementable. They are specif
 
 | Evidence | Implication for this feature |
 |---|---|
-| [Production startup](../src/ServiceBusEmulatorExplorer.App/App.xaml.cs), [workspace](../src/ServiceBusEmulatorExplorer.Presentation/Investigation/InvestigationWorkspace.cs) | Integrate with the current window and connection generation; do not implement a feature only reachable in the legacy shell. |
-| [Existing send contracts](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/ServiceBusContracts.cs), [mapper](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/SendMessageRequestMapper.cs) | Reuse `EntityAddress` and SDK conventions. Existing send has no explicit MessageId and trims some values; it cannot silently become the exact-preview transport. |
-| [Replay sender](../src/ServiceBusEmulatorExplorer.Core/ServiceBus/ReplayCopySender.cs) | A dedicated client with zero automatic retries is an established local pattern. Preserve acknowledged sends when disposal fails. |
-| [Delivery identity](../src/ServiceBusEmulatorExplorer.Core/Investigation/MessageDelivery.cs) | Source identity includes connection generation, source, bucket and sequence. Saving a snapshot is different from sending to its source. |
-| [Preferences](../src/ServiceBusEmulatorExplorer.Core/Investigation/WorkspacePreferences.cs), [protected store](../src/ServiceBusEmulatorExplorer.App/Investigation/Settings/ProtectedWorkspacePreferencesStore.cs) | Add local root registrations through the existing serialized save path; never put secrets or machine paths in shared templates. The store has explicit envelope mapping, so adding a model property alone is insufficient. |
+| [Production startup](../src/ServiceBusWorkbench.App/App.xaml.cs), [workspace](../src/ServiceBusWorkbench.Presentation/Investigation/InvestigationWorkspace.cs) | Integrate with the current window and connection generation; do not implement a feature only reachable in the legacy shell. |
+| [Existing send contracts](../src/ServiceBusWorkbench.Core/ServiceBus/ServiceBusContracts.cs), [mapper](../src/ServiceBusWorkbench.Core/ServiceBus/SendMessageRequestMapper.cs) | Reuse `EntityAddress` and SDK conventions. Existing send has no explicit MessageId and trims some values; it cannot silently become the exact-preview transport. |
+| [Replay sender](../src/ServiceBusWorkbench.Core/ServiceBus/ReplayCopySender.cs) | A dedicated client with zero automatic retries is an established local pattern. Preserve acknowledged sends when disposal fails. |
+| [Delivery identity](../src/ServiceBusWorkbench.Core/Investigation/MessageDelivery.cs) | Source identity includes connection generation, source, bucket and sequence. Saving a snapshot is different from sending to its source. |
+| [Preferences](../src/ServiceBusWorkbench.Core/Investigation/WorkspacePreferences.cs), [protected store](../src/ServiceBusWorkbench.App/Investigation/Settings/ProtectedWorkspacePreferencesStore.cs) | Add local root registrations through the existing serialized save path; never put secrets or machine paths in shared templates. The store has explicit envelope mapping, so adding a model property alone is insufficient. |
 | [Prior implementation checkpoints](investigation-workspace-handoff.md) | Reviews found missing production resources masked by fixture injection, stale selections, connection-generation races and UIA toggle behavior missed by Click-only handlers. Require production resource loading and real routed-state tests. |
 | [Daily audit and fixes](daily-workflow-audit-remediation-2026-09-19.md) | Broker counters and UIA rich-text extraction are not reliable substitutes for observing actual messages and rendered content. Separate unit, render, executable and broker proof. |
 
@@ -69,7 +69,7 @@ No broker mutation occurs during capture, editing, validation or preview. Broker
 
 ## UI contract and mock
 
-Read the [approved five-board visual contract](message-library/design/README.md) and [topic context amendment](message-library/topic-context.md) before any UI stage. Revised Board A and original B–E are active; the earlier Board A, prior seven-board set, compact mockups and alternative layouts are superseded. The [new prototype preview](../tools/ServiceBusEmulatorExplorer.InvestigationPrototype/preview.png) and [UI language](ui-language.md) retain authority for existing chrome/tokens.
+Read the [approved five-board visual contract](message-library/design/README.md) and [topic context amendment](message-library/topic-context.md) before any UI stage. Revised Board A and original B–E are active; the earlier Board A, prior seven-board set, compact mockups and alternative layouts are superseded. The [new prototype preview](../tools/ServiceBusWorkbench.InvestigationPrototype/preview.png) and [UI language](ui-language.md) retain authority for existing chrome/tokens.
 
 ![Approved Message Workbench workspace](message-library/design/approved/01-message-workbench.png)
 
@@ -93,11 +93,11 @@ Read the [approved five-board visual contract](message-library/design/README.md)
 
 ## Shared files and schema v1
 
-A root is any user-selected local directory. Only recursive `*.sbetemplate.json` files are indexed. Directory structure is the collection structure; there is no manifest to keep synchronized. Skip `.git`, hidden/system directories and all reparse-point entries, including junctions/symlinks. Reject a selected root that is itself a reparse point. Do not execute files, resolve includes, fetch URLs or expand environment variables from template content.
+A root is any user-selected local directory. Only recursive `*.sbwtemplate.json` files are indexed. Directory structure is the collection structure; there is no manifest to keep synchronized. Skip `.git`, hidden/system directories and all reparse-point entries, including junctions/symlinks. Reject a selected root that is itself a reparse point. Do not execute files, resolve includes, fetch URLs or expand environment variables from template content.
 
 Use relative paths for template identity within a root; local root identity is a generated registration ID and canonical absolute path. Same template IDs in different roots are valid; duplicate IDs within a root produce an error on both files. Windows canonical path comparison is ordinal-ignore-case. Registering the same root twice focuses its existing entry. Reject overlapping registered roots with a clear explanation; this avoids duplicate scanning and ambiguous saves.
 
-The runnable examples are [template](message-library/examples/order-created.sbetemplate.json) and [CSV](message-library/examples/orders.csv). Files are intended to be copied together for a smoke test. New library folders/files are only created by explicit user actions.
+The runnable examples are [template](message-library/examples/order-created.sbwtemplate.json) and [CSV](message-library/examples/orders.csv). Files are intended to be copied together for a smoke test. New library folders/files are only created by explicit user actions.
 
 ```json
 {
@@ -391,7 +391,7 @@ Primary sources: [scheduling API and receipt](https://learn.microsoft.com/en-us/
 
 Test locations: Core `MessageLibrary/*Tests.cs`; App `MessageLibrary/*Tests.cs` plus production-window render tests in the established nonparallel STA collection; Integration `MessageLibraryIntegrationTests.cs`; UiSmoke `MessageLibraryEndToEndTests.cs`. Named files may split into focused cases rather than giant classes. Test fixtures must not inject resources missing from production or call internal workflow methods in place of the UI action being proven.
 
-Fast proof: affected project tests first, then `dotnet test ServiceBusEmulatorExplorer.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"`. Default solution tests must still skip opt-in suites. Read scripts before using `Invoke-UiSmoke.ps1`; use its appropriate full-suite/current feature selection after inspecting supported arguments. Read tests/README and current integration fixtures before allocating runtime. Estimate and set explicit execution timeouts: ordinary commands 60s, deliberate emulator/UI suites a justified larger bound with progress reporting. Do not weaken production guarantees to accommodate sandbox failures (especially atomic replacement).
+Fast proof: affected project tests first, then `dotnet test ServiceBusWorkbench.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"`. Default solution tests must still skip opt-in suites. Read scripts before using `Invoke-UiSmoke.ps1`; use its appropriate full-suite/current feature selection after inspecting supported arguments. Read tests/README and current integration fixtures before allocating runtime. Estimate and set explicit execution timeouts: ordinary commands 60s, deliberate emulator/UI suites a justified larger bound with progress reporting. Do not weaken production guarantees to accommodate sandbox failures (especially atomic replacement).
 
 Only coordinator or a scoped lease holder may run builds sharing outputs, Docker, ports, WPF or broker tests. Use unique entities and isolated test profiles/roots. No tests against ordinary user messages. Clean fixture state even after failed proof; do not remove unrelated containers/processes. Render tests are UI evidence, broker tests are transport evidence, and external executable tests join both; label each correctly.
 

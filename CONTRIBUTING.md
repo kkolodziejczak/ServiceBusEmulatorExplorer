@@ -1,12 +1,12 @@
-# Contributing to Service Bus Emulator Explorer
+# Contributing to Service Bus Workbench
 
-Thank you for helping improve Service Bus Emulator Explorer. Contributions of bug reports, documentation, tests, design feedback, and code are welcome.
+Thank you for helping improve Service Bus Workbench. Contributions of bug reports, documentation, tests, design feedback, and code are welcome.
 
 By participating, you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md). By submitting a contribution, you agree that it may be distributed under the repository's [MIT License](LICENSE).
 
 ## Before you start
 
-- Search [existing issues](https://github.com/kkolodziejczak/ServiceBusEmulatorExplorer/issues) before opening a new one.
+- Search [existing issues](https://github.com/kkolodziejczak/ServiceBusWorkbench/issues) before opening a new one.
 - Use the bug or feature issue form when it fits your request.
 - For a security vulnerability, follow [SECURITY.md](SECURITY.md) instead of opening a public issue.
 - For setup and usage questions, see [SUPPORT.md](SUPPORT.md).
@@ -33,11 +33,11 @@ Optional, depending on the change:
 Clone, build, and run:
 
 ```powershell
-git clone https://github.com/kkolodziejczak/ServiceBusEmulatorExplorer.git
-Set-Location ServiceBusEmulatorExplorer
-dotnet restore ServiceBusEmulatorExplorer.slnx
-dotnet build ServiceBusEmulatorExplorer.slnx
-dotnet run --project src\ServiceBusEmulatorExplorer.App
+git clone https://github.com/kkolodziejczak/ServiceBusWorkbench.git
+Set-Location ServiceBusWorkbench
+dotnet restore ServiceBusWorkbench.slnx
+dotnet build ServiceBusWorkbench.slnx
+dotnet run --project src\ServiceBusWorkbench.App
 ```
 
 ## Local emulator
@@ -70,7 +70,7 @@ docker compose down
 ### Code guidelines
 
 - Keep nullable reference types enabled and resolve warnings intentionally.
-- Keep Azure SDK and domain behavior in `ServiceBusEmulatorExplorer.Core`; keep WPF orchestration and presentation in the app project.
+- Keep Azure SDK and domain behavior in `ServiceBusWorkbench.Core`; keep WPF orchestration and presentation in the app project.
 - Keep window code focused on orchestration. Put feature workflows and mapping rules in focused classes.
 - Preserve cancellation and bounded timeouts around SDK operations.
 - Treat Service Bus message operations as message creation or settlement; messages are not updated in place.
@@ -96,7 +96,7 @@ Run the smallest relevant test first, then the broader fast suite before opening
 This is the default contributor and CI loop:
 
 ```powershell
-dotnet test ServiceBusEmulatorExplorer.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
+dotnet test ServiceBusWorkbench.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
 ```
 
 ### Integration suite
@@ -104,10 +104,10 @@ dotnet test ServiceBusEmulatorExplorer.slnx --filter "TestCategory!=Integration&
 Integration tests use the Docker-backed Service Bus emulator and are opt-in:
 
 ```powershell
-$env:SBE_RUN_INTEGRATION_TESTS = "true"
-$env:SBE_CONNECTION_STRING = "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
-$env:SBE_ADMIN_CONNECTION_STRING = "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
-dotnet test tests\ServiceBusEmulatorExplorer.Integration.Tests\ServiceBusEmulatorExplorer.Integration.Tests.csproj
+$env:SBW_RUN_INTEGRATION_TESTS = "true"
+$env:SBW_CONNECTION_STRING = "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+$env:SBW_ADMIN_CONNECTION_STRING = "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+dotnet test tests\ServiceBusWorkbench.Integration.Tests\ServiceBusWorkbench.Integration.Tests.csproj
 ```
 
 ### WPF UI smoke suite
@@ -115,9 +115,9 @@ dotnet test tests\ServiceBusEmulatorExplorer.Integration.Tests\ServiceBusEmulato
 UI smoke tests launch the application. Use the bounded runner rather than invoking the UI test project directly:
 
 ```powershell
-dotnet build src\ServiceBusEmulatorExplorer.App\ServiceBusEmulatorExplorer.App.csproj
-$env:SBE_RUN_UI_TESTS = "true"
-$env:SBE_APP_EXE = "$PWD\src\ServiceBusEmulatorExplorer.App\bin\Debug\net10.0-windows\ServiceBusEmulatorExplorer.App.exe"
+dotnet build src\ServiceBusWorkbench.App\ServiceBusWorkbench.App.csproj
+$env:SBW_RUN_UI_TESTS = "true"
+$env:SBW_APP_EXE = "$PWD\src\ServiceBusWorkbench.App\bin\Debug\net10.0-windows\ServiceBusWorkbench.App.exe"
 .\scripts\Invoke-UiSmoke.ps1 -NoBuild
 ```
 

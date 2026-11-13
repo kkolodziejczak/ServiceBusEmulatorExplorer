@@ -1,0 +1,9 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ServiceBusWorkbench.Avalonia.App"
+             RequestedThemeVariant="Light">
+  <Application.Styles>
+    <SimpleTheme />
+    <StyleInclude Source="avares://ServiceBusWorkbench.Avalonia/Styles/SharedStyles.axaml" />
+  </Application.Styles>
+</Application>

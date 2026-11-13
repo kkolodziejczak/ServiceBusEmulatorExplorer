@@ -74,7 +74,13 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-055 | accepted | Settings | Profiles save explicitly; unsaved edits are marked and asked about on close |
 | DEC-056 | accepted | Architecture | The inspector's text is editor-neutral; tests reach AvalonEdit through the bridge |
 | DEC-057 | accepted | Architecture | The Message Workbench migrates to view models now, behind new pixel baselines |
-| DEC-058 | accepted | Architecture | Avalonia screens are approved side by side, then pinned by their own exact baselines |
+| DEC-058 | accepted | Release | Releases hide the Message Workbench until it is finished |
+| DEC-059 | accepted | Release | Releases are signed on GitHub's runner with a phone code the owner types each time |
+| DEC-060 | accepted | Release | The README screenshot is updated on master before the release is tagged |
+| DEC-061 | accepted | Release | Signing lives in one shared repository, gh-release-signing, that every repository calls |
+| DEC-062 | accepted | Build | Workflow actions stay on their latest releases, pinned by SHA and updated by Dependabot |
+| DEC-063 | accepted | Product | The product is called Service Bus Workbench |
+| DEC-064 | accepted | Architecture | Avalonia screens are approved side by side, then pinned by their own exact baselines |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -444,7 +450,7 @@ DLQ palette clarification: the user explicitly disallowed changing DLQ tag color
 ## DEC-053 - View models live in a WPF-free Presentation project
 
 - Status: accepted, 2026-10-18; user approved extracting the Delete confirmation dialog first as the pattern pilot, then Settings, with view models in a new project that cannot use WPF.
-- Decision: view models go into `src/ServiceBusEmulatorExplorer.Presentation`, a plain `net10.0` project that references Core and CommunityToolkit.Mvvm and has no WPF, so a view model cannot depend on a UI framework. WPF windows bind to them and keep only presentation mechanics such as theme, focus and dialog results. Components move one at a time; each extraction keeps every existing test and visual baseline unchanged and adds view-model tests in `tests/ServiceBusEmulatorExplorer.Presentation.Tests`.
+- Decision: view models go into `src/ServiceBusWorkbench.Presentation`, a plain `net10.0` project that references Core and CommunityToolkit.Mvvm and has no WPF, so a view model cannot depend on a UI framework. WPF windows bind to them and keep only presentation mechanics such as theme, focus and dialog results. Components move one at a time; each extraction keeps every existing test and visual baseline unchanged and adds view-model tests in `tests/ServiceBusWorkbench.Presentation.Tests`.
 - Because: the user wants reusable components that look identical on every OS (DEC-049), and a later Avalonia UI can only reuse view models that do not touch WPF.
 - Consequences: view models follow the repository's explicit style (`ObservableObject` with `SetProperty`, `RelayCommand` instances, no source generators) and report results through events the view translates, for example `DeleteMessagesViewModel.Completed` to `DialogResult`.
 
@@ -476,9 +482,51 @@ DLQ palette clarification: the user explicitly disallowed changing DLQ tag color
 - Because: the user considers the Workbench mature enough after the time spent making it as good as possible, its components are separate from the investigation's, and the user will go through the whole application after the migration anyway.
 - Consequences: Workbench screens join the pixel baselines and characterization tests. A later Workbench design change goes through a mockup approval and updates its baselines explicitly, like every other screen.
 
-## DEC-058 - Avalonia screens are approved side by side, then pinned by their own exact baselines
+## DEC-058 - Releases hide the Message Workbench until it is finished
+
+- Status: accepted, 2026-11-12; the user asked for a release they can use and approved Release 72 v1, hidden by default with a switch, for v0.3.0.
+- Decision: the app hides the workspace tabs and the inspector's Create template button, the only two ways into the Workbench, unless it is started with `--message-workbench-prototype`. `App.OnStartup` is the one place that decides; the window itself still shows the Workbench by default.
+- Because: the user wants a new release to use now, and the Workbench is not ready for it ("we might hide the Message Workbench for now in the release").
+- Consequences: Workbench code, tests, pixel baselines and UI smoke tests are unchanged, because they build the window directly or pass the switch. The README screenshot hides the Workbench too, so it shows what a release shows. Remove the hiding, and this entry's effect, when the Workbench is approved for release.
+
+## DEC-059 - Releases are signed on GitHub's runner with a phone code the owner types each time
+
+- Status: accepted, 2026-11-13; the user bought a Certum Open Source Code Signing (cloud, SimplySign) certificate as a private individual (issue #7), wanted releases built and signed in GitHub Actions rather than locally, accepted manual steps, and asked whether anyone watching the public repository could steal the code. Spike run 43454305882 signed a test exe this way.
+- Decision: the `sign` job in `release.yml` runs on a GitHub-hosted Windows runner behind the `code-signing` environment, which only the owner can approve. It installs the pinned SimplySign Desktop, opens its login window and waits for the owner's one-time phone code in an environment variable named for its run attempt, `SIMPLYSIGN_CODE_<run id>_<attempt>` (the "mailbox"). A local approval helper (`gh release-signing approve` since DEC-061) asks for the approval and the code. The job masks the code, deletes its mailbox as soon as it reads it, removes leftover mailboxes at the end, and signs both executables with an RFC 3161 Certum timestamp. Artifact validation then requires a valid signature from the release certificate.
+- Because: the user did not want to build and upload releases by hand, and did not want anything in GitHub that can sign on its own. A stored TOTP seed would allow that, and a reverse-engineered Certum API client (`ssign`) is unofficial. The mailbox is not public: through the API, only collaborators or tokens with Environments read on this repository can read it, which today means the owner and `MAILBOX_TOKEN`. In workflows, only jobs past the owner's approval get the environment's secrets. So watching the public run reveals when a code is sent, but not the code. The code also works only once and for about 30 seconds.
+- Moved: the signing job, its runner script and the approval helper now live in `kkolodziejczak/gh-release-signing` (DEC-061); the mechanism above is unchanged.
+- Consequences: each release needs the owner at the keyboard for about 2 minutes after the build. The certificate thumbprint in `release.yml` changes with each yearly renewal, and the `MAILBOX_TOKEN` secret must be replaced when it expires. Typing into SimplySign's window depends on the runner's desktop; if that becomes unreliable, revisit a self-hosted runner or an own HTTPS client.
+
+## DEC-060 - The README screenshot is updated on master before the release is tagged
+
+- Status: accepted, 2026-11-13; the user wanted the README screenshot automatic and current whenever a release is out ("it should be updated even before the release happens"), and chose a separate pull request for it after the signing work.
+- Decision: before tagging, `scripts/Sync-ReleaseScreenshot.ps1` runs `update-readme-screenshot.yml` for the release branch's current commit. If the image changed, it opens the pull request with the maintainer's `gh`, waits for its checks, merges it and fast-forwards the branch; the tag goes on that commit. The release skill runs this as its own gate and its invocation authorizes the merge. The run on `release: published` stays as a safety net that should find no change.
+- Because: with the screenshot made only after publishing, the released tag and `master` showed an old UI until someone opened and merged a pull request by hand. GitHub Actions still may not create or approve pull requests, so the maintainer's own `gh` opens and merges it.
+- Consequences: a release takes one screenshot run (about 5 minutes) more, plus a pull request when the UI changed. A screenshot branch pushed by the safety net means the pre-release gate was skipped or the UI changed after it ran.
+## DEC-061 - Signing lives in one shared repository, gh-release-signing, that every repository calls
+
+- Status: accepted, 2026-11-13; the user wanted to sign the releases of their other public repositories too (PrivateType first) without keeping a copy of the signing pipeline in each one, and chose a GitHub CLI extension for the local helper so that they and the release skill can start it from any repository folder, including worktrees.
+- Decision: the public repository `kkolodziejczak/gh-release-signing` holds the reusable `sign.yml`, the SimplySign runner script and the `gh release-signing approve` extension. This repository's `sign` job calls `sign.yml@main` with `secrets: inherit` (a called workflow sees no secrets otherwise, not even its environment's) and `id-token: write`; the reusable job reads its own commit from the OIDC token and checks out its scripts at that commit, because the `github` context of a called workflow belongs to the caller. The certificate thumbprint lives only in `sign.yml`, and the release job re-validates the downloaded assets against the thumbprint the sign job reports. Each repository keeps its own `code-signing` environment, reviewer and secrets, so DEC-059's approval gate and mailbox stay per repository.
+- Because: one copy means a fix or the yearly certificate renewal is one change for every repository. Callers follow `main` rather than a moving `v1` tag, because moving a tag needs a force-push.
+- Consequences: a broken commit on `gh-release-signing`'s `main` breaks signing in every repository until it is fixed; its `self-test.yml` signs a throwaway executable through the same path and should pass before relying on a change. Each computer that approves signing needs `gh extension install kkolodziejczak/gh-release-signing` once.
+
+## DEC-062 - Workflow actions stay on their latest releases, pinned by SHA and updated by Dependabot
+
+- Status: accepted, 2026-11-13; GitHub warned that the pinned v4 actions target the deprecated Node.js 20, and the user wanted to stay up to date and not use outdated versions.
+- Decision: every `uses:` of a third-party action is pinned to a full commit SHA with its version as a comment, on the action's latest release (checkout v7, setup-dotnet v6, upload-artifact v7, download-artifact v8 at the time). `.github/dependabot.yml` opens one grouped pull request a week for `github-actions` updates. `gh-release-signing` follows the same rule.
+- Because: a SHA pin keeps a moved tag from changing what runs, and Dependabot keeps the pins from going stale the way the v4 pins did.
+- Consequences: review and merge the weekly actions pull request after its checks pass; read the release notes of a new major version before merging it.
+
+## DEC-063 - The product is called Service Bus Workbench
+
+- Status: accepted, 2026-11-13; the user pointed out that the app is a Service Bus explorer that also works against Azure namespaces with RBAC, not only against the emulator, and chose this name from a shortlist.
+- Decision: the product, repository, solution, projects, namespaces, release files and the `%LOCALAPPDATA%` folder are named Service Bus Workbench (`ServiceBusWorkbench`, `service-bus-workbench`). It was Service Bus Emulator Explorer before.
+- Because: "Emulator" read as emulator-only, and plain "Service Bus Explorer" is the name of the paolosalvatori tool and of the Azure portal feature.
+- Consequences: `ProtectedWorkspacePreferencesStore.CreateDefault` moves the preferences file saved under the former folder name on first start, unless the current folder already has one. A former version that is still running keeps saving to the former folder, and those later changes are not picked up. Replay copies carry `sb-workbench.replay.*` properties; `ReplayLineage` still reads the former `sbe-explorer.replay.*` names, so copies replayed before the rename keep their family, and it does not copy the former names onto new copies. A former version of the app does not recognise copies made by this one. Test switches use the `SBW_` prefix and message templates the sbwtemplate extension. Mentions of "ServiceBusExplorer" refer to the paolosalvatori tool and stay.
+
+## DEC-064 - Avalonia screens are approved side by side, then pinned by their own exact baselines
 
 - Status: accepted, 2026-10-23; the user chose option 4a after learning that Avalonia draws through Skia, which positions and anti-aliases text differently from WPF, and approved a spike (option 3a).
 - Decision: an Avalonia screen does not have to reproduce its WPF baseline's pixels. Each ported screen is shown to the user beside its WPF baseline with a diff; once approved, its Avalonia render becomes that screen's baseline (DEC-050), one for every operating system. Outside text every pixel must match exactly; inside the bounds of text elements the images are compared after a 3x3 blur within a calibrated tolerance, because each OS rasterizes glyphs with its own font engine (user's choice 3a, 2026-10-23). The tolerance must still fail a text moved by 1 px. Layout, sizes, colours and text must still match WPF; only rasterization may differ.
 - Because: reproducing WPF's text rendering exactly is not achievable with another renderer, and the user's requirement is that the app looks the same everywhere, which one renderer with bundled fonts can prove.
-- Consequences: the Avalonia spike (`src/ServiceBusEmulatorExplorer.Avalonia`, `tests/ServiceBusEmulatorExplorer.Avalonia.Tests`) renders the Delete messages dialog headlessly and compares it exactly with its own baselines on Windows, Linux and macOS CI runners, writing a diff against the WPF baseline for review. Profile colours come from the shared `ProfilePalette` so both frameworks use the same values.
+- Consequences: the Avalonia spike (`src/ServiceBusWorkbench.Avalonia`, `tests/ServiceBusWorkbench.Avalonia.Tests`) renders the Delete messages dialog headlessly and compares it exactly with its own baselines on Windows, Linux and macOS CI runners, writing a diff against the WPF baseline for review. Profile colours come from the shared `ProfilePalette` so both frameworks use the same values.

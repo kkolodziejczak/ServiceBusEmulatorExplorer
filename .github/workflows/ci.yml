@@ -24,10 +24,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up .NET 10 SDK
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           dotnet-version: 10.0.x
 
@@ -43,26 +43,26 @@ jobs:
 
       - name: Run fast tests
         shell: pwsh
-        run: dotnet test ServiceBusEmulatorExplorer.slnx --configuration Release --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
+        run: dotnet test ServiceBusWorkbench.slnx --configuration Release --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
 
       - name: Upload Avalonia renders
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: avalonia-renders-windows-fast-tests
-          path: tests/ServiceBusEmulatorExplorer.Avalonia.Tests/bin/Release/net10.0/avalonia-renders/
+          path: tests/ServiceBusWorkbench.Avalonia.Tests/bin/Release/net10.0/avalonia-renders/
           if-no-files-found: ignore
 
       - name: Verify README screenshot generation
         shell: pwsh
         timeout-minutes: 3
         run: |
-          dotnet build tools\ServiceBusEmulatorExplorer.ReadmeScreenshot\ServiceBusEmulatorExplorer.ReadmeScreenshot.csproj --configuration Release -p:UseSharedCompilation=false -p:NodeReuse=false
-          $outputPath = Join-Path $env:RUNNER_TEMP "readme-screenshot\service-bus-emulator-explorer.png"
+          dotnet build tools\ServiceBusWorkbench.ReadmeScreenshot\ServiceBusWorkbench.ReadmeScreenshot.csproj --configuration Release -p:UseSharedCompilation=false -p:NodeReuse=false
+          $outputPath = Join-Path $env:RUNNER_TEMP "readme-screenshot\service-bus-workbench.png"
           .\scripts\Update-ReadmeScreenshot.ps1 -OutputPath $outputPath -TimeoutSeconds 120
 
   avalonia-renders:
-    # DEC-058: the Avalonia spike must render the same pixels on every OS, checked against one set of baselines.
+    # DEC-064: the Avalonia spike must render the same pixels on every OS, checked against one set of baselines.
     name: Avalonia renders (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
@@ -75,20 +75,20 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up .NET 10 SDK
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           dotnet-version: 10.0.x
 
       - name: Run the Avalonia render tests
-        run: dotnet test tests/ServiceBusEmulatorExplorer.Avalonia.Tests/ServiceBusEmulatorExplorer.Avalonia.Tests.csproj --configuration Release
+        run: dotnet test tests/ServiceBusWorkbench.Avalonia.Tests/ServiceBusWorkbench.Avalonia.Tests.csproj --configuration Release
 
       - name: Upload renders
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: avalonia-renders-${{ matrix.os }}
-          path: tests/ServiceBusEmulatorExplorer.Avalonia.Tests/bin/Release/net10.0/avalonia-renders/
+          path: tests/ServiceBusWorkbench.Avalonia.Tests/bin/Release/net10.0/avalonia-renders/
           if-no-files-found: error

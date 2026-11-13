@@ -7,16 +7,14 @@ param(
     [string]$Configuration = "Release",
 
     [ValidateRange(1, 3600)]
-    [int]$PublishTimeoutSeconds = 300,
-
-    [string]$GitHubOutputPath = ""
+    [int]$PublishTimeoutSeconds = 300
 )
 
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $tag = "v$Version"
-$assetStem = "ServiceBusEmulatorExplorer-$tag-win-x64"
+$assetStem = "ServiceBusWorkbench-$tag-win-x64"
 $releaseRoot = Join-Path $repoRoot "artifacts\release\$tag"
 $runtimeRequiredOutput = Join-Path $releaseRoot "runtime-required"
 $portableOutput = Join-Path $releaseRoot "portable"
@@ -41,8 +39,8 @@ $informationalVersion = "$Version+$commitSha"
 & $publisher -Configuration $Configuration -RuntimeIdentifier "win-x64" -DeploymentMode RuntimeRequired -Version $Version -InformationalVersion $informationalVersion -PublishTimeoutSeconds $PublishTimeoutSeconds -OutputPath $runtimeRequiredOutput
 & $publisher -Configuration $Configuration -RuntimeIdentifier "win-x64" -DeploymentMode Portable -Version $Version -InformationalVersion $informationalVersion -PublishTimeoutSeconds $PublishTimeoutSeconds -OutputPath $portableOutput
 
-$runtimeRequiredSource = Join-Path $runtimeRequiredOutput "ServiceBusEmulatorExplorer.App.exe"
-$portableSource = Join-Path $portableOutput "ServiceBusEmulatorExplorer.App.exe"
+$runtimeRequiredSource = Join-Path $runtimeRequiredOutput "ServiceBusWorkbench.App.exe"
+$portableSource = Join-Path $portableOutput "ServiceBusWorkbench.App.exe"
 foreach ($source in @($runtimeRequiredSource, $portableSource)) {
     if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
         throw "Expected published executable was not produced: $source"
@@ -56,14 +54,6 @@ Remove-Item -LiteralPath $runtimeRequiredOutput, $portableOutput -Recurse -Force
 & $validator -Version $Version -CommitSha $commitSha -ReleasePath $releaseRoot
 if ($LASTEXITCODE -ne 0) {
     throw "Release artifact validation failed with exit code $LASTEXITCODE."
-}
-
-if (-not [string]::IsNullOrWhiteSpace($GitHubOutputPath)) {
-    @(
-        "release_path=$releaseRoot"
-        "runtime_required_asset=$runtimeRequiredAsset"
-        "portable_asset=$portableAsset"
-    ) | Add-Content -LiteralPath $GitHubOutputPath
 }
 
 Write-Host "Published release assets to $releaseRoot"

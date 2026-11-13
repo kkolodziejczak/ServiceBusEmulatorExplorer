@@ -1,4 +1,6 @@
 name: Update README Screenshot
+# The request id lets Sync-ReleaseScreenshot.ps1 find exactly the run it dispatched.
+run-name: README screenshot ${{ inputs.branch || inputs.tag || github.event.release.tag_name }} ${{ inputs.request_id }}
 
 on:
   release:
@@ -7,8 +9,16 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing published release tag whose UI should be captured.
-        required: true
+        description: Existing published release tag whose UI should be captured. Leave empty when using branch.
+        required: false
+        type: string
+      branch:
+        description: Branch to capture before a release (normally master); dispatch the workflow from that same branch. A changed image becomes a pull request into it. Leave empty when using tag.
+        required: false
+        type: string
+      request_id:
+        description: Set by Sync-ReleaseScreenshot.ps1 to find its run; leave empty.
+        required: false
         type: string
 
 permissions:
@@ -20,20 +30,48 @@ concurrency:
 
 jobs:
   capture:
-    name: Capture released UI
+    name: Capture UI
     runs-on: windows-latest
     timeout-minutes: 10
     permissions:
       contents: read
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
+      SOURCE_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || '' }}
+    outputs:
+      label: ${{ steps.source.outputs.label }}
+      commit: ${{ steps.source.outputs.commit }}
+      base: ${{ steps.source.outputs.base }}
+      branch_from: ${{ steps.source.outputs.branch_from }}
 
     steps:
-      - name: Validate published release
+      # Two sources: a published release tag (after publishing, a safety net), or a
+      # branch before tagging, so the tagged README already shows the release UI.
+      - name: Resolve the source to capture
+        id: source
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
+          if ([string]::IsNullOrWhiteSpace($env:RELEASE_TAG) -eq [string]::IsNullOrWhiteSpace($env:SOURCE_BRANCH)) {
+            throw 'Give exactly one of the inputs tag or branch.'
+          }
+
+          if ($env:SOURCE_BRANCH) {
+            # Capture exactly the commit the run was dispatched at, so the script's
+            # pull request can only fast-forward that commit (strict branch protection).
+            if ($env:SOURCE_BRANCH -cne $env:GITHUB_REF_NAME -or $env:GITHUB_REF_TYPE -ne 'branch') {
+              throw "Dispatch this workflow from the branch it captures: --ref '$env:SOURCE_BRANCH' -f branch='$env:SOURCE_BRANCH'."
+            }
+            $commit = $env:GITHUB_SHA
+            "label=$($env:SOURCE_BRANCH -replace '[^A-Za-z0-9.-]', '-')-$($commit.Substring(0, 7))" | Add-Content -Path $env:GITHUB_OUTPUT
+            "commit=$commit" | Add-Content -Path $env:GITHUB_OUTPUT
+            "base=$env:SOURCE_BRANCH" | Add-Content -Path $env:GITHUB_OUTPUT
+            "branch_from=$commit" | Add-Content -Path $env:GITHUB_OUTPUT
+            return
+          }
+
           if ($env:RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+$') {
             throw "Release tags must match vMAJOR.MINOR.PATCH. Received '$env:RELEASE_TAG'."
           }
@@ -42,35 +80,39 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $release.draft -or [string]::IsNullOrWhiteSpace($release.published_at)) {
             throw "Release '$env:RELEASE_TAG' does not exist or is not published."
           }
+          "label=$env:RELEASE_TAG" | Add-Content -Path $env:GITHUB_OUTPUT
+          "commit=$env:RELEASE_TAG" | Add-Content -Path $env:GITHUB_OUTPUT
+          "base=$env:DEFAULT_BRANCH" | Add-Content -Path $env:GITHUB_OUTPUT
+          "branch_from=$env:DEFAULT_BRANCH" | Add-Content -Path $env:GITHUB_OUTPUT
 
-      - name: Check out released source
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ steps.source.outputs.commit }}
           persist-credentials: false
 
       - name: Set up .NET 10 SDK
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           dotnet-version: 10.0.x
 
       - name: Build screenshot generator
         shell: pwsh
         timeout-minutes: 3
-        run: dotnet build tools\ServiceBusEmulatorExplorer.ReadmeScreenshot\ServiceBusEmulatorExplorer.ReadmeScreenshot.csproj --configuration Release -p:UseSharedCompilation=false -p:NodeReuse=false
+        run: dotnet build tools\ServiceBusWorkbench.ReadmeScreenshot\ServiceBusWorkbench.ReadmeScreenshot.csproj --configuration Release -p:UseSharedCompilation=false -p:NodeReuse=false
 
-      - name: Capture released application
+      - name: Capture the application
         shell: pwsh
         timeout-minutes: 2
         run: |
-          $outputPath = Join-Path $env:RUNNER_TEMP "readme-screenshot\service-bus-emulator-explorer.png"
+          $outputPath = Join-Path $env:RUNNER_TEMP "readme-screenshot\service-bus-workbench.png"
           .\scripts\Update-ReadmeScreenshot.ps1 -OutputPath $outputPath -TimeoutSeconds 120
 
       - name: Upload validated screenshot
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: readme-screenshot-${{ env.RELEASE_TAG }}
-          path: ${{ runner.temp }}\readme-screenshot\service-bus-emulator-explorer.png
+          name: readme-screenshot-${{ steps.source.outputs.label }}
+          path: ${{ runner.temp }}\readme-screenshot\service-bus-workbench.png
           if-no-files-found: error
           retention-days: 7
 
@@ -83,27 +125,29 @@ jobs:
       actions: write
       contents: write
     env:
-      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
-      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      LABEL: ${{ needs.capture.outputs.label }}
+      BASE_BRANCH: ${{ needs.capture.outputs.base }}
+      BRANCH_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.branch != '' }}
 
     steps:
+      # Branch mode builds on the exact captured commit; tag mode on the default branch.
       - name: Check out documentation branch
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.DEFAULT_BRANCH }}
+          ref: ${{ needs.capture.outputs.branch_from }}
 
       - name: Download generated screenshot
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: readme-screenshot-${{ env.RELEASE_TAG }}
+          name: readme-screenshot-${{ env.LABEL }}
           path: generated-screenshot
 
       - name: Validate isolated screenshot artifact
         shell: pwsh
         run: |
           $files = @(Get-ChildItem -LiteralPath generated-screenshot -File -Recurse)
-          if ($files.Count -ne 1 -or $files[0].Name -ne 'service-bus-emulator-explorer.png') {
-            throw 'The screenshot artifact must contain exactly service-bus-emulator-explorer.png.'
+          if ($files.Count -ne 1 -or $files[0].Name -ne 'service-bus-workbench.png') {
+            throw 'The screenshot artifact must contain exactly service-bus-workbench.png.'
           }
           if ($files[0].Length -lt 50000) {
             throw "The screenshot artifact is unexpectedly small: $($files[0].Length) bytes."
@@ -133,15 +177,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $imagePath = 'docs/images/service-bus-emulator-explorer.png'
-          Copy-Item -LiteralPath 'generated-screenshot/service-bus-emulator-explorer.png' -Destination $imagePath -Force
+          $imagePath = 'docs/images/service-bus-workbench.png'
+          Copy-Item -LiteralPath 'generated-screenshot/service-bus-workbench.png' -Destination $imagePath -Force
 
           $imageStatus = git status --porcelain -- $imagePath
           if ($LASTEXITCODE -ne 0) {
             throw "Could not inspect the generated README screenshot."
           }
           if ([string]::IsNullOrWhiteSpace($imageStatus)) {
-            Write-Host "The released UI matches the current README screenshot."
+            Write-Host "The captured UI matches the current README screenshot."
             exit 0
           }
 
@@ -158,30 +202,34 @@ jobs:
             throw "The screenshot workflow must stage exactly $imagePath."
           }
 
-          git commit -m "docs: refresh app screenshot for $env:RELEASE_TAG"
+          git commit -m "docs: refresh app screenshot for $env:LABEL"
           if ($LASTEXITCODE -ne 0) {
             throw "Could not commit the generated README screenshot."
           }
 
-          $automationBranch = "automation/readme-screenshot-$env:RELEASE_TAG-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          # Run id first: scripts/Sync-ReleaseScreenshot.ps1 looks the branch up by that prefix.
+          $automationBranch = "automation/readme-screenshot-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-$env:LABEL"
           git push origin "HEAD:refs/heads/$automationBranch"
           if ($LASTEXITCODE -ne 0) {
             throw "Could not push the generated README screenshot branch '$automationBranch'."
           }
 
-          gh workflow run ci.yml --ref $automationBranch
-          if ($LASTEXITCODE -ne 0) {
-            throw "Could not dispatch fast CI for the generated README screenshot branch."
+          # In branch mode Sync-ReleaseScreenshot.ps1 opens the pull request, which runs CI itself.
+          if ($env:BRANCH_MODE -ne 'true') {
+            gh workflow run ci.yml --ref $automationBranch
+            if ($LASTEXITCODE -ne 0) {
+              throw "Could not dispatch fast CI for the generated README screenshot branch."
+            }
           }
 
-          $compareUrl = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/compare/$env:DEFAULT_BRANCH...$automationBranch`?expand=1"
+          $compareUrl = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/compare/$env:BASE_BRANCH...$automationBranch`?expand=1"
           @"
           ## README screenshot branch ready
 
-          - Release: ``$env:RELEASE_TAG``
+          - Source: ``$env:LABEL``
           - Generated file: ``$imagePath``
-          - Fast CI: dispatched for ``$automationBranch``
-          - Next step: [open a pull request]($compareUrl)
+          - Branch: ``$automationBranch``
+          - Next step: $(if ($env:BRANCH_MODE -eq 'true') { 'Sync-ReleaseScreenshot.ps1 opens and merges the pull request.' } else { "fast CI was dispatched; [open a pull request]($compareUrl)" })
 
           Branch protection intentionally requires a maintainer to open and merge the pull request.
           "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY

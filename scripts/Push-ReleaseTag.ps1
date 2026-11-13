@@ -198,3 +198,4 @@ Invoke-ExternalCommand -FileName 'git' -ArgumentList @('tag', '-a', $Tag, '-m', 
 Invoke-ExternalCommand -FileName 'git' -ArgumentList @('push', $remote, "$localTagReference`:$localTagReference") | Out-Null
 
 Write-Host "Pushed release tag '$Tag' at '$targetCommit' after separately pushing '$branch' without auto-followed tags."
+Write-Host "Next: run gh release-signing approve -Tag $Tag in this folder and keep it open; it asks for the signing approval and your SimplySign code."

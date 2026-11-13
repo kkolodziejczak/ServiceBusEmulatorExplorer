@@ -1,10 +1,10 @@
 ---
 # Machine-readable tokens. Every value below has exactly one implementation key in
-# src/ServiceBusEmulatorExplorer.App/Investigation/Resources/SharedStyles.xaml (x:Key);
+# src/ServiceBusWorkbench.App/Investigation/Resources/SharedStyles.xaml (x:Key);
 # fonts are the exception and live in AppFonts.cs beside it.
 # Reference tokens in prose as {colors.primary}. Sizes are WPF DIPs.
 version: 1
-name: Service Bus Emulator Explorer
+name: Service Bus Workbench
 colors:
   primary: "#0069FA"
   primary-hover: "#005BD8"
@@ -61,7 +61,7 @@ spacing: [0, 1, 3, 4, 7, 8, 12, 16, 24]
 rounded: { control: 3, surface: 4, notification: 9 }
 ---
 
-# DESIGN.md — Service Bus Emulator Explorer
+# DESIGN.md — Service Bus Workbench
 
 ## Overview
 
@@ -112,8 +112,8 @@ validation warning pair (#FFF5E3 / #D9A441) used by `ValidationWarningFrame`.
 Two bundled fonts, never an installed one (DEC-051): Selawik (`AppFonts.Ui`) everywhere and
 Cascadia Mono (`AppFonts.Code`) for JSON and the console. XAML references them as
 `{x:Static res:AppFonts.Ui}`; a font family name in a view is a defect. Both live in
-[AppFonts](src/ServiceBusEmulatorExplorer.App/Investigation/Resources/AppFonts.cs) with their
-licences in `src/ServiceBusEmulatorExplorer.App/Assets/Fonts/`. Sizes are role-based; a view
+[AppFonts](src/ServiceBusWorkbench.App/Investigation/Resources/AppFonts.cs) with their
+licences in `src/ServiceBusWorkbench.App/Assets/Fonts/`. Sizes are role-based; a view
 never picks a size, it picks a style.
 
 | Token | Resource key | Size / weight | Use |
@@ -201,11 +201,12 @@ result.
 | Replay identity badge | `MessageReplayBadge`, `MessageReplayBadgeText` | hidden for ordinary/not-sent IDs; exact saved replay ID with original/time tooltip; independent Active/DLQ badge | Browse and search rows | Approved Replay 35, DEC-032 |
 | Replay history action | existing outlined Button with `HistoryGeometry`, immediately before Settings | label hidden at existing compact breakpoint; tooltip and accessible name retained | Investigation toolbar | Approved Replay 34/35, DEC-032 |
 | JSON folding visuals | `JsonFoldButton`, `JsonFoldingMargin`, `JsonFoldPlaceholder` | expanded/down, collapsed/right, hover, pressed, keyboard focus; dark rounded ellipsis | Shared inspection editor | Approved Inspect 36, DEC-032 |
+| Wrapping action row | `RightAlignedWrapPanel` | one right-aligned row when it fits; otherwise the last actions wrap onto a right-aligned line 8 below, so the primary action stays last | Workbench Run results actions | Approved Results 71 v1 |
 | Activity log footer | `InvestigationWindow.xaml` bottom | expanded, collapsed, UTC/Local | Investigation | Approved |
 | Watch notification | `WatchNotificationWindow.cs` | hover, dismiss | Tray notifications | Approved |
 | Active badge | inline in `InvestigationWindow.xaml` (literal colours) | — | Message rows, inspector | Approved look, not yet a style |
 | Message Workbench workspace | `MessageLibraryPrototypeView.xaml` (dummy data) | compose, prepare, review, results, cancelled | Prototype | Approved prototype; production pending |
-| Responsive Compose layout | [Layout controller](src/ServiceBusEmulatorExplorer.App/Investigation/MessageLibraryPrototypeView.Layout.cs), `ApplyEditorResponsiveLayout`; [visual contract](specs/message-library/responsive-layout.md) | wide: JSON plus inspector; medium: tabs and two property columns; small: tabs and one property column; Variables, editing, warning remedy | Message Workbench Compose | Approved 2026-10-02, DEC-022 |
+| Responsive Compose layout | [Layout controller](src/ServiceBusWorkbench.App/Investigation/MessageLibraryPrototypeView.Layout.cs), `ApplyEditorResponsiveLayout`; [visual contract](specs/message-library/responsive-layout.md) | wide: JSON plus inspector; medium: tabs and two property columns; small: tabs and one property column; Variables, editing, warning remedy | Message Workbench Compose | Approved 2026-10-02, DEC-022 |
 | Workbench contextual search | [Contract](specs/message-library/search-and-inspector-tabs.md); `SearchSuggestionGroupHeaderTemplate`, `SearchSuggestionListItem`, `SearchSuggestionCaption` in shared styles | typing, grouped results, hover, keyboard selection, empty, dismissed | Workbench namespace and template searches | Approved 2026-10-02, DEC-023 |
 | Scheduling inputs | [Contract](specs/message-library/scheduling-controls.md); CalendarOnlyDatePicker with ScheduleDatePicker, ScheduleCalendar and ScheduleChoiceRadioButton in shared SchedulingStyles.xaml | closed, expanded, selected day, today, hover, pressed, keyboard focus, disabled (days before today); constrained hour/minute; schedule notice naming the cause with Change date / Change time | Workbench Review | Approved 2026-10-02, DEC-024; past days and notice DEC-046 |
 

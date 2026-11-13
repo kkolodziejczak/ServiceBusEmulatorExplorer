@@ -7,14 +7,18 @@ param(
     [ValidatePattern('^[0-9a-f]+$')]
     [string]$CommitSha = "",
 
-    [string]$ReleasePath = ""
+    [string]$ReleasePath = "",
+
+    # When set, both assets must carry a valid, timestamped Authenticode signature from this certificate.
+    [ValidatePattern('^[0-9A-F]{40}$')]
+    [string]$ExpectedSignerThumbprint = ""
 )
 
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $tag = "v$Version"
-$assetStem = "ServiceBusEmulatorExplorer-$tag-win-x64"
+$assetStem = "ServiceBusWorkbench-$tag-win-x64"
 
 if ([string]::IsNullOrWhiteSpace($ReleasePath)) {
     $ReleasePath = Join-Path $repoRoot "artifacts\release\$tag"
@@ -85,6 +89,16 @@ foreach ($assetName in $expectedAssets) {
     }
 
     $signature = Get-AuthenticodeSignature -LiteralPath $assetPath
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedSignerThumbprint)) {
+        if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne $ExpectedSignerThumbprint) {
+            throw "'$assetName' signature is '$($signature.Status)' from '$($signature.SignerCertificate.Subject)'; expected a valid signature from certificate $ExpectedSignerThumbprint."
+        }
+
+        if ($null -eq $signature.TimeStamperCertificate) {
+            throw "'$assetName' signature has no timestamp, so it would stop validating when the certificate expires."
+        }
+    }
+
     $assetInfo[$assetName] = [pscustomobject]@{
         Bytes = (Get-Item -LiteralPath $assetPath).Length
         SignatureStatus = $signature.Status

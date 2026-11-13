@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Distribute Service Bus Emulator Explorer through GitHub Releases as two clearly named, single-file Windows executables:
+Distribute Service Bus Workbench through GitHub Releases as two clearly named, single-file Windows executables:
 
 1. a small framework-dependent executable for users who already have the .NET 10 Desktop Runtime;
 2. a compressed, self-contained portable executable for users who do not want to install .NET.
@@ -30,7 +30,7 @@ Both variants target `win-x64`. A pushed semantic-version tag starts validation 
 - ZIP compression reduced the existing self-contained executable to 56.95 MiB. This proves that the payload is compressible, but it does not establish the exact size produced by `.NET` single-file compression.
 - WPF is not trim-compatible. `PublishTrimmed` must not be introduced as a size optimization.
 - There is no `.github` workflow directory, no release automation, no Git tags, and no explicit product-version configuration.
-- `scripts/Invoke-UiSmoke.ps1` already supports launching an alternate executable through `SBE_APP_EXE`, but process cleanup contains a hard-coded development executable name.
+- `scripts/Invoke-UiSmoke.ps1` already supports launching an alternate executable through `SBW_APP_EXE`, but process cleanup contains a hard-coded development executable name.
 - `scripts/Invoke-ManualProof.ps1` calls `scripts/Publish-Windows.ps1` without arguments and expects `artifacts/publish/win-x64`; that behavior must remain working.
 
 ## Intent Model
@@ -53,8 +53,8 @@ Both variants target `win-x64`. A pushed semantic-version tag starts validation 
 For tag `v0.1.0`, the only public application assets are:
 
 ```text
-ServiceBusEmulatorExplorer-v0.1.0-win-x64-requires-dotnet10.exe
-ServiceBusEmulatorExplorer-v0.1.0-win-x64-portable.exe
+ServiceBusWorkbench-v0.1.0-win-x64-requires-dotnet10.exe
+ServiceBusWorkbench-v0.1.0-win-x64-portable.exe
 ```
 
 PDBs, `.deps.json`, `.runtimeconfig.json`, DLLs, intermediate folders, and source archives generated automatically by GitHub are not additional application assets. GitHub's automatic source-code archives may still appear on the release page.
@@ -115,12 +115,14 @@ flowchart LR
 
 This template is authoritative for asset naming and choice guidance. Version values are examples and must be replaced from the validated tag. It is not an application UI mock because this feature does not change application UI.
 
+> Releases after v0.3.0 replace the "Windows security notice" below with the signed-publisher notice in `release.yml` (DEC-059).
+
 ```markdown
 ## Choose a download
 
 ### Portable — recommended if you are unsure
 
-`ServiceBusEmulatorExplorer-v0.1.0-win-x64-portable.exe`
+`ServiceBusWorkbench-v0.1.0-win-x64-portable.exe`
 
 - Includes the .NET runtime.
 - No separate .NET installation is required.
@@ -128,7 +130,7 @@ This template is authoritative for asset naming and choice guidance. Version val
 
 ### Smaller download — .NET 10 required
 
-`ServiceBusEmulatorExplorer-v0.1.0-win-x64-requires-dotnet10.exe`
+`ServiceBusWorkbench-v0.1.0-win-x64-requires-dotnet10.exe`
 
 - Requires the .NET 10 Desktop Runtime for Windows x64.
 - If the application reports a missing framework, install the Desktop Runtime and retry.
@@ -198,6 +200,8 @@ Do not enable `PublishTrimmed`, Native AOT, ReadyToRun, or globalization reducti
 
 ### Unsigned-release contract
 
+> Superseded after v0.3.0 by DEC-059: the release workflow signs both executables and artifact validation requires a valid, timestamped signature from the release certificate. The contract below describes v0.1.x–v0.3.x.
+
 - Initial releases intentionally have no Authenticode signature.
 - Artifact validation reports signature status but does not fail because it is `NotSigned`.
 - Release notes always disclose the unsigned status and possible SmartScreen warning.
@@ -205,7 +209,7 @@ Do not enable `PublishTrimmed`, Native AOT, ReadyToRun, or globalization reducti
 
 ### UI smoke contract
 
-- Update `scripts/Invoke-UiSmoke.ps1` cleanup to derive the process name from `SBE_APP_EXE` rather than hard-coding `ServiceBusEmulatorExplorer.App`.
+- Update `scripts/Invoke-UiSmoke.ps1` cleanup to derive the process name from `SBW_APP_EXE` rather than hard-coding `ServiceBusWorkbench.App`.
 - Run the existing launch smoke once for each final renamed executable.
 - Continue passing a per-test `--profile-store-path`; release verification must not write profiles to user-local AppData.
 - Keep physical mouse input out of the smoke path.
@@ -214,7 +218,7 @@ Do not enable `PublishTrimmed`, Native AOT, ReadyToRun, or globalization reducti
 
 Use one source of truth in the release orchestrator for:
 
-- product asset stem: `ServiceBusEmulatorExplorer`;
+- product asset stem: `ServiceBusWorkbench`;
 - RID: `win-x64`;
 - framework label: `dotnet10`;
 - version parsed from the tag;
@@ -235,7 +239,7 @@ The GitHub workflow should pass the validated tag/version into the script and sh
 - `scripts/Publish-Release.ps1` (new)
 - `scripts/Test-ReleaseArtifacts.ps1` (new)
 - `scripts/Invoke-UiSmoke.ps1`
-- `src/ServiceBusEmulatorExplorer.App/ServiceBusEmulatorExplorer.App.csproj` only if build-time metadata defaults or single-file analysis settings must be declared there
+- `src/ServiceBusWorkbench.App/ServiceBusWorkbench.App.csproj` only if build-time metadata defaults or single-file analysis settings must be declared there
 - focused script/build tests if introduced
 
 **Do not change:**
@@ -258,13 +262,13 @@ The GitHub workflow should pass the validated tag/version into the script and sh
 **Tests/proof:**
 
 ```powershell
-dotnet test ServiceBusEmulatorExplorer.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
+dotnet test ServiceBusWorkbench.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
 .\scripts\Publish-Release.ps1 -Version 0.1.0
 .\scripts\Test-ReleaseArtifacts.ps1 -Version 0.1.0
-$env:SBE_RUN_UI_TESTS = "true"
-$env:SBE_APP_EXE = "<runtime-required-exe>"
+$env:SBW_RUN_UI_TESTS = "true"
+$env:SBW_APP_EXE = "<runtime-required-exe>"
 .\scripts\Invoke-UiSmoke.ps1 -NoBuild
-$env:SBE_APP_EXE = "<portable-exe>"
+$env:SBW_APP_EXE = "<portable-exe>"
 .\scripts\Invoke-UiSmoke.ps1 -NoBuild
 .\scripts\Publish-Windows.ps1
 ```
@@ -375,9 +379,9 @@ Stage 2 acceptance:
 Stage 2 evidence (2026-07-21): the bundled `v0.1.0` push with
 `push.followTags=true` created no push-triggered run while the workflow was first
 registered. The isolated annotated `v0.1.1` push created successful
-[`event=push` run 29860580505](https://github.com/kkolodziejczak/ServiceBusEmulatorExplorer/actions/runs/29860580505), which passed tests, both launch smokes, and produced an unpublished draft with the exact two assets. Use `scripts/Push-ReleaseTag.ps1` to keep the branch push and tag push separate for future releases.
+[`event=push` run 29860580505](https://github.com/kkolodziejczak/ServiceBusWorkbench/actions/runs/29860580505), which passed tests, both launch smokes, and produced an unpublished draft with the exact two assets. Use `scripts/Push-ReleaseTag.ps1` to keep the branch push and tag push separate for future releases.
 
-The manual malformed-tag [`workflow_dispatch` run 29862643105](https://github.com/kkolodziejczak/ServiceBusEmulatorExplorer/actions/runs/29862643105) with `v0.1` failed in `Validate release tag` before checkout; publishing, both launch smokes, and draft-release creation were skipped. No local or remote `v0.1` tag or release existed before or after, and the existing draft-release asset inventory was unchanged. This exercises the shared validator through `workflow_dispatch`, rather than a pushed malformed tag.
+The manual malformed-tag [`workflow_dispatch` run 29862643105](https://github.com/kkolodziejczak/ServiceBusWorkbench/actions/runs/29862643105) with `v0.1` failed in `Validate release tag` before checkout; publishing, both launch smokes, and draft-release creation were skipped. No local or remote `v0.1` tag or release existed before or after, and the existing draft-release asset inventory was unchanged. This exercises the shared validator through `workflow_dispatch`, rather than a pushed malformed tag.
 
 ## Test Strategy
 

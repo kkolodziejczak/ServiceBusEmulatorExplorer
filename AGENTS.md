@@ -1,4 +1,4 @@
-# ServiceBusEmulatorExplorer Agent Notes
+# ServiceBusWorkbench Agent Notes
 
 These notes are repo-specific guidance gathered from prior planning, implementation, verification, and bug-fix sessions. Treat them as operating guidance for this repository; still inspect the current code and scripts before acting.
 
@@ -40,15 +40,15 @@ before designing anything; update them in the same change as the code.
 
 ## Project Shape
 
-- Main solution: `ServiceBusEmulatorExplorer.slnx`.
-- App: WPF desktop app in `src/ServiceBusEmulatorExplorer.App`.
-- Domain/SDK layer: `src/ServiceBusEmulatorExplorer.Core`.
-- View models: `src/ServiceBusEmulatorExplorer.Presentation`, plain `net10.0` without WPF (DEC-053).
-- Avalonia spike: `src/ServiceBusEmulatorExplorer.Avalonia` with headless exact-pixel tests in `tests/ServiceBusEmulatorExplorer.Avalonia.Tests` (DEC-058). It ports the Delete messages dialog only; the WPF app stays the product.
+- Main solution: `ServiceBusWorkbench.slnx`.
+- App: WPF desktop app in `src/ServiceBusWorkbench.App`.
+- Domain/SDK layer: `src/ServiceBusWorkbench.Core`.
+- View models: `src/ServiceBusWorkbench.Presentation`, plain `net10.0` without WPF (DEC-053).
+- Avalonia spike: `src/ServiceBusWorkbench.Avalonia` with headless exact-pixel tests in `tests/ServiceBusWorkbench.Avalonia.Tests` (DEC-064). It ports the Delete messages dialog only; the WPF app stays the product.
 - Test layers:
-  - fast unit/view-model tests in `tests/ServiceBusEmulatorExplorer.Core.Tests`, `tests/ServiceBusEmulatorExplorer.Presentation.Tests` and `tests/ServiceBusEmulatorExplorer.App.Tests`;
-  - Docker-backed Service Bus emulator tests in `tests/ServiceBusEmulatorExplorer.Integration.Tests`;
-  - explicit FlaUI/UIA3 WPF smoke tests in `tests/ServiceBusEmulatorExplorer.UiSmoke.Tests`.
+  - fast unit/view-model tests in `tests/ServiceBusWorkbench.Core.Tests`, `tests/ServiceBusWorkbench.Presentation.Tests` and `tests/ServiceBusWorkbench.App.Tests`;
+  - Docker-backed Service Bus emulator tests in `tests/ServiceBusWorkbench.Integration.Tests`;
+  - explicit FlaUI/UIA3 WPF smoke tests in `tests/ServiceBusWorkbench.UiSmoke.Tests`.
 - `Lessons/` has been used for planning notes and may be untracked. Do not stage or rewrite it unless the task explicitly asks for lesson work.
 
 ## Public Documentation Boundaries
@@ -73,10 +73,10 @@ before designing anything; update them in the same change as the code.
 - Default fast loop:
 
 ```powershell
-dotnet test ServiceBusEmulatorExplorer.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
+dotnet test ServiceBusWorkbench.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
 ```
 
-- `dotnet test ServiceBusEmulatorExplorer.slnx` should stay green with integration and UI smoke tests skipped by default.
+- `dotnet test ServiceBusWorkbench.slnx` should stay green with integration and UI smoke tests skipped by default.
 - Use `git diff --check` before staging. Line-ending normalization warnings may appear; distinguish those from actual whitespace errors.
 - Package versions were pinned after a quality review found floating dependencies risky. Avoid reintroducing floating package versions.
 
@@ -104,10 +104,10 @@ Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;Share
 - Integration tests are opt-in:
 
 ```powershell
-$env:SBE_RUN_INTEGRATION_TESTS = "true"
-$env:SBE_CONNECTION_STRING = "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
-$env:SBE_ADMIN_CONNECTION_STRING = "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
-dotnet test tests\ServiceBusEmulatorExplorer.Integration.Tests\ServiceBusEmulatorExplorer.Integration.Tests.csproj
+$env:SBW_RUN_INTEGRATION_TESTS = "true"
+$env:SBW_CONNECTION_STRING = "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+$env:SBW_ADMIN_CONNECTION_STRING = "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+dotnet test tests\ServiceBusWorkbench.Integration.Tests\ServiceBusWorkbench.Integration.Tests.csproj
 ```
 
 - If solution-wide integration execution hangs or gives no output, run the integration test project directly with hang diagnostics rather than repeating the solution command.
@@ -117,9 +117,9 @@ dotnet test tests\ServiceBusEmulatorExplorer.Integration.Tests\ServiceBusEmulato
 - UI smoke tests are opt-in and launch the WPF app:
 
 ```powershell
-dotnet build src\ServiceBusEmulatorExplorer.App\ServiceBusEmulatorExplorer.App.csproj
-$env:SBE_RUN_UI_TESTS = "true"
-$env:SBE_APP_EXE = "$PWD\src\ServiceBusEmulatorExplorer.App\bin\Debug\net10.0-windows\ServiceBusEmulatorExplorer.App.exe"
+dotnet build src\ServiceBusWorkbench.App\ServiceBusWorkbench.App.csproj
+$env:SBW_RUN_UI_TESTS = "true"
+$env:SBW_APP_EXE = "$PWD\src\ServiceBusWorkbench.App\bin\Debug\net10.0-windows\ServiceBusWorkbench.App.exe"
 .\scripts\Invoke-UiSmoke.ps1 -NoBuild
 ```
 
@@ -128,7 +128,7 @@ $env:SBE_APP_EXE = "$PWD\src\ServiceBusEmulatorExplorer.App\bin\Debug\net10.0-wi
 - Avoid physical mouse-input assumptions in FlaUI tests. Prior failures came from `SendInput` access denied in this desktop session. Prefer UI Automation patterns: `Invoke`, `SelectionItem`, `Toggle`, and `Value`.
 - Dialog discovery by top-level window title was unreliable. Prefer waiting for stable dialog controls or automation IDs.
 - UI smoke tests should pass `--profile-store-path` when launching the app so profile persistence stays in a per-test writable path instead of user-local AppData.
-- After interrupted UI runs, check for lingering `dotnet`, `testhost`, and `ServiceBusEmulatorExplorer.App` processes before rerunning.
+- After interrupted UI runs, check for lingering `dotnet`, `testhost`, and `ServiceBusWorkbench.App` processes before rerunning.
 
 ## Launching for user testing
 
@@ -142,13 +142,13 @@ $env:SBE_APP_EXE = "$PWD\src\ServiceBusEmulatorExplorer.App\bin\Debug\net10.0-wi
 
 ## App-only WPF screenshot proof
 
-- For visual verification without desktop capture/control, first use the existing [WPF screenshot harness](tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/Program.cs). It instantiates the real app window with synthetic services, invokes WPF routed actions, waits for layout, and captures only the window content through [RenderTargetBitmap](tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/WpfScreenshot.cs). Missing desktop-control tools alone do not block this route. It still requires a working Windows/WPF runtime.
+- For visual verification without desktop capture/control, first use the existing [WPF screenshot harness](tools/ServiceBusWorkbench.ReadmeScreenshot/Program.cs). It instantiates the real app window with synthetic services, invokes WPF routed actions, waits for layout, and captures only the window content through [RenderTargetBitmap](tools/ServiceBusWorkbench.ReadmeScreenshot/WpfScreenshot.cs). Missing desktop-control tools alone do not block this route. It still requires a working Windows/WPF runtime.
 - Inspect the harness before running it. Build its project when source freshness matters; use a 60-second process deadline for build and each capture. Save proof images to the current task's writable artifact directory, never over the README screenshot. A fresh capture from an existing binary proves that binary, not unbuilt source changes.
 
 ```powershell
-dotnet build tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/ServiceBusEmulatorExplorer.ReadmeScreenshot.csproj --no-restore
+dotnet build tools/ServiceBusWorkbench.ReadmeScreenshot/ServiceBusWorkbench.ReadmeScreenshot.csproj --no-restore
 # Set $proofOutput to a new absolute PNG path in the current task's artifact directory.
-dotnet tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/bin/Debug/net10.0-windows/ServiceBusEmulatorExplorer.ReadmeScreenshot.dll $proofOutput --message-library-prepare
+dotnet tools/ServiceBusWorkbench.ReadmeScreenshot/bin/Debug/net10.0-windows/ServiceBusWorkbench.ReadmeScreenshot.dll $proofOutput --message-library-prepare
 ```
 
 - The wide workbench capture is 1642x958. Other current modes cover 1500/1100/980 widths, compact Author, Properties, Variables, Single, and mapping/capture/review/results dialogs; inspect `Program.cs` for exact switches. On 2026-09-22 the existing binary successfully produced a fresh wide capture without desktop capture/control.
@@ -197,7 +197,7 @@ dotnet tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/bin/Debug/net10.0-windo
 
 ## Packaging And Manual Proof
 
-- Every package in the app's dependency closure, every shared framework the portable release bundles and every bundled font has a notice in `ThirdPartyNotices` (Settings > Licences, DEC-052). When `ThirdPartyNoticesTests` fails after adding, upgrading or removing a package or font, update that list and add the licence file from the package or its source repository under `src/ServiceBusEmulatorExplorer.App/Assets/Licenses/`; do not weaken the test.
+- Every package in the app's dependency closure, every shared framework the portable release bundles and every bundled font has a notice in `ThirdPartyNotices` (Settings > Licences, DEC-052). When `ThirdPartyNoticesTests` fails after adding, upgrading or removing a package or font, update that list and add the licence file from the package or its source repository under `src/ServiceBusWorkbench.App/Assets/Licenses/`; do not weaken the test.
 - Manual proof:
 
 ```powershell
@@ -217,8 +217,8 @@ dotnet tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/bin/Debug/net10.0-windo
 
 - Only an authorized maintainer creates release tags or publishes GitHub Releases. Contributors should not be instructed to prepare or push tags.
 - Releases use strict `vMAJOR.MINOR.PATCH` tags and provide two Windows x64 executables:
-  - `ServiceBusEmulatorExplorer-vX.Y.Z-win-x64-portable.exe`, which includes the .NET runtime;
-  - `ServiceBusEmulatorExplorer-vX.Y.Z-win-x64-requires-dotnet10.exe`, which requires the .NET 10 Desktop Runtime.
+  - `ServiceBusWorkbench-vX.Y.Z-win-x64-portable.exe`, which includes the .NET runtime;
+  - `ServiceBusWorkbench-vX.Y.Z-win-x64-requires-dotnet10.exe`, which requires the .NET 10 Desktop Runtime.
 - Use the guarded helper instead of pushing a branch and annotated tag together:
 
 ```powershell
@@ -227,8 +227,11 @@ dotnet tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/bin/Debug/net10.0-windo
 
 - Run the helper with `-WhatIf` first. It requires a clean branch tracking `origin/<branch>`, a GitHub.com origin, authenticated GitHub CLI access, and a tag that does not already exist locally or remotely. It never force-pushes.
 - The helper pushes the checked-out branch with `push.followTags=false`, verifies the active release workflow on GitHub, and then creates and pushes only the requested tag.
-- The tag workflow validates the repository, publishes and checks both artifacts, launch-smokes both final executables, and creates or updates a draft release. It must never publish automatically.
-- Before publishing the draft, inspect the tag, generated notes, asset names, download guidance, validation logs, and launch-smoke results. Keep the unsigned-executable and SmartScreen warning in the release notes.
-- If a GitHub-hosted desktop session blocks FlaUI, preserve the successful build and artifact-validation logs, run both explicit `SBE_APP_EXE` launch-smoke commands in an interactive Windows session, and record a proof reference with both SHA-256 hashes.
+- The tag workflow runs three jobs: `build` tests, publishes and checks both artifacts; `sign` signs them with the Certum SimplySign certificate; `release` launch-smokes both signed executables and creates or updates a draft release. It must never publish automatically.
+- Signing needs the maintainer twice, as decided in DEC-059. The signing job, its runner script and the approval helper live in the shared repository `kkolodziejczak/gh-release-signing` (DEC-061); its README is the full procedure. The `sign` job in `release.yml` calls its `sign.yml@main`. Install the helper once per computer with `gh extension install kkolodziejczak/gh-release-signing`. Right after pushing the tag, run `gh release-signing approve -Tag vX.Y.Z` in this repository's folder. When the build is done, it shows the run's event, ref, commit and actor and asks you to approve the `code-signing` environment; with `-Tag`, it refuses a run that is not the push of that tag. About a minute later it asks for the SimplySign phone code and confirms the runner picked it up; if not within 30 seconds, it withdraws the code and asks for a fresh one. Approve signing, or rerun failed jobs, within 7 days, before the build artifacts expire; after that, rerun the whole workflow. If the code expired or the login failed, run `gh run rerun <run-id> --failed` and the helper again with `-RunId <run-id> -Tag vX.Y.Z`. A run waiting for approval may hold the signing queue, so reject runs you will not sign; answering anything but `y` in the helper rejects it.
+- The `code-signing` environment holds `CERTUM_EMAIL` and `MAILBOX_TOKEN`, a fine-grained token with Environments read/write on this repository (it may also cover the other repositories that call `gh-release-signing`). It deploys only from `v*.*.*` tags and `master`, and the owner is its required reviewer. Nothing stored in GitHub can sign without a fresh phone code. After the yearly certificate renewal, update `SIGNING_CERT_THUMBPRINT` in `gh-release-signing`'s `sign.yml` and run its self-test; this repository needs no change. When the mailbox token expires, replace the secret.
+- Before publishing the draft, inspect the tag, generated notes, asset names, download guidance, validation logs, signing and launch-smoke results. Keep the publisher name and SmartScreen-reputation notice in the release notes.
+- If a GitHub-hosted desktop session blocks FlaUI, preserve the successful build and artifact-validation logs, run both explicit `SBW_APP_EXE` launch-smoke commands in an interactive Windows session, and record a proof reference with both SHA-256 hashes.
 - The hosted-smoke fallback uses the existing strict tag and workflow-dispatch inputs `use_manual_launch_smoke_proof` and `manual_launch_smoke_proof_reference`. The `manual-launch-smoke` GitHub Environment must have required reviewers. This fallback skips only hosted launch proof and still creates only a draft.
-- Publishing a release triggers `.github/workflows/update-readme-screenshot.yml`. That workflow builds the deterministic screenshot generator from the released tag, validates the PNG, pushes a dedicated automation branch only when the rendered UI changed, dispatches fast CI for that branch, and writes an `Open pull request` link to the workflow summary. A maintainer must open and merge that pull request; repository-wide permission for GitHub Actions to create or approve pull requests must remain disabled. Do not replace the README screenshot manually.
+- The README screenshot is brought up to date before tagging (DEC-060). On a clean `master` level with origin, run `.\scripts\Sync-ReleaseScreenshot.ps1` before `.\scripts\Push-ReleaseTag.ps1`. It runs `.github/workflows/update-readme-screenshot.yml` with `branch=master`. The workflow builds the deterministic screenshot generator from that commit, validates the PNG, and pushes a dedicated automation branch only when the rendered UI changed. The script then opens the pull request with the maintainer's `gh`, waits for its checks, merges it and fast-forwards `master`. It checks that `master` is now the captured commit plus the screenshot and nothing else. Tag the resulting commit. It stops without dispatching anything if an earlier screenshot pull request into `master` is still open; finish or close that one first.
+- Publishing a release still runs the same workflow for the published tag as a safety net. Normally it finds no change. If it does push a branch, it writes an `Open pull request` link to the workflow summary for a maintainer to open and merge. Repository-wide permission for GitHub Actions to create or approve pull requests must remain disabled. Do not replace the README screenshot manually.

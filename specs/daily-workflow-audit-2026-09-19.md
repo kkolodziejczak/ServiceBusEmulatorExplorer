@@ -8,7 +8,7 @@ The audit adds 66 independently reported cases: 6 real WPF window journeys, 44 r
 
 Existing broker and four current-shell desktop journeys are supplementary regression evidence, not counted as newly added cases. Several assertions can expose the same underlying defect; failing cases are not the same as unique bugs.
 
-The main runs use a separate Docker Compose project `sbe-daily-audit`, runtime port 5674 and administration port 5302, with the repository's pinned images. Fixtures use unique entity names and remove only their own entities. The user's demo emulator remains separate. An exploratory delegated operations run used the demo endpoint with its own unique fixtures; it is excluded from the final totals. Only coordinator-run result files listed below count.
+The main runs use a separate Docker Compose project `sbw-daily-audit`, runtime port 5674 and administration port 5302, with the repository's pinned images. Fixtures use unique entity names and remove only their own entities. The user's demo emulator remains separate. An exploratory delegated operations run used the demo endpoint with its own unique fixtures; it is excluded from the final totals. Only coordinator-run result files listed below count.
 
 ## Decision tree
 

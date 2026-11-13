@@ -1,7 +1,7 @@
-# Service Bus Emulator Explorer
+# Service Bus Workbench
 
 <p align="center">
-  <img src="docs/images/service-bus-emulator-explorer-icon.png" alt="Service Bus Emulator Explorer — bus spine and investigation lens icon" width="140" />
+  <img src="docs/images/service-bus-workbench-icon.png" alt="Service Bus Workbench — bus spine and investigation lens icon" width="140" />
 </p>
 
 <p align="center">
@@ -9,15 +9,17 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/kkolodziejczak/ServiceBusEmulatorExplorer/actions/workflows/ci.yml"><img src="https://github.com/kkolodziejczak/ServiceBusEmulatorExplorer/actions/workflows/ci.yml/badge.svg" alt="Build and test status" /></a>
-  <a href="https://github.com/kkolodziejczak/ServiceBusEmulatorExplorer/releases/latest"><img src="https://img.shields.io/github/v/release/kkolodziejczak/ServiceBusEmulatorExplorer" alt="Latest release" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/kkolodziejczak/ServiceBusEmulatorExplorer" alt="MIT license" /></a>
+  <a href="https://github.com/kkolodziejczak/ServiceBusWorkbench/actions/workflows/ci.yml"><img src="https://github.com/kkolodziejczak/ServiceBusWorkbench/actions/workflows/ci.yml/badge.svg" alt="Build and test status" /></a>
+  <a href="https://github.com/kkolodziejczak/ServiceBusWorkbench/releases/latest"><img src="https://img.shields.io/github/v/release/kkolodziejczak/ServiceBusWorkbench" alt="Latest release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/kkolodziejczak/ServiceBusWorkbench" alt="MIT license" /></a>
 </p>
 
-Service Bus Emulator Explorer is a WPF investigation workspace for browsing namespaces, inspecting message deliveries, monitoring arrivals, and working safely with dead-letter queues (DLQs). It supports connection strings for the local emulator or SAS-based namespaces, and Azure CLI credentials for Azure public-cloud namespaces.
+Service Bus Workbench is a WPF investigation workspace for browsing namespaces, inspecting message deliveries, monitoring arrivals, and working safely with dead-letter queues (DLQs). It supports connection strings for the local emulator or SAS-based namespaces, and Azure CLI credentials for Azure public-cloud namespaces.
 
-<!-- Updated automatically from a deterministic WPF UI scenario built from released source by .github/workflows/update-readme-screenshot.yml. -->
-![Service Bus Emulator Explorer Investigation Workspace showing a connected demo profile, order-events subscriptions, active deliveries, and an OrderDispatched inspector](docs/images/service-bus-emulator-explorer.png)
+It was called Service Bus Emulator Explorer before. Profiles saved by that version move to the new folder the first time you start this one, so close the old version first.
+
+<!-- Updated automatically before each release from a deterministic WPF UI scenario by .github/workflows/update-readme-screenshot.yml (scripts/Sync-ReleaseScreenshot.ps1). -->
+![Service Bus Workbench Investigation Workspace showing a connected demo profile, order-events subscriptions, active deliveries, and an OrderDispatched inspector](docs/images/service-bus-workbench.png)
 
 ## Highlights
 
@@ -31,14 +33,14 @@ Service Bus Emulator Explorer is a WPF investigation workspace for browsing name
 
 ## Download
 
-Download the latest Windows x64 executable from [GitHub Releases](https://github.com/kkolodziejczak/ServiceBusEmulatorExplorer/releases/latest).
+Download the latest Windows x64 executable from [GitHub Releases](https://github.com/kkolodziejczak/ServiceBusWorkbench/releases/latest).
 
 | Package | Choose it when | Requirement |
 | --- | --- | --- |
 | `*-win-x64-portable.exe` | You want the simplest setup. This is the recommended download. | No separate .NET installation. |
 | `*-win-x64-requires-dotnet10.exe` | You already have the desktop runtime and prefer a smaller download. | [.NET 10 Desktop Runtime for Windows x64](https://dotnet.microsoft.com/en-us/download/dotnet/10.0/runtime). |
 
-The executables are currently unsigned. Windows Defender SmartScreen may show an unrecognized-app warning. Download them only from this repository's Releases page and confirm that the release tag is the version you intended to install.
+Releases after v0.3.0 are signed by **Open Source Developer Krzysztof Kołodziejczak** (certificate issued by Certum). To check, right-click the file, choose Properties > Digital Signatures, and confirm that name. Windows Defender SmartScreen may still show an unrecognized-app warning while the certificate builds download reputation. Download the executables only from this repository's Releases page and confirm that the release tag is the version you intended to install.
 
 ## Connect to the local emulator
 
@@ -93,7 +95,7 @@ The app never starts an interactive login and never stores Azure CLI access toke
 
 - Operations target the namespace you connect to. Verify the namespace and selected entity before replaying or deleting messages.
 - Replaying a DLQ message is non-destructive: it creates a new active message and leaves the original in the DLQ. Deleting the original is a separate, explicitly confirmed action.
-- Saved connection-string profiles contain secrets. They are stored locally as JSON under `%LOCALAPPDATA%\ServiceBusEmulatorExplorer\connection-profiles.json`. Protect that file and never attach it to an issue or commit it.
+- Saved connection-string profiles contain secrets. They are stored locally as JSON under `%LOCALAPPDATA%\ServiceBusWorkbench\connection-profiles.json`. Protect that file and never attach it to an issue or commit it.
 - Logs and screenshots can contain entity names, message bodies, identifiers, and application properties. Sanitize them before sharing.
 
 ## Help and feedback
@@ -108,4 +110,4 @@ Found a problem or have an idea? Start with the [support guide](SUPPORT.md), sea
 
 Licensed under the [MIT License](LICENSE).
 
-Service Bus Emulator Explorer is an independent open-source project. It is not affiliated with, endorsed by, or supported by Microsoft.
+Service Bus Workbench is an independent open-source project. It is not affiliated with, endorsed by, or supported by Microsoft.
