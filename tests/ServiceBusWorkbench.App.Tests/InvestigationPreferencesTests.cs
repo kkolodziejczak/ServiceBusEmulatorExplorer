@@ -284,6 +284,57 @@ public sealed class InvestigationPreferencesTests
         Assert.Null(watch.Included);
     }
 
+    [Fact]
+    public async Task Preferences_saved_under_the_former_product_name_move_to_the_current_folder()
+    {
+        string localApplicationData = CreateLocalApplicationData();
+        await SaveDisconnectedAsync(Path.Combine(localApplicationData, "ServiceBusEmulatorExplorer"));
+
+        var store = ProtectedWorkspacePreferencesStore.CreateDefault(localApplicationData);
+
+        Assert.False((await store.LoadAsync(CancellationToken.None)).Preferences.WasConnected);
+        Assert.True(File.Exists(Path.Combine(localApplicationData, "ServiceBusWorkbench", "connection-profiles.json")));
+        Assert.False(Directory.Exists(Path.Combine(localApplicationData, "ServiceBusEmulatorExplorer")));
+    }
+
+    [Fact]
+    public async Task Current_folder_wins_over_a_folder_left_from_the_former_product_name()
+    {
+        string localApplicationData = CreateLocalApplicationData();
+        string formerFile = await SaveDisconnectedAsync(Path.Combine(localApplicationData, "ServiceBusEmulatorExplorer"));
+        Directory.CreateDirectory(Path.Combine(localApplicationData, "ServiceBusWorkbench"));
+
+        var store = ProtectedWorkspacePreferencesStore.CreateDefault(localApplicationData);
+
+        Assert.True((await store.LoadAsync(CancellationToken.None)).Preferences.WasConnected);
+        Assert.True(File.Exists(formerFile));
+    }
+
+    [Fact]
+    public async Task Former_folder_stays_in_use_while_it_cannot_be_moved()
+    {
+        string localApplicationData = CreateLocalApplicationData();
+        string formerFile = await SaveDisconnectedAsync(Path.Combine(localApplicationData, "ServiceBusEmulatorExplorer"));
+
+        ProtectedWorkspacePreferencesStore store;
+        using (new FileStream(formerFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+            store = ProtectedWorkspacePreferencesStore.CreateDefault(localApplicationData);
+
+        Assert.False((await store.LoadAsync(CancellationToken.None)).Preferences.WasConnected);
+        Assert.True(File.Exists(formerFile));
+    }
+
+    private static string CreateLocalApplicationData() => Path.Combine(
+        Path.GetTempPath(), "sbe-preferences-tests", Guid.NewGuid().ToString("N"));
+
+    private static async Task<string> SaveDisconnectedAsync(string directory)
+    {
+        string path = Path.Combine(directory, "connection-profiles.json");
+        await new ProtectedWorkspacePreferencesStore(path)
+            .SaveAsync(new WorkspacePreferences { WasConnected = false }, CancellationToken.None);
+        return path;
+    }
+
     private static string CreatePath() => Path.Combine(
         Path.GetTempPath(), "sbe-preferences-tests", Guid.NewGuid().ToString("N"), "connection-profiles.json");
 }

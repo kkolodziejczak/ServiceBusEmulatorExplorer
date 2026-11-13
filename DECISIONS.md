@@ -79,6 +79,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-060 | accepted | Release | The README screenshot is updated on master before the release is tagged |
 | DEC-061 | accepted | Release | Signing lives in one shared repository, gh-release-signing, that every repository calls |
 | DEC-062 | accepted | Build | Workflow actions stay on their latest releases, pinned by SHA and updated by Dependabot |
+| DEC-063 | accepted | Product | The product is called Service Bus Workbench |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -514,3 +515,10 @@ DLQ palette clarification: the user explicitly disallowed changing DLQ tag color
 - Decision: every `uses:` of a third-party action is pinned to a full commit SHA with its version as a comment, on the action's latest release (checkout v7, setup-dotnet v6, upload-artifact v7, download-artifact v8 at the time). `.github/dependabot.yml` opens one grouped pull request a week for `github-actions` updates. `gh-release-signing` follows the same rule.
 - Because: a SHA pin keeps a moved tag from changing what runs, and Dependabot keeps the pins from going stale the way the v4 pins did.
 - Consequences: review and merge the weekly actions pull request after its checks pass; read the release notes of a new major version before merging it.
+
+## DEC-063 - The product is called Service Bus Workbench
+
+- Status: accepted, 2026-11-13; the user pointed out that the app is a Service Bus explorer that also works against Azure namespaces with RBAC, not only against the emulator, and chose this name from a shortlist.
+- Decision: the product, repository, solution, projects, namespaces, release files and the `%LOCALAPPDATA%` folder are named Service Bus Workbench (`ServiceBusWorkbench`, `service-bus-workbench`). It was Service Bus Emulator Explorer before.
+- Because: "Emulator" read as emulator-only, and plain "Service Bus Explorer" is the name of the paolosalvatori tool and of the Azure portal feature.
+- Consequences: `ProtectedWorkspacePreferencesStore.CreateDefault` moves preferences saved under the former folder name on first start. The `sbe-explorer.replay.*` message properties keep their names, because messages already replayed carry them; the `SBE_` environment variables keep theirs too. Do not rename either without a migration.

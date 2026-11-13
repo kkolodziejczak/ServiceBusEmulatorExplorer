@@ -41,11 +41,23 @@ public sealed partial class ProtectedWorkspacePreferencesStore : IWorkspacePrefe
         this.filePath = Path.GetFullPath(filePath);
     }
 
-    public static ProtectedWorkspacePreferencesStore CreateDefault()
+    public static ProtectedWorkspacePreferencesStore CreateDefault() =>
+        CreateDefault(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+
+    /// <summary>
+    /// The product was called Service Bus Emulator Explorer before; preferences saved under that name move to the
+    /// current folder on first start. While the move fails, for example because the former version is still
+    /// running, the former folder stays in use and the next start tries again.
+    /// </summary>
+    public static ProtectedWorkspacePreferencesStore CreateDefault(string localApplicationData)
     {
-        string directory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ServiceBusWorkbench");
+        string directory = Path.Combine(localApplicationData, "ServiceBusWorkbench");
+        string formerDirectory = Path.Combine(localApplicationData, "ServiceBusEmulatorExplorer");
+        if (!Directory.Exists(directory) && Directory.Exists(formerDirectory))
+        {
+            try { Directory.Move(formerDirectory, directory); }
+            catch (Exception exception) when (IsStorageFailure(exception)) { directory = formerDirectory; }
+        }
 
         return new ProtectedWorkspacePreferencesStore(Path.Combine(directory, "connection-profiles.json"));
     }
