@@ -25,7 +25,7 @@ See the [audit scope and decision tree](daily-workflow-audit-2026-09-19.md). Res
 
 ## Executed new cases
 
-### [DailyBrowseAuditTests](../tests/ServiceBusEmulatorExplorer.UiSmoke.Tests/DailyBrowseAuditTests.cs)
+### [DailyBrowseAuditTests](../tests/ServiceBusWorkbench.UiSmoke.Tests/DailyBrowseAuditTests.cs)
 
 | Case | Result | Duration |
 | --- | --- | --- |
@@ -45,7 +45,7 @@ See the [audit scope and decision tree](daily-workflow-audit-2026-09-19.md). Res
 | Topic_browse_paginates_across_subscriptions_without_losing_source_identity | Passed | 00:00:06.5088929 |
 | Topic_discovery_count_never_claims_zero_when_subscription_peek_observes_messages | Failed | 00:00:06.3015636 |
 
-### [DailyOperationsAuditTests](../tests/ServiceBusEmulatorExplorer.Integration.Tests/DailyOperationsAuditTests.cs)
+### [DailyOperationsAuditTests](../tests/ServiceBusWorkbench.Integration.Tests/DailyOperationsAuditTests.cs)
 
 | Case | Result | Duration |
 | --- | --- | --- |
@@ -66,7 +66,7 @@ See the [audit scope and decision tree](daily-workflow-audit-2026-09-19.md). Res
 | Watch_baselines_existing_active_messages_and_reports_one_new_arrival | Passed | 00:00:02.9161984 |
 | Watch_reports_a_new_dead_letter_arrival_separately_from_active_baseline | Passed | 00:00:03.0140289 |
 
-### [DailySafetyAuditTests](../tests/ServiceBusEmulatorExplorer.UiSmoke.Tests/DailySafetyAuditTests.cs)
+### [DailySafetyAuditTests](../tests/ServiceBusWorkbench.UiSmoke.Tests/DailySafetyAuditTests.cs)
 
 | Case | Result | Duration |
 | --- | --- | --- |
@@ -83,7 +83,7 @@ See the [audit scope and decision tree](daily-workflow-audit-2026-09-19.md). Res
 | Replay_of_previous_connection_delivery_is_rejected_after_reconnect | Passed | 00:00:08.1913539 |
 | Valid_edited_json_replays_changed_copy_and_preserves_original_bytes | Passed | 00:00:07.3419773 |
 
-### [DailySearchLifecycleAuditTests](../tests/ServiceBusEmulatorExplorer.UiSmoke.Tests/DailySearchLifecycleAuditTests.cs)
+### [DailySearchLifecycleAuditTests](../tests/ServiceBusWorkbench.UiSmoke.Tests/DailySearchLifecycleAuditTests.cs)
 
 | Case | Result | Duration |
 | --- | --- | --- |
@@ -105,7 +105,7 @@ See the [audit scope and decision tree](daily-workflow-audit-2026-09-19.md). Res
 | Search_stop_during_discovery_can_continue_into_message_scanning | Passed | 00:00:21.2374665 |
 | Unqualified_message_id_OR_search_ignores_correlation_only_matches | Passed | 00:00:05.9745484 |
 
-### [DailyWindowAuditTests](../tests/ServiceBusEmulatorExplorer.UiSmoke.Tests/DailyWindowAuditTests.cs)
+### [DailyWindowAuditTests](../tests/ServiceBusWorkbench.UiSmoke.Tests/DailyWindowAuditTests.cs)
 
 | Case | Result | Duration |
 | --- | --- | --- |

@@ -18,7 +18,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $tag = "v$Version"
-$assetStem = "ServiceBusEmulatorExplorer-$tag-win-x64"
+$assetStem = "ServiceBusWorkbench-$tag-win-x64"
 
 if ([string]::IsNullOrWhiteSpace($ReleasePath)) {
     $ReleasePath = Join-Path $repoRoot "artifacts\release\$tag"

@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ServiceBusWorkbench.App/ServiceBusWorkbench.App.csproj" />
+    <Project Path="src/ServiceBusWorkbench.Core/ServiceBusWorkbench.Core.csproj" />
+    <Project Path="src/ServiceBusWorkbench.Presentation/ServiceBusWorkbench.Presentation.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ServiceBusWorkbench.App.Tests/ServiceBusWorkbench.App.Tests.csproj" />
+    <Project Path="tests/ServiceBusWorkbench.Core.Tests/ServiceBusWorkbench.Core.Tests.csproj" />
+    <Project Path="tests/ServiceBusWorkbench.Integration.Tests/ServiceBusWorkbench.Integration.Tests.csproj" />
+    <Project Path="tests/ServiceBusWorkbench.Presentation.Tests/ServiceBusWorkbench.Presentation.Tests.csproj" />
+    <Project Path="tests/ServiceBusWorkbench.UiSmoke.Tests/ServiceBusWorkbench.UiSmoke.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/ServiceBusWorkbench.ReadmeScreenshot/ServiceBusWorkbench.ReadmeScreenshot.csproj" />
+  </Folder>
+</Solution>

@@ -9,8 +9,8 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$uiSmokeProject = Join-Path $repoRoot "tests\ServiceBusEmulatorExplorer.UiSmoke.Tests\ServiceBusEmulatorExplorer.UiSmoke.Tests.csproj"
-$defaultAppExe = Join-Path $repoRoot "src\ServiceBusEmulatorExplorer.App\bin\Debug\net10.0-windows\ServiceBusEmulatorExplorer.App.exe"
+$uiSmokeProject = Join-Path $repoRoot "tests\ServiceBusWorkbench.UiSmoke.Tests\ServiceBusWorkbench.UiSmoke.Tests.csproj"
+$defaultAppExe = Join-Path $repoRoot "src\ServiceBusWorkbench.App\bin\Debug\net10.0-windows\ServiceBusWorkbench.App.exe"
 
 function Stop-UiSmokeProcesses {
     param(

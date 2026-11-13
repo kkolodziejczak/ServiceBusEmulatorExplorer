@@ -59,7 +59,7 @@ After verification, only the `sbe-daily-fix` containers and network were removed
 | External rich-text accessibility | BLOCKED | UIA text extraction is empty despite visible JSON; screen-reader impact remains unverified. |
 | Regression/clean close | PASS | Full affected daily journeys rerun; temporary diagnostic code removed; fixtures use isolated profiles and unique broker entities. |
 
-Six count screenshots are under `artifacts/daily-fix/final/bin/ServiceBusEmulatorExplorer.UiSmoke.Tests/debug/daily-fix-captures`. The external UIA diagnostic screenshot remains a local artifact under `artifacts/daily-fix/properties-probe`, not a production asset. This is a scoped functional/render verification, not a complete accessibility certification.
+Six count screenshots are under `artifacts/daily-fix/final/bin/ServiceBusWorkbench.UiSmoke.Tests/debug/daily-fix-captures`. The external UIA diagnostic screenshot remains a local artifact under `artifacts/daily-fix/properties-probe`, not a production asset. This is a scoped functional/render verification, not a complete accessibility certification.
 
 ## Residual scope
 

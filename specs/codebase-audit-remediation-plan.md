@@ -26,11 +26,11 @@ This PLAN is the source of truth for `$implement-it`. Implement stages in order.
 - The default fast suite passes 71 tests.
 - The launch-only WPF UI smoke test passes.
 - Docker-backed integration and emulator-backed UI suites were not rerun during the audit because Docker was not running.
-- `dotnet format --verify-no-changes` reports whitespace issues in `src/ServiceBusEmulatorExplorer.App/AssemblyInfo.cs`.
+- `dotnet format --verify-no-changes` reports whitespace issues in `src/ServiceBusWorkbench.App/AssemblyInfo.cs`.
 - `ShellViewModel.cs` is approximately 1,088 lines and `MessageInspectionViewModel.cs` approximately 1,071 lines.
 - Current dirty worktree before this PLAN:
-  - `src/ServiceBusEmulatorExplorer.App/MainWindow.xaml`
-  - `tests/ServiceBusEmulatorExplorer.UiSmoke.Tests/MainWindowSmokeTests.cs`
+  - `src/ServiceBusWorkbench.App/MainWindow.xaml`
+  - `tests/ServiceBusWorkbench.UiSmoke.Tests/MainWindowSmokeTests.cs`
 
 ## Intent Model
 
@@ -93,7 +93,7 @@ stateDiagram-v2
 
 ## Mock Template
 
-The existing promoted wireframe at `specs/wpf-service-bus-emulator-explorer-mvpResources/ui-wireframe.html` is the authoritative UI template. Preserve its command placement and compact desktop workflow. The current dirty `MainWindow.xaml` inspector-tab change is an in-progress implementation baseline.
+The existing promoted wireframe at `specs/wpf-service-bus-workbench-mvpResources/ui-wireframe.html` is the authoritative UI template. Preserve its command placement and compact desktop workflow. The current dirty `MainWindow.xaml` inspector-tab change is an in-progress implementation baseline.
 
 Responsive behavior added by this PLAN is contractual:
 

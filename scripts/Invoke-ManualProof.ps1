@@ -139,7 +139,7 @@ if (-not $SkipPublish) {
 
 Write-Host ""
 Write-Host "Manual WPF proof checklist:"
-Write-Host "1. Launch $artifactPath\ServiceBusEmulatorExplorer.App.exe."
+Write-Host "1. Launch $artifactPath\ServiceBusWorkbench.App.exe."
 Write-Host "2. Connect with the runtime and admin connection strings exported by this script."
 Write-Host "3. Create a queue, send a message, and verify it appears through Peek Active."
 Write-Host "4. Dead-letter a message with your local test flow, then Peek DLQ."

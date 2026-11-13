@@ -6,7 +6,7 @@
   "xaml": {
     "enabled": true,
     "viewGlobs": ["src/**/*.xaml"],
-    "resourceDirs": ["src/ServiceBusEmulatorExplorer.App/Investigation/Resources"],
+    "resourceDirs": ["src/ServiceBusWorkbench.App/Investigation/Resources"],
     "excludeDirs": ["bin", "obj"],
     "spacingScale": [0, 1, 3, 4, 7, 8, 12, 16, 24],
     "checkHexColours": true,

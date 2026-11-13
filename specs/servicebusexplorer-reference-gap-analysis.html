@@ -178,7 +178,7 @@
   <header>
     <h1>ServiceBusExplorer Reference Gap Analysis</h1>
     <p>
-      A comparison spec for improving and testing <strong>ServiceBusEmulatorExplorer</strong> using
+      A comparison spec for improving and testing <strong>ServiceBusWorkbench</strong> using
       <a href="https://github.com/paolosalvatori/ServiceBusExplorer">paolosalvatori/ServiceBusExplorer</a>
       as an illustrative reference, not an architectural authority.
     </p>
@@ -193,7 +193,7 @@
         <dt>Primary Branch</dt>
         <dd>Existing behavior extension and system-scope gap analysis.</dd>
         <dt>Related Local Spec</dt>
-        <dd><a href="./wpf-service-bus-emulator-explorer-mvp.html">WPF Service Bus Emulator Explorer MVP</a></dd>
+        <dd><a href="./wpf-service-bus-workbench-mvp.html">WPF Service Bus Workbench MVP</a></dd>
         <dt>Diagram Viewer</dt>
         <dd><a id="open-diagram-viewer" href="./mermaid-viewer/mermaid-offline-viewer.html">Open interactive diagram viewer</a></dd>
       </dl>
@@ -291,7 +291,7 @@
           <td>Repository documentation, verified against code/test files where practical.</td>
         </tr>
         <tr>
-          <td><a href="./wpf-service-bus-emulator-explorer-mvp.html">Local MVP spec</a></td>
+          <td><a href="./wpf-service-bus-workbench-mvp.html">Local MVP spec</a></td>
           <td>Confirmed existing scope, non-goals, DLQ policy, UI model, and completed testing expectations.</td>
           <td>Used as the current product contract for this app.</td>
         </tr>
@@ -375,11 +375,11 @@
           <td>Uses the WPF app to inspect and manipulate local emulator data during development and regression testing.</td>
         </tr>
         <tr>
-          <td>ServiceBusEmulatorExplorer.App</td>
+          <td>ServiceBusWorkbench.App</td>
           <td>WPF shell, command surface, dashboard/message grids, dialogs, and clipboard interactions.</td>
         </tr>
         <tr>
-          <td>ServiceBusEmulatorExplorer.Core</td>
+          <td>ServiceBusWorkbench.Core</td>
           <td>Service Bus contracts, SDK mappings, message projection, entity management, and DLQ operations.</td>
         </tr>
         <tr>
@@ -400,7 +400,7 @@
     <pre class="mermaid" data-title="Use Case Model">
 flowchart LR
   Dev[Developer or tester]
-  subgraph App[ServiceBusEmulatorExplorer]
+  subgraph App[ServiceBusWorkbench]
     Connect[Connect to local emulator]
     Browse[Browse queues, topics, subscriptions]
     Filter[Filter namespace tree]
@@ -822,7 +822,7 @@ public sealed record ClipboardWriteResult(
           <td>2026-07-09</td>
           <td>Codex</td>
           <td>Created comparison spec from ServiceBusExplorer README/TESTING evidence and local repository inspection.</td>
-          <td><a href="https://github.com/paolosalvatori/ServiceBusExplorer">Reference repo</a>, <a href="https://github.com/paolosalvatori/ServiceBusExplorer/blob/main/TESTING.md">reference tests</a>, <a href="./wpf-service-bus-emulator-explorer-mvp.html">local MVP spec</a></td>
+          <td><a href="https://github.com/paolosalvatori/ServiceBusExplorer">Reference repo</a>, <a href="https://github.com/paolosalvatori/ServiceBusExplorer/blob/main/TESTING.md">reference tests</a>, <a href="./wpf-service-bus-workbench-mvp.html">local MVP spec</a></td>
         </tr>
       </tbody>
     </table>

@@ -2,7 +2,7 @@
 
 ## Our commitment
 
-We want participation in Service Bus Emulator Explorer to be safe, respectful, and productive for everyone, regardless of experience, identity, background, or ability.
+We want participation in Service Bus Workbench to be safe, respectful, and productive for everyone, regardless of experience, identity, background, or ability.
 
 ## Expected behavior
 

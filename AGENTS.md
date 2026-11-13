@@ -1,4 +1,4 @@
-# ServiceBusEmulatorExplorer Agent Notes
+# ServiceBusWorkbench Agent Notes
 
 These notes are repo-specific guidance gathered from prior planning, implementation, verification, and bug-fix sessions. Treat them as operating guidance for this repository; still inspect the current code and scripts before acting.
 
@@ -40,14 +40,14 @@ before designing anything; update them in the same change as the code.
 
 ## Project Shape
 
-- Main solution: `ServiceBusEmulatorExplorer.slnx`.
-- App: WPF desktop app in `src/ServiceBusEmulatorExplorer.App`.
-- Domain/SDK layer: `src/ServiceBusEmulatorExplorer.Core`.
-- View models: `src/ServiceBusEmulatorExplorer.Presentation`, plain `net10.0` without WPF (DEC-053).
+- Main solution: `ServiceBusWorkbench.slnx`.
+- App: WPF desktop app in `src/ServiceBusWorkbench.App`.
+- Domain/SDK layer: `src/ServiceBusWorkbench.Core`.
+- View models: `src/ServiceBusWorkbench.Presentation`, plain `net10.0` without WPF (DEC-053).
 - Test layers:
-  - fast unit/view-model tests in `tests/ServiceBusEmulatorExplorer.Core.Tests`, `tests/ServiceBusEmulatorExplorer.Presentation.Tests` and `tests/ServiceBusEmulatorExplorer.App.Tests`;
-  - Docker-backed Service Bus emulator tests in `tests/ServiceBusEmulatorExplorer.Integration.Tests`;
-  - explicit FlaUI/UIA3 WPF smoke tests in `tests/ServiceBusEmulatorExplorer.UiSmoke.Tests`.
+  - fast unit/view-model tests in `tests/ServiceBusWorkbench.Core.Tests`, `tests/ServiceBusWorkbench.Presentation.Tests` and `tests/ServiceBusWorkbench.App.Tests`;
+  - Docker-backed Service Bus emulator tests in `tests/ServiceBusWorkbench.Integration.Tests`;
+  - explicit FlaUI/UIA3 WPF smoke tests in `tests/ServiceBusWorkbench.UiSmoke.Tests`.
 - `Lessons/` has been used for planning notes and may be untracked. Do not stage or rewrite it unless the task explicitly asks for lesson work.
 
 ## Public Documentation Boundaries
@@ -72,10 +72,10 @@ before designing anything; update them in the same change as the code.
 - Default fast loop:
 
 ```powershell
-dotnet test ServiceBusEmulatorExplorer.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
+dotnet test ServiceBusWorkbench.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
 ```
 
-- `dotnet test ServiceBusEmulatorExplorer.slnx` should stay green with integration and UI smoke tests skipped by default.
+- `dotnet test ServiceBusWorkbench.slnx` should stay green with integration and UI smoke tests skipped by default.
 - Use `git diff --check` before staging. Line-ending normalization warnings may appear; distinguish those from actual whitespace errors.
 - Package versions were pinned after a quality review found floating dependencies risky. Avoid reintroducing floating package versions.
 
@@ -106,7 +106,7 @@ Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;Share
 $env:SBE_RUN_INTEGRATION_TESTS = "true"
 $env:SBE_CONNECTION_STRING = "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
 $env:SBE_ADMIN_CONNECTION_STRING = "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
-dotnet test tests\ServiceBusEmulatorExplorer.Integration.Tests\ServiceBusEmulatorExplorer.Integration.Tests.csproj
+dotnet test tests\ServiceBusWorkbench.Integration.Tests\ServiceBusWorkbench.Integration.Tests.csproj
 ```
 
 - If solution-wide integration execution hangs or gives no output, run the integration test project directly with hang diagnostics rather than repeating the solution command.
@@ -116,9 +116,9 @@ dotnet test tests\ServiceBusEmulatorExplorer.Integration.Tests\ServiceBusEmulato
 - UI smoke tests are opt-in and launch the WPF app:
 
 ```powershell
-dotnet build src\ServiceBusEmulatorExplorer.App\ServiceBusEmulatorExplorer.App.csproj
+dotnet build src\ServiceBusWorkbench.App\ServiceBusWorkbench.App.csproj
 $env:SBE_RUN_UI_TESTS = "true"
-$env:SBE_APP_EXE = "$PWD\src\ServiceBusEmulatorExplorer.App\bin\Debug\net10.0-windows\ServiceBusEmulatorExplorer.App.exe"
+$env:SBE_APP_EXE = "$PWD\src\ServiceBusWorkbench.App\bin\Debug\net10.0-windows\ServiceBusWorkbench.App.exe"
 .\scripts\Invoke-UiSmoke.ps1 -NoBuild
 ```
 
@@ -127,7 +127,7 @@ $env:SBE_APP_EXE = "$PWD\src\ServiceBusEmulatorExplorer.App\bin\Debug\net10.0-wi
 - Avoid physical mouse-input assumptions in FlaUI tests. Prior failures came from `SendInput` access denied in this desktop session. Prefer UI Automation patterns: `Invoke`, `SelectionItem`, `Toggle`, and `Value`.
 - Dialog discovery by top-level window title was unreliable. Prefer waiting for stable dialog controls or automation IDs.
 - UI smoke tests should pass `--profile-store-path` when launching the app so profile persistence stays in a per-test writable path instead of user-local AppData.
-- After interrupted UI runs, check for lingering `dotnet`, `testhost`, and `ServiceBusEmulatorExplorer.App` processes before rerunning.
+- After interrupted UI runs, check for lingering `dotnet`, `testhost`, and `ServiceBusWorkbench.App` processes before rerunning.
 
 ## Launching for user testing
 
@@ -141,13 +141,13 @@ $env:SBE_APP_EXE = "$PWD\src\ServiceBusEmulatorExplorer.App\bin\Debug\net10.0-wi
 
 ## App-only WPF screenshot proof
 
-- For visual verification without desktop capture/control, first use the existing [WPF screenshot harness](tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/Program.cs). It instantiates the real app window with synthetic services, invokes WPF routed actions, waits for layout, and captures only the window content through [RenderTargetBitmap](tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/WpfScreenshot.cs). Missing desktop-control tools alone do not block this route. It still requires a working Windows/WPF runtime.
+- For visual verification without desktop capture/control, first use the existing [WPF screenshot harness](tools/ServiceBusWorkbench.ReadmeScreenshot/Program.cs). It instantiates the real app window with synthetic services, invokes WPF routed actions, waits for layout, and captures only the window content through [RenderTargetBitmap](tools/ServiceBusWorkbench.ReadmeScreenshot/WpfScreenshot.cs). Missing desktop-control tools alone do not block this route. It still requires a working Windows/WPF runtime.
 - Inspect the harness before running it. Build its project when source freshness matters; use a 60-second process deadline for build and each capture. Save proof images to the current task's writable artifact directory, never over the README screenshot. A fresh capture from an existing binary proves that binary, not unbuilt source changes.
 
 ```powershell
-dotnet build tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/ServiceBusEmulatorExplorer.ReadmeScreenshot.csproj --no-restore
+dotnet build tools/ServiceBusWorkbench.ReadmeScreenshot/ServiceBusWorkbench.ReadmeScreenshot.csproj --no-restore
 # Set $proofOutput to a new absolute PNG path in the current task's artifact directory.
-dotnet tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/bin/Debug/net10.0-windows/ServiceBusEmulatorExplorer.ReadmeScreenshot.dll $proofOutput --message-library-prepare
+dotnet tools/ServiceBusWorkbench.ReadmeScreenshot/bin/Debug/net10.0-windows/ServiceBusWorkbench.ReadmeScreenshot.dll $proofOutput --message-library-prepare
 ```
 
 - The wide workbench capture is 1642x958. Other current modes cover 1500/1100/980 widths, compact Author, Properties, Variables, Single, and mapping/capture/review/results dialogs; inspect `Program.cs` for exact switches. On 2026-09-22 the existing binary successfully produced a fresh wide capture without desktop capture/control.
@@ -196,7 +196,7 @@ dotnet tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/bin/Debug/net10.0-windo
 
 ## Packaging And Manual Proof
 
-- Every package in the app's dependency closure, every shared framework the portable release bundles and every bundled font has a notice in `ThirdPartyNotices` (Settings > Licences, DEC-052). When `ThirdPartyNoticesTests` fails after adding, upgrading or removing a package or font, update that list and add the licence file from the package or its source repository under `src/ServiceBusEmulatorExplorer.App/Assets/Licenses/`; do not weaken the test.
+- Every package in the app's dependency closure, every shared framework the portable release bundles and every bundled font has a notice in `ThirdPartyNotices` (Settings > Licences, DEC-052). When `ThirdPartyNoticesTests` fails after adding, upgrading or removing a package or font, update that list and add the licence file from the package or its source repository under `src/ServiceBusWorkbench.App/Assets/Licenses/`; do not weaken the test.
 - Manual proof:
 
 ```powershell
@@ -216,8 +216,8 @@ dotnet tools/ServiceBusEmulatorExplorer.ReadmeScreenshot/bin/Debug/net10.0-windo
 
 - Only an authorized maintainer creates release tags or publishes GitHub Releases. Contributors should not be instructed to prepare or push tags.
 - Releases use strict `vMAJOR.MINOR.PATCH` tags and provide two Windows x64 executables:
-  - `ServiceBusEmulatorExplorer-vX.Y.Z-win-x64-portable.exe`, which includes the .NET runtime;
-  - `ServiceBusEmulatorExplorer-vX.Y.Z-win-x64-requires-dotnet10.exe`, which requires the .NET 10 Desktop Runtime.
+  - `ServiceBusWorkbench-vX.Y.Z-win-x64-portable.exe`, which includes the .NET runtime;
+  - `ServiceBusWorkbench-vX.Y.Z-win-x64-requires-dotnet10.exe`, which requires the .NET 10 Desktop Runtime.
 - Use the guarded helper instead of pushing a branch and annotated tag together:
 
 ```powershell

@@ -79,7 +79,7 @@ jobs:
 
       - name: Run fast tests
         shell: pwsh
-        run: dotnet test ServiceBusEmulatorExplorer.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
+        run: dotnet test ServiceBusWorkbench.slnx --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
 
       - name: Publish and validate release assets
         shell: pwsh
@@ -139,7 +139,7 @@ jobs:
 
       - name: Build the UI smoke tests
         shell: pwsh
-        run: dotnet build tests\ServiceBusEmulatorExplorer.UiSmoke.Tests\ServiceBusEmulatorExplorer.UiSmoke.Tests.csproj
+        run: dotnet build tests\ServiceBusWorkbench.UiSmoke.Tests\ServiceBusWorkbench.UiSmoke.Tests.csproj
 
       - name: Download the signed assets
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -272,10 +272,10 @@ jobs:
               }
             }
 
-            gh release edit $env:TAG --draft --title "Service Bus Emulator Explorer $env:TAG" --notes-file $notesPath
+            gh release edit $env:TAG --draft --title "Service Bus Workbench $env:TAG" --notes-file $notesPath
           }
           else {
-            gh release create $env:TAG --draft --title "Service Bus Emulator Explorer $env:TAG" --notes-file $notesPath
+            gh release create $env:TAG --draft --title "Service Bus Workbench $env:TAG" --notes-file $notesPath
           }
 
           if ($LASTEXITCODE -ne 0) {

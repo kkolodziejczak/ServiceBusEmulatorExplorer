@@ -151,7 +151,7 @@ Invoke-Git @('pull', '--ff-only', '--quiet', 'origin', $Branch) | Out-Null
 # The branch must now be the captured commit plus the screenshot merge, nothing else.
 $parents = Invoke-Git @('rev-list', '--parents', '-n', '1', 'HEAD')
 $changed = Invoke-Git @('diff', '--name-only', $commit, 'HEAD')
-if ($parents -notmatch "^\w+ $commit " -or $changed -ne 'docs/images/service-bus-emulator-explorer.png') {
+if ($parents -notmatch "^\w+ $commit " -or $changed -ne 'docs/images/service-bus-workbench.png') {
     Stop-WithFailure "$Branch gained other changes during the screenshot" @("Pull request: $prUrl", 'Run this script again so the screenshot matches the commit you tag.')
 }
 

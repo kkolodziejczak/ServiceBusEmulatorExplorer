@@ -211,11 +211,11 @@ The proof must use pre-provisioned entities and must not create, update, or dele
 
 **Allowed files/modules:**
 
-- `src/ServiceBusEmulatorExplorer.Core/Connection/*`
-- `src/ServiceBusEmulatorExplorer.Core/ServiceBus/DirectServiceBusClientFactory.cs`
-- `src/ServiceBusEmulatorExplorer.Core/ServiceBusEmulatorExplorer.Core.csproj`
-- `src/ServiceBusEmulatorExplorer.App/ViewModels/ShellViewModel.cs`
-- `src/ServiceBusEmulatorExplorer.App/MainWindow.xaml`
+- `src/ServiceBusWorkbench.Core/Connection/*`
+- `src/ServiceBusWorkbench.Core/ServiceBus/DirectServiceBusClientFactory.cs`
+- `src/ServiceBusWorkbench.Core/ServiceBusWorkbench.Core.csproj`
+- `src/ServiceBusWorkbench.App/ViewModels/ShellViewModel.cs`
+- `src/ServiceBusWorkbench.App/MainWindow.xaml`
 - focused Core/App tests for those files
 
 **Do not change:**
@@ -280,9 +280,9 @@ Stage 1 acceptance:
 **Allowed files/modules:**
 
 - focused authentication/authorization error formatting in Core or App
-- `src/ServiceBusEmulatorExplorer.App/ViewModels/ShellViewModel.cs`
-- `src/ServiceBusEmulatorExplorer.App/ViewModels/MessageInspectionViewModel.cs`
-- `src/ServiceBusEmulatorExplorer.App/MainWindow.xaml`
+- `src/ServiceBusWorkbench.App/ViewModels/ShellViewModel.cs`
+- `src/ServiceBusWorkbench.App/ViewModels/MessageInspectionViewModel.cs`
+- `src/ServiceBusWorkbench.App/MainWindow.xaml`
 - focused App/Core/UI smoke tests
 - `README.md`
 - `tests/README.md` if test setup needs expansion
