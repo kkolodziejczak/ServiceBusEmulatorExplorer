@@ -1,5 +1,5 @@
-# Shared by the interactive release helpers (Approve-ReleaseSigning.ps1,
-# Sync-ReleaseScreenshot.ps1). Works in Windows PowerShell 5.1 and PowerShell 7;
+# Console helpers for the interactive release scripts (Sync-ReleaseScreenshot.ps1;
+# the signing helper keeps its own copy in gh-release-signing). Works in Windows PowerShell 5.1 and PowerShell 7;
 # keep this file ASCII so 5.1 reads it correctly.
 
 $script:TitlePrefix = 'Release'

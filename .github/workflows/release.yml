@@ -23,10 +23,6 @@ on:
 permissions:
   contents: write
 
-env:
-  # Certum "Open Source Developer" code-signing certificate (SimplySign). Update after each yearly renewal.
-  SIGNING_CERT_THUMBPRINT: CFBAA0C626ABF4BAD8FEC533B9F36860011CA1C1
-
 jobs:
   build:
     name: Test and build unsigned assets
@@ -62,12 +58,12 @@ jobs:
           "version=$version" | Add-Content -Path $env:GITHUB_OUTPUT
 
       - name: Check out the tagged commit
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ steps.tag.outputs.tag }}
 
       - name: Set up .NET 10 SDK
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           dotnet-version: 10.0.x
 
@@ -92,7 +88,7 @@ jobs:
           .\scripts\Test-ReleaseArtifacts.ps1 -Version '${{ steps.tag.outputs.version }}'
 
       - name: Keep the unsigned assets for signing
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: unsigned-release
           path: artifacts/release/${{ steps.tag.outputs.tag }}/*.exe
@@ -100,80 +96,18 @@ jobs:
           # Signing must be approved, and failed jobs rerun, within this window.
           retention-days: 7
 
+  # The approval gate, SimplySign login and signing live in kkolodziejczak/gh-release-signing (DEC-059, DEC-061).
   sign:
-    name: Sign release executables
     needs: build
-    runs-on: windows-latest
-    timeout-minutes: 30
-    # The approval gate: only the owner can start this job, and its secrets exist only here (DEC-059).
-    environment: code-signing
-    # One signing job at a time: each has its own mailbox, but logout removes leftover ones.
-    concurrency:
-      group: code-signing
-      cancel-in-progress: false
+    uses: kkolodziejczak/gh-release-signing/.github/workflows/sign.yml@main
+    # A called workflow sees no secrets unless the caller passes them, environment secrets included.
+    secrets: inherit
     permissions:
       contents: read
-    env:
-      RELEASE_PATH: artifacts/release/${{ needs.build.outputs.tag }}
-
-    steps:
-      # The workflow's own commit supplies the signing scripts; the assets come from the build job.
-      - name: Check out the signing scripts
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Download the unsigned assets
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: unsigned-release
-          path: ${{ env.RELEASE_PATH }}
-
-      - name: Install SimplySign Desktop
-        shell: pwsh
-        run: .\scripts\SimplySign-Ci.ps1 -Install
-
-      - name: Open the SimplySign login window
-        shell: pwsh
-        run: .\scripts\SimplySign-Ci.ps1 -OpenLogin
-
-      # scripts/Approve-ReleaseSigning.ps1 finds this step by the text after the emoji; keep it in sync.
-      - name: "📬 Waiting for your SimplySign code"
-        shell: pwsh
-        env:
-          CERTUM_EMAIL: ${{ secrets.CERTUM_EMAIL }}
-          MAILBOX_TOKEN: ${{ secrets.MAILBOX_TOKEN }}
-        run: .\scripts\SimplySign-Ci.ps1 -WaitAndLogin
-
-      - name: Sign and verify both executables
-        shell: pwsh
-        run: |
-          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
-            Sort-Object { [version]$_.Directory.Parent.Name } -Descending | Select-Object -First 1 -ExpandProperty FullName
-          $assets = @(Get-ChildItem -LiteralPath $env:RELEASE_PATH -Filter *.exe | ForEach-Object FullName)
-          # Retry while the SimplySign session is still open: the timestamp server occasionally fails a request.
-          for ($attempt = 1; $attempt -le 3; $attempt++) {
-            & $signtool sign /sha1 $env:SIGNING_CERT_THUMBPRINT /fd sha256 /tr http://time.certum.pl /td sha256 $assets
-            if ($LASTEXITCODE -eq 0) { break }
-            if ($attempt -eq 3) { throw "signtool sign failed three times; last exit code $LASTEXITCODE." }
-            Start-Sleep -Seconds (10 * $attempt)
-          }
-          & $signtool verify /pa $assets
-          if ($LASTEXITCODE -ne 0) { throw "signtool verify failed with exit code $LASTEXITCODE." }
-          .\scripts\Test-ReleaseArtifacts.ps1 -Version '${{ needs.build.outputs.version }}' -ExpectedSignerThumbprint $env:SIGNING_CERT_THUMBPRINT
-
-      - name: Keep the signed assets
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: signed-release
-          path: ${{ env.RELEASE_PATH }}/*.exe
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Empty the mailbox and stop SimplySign
-        if: always()
-        shell: pwsh
-        env:
-          MAILBOX_TOKEN: ${{ secrets.MAILBOX_TOKEN }}
-        run: .\scripts\SimplySign-Ci.ps1 -Logout
+      id-token: write
+    with:
+      artifact: unsigned-release
+      signed-artifact: signed-release
 
   release:
     name: Smoke-test signed assets and draft release
@@ -184,12 +118,12 @@ jobs:
 
     steps:
       - name: Check out the tagged commit
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.build.outputs.tag }}
 
       - name: Set up .NET 10 SDK
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           dotnet-version: 10.0.x
 
@@ -208,16 +142,20 @@ jobs:
         run: dotnet build tests\ServiceBusEmulatorExplorer.UiSmoke.Tests\ServiceBusEmulatorExplorer.UiSmoke.Tests.csproj
 
       - name: Download the signed assets
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: signed-release
           path: artifacts/release/${{ needs.build.outputs.tag }}
+
+      - name: Validate the signed assets
+        shell: pwsh
+        run: .\scripts\Test-ReleaseArtifacts.ps1 -Version '${{ needs.build.outputs.version }}' -ExpectedSignerThumbprint '${{ needs.sign.outputs.thumbprint }}'
 
       - name: Locate the signed assets
         id: publish
         shell: pwsh
         run: |
-          # The sign job's Test-ReleaseArtifacts proved the two names; an empty path would make the smoke test fall back to a Debug build.
+          # Test-ReleaseArtifacts proved the two names; an empty path would make the smoke test fall back to a Debug build.
           $releasePath = "artifacts\release\${{ needs.build.outputs.tag }}"
           foreach ($asset in @(@{ Output = 'runtime_required_asset'; Suffix = '-requires-dotnet10.exe' }, @{ Output = 'portable_asset'; Suffix = '-portable.exe' })) {
             $files = @(Get-ChildItem -LiteralPath $releasePath -Filter "*$($asset.Suffix)")

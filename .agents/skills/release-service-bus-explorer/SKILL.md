@@ -15,7 +15,8 @@ Publish one immutable `vMAJOR.MINOR.PATCH` release from the current repository. 
    - `.github/workflows/release.yml`
    - `.github/workflows/update-readme-screenshot.yml`
    - `scripts/Push-ReleaseTag.ps1`
-   - `scripts/Sync-ReleaseScreenshot.ps1`, `scripts/Approve-ReleaseSigning.ps1` and the module they share, `scripts/ReleaseConsole.psm1`
+   - `scripts/Sync-ReleaseScreenshot.ps1` and its module, `scripts/ReleaseConsole.psm1`
+   - the shared signing workflow and helper in `kkolodziejczak/gh-release-signing` (`sign.yml`, `Approve-ReleaseSigning.ps1`)
    - every publish, artifact-validation, or smoke-test script invoked by `release.yml`
 3. Confirm that the inspected files still implement this contract:
    - a `v*` tag triggers the release workflow;
@@ -99,12 +100,11 @@ Verify the local and remote tag both resolve to the release commit. This gate is
 
 ## 7. Watch the release gate
 
-The `sign` job waits for the user: they approve the `code-signing` environment and type the SimplySign phone code (DEC-059). An agent must do neither. Right after the tag push, open the signing helper in a visible Windows PowerShell window on the user's desktop. Launch it outside the sandbox, otherwise the window stays invisible:
+The `sign` job waits for the user: they approve the `code-signing` environment and type the SimplySign phone code (DEC-059). An agent must do neither. The helper is the `gh release-signing` extension from `kkolodziejczak/gh-release-signing` (DEC-061). Before tagging, check that `gh extension list` shows `release-signing`; if it does not, ask the user to run `gh extension install kkolodziejczak/gh-release-signing` and do not tag until they have. Right after the tag push, open the helper in a visible Windows PowerShell window on the user's desktop, in this repository's folder. Launch it outside the sandbox, otherwise the window stays invisible:
 
 ```powershell
 $signing = Start-Process powershell.exe -WorkingDirectory (Resolve-Path .) -PassThru -ArgumentList @(
-    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-NoExit',
-    '-File', '.\scripts\Approve-ReleaseSigning.ps1', '-Tag', 'v0.1.4')
+    '-NoProfile', '-NoExit', '-Command', 'gh release-signing approve -Tag v0.1.4')
 $signing.Id
 ```
 
