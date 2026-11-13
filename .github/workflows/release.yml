@@ -100,6 +100,8 @@ jobs:
   sign:
     needs: build
     uses: kkolodziejczak/gh-release-signing/.github/workflows/sign.yml@main
+    # A called workflow sees no secrets unless the caller passes them, environment secrets included.
+    secrets: inherit
     permissions:
       contents: read
       id-token: write
