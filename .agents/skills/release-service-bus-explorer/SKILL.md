@@ -88,12 +88,11 @@ Verify the local and remote tag both resolve to the release commit. This gate is
 
 ## 6. Watch the release gate
 
-The `sign` job waits for the user: they approve the `code-signing` environment and type the SimplySign phone code (DEC-059). An agent must do neither. Right after the tag push, open the signing helper in a visible Windows PowerShell window on the user's desktop. Launch it outside the sandbox, otherwise the window stays invisible:
+The `sign` job waits for the user: they approve the `code-signing` environment and type the SimplySign phone code (DEC-059). An agent must do neither. The helper is the `gh release-signing` extension from `kkolodziejczak/gh-release-signing` (DEC-060). Before tagging, check that `gh extension list` shows `release-signing`; if it does not, ask the user to run `gh extension install kkolodziejczak/gh-release-signing` and do not tag until they have. Right after the tag push, open the helper in a visible Windows PowerShell window on the user's desktop, in this repository's folder. Launch it outside the sandbox, otherwise the window stays invisible:
 
 ```powershell
 $signing = Start-Process powershell.exe -WorkingDirectory (Resolve-Path .) -PassThru -ArgumentList @(
-    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-NoExit',
-    '-File', '.\scripts\Approve-ReleaseSigning.ps1', '-Tag', 'v0.1.4')
+    '-NoProfile', '-NoExit', '-Command', 'gh release-signing approve -Tag v0.1.4')
 $signing.Id
 ```
 
