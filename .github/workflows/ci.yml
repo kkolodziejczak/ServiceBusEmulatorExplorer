@@ -19,6 +19,8 @@ jobs:
     name: Fast tests
     runs-on: windows-latest
     timeout-minutes: 10
+    env:
+      AVALONIA_TELEMETRY_OPTOUT: 1
 
     steps:
       - name: Check out repository
@@ -43,6 +45,14 @@ jobs:
         shell: pwsh
         run: dotnet test ServiceBusWorkbench.slnx --configuration Release --filter "TestCategory!=Integration&TestCategory!=UiSmoke"
 
+      - name: Upload Avalonia renders
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: avalonia-renders-windows-fast-tests
+          path: tests/ServiceBusWorkbench.Avalonia.Tests/bin/Release/net10.0/avalonia-renders/
+          if-no-files-found: ignore
+
       - name: Verify README screenshot generation
         shell: pwsh
         timeout-minutes: 3
@@ -50,3 +60,35 @@ jobs:
           dotnet build tools\ServiceBusWorkbench.ReadmeScreenshot\ServiceBusWorkbench.ReadmeScreenshot.csproj --configuration Release -p:UseSharedCompilation=false -p:NodeReuse=false
           $outputPath = Join-Path $env:RUNNER_TEMP "readme-screenshot\service-bus-workbench.png"
           .\scripts\Update-ReadmeScreenshot.ps1 -OutputPath $outputPath -TimeoutSeconds 120
+
+  avalonia-renders:
+    # DEC-064: the Avalonia spike must render the same pixels on every OS, checked against one set of baselines.
+    name: Avalonia renders (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    env:
+      AVALONIA_TELEMETRY_OPTOUT: 1
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Run the Avalonia render tests
+        run: dotnet test tests/ServiceBusWorkbench.Avalonia.Tests/ServiceBusWorkbench.Avalonia.Tests.csproj --configuration Release
+
+      - name: Upload renders
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: avalonia-renders-${{ matrix.os }}
+          path: tests/ServiceBusWorkbench.Avalonia.Tests/bin/Release/net10.0/avalonia-renders/
+          if-no-files-found: error

@@ -1,11 +1,13 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/ServiceBusWorkbench.App/ServiceBusWorkbench.App.csproj" />
+    <Project Path="src/ServiceBusWorkbench.Avalonia/ServiceBusWorkbench.Avalonia.csproj" />
     <Project Path="src/ServiceBusWorkbench.Core/ServiceBusWorkbench.Core.csproj" />
     <Project Path="src/ServiceBusWorkbench.Presentation/ServiceBusWorkbench.Presentation.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ServiceBusWorkbench.App.Tests/ServiceBusWorkbench.App.Tests.csproj" />
+    <Project Path="tests/ServiceBusWorkbench.Avalonia.Tests/ServiceBusWorkbench.Avalonia.Tests.csproj" />
     <Project Path="tests/ServiceBusWorkbench.Core.Tests/ServiceBusWorkbench.Core.Tests.csproj" />
     <Project Path="tests/ServiceBusWorkbench.Integration.Tests/ServiceBusWorkbench.Integration.Tests.csproj" />
     <Project Path="tests/ServiceBusWorkbench.Presentation.Tests/ServiceBusWorkbench.Presentation.Tests.csproj" />

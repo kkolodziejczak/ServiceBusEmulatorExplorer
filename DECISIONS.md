@@ -80,6 +80,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-061 | accepted | Release | Signing lives in one shared repository, gh-release-signing, that every repository calls |
 | DEC-062 | accepted | Build | Workflow actions stay on their latest releases, pinned by SHA and updated by Dependabot |
 | DEC-063 | accepted | Product | The product is called Service Bus Workbench |
+| DEC-064 | accepted | Architecture | Avalonia screens are approved side by side, then pinned by their own exact baselines |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -522,3 +523,10 @@ DLQ palette clarification: the user explicitly disallowed changing DLQ tag color
 - Decision: the product, repository, solution, projects, namespaces, release files and the `%LOCALAPPDATA%` folder are named Service Bus Workbench (`ServiceBusWorkbench`, `service-bus-workbench`). It was Service Bus Emulator Explorer before.
 - Because: "Emulator" read as emulator-only, and plain "Service Bus Explorer" is the name of the paolosalvatori tool and of the Azure portal feature.
 - Consequences: `ProtectedWorkspacePreferencesStore.CreateDefault` moves the preferences file saved under the former folder name on first start, unless the current folder already has one. A former version that is still running keeps saving to the former folder, and those later changes are not picked up. Replay copies carry `sb-workbench.replay.*` properties; `ReplayLineage` still reads the former `sbe-explorer.replay.*` names, so copies replayed before the rename keep their family, and it does not copy the former names onto new copies. A former version of the app does not recognise copies made by this one. Test switches use the `SBW_` prefix and message templates the sbwtemplate extension. Mentions of "ServiceBusExplorer" refer to the paolosalvatori tool and stay.
+
+## DEC-064 - Avalonia screens are approved side by side, then pinned by their own exact baselines
+
+- Status: accepted, 2026-10-23; the user chose option 4a after learning that Avalonia draws through Skia, which positions and anti-aliases text differently from WPF, and approved a spike (option 3a).
+- Decision: an Avalonia screen does not have to reproduce its WPF baseline's pixels. Each ported screen is shown to the user beside its WPF baseline with a diff; once approved, its Avalonia render becomes that screen's baseline (DEC-050), one for every operating system. Outside text every pixel must match exactly; inside the bounds of text elements the images are compared after a 3x3 blur within a calibrated tolerance, because each OS rasterizes glyphs with its own font engine (user's choice 3a, 2026-10-23). The tolerance must still fail a text moved by 1 px. Layout, sizes, colours and text must still match WPF; only rasterization may differ.
+- Because: reproducing WPF's text rendering exactly is not achievable with another renderer, and the user's requirement is that the app looks the same everywhere, which one renderer with bundled fonts can prove.
+- Consequences: the Avalonia spike (`src/ServiceBusWorkbench.Avalonia`, `tests/ServiceBusWorkbench.Avalonia.Tests`) renders the Delete messages dialog headlessly and compares it exactly with its own baselines on Windows, Linux and macOS CI runners, writing a diff against the WPF baseline for review. Profile colours come from the shared `ProfilePalette` so both frameworks use the same values.
