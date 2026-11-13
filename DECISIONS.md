@@ -75,6 +75,7 @@ When asked "why is X like this", answer from the matching entry and cite its ID.
 | DEC-056 | accepted | Architecture | The inspector's text is editor-neutral; tests reach AvalonEdit through the bridge |
 | DEC-057 | accepted | Architecture | The Message Workbench migrates to view models now, behind new pixel baselines |
 | DEC-058 | accepted | Release | Releases hide the Message Workbench until it is finished |
+| DEC-059 | accepted | Release | Releases are signed on GitHub's runner with a phone code the owner types each time |
 
 ## DEC-001 — Replay is non-destructive by default
 
@@ -482,3 +483,10 @@ DLQ palette clarification: the user explicitly disallowed changing DLQ tag color
 - Decision: the app hides the workspace tabs and the inspector's Create template button, the only two ways into the Workbench, unless it is started with `--message-workbench-prototype`. `App.OnStartup` is the one place that decides; the window itself still shows the Workbench by default.
 - Because: the user wants a new release to use now, and the Workbench is not ready for it ("we might hide the Message Workbench for now in the release").
 - Consequences: Workbench code, tests, pixel baselines and UI smoke tests are unchanged, because they build the window directly or pass the switch. The README screenshot hides the Workbench too, so it shows what a release shows. Remove the hiding, and this entry's effect, when the Workbench is approved for release.
+
+## DEC-059 - Releases are signed on GitHub's runner with a phone code the owner types each time
+
+- Status: accepted, 2026-11-13; the user bought a Certum Open Source Code Signing (cloud, SimplySign) certificate as a private individual (issue #7), wanted releases built and signed in GitHub Actions rather than locally, accepted manual steps, and asked whether anyone watching the public repository could steal the code. Spike run 43454305882 signed a test exe this way.
+- Decision: the `sign` job in `release.yml` runs on a GitHub-hosted Windows runner behind the `code-signing` environment, which only the owner can approve. It installs the pinned SimplySign Desktop, opens its login window and waits for the owner's one-time phone code in the `SIMPLYSIGN_CODE` environment variable (the "mailbox"). `scripts/Approve-ReleaseSigning.ps1` asks for the approval and the code. The job masks the code, empties the mailbox before waiting, after reading and at the end, and signs both executables with an RFC 3161 Certum timestamp. Artifact validation then requires a valid signature from the release certificate.
+- Because: the user did not want to build and upload releases by hand, and did not want anything in GitHub that can sign on its own. A stored TOTP seed would allow that, and a reverse-engineered Certum API client (`ssign`) is unofficial. Environment variables are visible only to people with repository access and readable only by jobs past the owner's approval, so watching the public run reveals when a code is sent but not the code. The code also works only once and for about 30 seconds.
+- Consequences: each release needs the owner at the keyboard for about 2 minutes after the build. The certificate thumbprint in `release.yml` changes with each yearly renewal, and the `MAILBOX_TOKEN` secret must be replaced when it expires. Typing into SimplySign's window depends on the runner's desktop; if that becomes unreliable, revisit a self-hosted runner or an own HTTPS client.

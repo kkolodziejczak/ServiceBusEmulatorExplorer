@@ -18,7 +18,7 @@ Publish one immutable `vMAJOR.MINOR.PATCH` release from the current repository. 
    - every publish, artifact-validation, or smoke-test script invoked by `release.yml`
 3. Confirm that the inspected files still implement this contract:
    - a `v*` tag triggers the release workflow;
-   - the workflow tests, builds, validates, and launch-smokes both Windows assets;
+   - the workflow tests, builds, validates, signs (after the user's approval and phone code), and launch-smokes both Windows assets;
    - successful validation creates a draft release;
    - publishing triggers the README screenshot workflow.
 
@@ -88,6 +88,12 @@ Verify the local and remote tag both resolve to the release commit. This gate is
 
 ## 6. Watch the release gate
 
+The `sign` job waits for the user: they approve the `code-signing` environment and type the SimplySign phone code (DEC-059). An agent cannot do either. Ask the user to run this in their own Windows PowerShell and keep it open until it reports the run result:
+
+```powershell
+.\scripts\Approve-ReleaseSigning.ps1 -Tag v0.1.4
+```
+
 Find the newest `release.yml` push run whose `headBranch` equals the tag:
 
 ```powershell
@@ -95,12 +101,13 @@ gh run list --workflow release.yml --event push --branch v0.1.4 --limit 5 --json
 gh run watch <run-id> --exit-status --interval 10
 ```
 
-Use a bounded watch of about five minutes and send the user a concise progress update at least every 60 seconds. A `403` while `gh` requests check annotations is informational when the watch exits successfully and the run conclusion is `success`.
+Use a bounded watch of about five minutes and send the user a concise progress update at least every 60 seconds. A `403` while `gh` requests check annotations is informational when the watch exits successfully and the run conclusion is `success`. The run waits as long as the user takes to approve and send the code; that wait is not a failure.
 
 Require successful completion of every applicable job step, including:
 
 - fast tests;
 - both asset builds and artifact validation;
+- signing both executables and the signature check;
 - runtime-required executable launch smoke;
 - portable executable launch smoke;
 - draft release creation and upload.
