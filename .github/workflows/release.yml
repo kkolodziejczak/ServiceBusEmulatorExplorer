@@ -135,7 +135,7 @@ jobs:
         shell: pwsh
         run: .\scripts\SimplySign-Ci.ps1 -OpenLogin
 
-      # scripts/Approve-ReleaseSigning.ps1 finds this step by its 📬 prefix.
+      # scripts/Approve-ReleaseSigning.ps1 finds this step by the text after the emoji; keep it in sync.
       - name: "📬 Waiting for your SimplySign code"
         shell: pwsh
         env:

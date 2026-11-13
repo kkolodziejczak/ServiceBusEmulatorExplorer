@@ -30,12 +30,21 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $environmentName = 'code-signing'
-# The signing job's waiting step starts with this emoji (see release.yml).
-$waitingStepPrefix = [char]::ConvertFromUtf32(0x1F4EC)
+# The signing job's waiting step in release.yml ends with this text. It is
+# matched as text because the step name's leading emoji is easy to garble.
+$waitingStepName = 'Waiting for your SimplySign code'
 
 function Invoke-Gh {
-    param([Parameter(Mandatory = $true)][string[]]$Arguments, [string]$InputText = $null)
-    $output = if ($null -ne $InputText) { $InputText | gh @Arguments } else { gh @Arguments }
+    param([Parameter(Mandatory = $true)][string[]]$Arguments, [string]$InputText = '')
+    # gh writes UTF-8; Windows PowerShell would otherwise decode it with the console's code page.
+    $consoleEncoding = [Console]::OutputEncoding
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    try {
+        $output = if ($InputText) { $InputText | gh @Arguments } else { gh @Arguments }
+    }
+    finally {
+        [Console]::OutputEncoding = $consoleEncoding
+    }
     if ($LASTEXITCODE -ne 0) { throw "gh $($Arguments -join ' ') failed with exit code $LASTEXITCODE." }
     return ($output -join "`n")
 }
@@ -73,15 +82,11 @@ Write-Host "Following $runUrl"
 
 $approved = $false
 $answeredJobIds = @()
-$lastStatus = ''
+$lastActivity = ''
 $deadline = (Get-Date).AddMinutes($TimeoutMinutes)
 while ((Get-Date) -lt $deadline) {
     $run = Get-GhJson "repos/$repository/actions/runs/$RunId"
     if ($run.status -eq 'completed') { break }
-    if ($run.status -ne $lastStatus) {
-        Write-Host "Run status: $($run.status)"
-        $lastStatus = $run.status
-    }
 
     if (-not $approved) {
         # Windows PowerShell passes a JSON array down the pipeline as one object, so unwrap it first.
@@ -110,8 +115,17 @@ while ((Get-Date) -lt $deadline) {
     }
 
     $jobs = (Get-GhJson "repos/$repository/actions/runs/$RunId/jobs").jobs
+    $activity = @($jobs | Where-Object { $_.status -ne 'completed' } | ForEach-Object {
+            $step = $_.steps | Where-Object { $_.status -eq 'in_progress' } | Select-Object -First 1
+            if ($step) { "$($_.name) > $($step.name)" } else { "$($_.name) ($($_.status))" }
+        }) -join '; '
+    if ($activity -and $activity -ne $lastActivity) {
+        Write-Host "$(Get-Date -Format 'HH:mm:ss')  $activity"
+        $lastActivity = $activity
+    }
+
     foreach ($job in $jobs) {
-        $waiting = $job.steps | Where-Object { $_.name.StartsWith($waitingStepPrefix) -and $_.status -eq 'in_progress' }
+        $waiting = $job.steps | Where-Object { $_.name -like "*$waitingStepName" -and $_.status -eq 'in_progress' }
         if ($waiting -and $job.id -notin $answeredJobIds) {
             $code = Read-SigningCode
             Invoke-Gh -Arguments @('variable', 'set', 'SIMPLYSIGN_CODE', '--env', $environmentName, '--repo', $repository) -InputText $code | Out-Null
