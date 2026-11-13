@@ -7,8 +7,9 @@ Follows a release.yml run on GitHub. When the run waits for the code-signing
 approval it asks you to approve; when the signing job waits for the phone code
 it asks for the code (hidden as you type) and puts it in the SIMPLYSIGN_CODE
 mailbox, which the job empties within seconds (DEC-059). Requires an
-authenticated GitHub CLI whose token can approve deployments and write
-environment variables of this repository.
+authenticated GitHub CLI. A fine-grained token needs, on this repository:
+Actions read, Deployments read and write (to approve), and Environments read
+and write (to send the code).
 
 .EXAMPLE
 .\scripts\Approve-ReleaseSigning.ps1 -Tag v0.4.0
@@ -94,9 +95,17 @@ while ((Get-Date) -lt $deadline) {
             }
 
             $body = @{ environment_ids = @($pending[0].environment.id); state = 'approved'; comment = 'Approved with Approve-ReleaseSigning.ps1' } | ConvertTo-Json -Compress
-            Invoke-Gh -Arguments @('api', '-X', 'POST', "repos/$repository/actions/runs/$RunId/pending_deployments", '--input', '-') -InputText $body | Out-Null
             $approved = $true
-            Write-Host 'Approved. SimplySign is being installed on the runner; the code prompt follows in a few minutes.'
+            try {
+                Invoke-Gh -Arguments @('api', '-X', 'POST', "repos/$repository/actions/runs/$RunId/pending_deployments", '--input', '-') -InputText $body | Out-Null
+                Write-Host 'Approved. SimplySign is being installed on the runner; the code prompt follows in a few minutes.'
+            }
+            catch {
+                Write-Host "GitHub refused the approval: $($_.Exception.Message)"
+                Write-Host 'A fine-grained gh token needs Deployments: Read and write for this. Approve on the run page instead:'
+                Write-Host "  $runUrl  (Review deployments > code-signing > Approve and deploy)"
+                Write-Host 'This script keeps waiting and asks for the code once signing starts.'
+            }
         }
     }
 
