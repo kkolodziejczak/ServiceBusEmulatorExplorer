@@ -217,10 +217,13 @@ jobs:
         id: publish
         shell: pwsh
         run: |
-          # Test-ReleaseArtifacts already proved these are the only two assets and named as Publish-Release.ps1 names them.
+          # The sign job's Test-ReleaseArtifacts proved the two names; an empty path would make the smoke test fall back to a Debug build.
           $releasePath = "artifacts\release\${{ needs.build.outputs.tag }}"
-          "runtime_required_asset=$((Get-Item "$releasePath\*-requires-dotnet10.exe").FullName)" | Add-Content -Path $env:GITHUB_OUTPUT
-          "portable_asset=$((Get-Item "$releasePath\*-portable.exe").FullName)" | Add-Content -Path $env:GITHUB_OUTPUT
+          foreach ($asset in @(@{ Output = 'runtime_required_asset'; Suffix = '-requires-dotnet10.exe' }, @{ Output = 'portable_asset'; Suffix = '-portable.exe' })) {
+            $files = @(Get-ChildItem -LiteralPath $releasePath -Filter "*$($asset.Suffix)")
+            if ($files.Count -ne 1) { throw "Expected one signed *$($asset.Suffix) in $releasePath; found $($files.Count)." }
+            "$($asset.Output)=$($files[0].FullName)" | Add-Content -Path $env:GITHUB_OUTPUT
+          }
 
       - name: Launch-smoke runtime-required asset
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.use_manual_launch_smoke_proof) }}

@@ -158,7 +158,8 @@ while ((Get-Date) -lt $deadline) {
                 Write-Host 'Approved. SimplySign is being installed on the runner; the code prompt follows in about a minute.'
             }
             catch {
-                $stillPending = @(@(Get-GhJson "repos/$repository/actions/runs/$RunId/pending_deployments") | Where-Object { $_.environment.name -eq $environmentName })
+                $deployments = Get-GhJson "repos/$repository/actions/runs/$RunId/pending_deployments"
+                $stillPending = @(@($deployments) | Where-Object { $_.environment.name -eq $environmentName })
                 if ($stillPending.Count -eq 0) {
                     Write-Host 'Signing was already approved elsewhere.'
                 }
@@ -196,7 +197,8 @@ $run = Get-GhJson "repos/$repository/actions/runs/$RunId"
 if ($run.status -ne 'completed') { throw "The run did not finish within $TimeoutMinutes minutes: $runUrl" }
 if ($run.conclusion -ne 'success') {
     Write-Host "The run ended with '$($run.conclusion)': $runUrl"
-    Write-Host "If only signing failed (for example an expired code), run: gh run rerun $RunId --failed; then this script again with -RunId $RunId."
+    $again = if ($Tag) { "-RunId $RunId -Tag $Tag" } else { "-RunId $RunId" }
+    Write-Host "If only signing failed (for example an expired code), run: gh run rerun $RunId --failed; then this script again with $again."
     exit 1
 }
 

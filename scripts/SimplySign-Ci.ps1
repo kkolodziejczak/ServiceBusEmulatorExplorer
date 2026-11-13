@@ -14,7 +14,8 @@
 #   -Logout        delete this and any leftover mailboxes, stop SimplySign Desktop.
 #
 # Environment: CERTUM_EMAIL, SIGNING_CERT_THUMBPRINT, MAILBOX_TOKEN (fine-grained token
-# with Environments read/write on this repository), GITHUB_REPOSITORY.
+# with Environments read/write on this repository), and GitHub's GITHUB_REPOSITORY,
+# GITHUB_RUN_ID and GITHUB_RUN_ATTEMPT.
 # The code and e-mail are masked and never printed.
 param([switch]$Install, [switch]$OpenLogin, [switch]$WaitAndLogin, [switch]$Logout)
 $ErrorActionPreference = "Stop"
@@ -116,18 +117,22 @@ function Send-Text([string]$Text) {
 }
 
 # Calls the mailbox API with the mailbox token. Only "not found" means an empty
-# mailbox; any other failure (expired token, network) stops the job visibly.
+# mailbox. A rejected token stops the job at once; other failures (network,
+# GitHub 5xx) are retried a few times before the job stops visibly.
 function Invoke-Mailbox([string[]]$GhArguments) {
     $env:GH_TOKEN = $env:MAILBOX_TOKEN
     $ErrorActionPreference = 'Continue'
-    $Output = & gh @GhArguments 2>&1
-    $Failed = $LASTEXITCODE -ne 0
-    $global:LASTEXITCODE = 0
-    $Stdout = ($Output | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }) -join "`n"
-    $Stderr = ($Output | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] } | ForEach-Object { "$_" }) -join "`n"
-    if ($Failed -and $Stderr -notmatch 'HTTP 404') { throw "The SIMPLYSIGN_CODE mailbox call failed: $Stderr" }
-    if ($Failed) { return $null }
-    return $Stdout.Trim()
+    for ($Attempt = 1; $true; $Attempt++) {
+        $Output = & gh @GhArguments 2>&1
+        $Failed = $LASTEXITCODE -ne 0
+        $global:LASTEXITCODE = 0
+        $Stdout = ($Output | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }) -join "`n"
+        $Stderr = ($Output | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] } | ForEach-Object { "$_" }) -join "`n"
+        if (-not $Failed) { return $Stdout.Trim() }
+        if ($Stderr -match 'HTTP 404') { return $null }
+        if ($Stderr -match 'HTTP 40[13]' -or $Attempt -ge 4) { throw "The SIMPLYSIGN_CODE mailbox call failed: $Stderr" }
+        Start-Sleep -Seconds (2 * $Attempt)
+    }
 }
 
 function Read-Mailbox { return Invoke-Mailbox @('api', $MailboxApi, '--jq', '.value') }
@@ -191,10 +196,14 @@ function Invoke-WaitAndLogin {
 }
 
 function Invoke-Logout {
-    if ($env:MAILBOX_TOKEN) { Clear-LeftoverMailboxes }
     Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -like "*SimplySign*" } |
         Stop-Process -Force -ErrorAction SilentlyContinue
-    Write-Host "Mailbox emptied and SimplySign Desktop stopped."
+    Write-Host "SimplySign Desktop stopped."
+    # Leftover codes have expired, so failing to delete them must not fail a signed release.
+    if ($env:MAILBOX_TOKEN) {
+        try { Clear-LeftoverMailboxes; Write-Host "Mailboxes emptied." }
+        catch { Write-Host "::warning title=Mailbox cleanup failed::$($_.Exception.Message) Delete any SIMPLYSIGN_CODE_* variable of the code-signing environment by hand." }
+    }
 }
 
 if ($Install) { Install-SimplySign }

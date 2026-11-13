@@ -7,9 +7,7 @@ param(
     [string]$Configuration = "Release",
 
     [ValidateRange(1, 3600)]
-    [int]$PublishTimeoutSeconds = 300,
-
-    [string]$GitHubOutputPath = ""
+    [int]$PublishTimeoutSeconds = 300
 )
 
 $ErrorActionPreference = "Stop"
@@ -56,14 +54,6 @@ Remove-Item -LiteralPath $runtimeRequiredOutput, $portableOutput -Recurse -Force
 & $validator -Version $Version -CommitSha $commitSha -ReleasePath $releaseRoot
 if ($LASTEXITCODE -ne 0) {
     throw "Release artifact validation failed with exit code $LASTEXITCODE."
-}
-
-if (-not [string]::IsNullOrWhiteSpace($GitHubOutputPath)) {
-    @(
-        "release_path=$releaseRoot"
-        "runtime_required_asset=$runtimeRequiredAsset"
-        "portable_asset=$portableAsset"
-    ) | Add-Content -LiteralPath $GitHubOutputPath
 }
 
 Write-Host "Published release assets to $releaseRoot"
